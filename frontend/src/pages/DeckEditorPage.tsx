@@ -1,13 +1,5 @@
 import { canRegenerate, regenerateHref, regenerateState } from '@/lib/deck/regenerate-prefill';
-import {
-  useCallback,
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 // Editor-only stylesheets ship with this chunk, not the boot payload (E265).
 import '@/styles/deck-builder-export.css';
 import '@/styles/deck-builder-editor.css';
@@ -18,203 +10,64 @@ import '@/styles/deck-builder-import-dialog.css';
 import '@/styles/deck-builder-analysis-panel.css';
 import { useDocumentTitle } from '@/lib/util/use-document-title';
 import { useMediaQuery } from '@/lib/util/use-media-query';
-import { haptics } from '@/lib/util/haptics';
-import { deckCoverArt } from '@/lib/deck/deck-cover';
-import { pickDeckCover } from '@spellcontrol/deck-metrics';
 import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
-import { useBinderByCopyId } from '@/lib/binder/use-binder-by-copy';
-import { useLocation, useNavigate, useParams, useSearchParams, Navigate } from 'react-router-dom';
-import {
-  useDecksStore,
-  commanderShortName,
-  effectiveBracket,
-  withAllocationHealDeferred,
-  type DeckZone,
-} from '../store/decks';
-import { useCubeStore } from '../store/cube';
+import { useLocation, useNavigate, useParams, Navigate } from 'react-router-dom';
+import { useDecksStore, effectiveBracket, type Deck } from '../store/decks';
 import { useDeckHistoryStore } from '../store/deck-history';
-import { useCollectionStore } from '../store/collection';
-import { DeckDisplay, scrollToDeckStats } from '../components/deck/DeckDisplay';
 import { type DeckView } from '@/lib/deck-analysis/deck-view';
-import { type AnalysisTabId } from '@/lib/deck-analysis/deck-view';
 import { Tabs } from '@/components/overlays/Tabs';
-import {
-  bracketReasons,
-  bracketBorderline,
-} from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import { formatMoney } from '@/lib/collection/format-money';
-import { deckValue } from '@/lib/deck/deck-value';
-import { useDeckPrices } from '@/components/deck/use-deck-prices';
-import { useCurrency } from '@/lib/collection/currency';
-import { buildCommanderKey } from '@/lib/deck/commander-key';
-import type { BinderInfo } from '@/lib/binder/binder-refs';
-import { collectGroupNames } from '@/lib/deck/deck-tags';
-import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
-import { BuildTimeCoachStrip } from '../components/deck/BuildTimeCoachStrip';
-import { useBuildTimeNudge } from '@/lib/coach/use-build-time-nudge';
-import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/DeckCombosPanel';
-import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
-import { DeckAiReview } from '../components/deck/DeckAiReview';
-import { DeckAiRefine } from '../components/deck/DeckAiRefine';
-import { AiSourcesControl } from '../components/deck/AiSourcesControl';
-import { isCollectionScope, type AiScope } from '@/lib/ai/ai-scope';
-import { buildRefinePool } from '@/lib/ai/ai-refine';
+import { type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
 import { buildAlternativeIndex } from '@/lib/ai/refine-alternatives';
-import { constrainsToCollection } from '@/deck-builder/services/deckBuilder/deckFilters';
-import { DeckTokensSheet } from '../components/deck/DeckTokensSheet';
-import { DeckPrimerSheet } from '../components/deck/DeckPrimerSheet';
-import { AppendDeckDialog } from '../components/deck/AppendDeckDialog';
-import { BulkEditDeckDialog } from '../components/deck/BulkEditDeckDialog';
 import { DeckPublishNudge } from '../components/deck/DeckPublishNudge';
 import { useSealMoment } from '../components/shared/SealMoment';
 import { shouldCelebrateFirstPublish } from '@/lib/social/first-publish-celebration';
-import { PullListSheet } from '../components/deck/PullListSheet';
 import { useDeckTokens } from '../components/deck/use-deck-tokens';
-import { PowerHero } from '../components/deck/PowerHero';
-import { TableRecordPanel } from '../components/deck/TableRecordPanel';
-import { BracketTableRead } from '../components/deck/BracketTableRead';
-import { CoachFeed } from '../components/deck/CoachFeed';
-import { CommanderPickerSheet } from '../components/deck/CommanderPickerSheet';
-import { DeckSizePrompt, type SizePromptOption } from '../components/deck/DeckSizePrompt';
-import { FillDeckSheet } from '../components/deck/FillDeckSheet';
-import { filterCostPlanByOwnership } from '@/deck-builder/services/deckBuilder/costAnalyzer';
-import { EnginePanel } from '../components/deck/EnginePanel';
-import { WinConditionPanel } from '../components/deck/WinConditionPanel';
-import { toggleWinConTag } from '@/deck-builder/services/winConditions/winConTags';
-import { analyzeDeckSynergy } from '../deck-builder/services/synergy/deckSynergy';
-import {
-  buildSubstitutionOptions,
-  type SubstituteCandidate,
-} from '@/deck-builder/services/deckBuilder/substituteFinder';
-import {
-  buildNextBestMoves,
-  type NextBestMoveFocus,
-} from '@/deck-builder/services/deckBuilder/nextBestMove';
-import {
-  fromGapCard,
-  toSwapAgainst,
-  sortOwnedFirst,
-  type Change,
-  type LaneId,
-  type ChangeOwnership,
-} from '@/lib/coach/deck-change';
-import { useReplaceCuts } from '@/lib/coach/replace-cuts';
-import { onPlanCombos, staplesToSubstitute, winningCombos } from '@/lib/coach/coach-changes';
-import { combosThatFit, gapsThatFit, useCoachSettings } from '@/lib/coach/deck-settings-fit';
-import { collectionLandsAsCards, landUpgradeCandidates } from '@/lib/coach/land-candidates';
-import { buildSwapAlternativeFactors, type WhyFactor } from '@/lib/coach/why-factors';
+import { type Change } from '@/lib/coach/deck-change';
 import '../styles/deck-builder-card-search.css';
-import { computeAddFit } from '@/lib/coach/card-fit';
-import { toClockCard } from '@/lib/mana-sim/hand-classify';
-import { CardFitPanel } from '../components/deck/CardFitPanel';
-import { SwapThisCard } from '../components/deck/SwapThisCard';
-import { SimilarCardsStrip } from '../components/deck/SimilarCardsStrip';
-import { useSubstituteRanking } from '../components/deck/useSubstituteRanking';
-import * as substitutesV2 from '@/deck-builder/services/substitutes/surfaces';
-import { classifyCandidate, analyzeDeck } from '@/lib/deck-analysis/deck-analysis';
-import { useTaggerReady } from '@/lib/cards/use-tagger-ready';
+import { classifyCandidate } from '@/lib/deck-analysis/deck-analysis';
 import { heroBracketReadout } from '@/lib/deck-analysis/format-bracket-label';
-import { findCrossDeckMoves, type CrossDeckMove } from '@/lib/coach/cross-deck-moves';
 import { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
-import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
-import { useDeckCombos } from '@/lib/deck-analysis/use-deck-combos';
-import {
-  partitionCombosByZone,
-  toMainboardComboData,
-} from '@/lib/deck-analysis/combo-zone-partition';
-import { buildWinConditionSummary } from '@/lib/deck-analysis/win-condition-summary';
-import { useCommanderBracketAnalysis } from '@/lib/deck-analysis/use-commander-bracket-analysis';
 import { useUndoRedoKeyboard } from '@/lib/deck/use-undo-redo-keyboard';
 import { useRegisterShortcuts } from '@/components/app-shell/shortcut-registry';
-import { CardEditDialog } from '@/components/collection/CardEditDialog';
-import { type PrintingSelection } from '@/lib/collection/edit-card';
-import {
-  buildAllocationMap,
-  pickCollectionCopy,
-  classifyPrintingAvailability,
-  bindableFinishesByPrinting,
-  findStealableCopy,
-  planCardAdd,
-  listContestedCards,
-  makeDeckAllocationInfo,
-  useCollectionByCopyId,
-  type DonorOutcome,
-  type DonorZone,
-  type StealableCopy,
-} from '@/lib/collection/allocations';
-import { planQtyChange } from '@/lib/deck/deck-qty';
-import { deckColorIdentity, fitsColorIdentity, getMaxCopies } from '@/lib/deck/deck-validation';
-import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
-import { SharedCopiesSheet } from '../components/deck/SharedCopiesSheet';
-import { planProxyToggle, proxyToastMessage } from '@/lib/deck/proxy-slot';
-import { DeckFeedbackSheet } from '../components/deck/DeckFeedbackSheet';
-import { MovePrintingPrompt } from '../components/deck/MovePrintingPrompt';
-import { MoveToDeckSheet } from '../components/deck/MoveToDeckSheet';
-import { BuildReportSheet } from '../components/deck/BuildReportSheet';
 import { isBuildReportSeen } from '@/lib/deck/build-report-seen';
-import type { ComboMatch, ComboSeedContext } from '../types/combos';
-import { computeNewArrivals, type ArrivalsByType } from '@/lib/coach/new-arrivals';
-import {
-  coachWantedNames,
-  narrowArrivals,
-  rememberArrivalWatchlist,
-} from '@/lib/coach/arrival-watchlist';
-import { Modal } from '@/components/overlays/Modal';
-import { isValidCommander, isPdhCommanderEligible } from '@/lib/deck/commanders';
-import { areValidPartners, canHavePartner } from '@/deck-builder/lib/partnerUtils';
-import { PartnerCommanderSelector } from '../components/deck/PartnerCommanderSelector';
+import type { ComboSeedContext } from '../types/combos';
 import { useToastsStore } from '../store/toasts';
-import type { ScryfallCard } from '@/deck-builder/types';
-import type { Finish } from '../types';
-import { computeLandUpgrades } from '@/deck-builder/services/deckBuilder/landUpgrades';
-import { buildUpgradePlanTools } from '@/lib/coach/upgrade-plan-tools';
-import { applyUpgradePlan, type PlanStep } from '@/lib/coach/apply-upgrade-plan';
-import {
-  applyCheapestPrintings,
-  applyMatchMyCopies,
-  copyMismatches,
-  missingSlots,
-  PrintingLookupOfflineError,
-} from '@/lib/deck/deck-printing-actions';
-import { logger } from '@/lib/util/logger';
-import { useSearchCards } from '@/lib/search/use-search-cards';
-import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
-import {
-  getCardByName,
-  getCardsByRefs,
-  getOwnedPrinting,
-} from '../deck-builder/services/scryfall/client';
-import { parseScryfallCardRefs } from '@/lib/cards/scryfall-card-link';
-import { userMessage } from '@/lib/util/user-error';
+import { getCardByName } from '../deck-builder/services/scryfall/client';
 import { getSyncState, onSyncedChange } from '@/lib/sync';
-import { printedName } from '@spellcontrol/binder-routing';
 import { Button } from '@/components/shared/Button';
-import { EmptyState } from '@/components/shared/EmptyState';
 import {
   DECK_EDITOR_SHORTCUTS,
-  NO_DECKS,
   OWNED_ONLY_KEY,
-  ROLE_LABEL,
-  fetchFixingLands,
   readOwnedOnly,
 } from './deck-editor/deck-editor-helpers';
-import { DeckEditorCardPickerSheet } from './deck-editor/DeckEditorCardPickerSheet';
-import { AddZoneToggle } from './deck-editor/AddZoneToggle';
-import { DeckTestHandSheet } from './deck-editor/DeckTestHandSheet';
-import { ReplaceCommanderDialog } from './deck-editor/ReplaceCommanderDialog';
 import { DeckEditorHero } from './deck-editor/DeckEditorHero';
 import { DeckEditorOverflowMenu } from './deck-editor/DeckEditorOverflowMenu';
-import { deckEditActions, deckViewTabs } from './deck-editor/deck-page-chrome';
-import { useSuggestGroups } from './deck-editor/use-suggest-groups';
+import { deckViewTabs } from './deck-editor/deck-page-chrome';
 import { DeckScryfallDropOverlay } from './deck-editor/DeckScryfallDropOverlay';
 import { useSuggestionContext } from '@/lib/util/use-suggestion-context';
+import { useDeckArrivals } from './deck-editor/use-deck-arrivals';
+import { useDeckPrintingEdits } from './deck-editor/use-deck-printing-edits';
+import { useDeckCommanderEdits } from './deck-editor/use-deck-commander-edits';
+import { useDeckView } from './deck-editor/use-deck-view';
+import { useDeckAddFlow } from './deck-editor/use-deck-add-flow';
+import { useDeckReallocation } from './deck-editor/use-deck-reallocation';
+import { useDeckCoachApply } from './deck-editor/use-deck-coach-apply';
+import { useDeckDerived } from './deck-editor/use-deck-derived';
+import { useDeckOwnership } from './deck-editor/use-deck-ownership';
+import { useDeckCombosView } from './deck-editor/use-deck-combos-view';
+import { useDeckAnalysisData } from './deck-editor/use-deck-analysis-data';
+import { useDeckRefineData } from './deck-editor/use-deck-refine-data';
+import { useCoachArrivals } from './deck-editor/use-coach-arrivals';
+import { useDeckEditorHotkeys } from './deck-editor/use-deck-editor-hotkeys';
+import { useDeckHeroData } from './deck-editor/use-deck-hero-data';
+import { useDeckZoneEdits } from './deck-editor/use-deck-zone-edits';
+import { useDeckCardRenderers } from './deck-editor/use-deck-card-renderers';
+import { DeckEditorLayout } from './deck-editor/DeckEditorLayout';
+import { DeckEditorOverlays } from './deck-editor/DeckEditorOverlays';
 
 export function DeckEditorPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const location = useLocation();
   const deck = useDecksStore((s) => s.decks.find((d) => d.id === id) ?? null);
-  const currency = useCurrency();
   // Names the print job and tab: the print stylesheet can't label a checklist.
   useDocumentTitle(deck?.name);
   useSuggestionContext(deck);
@@ -222,63 +75,7 @@ export function DeckEditorPage() {
   // A fresh device hydrates an EMPTY IndexedDB first; the deck arrives with the first
   // server pull. Count that pull as loading, or a bookmark reads as deleted (sweep-3 B6-01).
   const syncing = useSyncExternalStore(onSyncedChange, () => getSyncState() === 'syncing');
-  const updateDeck = useDecksStore((s) => s.updateDeck);
-  const markArrivalsReviewed = useDecksStore((s) => s.markArrivalsReviewed);
-  const renameDeck = useDecksStore((s) => s.renameDeck);
-  const deleteDeck = useDecksStore((s) => s.deleteDeck);
-  const addCard = useDecksStore((s) => s.addCard);
-  const removeCard = useDecksStore((s) => s.removeCard);
-  const addSideboardCard = useDecksStore((s) => s.addSideboardCard);
-  const removeSideboardCard = useDecksStore((s) => s.removeSideboardCard);
-  const addConsideringCard = useDecksStore((s) => s.addConsideringCard);
-  const removeConsideringCard = useDecksStore((s) => s.removeConsideringCard);
-  const setCommander = useDecksStore((s) => s.setCommander);
-  const chooseCommander = useDecksStore((s) => s.chooseCommander);
-  const setPartnerCommander = useDecksStore((s) => s.setPartnerCommander);
-  const duplicateDeck = useDecksStore((s) => s.duplicateDeck);
-  const decks = useDecksStore((s) => s.decks);
-  // Physical cubes claim copies too — every allocation/ownership computation here
-  // folds them in so a copy in a cube reads as committed (not free for a deck).
-  const savedCubes = useCubeStore((s) => s.saved);
-  const importHistory = useCollectionStore((s) => s.importHistory);
-  const collectionHydrating = useCollectionStore((s) => s.hydrating);
-  // BinderPage's decorated cards (tags, Secret Lair drops, release dates, each
-  // only when a binder uses it), so every binder answer on this page agrees
-  // with the binder view.
-  const { cards: collectionCards, binders: binderDefs } = useBinderLayoutInputs();
-  const updateCardPrinting = useDecksStore((s) => s.updateCardPrinting);
-  const swapCard = useDecksStore((s) => s.swapCard);
-  const setCardAllocation = useDecksStore((s) => s.setCardAllocation);
-  const setCardProxy = useDecksStore((s) => s.setCardProxy);
-  const setCardTags = useDecksStore((s) => s.setCardTags);
-  const bulkEditTag = useDecksStore((s) => s.bulkEditTag);
-  const renameDeckTag = useDecksStore((s) => s.renameDeckTag);
-  const removeDeckTag = useDecksStore((s) => s.removeDeckTag);
-  const replaceDeck = useDecksStore((s) => s.replaceDeck);
-  const bulkAddCards = useDecksStore((s) => s.bulkAddCards);
-  const bulkRemoveCards = useDecksStore((s) => s.bulkRemoveCards);
-  const bulkMoveZone = useDecksStore((s) => s.bulkMoveZone);
-  const setCardSortIndex = useDecksStore((s) => s.setCardSortIndex);
   const pushToast = useToastsStore((s) => s.push);
-
-  // Undo/redo history (deck-scoped). `recordEdit` brackets a synchronous block;
-  // `beginEdit`/`commitEdit` bracket an async one (resolve a card, then mutate)
-  // so multi-mutation actions collapse to a single undo entry. The can*/label
-  // selectors re-render the toolbar as the stack changes.
-  const recordEdit = useDeckHistoryStore((s) => s.record);
-  const beginEdit = useDeckHistoryStore((s) => s.begin);
-  const commitEdit = useDeckHistoryStore((s) => s.commit);
-  const undoEdit = useDeckHistoryStore((s) => s.undo);
-  const redoEdit = useDeckHistoryStore((s) => s.redo);
-  const canUndoEdit = useDeckHistoryStore((s) => (id ? s.canUndo(id) : false));
-  const canRedoEdit = useDeckHistoryStore((s) => (id ? s.canRedo(id) : false));
-  const undoEditLabel = useDeckHistoryStore((s) => (id ? s.undoLabel(id) : null));
-  const redoEditLabel = useDeckHistoryStore((s) => (id ? s.redoLabel(id) : null));
-  // The header's action tiers (STYLE_GUIDE § Layout system): a phone shows
-  // Add cards + ⋮, a tablet adds Playtest, a desktop adds undo/redo. The ⋮
-  // holds exactly what isn't on screen at that width.
-  const isPhone = useMediaQuery('(max-width: 599px)');
-  const isDesktop = useMediaQuery('(min-width: 1024px)');
 
   // Keyboard undo/redo for the editor: Cmd/Ctrl+Z undo, Shift+Z or Ctrl+Y redo.
   // The hook owns the key contract and the text-field skip; we just wire the
@@ -302,90 +99,86 @@ export function DeckEditorPage() {
   useUndoRedoKeyboard({ enabled: !!id, onUndo: onKeyboardUndo, onRedo: onKeyboardRedo });
 
   // Register deck editor shortcuts in the app-wide `?` overlay (UX-334).
-  // Touch points: this line + the DECK_EDITOR_SHORTCUTS constant above it (~L107).
   useRegisterShortcuts('Deck editor', DECK_EDITOR_SHORTCUTS);
 
-  const collectionById = useCollectionByCopyId();
+  if (!id) return <Navigate to="/decks" replace />;
+  if (!deck) {
+    if (!decksHydrated || syncing) {
+      return (
+        <div className="page-loader page-loader--message" role="status" aria-live="polite">
+          <span className="spinner" aria-hidden="true" />
+          <span className="page-loader-message">Loading deck…</span>
+        </div>
+      );
+    }
+    return (
+      <div className="deck-editor-missing">
+        <p>That deck no longer exists.</p>
+        <Button variant="primary" to="/decks">
+          Back to decks
+        </Button>
+      </div>
+    );
+  }
+  return <DeckEditor deck={deck} />;
+}
 
-  // New arrivals (E140) — importId -> import batch's addedAt, for the
-  // acquired-at resolution (see lib/coach/new-arrivals.ts). Mirrors CardListTable's
-  // dateAdded sort context.
-  const addedAtByImportId = useMemo(
-    () => new Map(importHistory.map((e) => [e.id, e.addedAt])),
-    [importHistory]
-  );
-  // Individually-named so the memo below depends on each field, not the whole
-  // `deck` reference — a silent derived write (bracket/gap analysis, which
-  // recomputes often) replaces `deck` wholesale without touching cards/
-  // commander/updatedAt/lastArrivalReviewAt, and re-running the (pricier,
-  // similarity-scoring) arrivals computation on every one of those would be
-  // exactly the "re-runs per render" cost the memo below exists to avoid.
-  const arrivalsCommander = deck?.commander ?? null;
-  const arrivalsPartnerCommander = deck?.partnerCommander ?? null;
-  const arrivalsMainCards = deck?.cards;
-  const arrivalsSideCards = deck?.sideboard;
-  const arrivalsDeckUpdatedAt = deck?.updatedAt;
-  const arrivalsLastReviewAt = deck?.lastArrivalReviewAt;
-  // Keyed on deck identity/updatedAt/lastArrivalReviewAt + the collection
-  // reference, so this does NOT re-run per keystroke/render on a large
-  // collection — only when the deck's cards/commander actually changed
-  // (always bumps updatedAt), the review was dismissed, or the collection did.
-  const arrivalsByType = useMemo<ArrivalsByType>(() => {
-    if (arrivalsDeckUpdatedAt == null || !arrivalsMainCards || !collectionById) return {};
-    return computeNewArrivals({
-      commander: arrivalsCommander,
-      partnerCommander: arrivalsPartnerCommander,
-      cards: arrivalsMainCards,
-      sideboard: arrivalsSideCards,
-      deckUpdatedAt: arrivalsDeckUpdatedAt,
-      lastArrivalReviewAt: arrivalsLastReviewAt,
-      collectionCards: Array.from(collectionById.values()),
-      addedAtByImportId,
-    });
-  }, [
-    arrivalsCommander,
-    arrivalsPartnerCommander,
-    arrivalsMainCards,
-    arrivalsSideCards,
-    arrivalsDeckUpdatedAt,
-    arrivalsLastReviewAt,
+function DeckEditor({ deck }: { deck: Deck }) {
+  const id = deck.id;
+  const navigate = useNavigate();
+  const location = useLocation();
+  const updateDeck = useDecksStore((s) => s.updateDeck);
+  const renameDeck = useDecksStore((s) => s.renameDeck);
+  const deleteDeck = useDecksStore((s) => s.deleteDeck);
+  const duplicateDeck = useDecksStore((s) => s.duplicateDeck);
+  // BinderPage's decorated cards (tags, Secret Lair drops, release dates, each
+  // only when a binder uses it), so every binder answer on this page agrees
+  // with the binder view.
+  const { cards: collectionCards, binders: binderDefs } = useBinderLayoutInputs();
+  const undoEdit = useDeckHistoryStore((s) => s.undo);
+  const redoEdit = useDeckHistoryStore((s) => s.redo);
+  const canUndoEdit = useDeckHistoryStore((s) => (id ? s.canUndo(id) : false));
+  const canRedoEdit = useDeckHistoryStore((s) => (id ? s.canRedo(id) : false));
+  const undoEditLabel = useDeckHistoryStore((s) => (id ? s.undoLabel(id) : null));
+  const redoEditLabel = useDeckHistoryStore((s) => (id ? s.redoLabel(id) : null));
+  // The header's action tiers (STYLE_GUIDE § Layout system): a phone shows
+  // Add cards + ⋮, a tablet adds Playtest, a desktop adds undo/redo. The ⋮
+  // holds exactly what isn't on screen at that width.
+  const isPhone = useMediaQuery('(max-width: 599px)');
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
+  const {
     collectionById,
-    addedAtByImportId,
-  ]);
-
-  const [editingSlot, setEditingSlot] = useState<{ slotId: string; card: ScryfallCard } | null>(
-    null
-  );
-  // Pending "pull an owned-but-committed printing in from another deck/cube"
-  // prompt, raised from the edit-printing picker when the chosen printing has no
-  // free copy. Resolved by handleMovePrintingConfirm.
-  const [movePrompt, setMovePrompt] = useState<{
-    editSlotId: string;
-    newCard: ScryfallCard;
-    chosenSetName: string;
-    donor: StealableCopy;
-    swap: { returnCopyId: string; returnCard: ScryfallCard; returnSetName: string } | null;
-  } | null>(null);
+    ownedOracleIds,
+    ownedOracleIdSet,
+    printingAllocationMap,
+    ownedNames,
+    ownershipFor,
+    binderByCardName,
+    freeCountFor,
+    binderByCopyId,
+    effectiveCostPlan,
+    resolveAvailability,
+    resolveOwnedFinishes,
+  } = useDeckOwnership({ collectionCards, deck });
+  const { arrivalsByType } = useDeckArrivals({ deck, collectionById });
   const [renaming, setRenaming] = useState(false);
-  // The card about to replace the current commander, waiting on "keep the old
-  // one or remove it". `slotId` is the mainboard/sideboard slot it moves out
-  // of, or null when it came from the commander picker's search (not in the deck).
-  const [makeCommanderTarget, setMakeCommanderTarget] = useState<{
-    slotId: string | null;
-    card: ScryfallCard;
-    allocatedCopyId: string | null;
-  } | null>(null);
-  // The commander picker (E465): the open slot, the empty state and the Coach
-  // tab open it when there's no commander; the commander row's menu opens it
-  // to change one.
-  const [showCommanderPicker, setShowCommanderPicker] = useState(false);
-  const [makePartnerTarget, setMakePartnerTarget] = useState<{
-    slotId: string;
-    card: ScryfallCard;
-    zone: 'main' | 'side';
-    allocatedCopyId: string | null;
-  } | null>(null);
-  const [showPartnerPicker, setShowPartnerPicker] = useState(false);
+  const {
+    handleMakeCommanderClick,
+    handleMakePartnerClick,
+    canMakePartner,
+    setShowCommanderPicker,
+    setShowPartnerPicker,
+    makeCommanderTarget,
+    setMakeCommanderTarget,
+    handleConfirmMakeCommander,
+    makePartnerTarget,
+    setMakePartnerTarget,
+    handleConfirmMakePartner,
+    showCommanderPicker,
+    handleSelectCommanderFromPicker,
+    showPartnerPicker,
+    handleSelectPartnerFromPicker,
+  } = useDeckCommanderEdits({ deck, collectionCards });
   const [showAddPanel, setShowAddPanel] = useState(false);
   // Coach "Owned only" filter — shared by the feed and the Next-best-move hero.
   const [ownedOnly, setOwnedOnly] = useState<boolean>(readOwnedOnly);
@@ -445,184 +238,49 @@ export function DeckEditorPage() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [addZone, setAddZone] = useState<'main' | 'side' | 'considering'>('main');
   const searchPanelRef = useRef<CardSearchPanelHandle>(null);
-  // The deck editor is a set of page-top distinct views (Deck · Stats · Power ·
-  // Tune) switched by the hub tab bar below the header. `view`
-  // is the active one; the feature-strip chips + keyboard shortcuts deep-link
-  // into a view and scroll it into reach. Test hand is NOT a view — it's its own
-  // standalone overlay (goldfishing is a distinct activity), opened on demand
-  // from the Deck-view toolbar — a modal on desktop, a bottom sheet on mobile
-  // (same card-picker pattern as Add cards), so it's never pinned inline.
-  const viewScrollRef = useRef<HTMLDivElement>(null);
-  // The tab row's stat slot (desktop): the Deck view's stat strip renders here.
-  const [statSlot, setStatSlot] = useState<HTMLDivElement | null>(null);
-  const [showTestHand, setShowTestHand] = useState(false);
-  // The active view lives in the URL (`?view=power`) so each tab switch is a real
-  // history entry: hardware/gesture back walks back through the tabs you visited
-  // before exiting the editor, and tabs become deep-linkable. 'deck' is the clean
-  // default (no param). Mirrors PlayPage's `?tab=` pattern.
-  const [searchParams, setSearchParams] = useSearchParams();
-  const view = (searchParams.get('view') as DeckView | null) ?? 'deck';
-  const setView = useCallback(
-    (next: DeckView) => {
-      setSearchParams(
-        (prev) => {
-          const p = new URLSearchParams(prev);
-          if (next === 'deck') p.delete('view');
-          else p.set('view', next);
-          return p;
-        },
-        { replace: false }
-      );
-    },
-    [setSearchParams]
-  );
-  // One-shot deep link from the decks-index overflow menu ("Export deck" →
-  // `/decks/:id?export=1`): the open flag is captured at mount via the lazy
-  // useState initializer (mirrors CollectionPage's `?add=` pattern) so it
-  // stays true even after the param is stripped below and re-renders with an
-  // empty searchParams. Hoisted (rather than owned by DeckDisplay) so the
-  // mobile action sheet can open Export without rendering a duplicate button.
-  const [exportOpen, setExportOpen] = useState(() => searchParams.get('export') === '1');
-  // E458: same one-shot pattern for the upgrade plan ("Plan upgrades" on a
-  // freshly added precon lands on `?view=tune&plan=1`).
-  const [planOpen, setPlanOpen] = useState(() => searchParams.get('plan') === '1');
-  // Same one-shot pattern for Home's "+N new cards" badge (`?arrivals=1`),
-  // which lands on the new-arrivals sheet with those cards in it.
-  const [arrivalsDeepLink] = useState(() => searchParams.get('arrivals') === '1');
-
-  useEffect(() => {
-    if (
-      searchParams.get('export') === '1' ||
-      searchParams.get('plan') === '1' ||
-      searchParams.get('arrivals') === '1'
-    ) {
-      // Strip the params from the URL without adding a history entry so a
-      // refresh — or a later bookmarked visit — doesn't re-open the dialog.
-      const next = new URLSearchParams(searchParams);
-      next.delete('export');
-      next.delete('plan');
-      next.delete('arrivals');
-      setSearchParams(next, { replace: true });
-    }
-    // Run only once on mount — the param value is already captured in state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  const [addingEngineNames, setAddingEngineNames] = useState<Set<string>>(new Set());
-  // Deck-size guard prompts: a pending full-deck add awaiting a replace choice,
-  // and a post-cut refill nudge (the card just cut + its role).
-  const [pendingAdd, setPendingAdd] = useState<string | null>(null);
-  // Set alongside `pendingAdd` when the full-deck prompt opened for a Coach
-  // "Your decks" row, so its choices commit the move (the copy comes from the
-  // sibling deck, which gets its patch) instead of a plain add.
-  const [pendingMove, setPendingMove] = useState<CrossDeckMove | null>(null);
-  const pendingMoveFor = pendingMove && pendingMove.cardName === pendingAdd ? pendingMove : null;
-  // "Fill the rest" sheet (under-size Commander deck).
-  const [showFill, setShowFill] = useState(false);
-  // Resolved ScryfallCard for `pendingAdd`, so the replace-when-full ranker can
-  // judge relatedness by card type + mana cost (not just name-based role). Tagged
-  // with `forName` so a stale resolve from a previous prompt is ignored; null
-  // until it resolves, and the ranker degrades to role-only relatedness meanwhile.
-  const [pendingAddCard, setPendingAddCard] = useState<{
-    forName: string;
-    card: ScryfallCard;
-  } | null>(null);
-  // The exact printing behind `pendingAdd` when the add came with one (a search
-  // result, a card dropped from Scryfall), so every way out of the full-deck
-  // prompt stores that printing instead of re-resolving the name to the
-  // cheapest one. Honored only while its name matches `pendingAdd`.
-  const [pendingAddPrinting, setPendingAddPrinting] = useState<ScryfallCard | null>(null);
-  // The group the Add cards panel had chosen when the add hit the full prompt,
-  // so whichever way out the user takes still files the card into it.
-  const [pendingAddGroup, setPendingAddGroup] = useState<string | null>(null);
-  const pendingPrinting =
-    pendingAdd && pendingAddPrinting?.name === pendingAdd ? pendingAddPrinting : null;
-  const [refillAfterCut, setRefillAfterCut] = useState<{
-    name: string;
-    role: string | null;
-  } | null>(null);
-  // Physical-copy reallocation (move owned cards between decks). Each move is an
-  // explicit, conscious action — nothing moves silently. Pulling a copy IN (the
-  // Shared-copies review + per-row "Use my copy") is a direct leave-gap move with
-  // an Undo toast; `moveCard` drives the MoveToDeckSheet (sending a copy out, with
-  // the donor-outcome chooser); `releaseCard` drives the release confirm (freeing
-  // a copy back to the collection).
-  const [moveCard, setMoveCard] = useState<ScryfallCard | null>(null);
-  const [releaseCard, setReleaseCard] = useState<ScryfallCard | null>(null);
-  // In-context "Swap this card" — its OWN loading gate (not addingEngineNames),
-  // so a swap-in-flight never cross-disables the Engine/Substitution Add buttons.
-  const [swappingSlot, setSwappingSlot] = useState<string | null>(null);
-  // E20 audition / what-if: a resolved card the user is "previewing the fit" of
-  // (from a card-search row or a CoachFeed row) before committing. Drives the
-  // CardFitPanel overlay.
-  const [auditionCard, setAuditionCard] = useState<ScryfallCard | null>(null);
-  // For swap-row auditions from CoachFeed: the outgoing card name to pin as the
-  // first cut suggestion in CardFitPanel. Cleared when the panel closes.
-  const [auditionPinnedCutName, setAuditionPinnedCutName] = useState<string | null>(null);
-  // Bracket Fit swaps gate the row by the CUT card's name (the page-side swap
-  // state is slot-keyed, which BracketFitLane can't see). Tracked separately so a
-  // swap-in-flight disables only its own row.
-  const [bracketFitSwapName, setBracketFitSwapName] = useState<string | null>(null);
-  const openView = useCallback(
-    (next: DeckView) => {
-      setView(next);
-      // Stats is a place on the Deck tab, not a tab: `?view=stats` renders the
-      // Deck tab and the arrival effect below scrolls to it after the commit.
-      if (next === 'stats') return;
-      window.requestAnimationFrame(() => {
-        viewScrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-    },
-    [setView]
-  );
-  // `?view=stats` (from openView, or a saved link to the old Stats tab and its
-  // older names, overview and mana) lands on the Deck tab at the stats under
-  // the list. The param stays in the URL until the next tab switch: rewriting
-  // it here is a navigation, and Layout's scroll reset on navigation cancels
-  // the scroll. The scroll waits for the deck, which hydrates after this
-  // page's first render.
-  const deckLoaded = !!deck;
-  const arrivedAtStats = ['stats', 'overview', 'mana'].includes(view);
-  useEffect(() => {
-    if (deckLoaded && arrivedAtStats) window.requestAnimationFrame(scrollToDeckStats);
-  }, [deckLoaded, arrivedAtStats]);
-  // Chip / keyboard deep-links target a specific analysis view.
-  const openAnalysisTab = useCallback((tab: AnalysisTabId) => openView(tab), [openView]);
-
-  // Resolve the pending-add card so the replace-when-full ranker can use its type
-  // + CMC for relatedness. Guarded against races (a newer pendingAdd wins).
-  useEffect(() => {
-    if (!pendingAdd || pendingPrinting) return;
-    let stale = false;
-    void getCardByName(pendingAdd).then((scry) => {
-      if (!stale && scry) setPendingAddCard({ forName: pendingAdd, card: scry });
-    });
-    return () => {
-      stale = true;
-    };
-  }, [pendingAdd, pendingPrinting]);
-
-  // The Combos panel lives inside the Power bento; switching to Power lands on
-  // the top of the bento, not the panel. A next-best-move with focus 'combos'
-  // (the "Complete a combo" suggestion) reveals + scrolls the panel and opens
-  // its one-away tab. The panel only mounts once Power is active, so reveal on
-  // the next frame, after the view switch has committed.
-  const combosRef = useRef<DeckCombosPanelHandle>(null);
-  // A hero move that deep-links into the Coach feed sets this; CoachFeed maps it
-  // to a filter chip, then clears it (one-shot) via onFilterHandled.
-  const [tuneFocusLane, setTuneFocusLane] = useState<LaneId | null>(null);
-  const clearTuneFocus = useCallback(() => setTuneFocusLane(null), []);
-  const handleNbmNavigate = useCallback(
-    (next: DeckView, focus?: NextBestMoveFocus) => {
-      openView(next);
-      if (focus === 'combos') {
-        window.requestAnimationFrame(() => combosRef.current?.reveal('oneAway'));
-      } else if (focus) {
-        // A Tune intent lane — hand the target to DeckDisplay to reveal + scroll.
-        setTuneFocusLane(focus);
-      }
-    },
-    [openView]
-  );
+  const {
+    combosRef,
+    planOpen,
+    view,
+    openAnalysisTab,
+    setPlanOpen,
+    setExportOpen,
+    setShowTestHand,
+    viewScrollRef,
+    setView,
+    setStatSlot,
+    arrivalsDeepLink,
+    exportOpen,
+    statSlot,
+    handleNavigateToTune,
+    tuneFocusLane,
+    clearTuneFocus,
+    handleNbmNavigate,
+    showTestHand,
+  } = useDeckView();
+  const {
+    executeReallocation,
+    applyDonorOutcome,
+    setMoveCard,
+    setReleaseCard,
+    handleSetProxy,
+    handleUseOwnCopy,
+    moveCard,
+    handleMoveConfirm,
+    releaseCard,
+    handleReleaseConfirm,
+    handleMoveSharedCopy,
+  } = useDeckReallocation({ deck, collectionCards });
+  const {
+    setEditingSlot,
+    handleMatchMyCopies,
+    handleCheapestPrintings,
+    editingSlot,
+    handleEditConfirm,
+    movePrompt,
+    handleMovePrintingConfirm,
+    setMovePrompt,
+  } = useDeckPrintingEdits({ deck, collectionCards, executeReallocation, applyDonorOutcome });
 
   // Load tagger role data on mount (deduped) so the in-context "Swap this card"
   // section can scope alternatives to a card's role even when the preview is
@@ -630,94 +288,28 @@ export function DeckEditorPage() {
   useEffect(() => {
     if (!hasTaggerData()) void loadTaggerData();
   }, []);
-
-  // Counts already in this deck — fed to the search panel so it can mark
-  // duplicates with a live "in deck × N" hint and let users add basics
-  // multiple times.
-  const formatConfig = deck ? DECK_FORMAT_CONFIGS[deck.format] : null;
-
-  // Commander decks are exactly 100 (mainboard 99, or 98 with a partner — the
-  // partner is the 2nd commander). Other formats have no hard upper bound here,
-  // so the replace-when-full prompt only fires for commander-like formats.
-  const isCommander = !!formatConfig?.hasCommander;
-  const mainboardLimit =
-    isCommander && formatConfig
-      ? formatConfig.mainboardSize - (deck?.partnerCommander ? 1 : 0)
-      : Infinity;
-  const deckIsFull = !!deck && deck.cards.length >= mainboardLimit;
-
-  const existingCardCounts = useMemo(() => {
-    const m = new Map<string, number>();
-    if (!deck) return m;
-    for (const c of deck.cards) m.set(c.card.name, (m.get(c.card.name) ?? 0) + 1);
-    for (const c of deck.sideboard) m.set(c.card.name, (m.get(c.card.name) ?? 0) + 1);
-    return m;
-  }, [deck]);
-
-  /**
-   * Is this name already at its legal copy limit for the zone being added to?
-   * The deck row's own menu gates "Add another copy" on the same question
-   * (`DeckMainboardRow`: `disabled={atCap}`, "add affordances agree by
-   * construction, not by convention") — the Add cards panel did not, so it
-   * would happily put a 2nd Sol Ring in a Commander deck and the Stats tab
-   * would then flag the Singleton failure the panel had just created.
-   *
-   * Considering is a staging area with no ceiling, exactly as the quantity
-   * path already rules (see `maxCopies` in the qty handler below).
-   */
-  const atCopyLimit = useCallback(
-    (name: string) => {
-      if (!deck || addZone === 'considering') return false;
-      const zone = addZone === 'side' ? deck.sideboard : deck.cards;
-      const copies = zone.filter((c) => c.card.name === name);
-      if (copies.length === 0) return false;
-      return copies.length >= getMaxCopies(copies[0].card, !!formatConfig?.isSingleton);
-    },
-    [deck, addZone, formatConfig]
-  );
-
-  // Name → the actual deck printing. Feeds Optimize's Remove column so its card
-  // preview shows the printing in the deck (matching the thumbnail) instead of
-  // the default printing the carousel would otherwise fetch by name.
-  // Oracle ids of every card in the deck — fed to the combos panel so it can
-  // bucket combos against the deck. `oracle_id` is on ScryfallCard; cards
-  // imported before that field landed may lack it (combos for those rows just
-  // won't surface until the next deck-import).
-  const deckOracleIds = useMemo(() => {
-    if (!deck) return [];
-    const ids = new Set<string>();
-    if (deck.commander?.oracle_id) ids.add(deck.commander.oracle_id);
-    if (deck.partnerCommander?.oracle_id) ids.add(deck.partnerCommander.oracle_id);
-    for (const c of deck.cards) if (c.card.oracle_id) ids.add(c.card.oracle_id);
-    for (const c of deck.sideboard) if (c.card.oracle_id) ids.add(c.card.oracle_id);
-    return Array.from(ids);
-  }, [deck]);
-
-  // Commander(s) + mainboard only — the sideboard is a swap pile, not part of
-  // the 99. Every bracket/coach/hero/badge signal reads combos against THIS
-  // set (via `mainboardComboData` below), never the wider `deckOracleIds` the
-  // combo match itself runs against — a combo completed only by a sideboard
-  // card must never set a bracket floor (see combo-zone-partition.ts).
-  const mainboardOracleIds = useMemo(() => {
-    const ids = new Set<string>();
-    if (!deck) return ids;
-    if (deck.commander?.oracle_id) ids.add(deck.commander.oracle_id);
-    if (deck.partnerCommander?.oracle_id) ids.add(deck.partnerCommander.oracle_id);
-    for (const c of deck.cards) if (c.card.oracle_id) ids.add(c.card.oracle_id);
-    return ids;
-  }, [deck]);
-
-  // Tokens this deck can make — a pre-game prep checklist surfaced on demand from
-  // the deck-action row (not Stats; it's prep, not analysis). The hook re-resolves
-  // names to recover token data the slimmed persisted cards drop.
-  const deckScryCards = useMemo(() => {
-    if (!deck) return [];
-    const list: ScryfallCard[] = [];
-    if (deck.commander) list.push(deck.commander);
-    if (deck.partnerCommander) list.push(deck.partnerCommander);
-    for (const c of deck.cards) list.push(c.card);
-    return list;
-  }, [deck]);
+  const {
+    deckScryCards,
+    commanderColorIdentity,
+    deckOracleIds,
+    comboColorIdentity,
+    mainboardOracleIds,
+    formatConfig,
+    mainboardLimit,
+    deckCards,
+    deckCardNames,
+    deckIsFull,
+    commanderNames,
+    existingCardCounts,
+    atCopyLimit,
+    commanderKey,
+    isCommander,
+    hasPullSlots,
+    deckLibrary,
+    hasCopyMismatches,
+    hasMissingSlots,
+    axisSummaries,
+  } = useDeckDerived({ deck, addZone, collectionById });
   const deckTokens = useDeckTokens(deckScryCards);
   const [tokensOpen, setTokensOpen] = useState(false);
   const [pullListOpen, setPullListOpen] = useState(false);
@@ -725,186 +317,7 @@ export function DeckEditorPage() {
   const [appendOpen, setAppendOpen] = useState(false);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [resyncOpen, setResyncOpen] = useState(false);
-  const hasPullSlots =
-    !!deck && (deck.cards.length > 0 || deck.sideboard.length > 0 || !!deck.commander);
-  // The two printing rows in ⋮ Deck actions show only when they have slots to
-  // act on: a missing card to reprice, or an owned slot off its copy's printing.
-  const hasMissingSlots = useMemo(
-    () => !!deck && missingSlots(deck, collectionById).length > 0,
-    [deck, collectionById]
-  );
-  const hasCopyMismatches = useMemo(
-    () => !!deck && copyMismatches(deck, collectionById).length > 0,
-    [deck, collectionById]
-  );
   const [showSharedCopies, setShowSharedCopies] = useState(false);
-
-  // Flat card list for EnginePanel's tappable axis drill-through — mainboard only
-  // (commanders don't form a typical synergy axis row).
-  const deckCards = useMemo(() => (deck ? deck.cards.map((c) => c.card) : []), [deck]);
-  // Library (one entry per physical copy) for WinConditionPanel's assembly
-  // clock — it costs cards out, so it needs mana value + land/ramp, not names.
-  const deckLibrary = useMemo(() => deckCards.map(toClockCard), [deckCards]);
-  // Full axis summaries (card names + reasons) for the EnginePanel annotation layer.
-  const axisSummaries = useMemo(
-    () => (deck?.synergyAnalysis ? analyzeDeckSynergy(deckCards).axes : undefined),
-    [deck?.synergyAnalysis, deckCards]
-  );
-
-  const ownedOracleIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const c of collectionCards) if (c.oracleId) ids.add(c.oracleId);
-    return Array.from(ids);
-  }, [collectionCards]);
-
-  // Set-form of ownedOracleIds for O(1) membership checks in combo filtering.
-  const ownedOracleIdSet = useMemo(() => new Set(ownedOracleIds), [ownedOracleIds]);
-
-  // Owned card names — lets the gap-analysis suggestions flag cards the user
-  // already has in their collection.
-  const ownedNames = useMemo(() => {
-    const names = new Set<string>();
-    for (const c of collectionCards) names.add(c.name);
-    return names;
-  }, [collectionCards]);
-
-  // Lowercased mainboard names — the CoachFeed's ground truth for hiding
-  // applied suggestions (and resurfacing them when an apply is undone).
-  const deckCardNames = useMemo(() => {
-    const names = new Set<string>();
-    for (const c of deck?.cards ?? []) names.add(c.card.name.toLowerCase());
-    return names;
-  }, [deck?.cards]);
-
-  // Allocation-aware ownership for a card name (mirrors DeckAnalysisPanel) so
-  // every Tune surface agrees: 'owned' = a free/unallocated copy (or one already
-  // in THIS deck) exists; 'in-other-deck' = every copy is claimed by other decks;
-  // else 'unowned'. Re-derived live — never the persisted isOwned snapshot. This
-  // matters because pickCollectionCopy only claims FREE copies, so a card whose
-  // copies are all elsewhere can't actually be added tonight.
-  const ownershipByName = useMemo(() => {
-    const allocations = buildAllocationMap(decks, savedCubes);
-    const byName = new Map<string, { free: number; deck: number; cube: number }>();
-    for (const copy of collectionCards) {
-      if (!copy.name) continue;
-      const key = copy.name.toLowerCase();
-      const e = byName.get(key) ?? { free: 0, deck: 0, cube: 0 };
-      const claim = allocations.get(copy.copyId);
-      // A copy claimed by THIS deck counts as free (we can keep it); a cube claim
-      // (deckId='') never matches deck?.id, so cube copies are never "free here".
-      if (!claim || claim.deckId === deck?.id) e.free += 1;
-      else if (claim.ownerKind === 'cube') e.cube += 1;
-      else e.deck += 1;
-      byName.set(key, e);
-    }
-    return byName;
-  }, [collectionCards, decks, savedCubes, deck?.id]);
-
-  const ownershipFor = useCallback(
-    (name: string): ChangeOwnership => {
-      const e = ownershipByName.get(name.toLowerCase());
-      if (!e) return 'unowned';
-      if (e.free > 0) return 'owned';
-      // Prefer the deck label over the cube label when copies are split — a deck
-      // is the more familiar, more actionable place to pull from.
-      if (e.deck > 0) return 'in-other-deck';
-      if (e.cube > 0) return 'in-cube';
-      return 'unowned';
-    },
-    [ownershipByName]
-  );
-
-  // Ownership-aware trim-cost plan (E23). Suppress cheaper-swap rows for cards the
-  // user already owns and can field in this deck — you've already paid, so there's
-  // no spend to trim. Only un-owned ('unowned') or all-copies-claimed-elsewhere
-  // ('in-other-deck') cards keep a row. Live: re-derives from `ownershipFor` so
-  // buying/selling/reallocating a copy updates the list without a re-analysis.
-  const rawCostPlan = deck?.costPlan;
-  const effectiveCostPlan = useMemo(
-    () =>
-      rawCostPlan
-        ? filterCostPlanByOwnership(rawCostPlan, (name) => ownershipFor(name) === 'owned')
-        : null,
-    [rawCostPlan, ownershipFor]
-  );
-
-  // Free (unallocated) owned copies of a card name — drives the "N free" badge on
-  // similar-card suggestions. Mirrors `ownershipFor` over the same live map.
-  const freeCountFor = useCallback(
-    (name: string): number => ownershipByName.get(name.toLowerCase())?.free ?? 0,
-    [ownershipByName]
-  );
-
-  // Per-printing availability for the edit-printing picker: does the user own
-  // this exact printing, and is a copy free to bind here? Same live sources as
-  // ownershipFor, but keyed by scryfallId rather than name.
-  const printingAllocationMap = useMemo(
-    () => buildAllocationMap(decks, savedCubes),
-    [decks, savedCubes]
-  );
-  const resolveAvailability = useCallback(
-    (printing: ScryfallCard): ChangeOwnership =>
-      classifyPrintingAvailability(printing.id, collectionCards, printingAllocationMap, deck?.id),
-    [collectionCards, printingAllocationMap, deck?.id]
-  );
-  // Owned finishes per printing (one pass over the collection) so the picker
-  // can show what you physically have — and constrain the finish choice —
-  // instead of offering every finish Scryfall says exists.
-  const ownedFinishesByPrinting = useMemo(
-    () => bindableFinishesByPrinting(collectionCards, printingAllocationMap, deck?.id),
-    [collectionCards, printingAllocationMap, deck?.id]
-  );
-  const resolveOwnedFinishes = useCallback(
-    (printing: ScryfallCard): Finish[] => ownedFinishesByPrinting.get(printing.id) ?? [],
-    [ownedFinishesByPrinting]
-  );
-
-  // Which binder each collection copy lives in, laid out from BinderPage's
-  // own inputs, so the deck grid's badge names the binder the card is in.
-  const binderByCopyId = useBinderByCopyId();
-
-  // Re-key binderByCopyId by card name — zero extra materializeBinders calls,
-  // and reuses the same canonical routing computation the review queue uses,
-  // so the add-cards binder chip (E169) can never disagree with where a card
-  // actually files. Feeds CardSearchPanel's Collection tab.
-  const binderByCardName = useMemo(() => {
-    const map = new Map<string, BinderInfo[]>();
-    if (binderByCopyId.size === 0) return map;
-    for (const c of collectionCards) {
-      const binders = binderByCopyId.get(c.copyId);
-      if (!binders) continue;
-      const arr = map.get(c.name);
-      if (arr) {
-        for (const b of binders) if (!arr.some((x) => x.id === b.id)) arr.push(b);
-      } else {
-        map.set(c.name, [...binders]);
-      }
-    }
-    return map;
-  }, [binderByCopyId, collectionCards]);
-
-  // The command zone's names, kept out of the add-cards result lists when the
-  // add targets the mainboard (the panel gates this on `addZone`).
-  const commanderName = deck?.commander?.name;
-  const partnerCommanderName = deck?.partnerCommander?.name;
-  const commanderNames = useMemo(() => {
-    const names: string[] = [];
-    if (commanderName) names.push(commanderName);
-    if (partnerCommanderName) names.push(partnerCommanderName);
-    return names;
-  }, [commanderName, partnerCommanderName]);
-
-  const commanderColorIdentity = useMemo(() => {
-    if (!deck) return [];
-    const ci = new Set<string>();
-    for (const c of deck.commander?.color_identity ?? []) ci.add(c);
-    for (const c of deck.partnerCommander?.color_identity ?? []) ci.add(c);
-    return [...ci];
-  }, [deck]);
-  // Only commander decks carry an identity restriction — undefined disables
-  // the hook's suggestion filter (an empty array would mean "colorless").
-  const comboColorIdentity =
-    deck?.commander || deck?.partnerCommander ? commanderColorIdentity : undefined;
 
   // First-publish seal moment (E150), driven by the justPublished router
   // state set above. Fires here rather than on the creating page (DeckNewPage
@@ -926,446 +339,135 @@ export function DeckEditorPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [justPublished, deck?.id]);
-
-  // Commander (+partner) key for CardSearchPanel's per-row "N on SpellControl"
-  // badge (social W4) — undefined for a no-commander deck, so the panel's
-  // fetch never fires.
-  const commanderKey = deck?.commander?.oracle_id
-    ? buildCommanderKey(deck.commander.oracle_id, deck.partnerCommander?.oracle_id)
-    : undefined;
-
-  const comboData = useDeckCombos({
+  const {
+    mainboardComboData,
+    comboData,
+    handleViewCombos,
+    handleViewWinConditions,
+    handleViewBracket,
+    combosByOracle,
+    comboOwnedMissingCount,
+    handleViewEngine,
+  } = useDeckCombosView({
     deckOracleIds,
     ownedOracleIds,
-    format: deck?.format,
-    colorIdentity: comboColorIdentity,
+    deck,
+    comboColorIdentity,
+    mainboardOracleIds,
+    ownedOracleIdSet,
+    combosRef,
   });
-
-  // Commander(s) + mainboard view of `comboData` — every analysis/coach/hero/
-  // badge consumer below reads THIS, never the raw response, so a combo
-  // completed only via a sideboard card never sets a bracket floor, never
-  // counts toward a total, and is never offered as "one card away" (see
-  // combo-zone-partition.ts). The Combos panel keeps the raw `comboData` for
-  // its own list (still shows the sideboard-completed combo, marked).
-  const partitionedCombos = useMemo(
-    () => partitionCombosByZone(comboData.data, mainboardOracleIds),
-    [comboData.data, mainboardOracleIds]
-  );
-  const mainboardComboData = useMemo(
-    () => toMainboardComboData(comboData.data, partitionedCombos),
-    [comboData.data, partitionedCombos]
-  );
-
-  // Mainboard-scoped combo data already buckets combos into in-deck / one-away
-  // — reused here rather than a second match, keyed by oracle id so each deck
-  // row's inline "CB"/"CB2" badge can look itself up in O(1) and never
-  // disagree with the panel's mainboard-complete list.
-  const combosByOracle = useMemo(() => {
-    const map = new Map<string, ComboMatch[]>();
-    const all = [...(mainboardComboData?.inDeck ?? []), ...(mainboardComboData?.oneAway ?? [])];
-    for (const match of all) {
-      for (const c of match.combo.cards) {
-        const list = map.get(c.oracleId);
-        if (list) list.push(match);
-        else map.set(c.oracleId, [match]);
-      }
-    }
-    return map;
-  }, [mainboardComboData]);
-
-  // Count one-away combos whose missing piece the user already owns.
-  // Uses the `oneAway` bucket (not `almostInCollection`, which is empty for
-  // decks with oracle IDs — see match.ts:112) filtered against the owned set.
-  const comboOwnedMissingCount = useMemo(
-    () =>
-      (mainboardComboData?.oneAway ?? []).filter((m) => {
-        const id = m.missingOracleIds[0];
-        return id && ownedOracleIdSet.has(id);
-      }).length,
-    [mainboardComboData?.oneAway, ownedOracleIdSet]
-  );
-
-  // The Power hero's summary lines deep-link to their detail panels below.
-  // Bracket and Engine are always-open panels, so a scroll suffices; Combos is
-  // collapsible, so reuse its reveal() handle (expand + scroll + focus), landing
-  // on the one-away tab when the user owns completable pieces or the deck has
-  // no complete combo to show.
-  const scrollToPowerPanel = useCallback((id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, []);
-  const handleViewBracket = useCallback(
-    () => scrollToPowerPanel('deck-power-bracket'),
-    [scrollToPowerPanel]
-  );
-  const handleViewEngine = useCallback(
-    () => scrollToPowerPanel('deck-power-engine'),
-    [scrollToPowerPanel]
-  );
-  const handleViewWinConditions = useCallback(
-    () => scrollToPowerPanel('deck-power-wincon'),
-    [scrollToPowerPanel]
-  );
-  const comboInDeckCount = mainboardComboData?.inDeck.length ?? 0;
-  const handleViewCombos = useCallback(() => {
-    combosRef.current?.reveal(
-      comboOwnedMissingCount > 0 || comboInDeckCount === 0 ? 'oneAway' : 'inDeck'
-    );
-  }, [comboOwnedMissingCount, comboInDeckCount]);
-
-  // Keep grade/bracket live for any commander deck as its cards change —
-  // generated and manual alike (the user's bracketOverride layers on top).
-  // E162: also surfaces 'error' (EDHREC unreachable / commander not indexed /
-  // stalled fetch) + retry() so a permanently failed first analysis doesn't
-  // read as an endless skeleton — see analysisState below.
-  const bracketAnalysis = useCommanderBracketAnalysis({
-    deck,
-    comboData: mainboardComboData,
-    combosLoading: comboData.loading,
-    mainboardSize: deck ? DECK_FORMAT_CONFIGS[deck.format].mainboardSize : undefined,
-    hasCommander: deck ? DECK_FORMAT_CONFIGS[deck.format].hasCommander : false,
-    colorIdentity: commanderColorIdentity,
-    updateDeck,
-    // The user's target bracket drives the Bracket Fit plan; folding it into the
-    // hook recomputes the plan when the target changes, not only when cards do.
-    bracketOverride: deck?.bracketOverride,
-  });
-
-  // Build-time coach nudge (E169 Half B) — surfaces at most one combo/
-  // win-condition/bracket signal inside the add-cards sheet the instant a
-  // mainboard add produces one. See use-build-time-nudge.ts for the guard.
-  const buildTimeNudge = useBuildTimeNudge({
-    deckId: deck?.id,
-    deck,
-    comboData: mainboardComboData,
-    mainboardTarget: deck ? DECK_FORMAT_CONFIGS[deck.format].mainboardSize : undefined,
-  });
-
-  const taggerReady = useTaggerReady();
-  const suggestGroups = useSuggestGroups(deck ?? undefined, taggerReady);
-
-  // E90 "Your decks" Coach rows: owned copies idle in a sibling deck that would
-  // feed an engine here, each paired with an owned patch for the deck it
-  // leaves. taggerReady is a recompute trigger (the replacement search reads
-  // the tagger's roles), not read directly.
-  // The scan classifies every card of every deck (1.1 s at 4x CPU on 33 decks)
-  // and none of it is on screen at first paint, so it reads a deferred copy of
-  // the deck list: the first render scans nothing, the real scan runs in a
-  // background render after the page commits, and a deck edit's own render
-  // never waits on it (E412).
-  const crossDeckDecks = useDeferredValue(decks, NO_DECKS);
-  const crossDeckMoves = useMemo(
-    () =>
-      deck && DECK_FORMAT_CONFIGS[deck.format].hasCommander
-        ? findCrossDeckMoves(crossDeckDecks, collectionCards, printingAllocationMap, {
-            toDeckId: deck.id,
-          })
-        : [],
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- taggerReady is a recompute trigger, not read directly
-    [deck, crossDeckDecks, collectionCards, printingAllocationMap, taggerReady]
-  );
-
-  // Curve-derived land-count advice for the hero — the lands RoleHealth from
-  // the same analyzeDeck the Analysis panel renders, so badge and hero agree
-  // on both the number and when it applies (Karsten gate lives in there).
-  const landAdvice = useMemo(() => {
-    if (!deck || !DECK_FORMAT_CONFIGS[deck.format].hasCommander) return undefined;
-    const lands = analyzeDeck(
-      {
-        format: deck.format,
-        commander: deck.commander,
-        partnerCommander: deck.partnerCommander,
-        mainboard: deck.cards,
-      },
-      taggerReady
-    ).roles.find((r) => r.key === 'lands');
-    return lands?.suggested != null
-      ? { count: lands.count, suggested: lands.suggested }
-      : undefined;
-  }, [deck, taggerReady]);
-
-  // The deck's live role counts: the same count DeckDisplay shows in the
-  // role chips, the Roles panel and the checks (mainboard, one role per card).
-  // A generated deck's stored `roleCounts` is a generation-time snapshot that
-  // never moves after an edit, and a manual deck has none (the coach used to
-  // see every role at 0 there), so it only stands in until the tagger loads.
-  const liveRoleCounts = useMemo(
-    () =>
-      deck && taggerReady
-        ? computeRoleCounts(deck.cards.map((c) => c.card)).roleCounts
-        : deck?.roleCounts,
-    [deck, taggerReady]
-  );
-
-  // E458: the upgrade plan's bracket side. Built only while the plan is open:
-  // it runs the estimator, which a closed sheet has no use for.
-  const planAvailable = !!deck?.commander && !!formatConfig?.hasCommander;
-  const upgradePlanTools = useMemo(() => {
-    if (!planOpen || !deck?.commander || !DECK_FORMAT_CONFIGS[deck.format].hasCommander) {
-      return null;
-    }
-    return buildUpgradePlanTools({
-      deckCards: deck.cards.map((c) => c.card),
-      commanderNames: [deck.commander.name, deck.partnerCommander?.name].filter(
-        (n): n is string => !!n
-      ),
-      combos: mainboardComboData,
-      roleCounts: liveRoleCounts ?? {},
-      // Before the first analysis lands the sheet shows its loading state, so
-      // this fallback is never read as the deck's bracket.
-      estimate: deck.bracketEstimation?.bracket ?? 2,
-      stated: deck.bracketOverride,
-      cardInclusionMap: deck.cardInclusionMap,
-    });
-  }, [planOpen, deck, mainboardComboData, liveRoleCounts]);
-
-  // Coach shows only moves the deck's saved settings allow (price, budget, rarity, …).
-  const coachSettings = useCoachSettings(deck, ownedNames, mainboardLimit);
-  const replaceCuts = useReplaceCuts(
-    deck,
-    mainboardComboData,
-    coachSettings.cutFits,
-    mainboardLimit
-  );
-  // "Next best move": the highest-leverage change, from the PlanScore, role gaps and near-miss combos.
-  const nextBestMoves = useMemo(() => {
-    if (!deck || !DECK_FORMAT_CONFIGS[deck.format].hasCommander) return [];
-    const roleCounts = liveRoleCounts ?? {};
-    return buildNextBestMoves({
-      planScore: deck.planScore,
-      roleCounts,
-      roleTargets: deck.roleTargets ?? {},
-      gapAnalysis: gapsThatFit(deck.gapAnalysis, coachSettings.fit, ownershipFor),
-      // Count the commander zone too (incl. a partner) so the total matches
-      // the Deck tab's header and the 100-card (deckSize) target — commanders
-      // live in their own fields, not in deck.cards.
-      cardCount: deck.cards.length + (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0),
-      deckTarget: DECK_FORMAT_CONFIGS[deck.format].deckSize,
-      oneAwayCombos: onPlanCombos(
-        combosThatFit(mainboardComboData?.oneAway, coachSettings.fit, ownershipFor),
-        deck.suggestionCards
-      ),
-      deckPayoffs: coachSettings.deckPayoffs,
-      ownedNames,
-      winConditions: deck.winConditions,
-      bracketFitHasMoves: (deck.bracketFit?.moves.length ?? 0) > 0,
-      ownedOnly,
-      landAdvice,
-    });
-  }, [
-    deck,
+  const {
     liveRoleCounts,
-    mainboardComboData,
-    ownedNames,
-    ownedOnly,
-    landAdvice,
+    taggerReady,
+    buildTimeNudge,
+    analysisState,
+    bracketAnalysis,
+    replaceCuts,
+    crossDeckMoves,
+    suggestGroups,
+    scoreRevealKey,
     coachSettings,
+    planAvailable,
+    upgradePlanTools,
+    nextBestMoves,
+  } = useDeckAnalysisData({
+    deck,
+    mainboardComboData,
+    comboData,
+    commanderColorIdentity,
+    collectionCards,
+    printingAllocationMap,
+    formatConfig,
+    planOpen,
+    ownedNames,
+    mainboardLimit,
     ownershipFor,
-  ]);
-
-  // UX-310: whether the async commander-deck analysis is still in its first
-  // run. `gradeBracketSignature` is only set after a successful analysis
-  // completes, so its absence means no result has landed yet. Non-commander
-  // decks or decks without a commander skip analysis entirely → 'ready'.
-  // E162: once a signature has EVER persisted, a later background re-analysis
-  // failing is deliberately silent (stale-but-fine result stays on screen —
-  // see the hook's own docs) — 'error' only applies before the FIRST success,
-  // which is the case that used to skeleton forever with no way out.
-  const analysisState = useMemo<'pending' | 'ready' | 'error'>(() => {
-    if (!deck || !DECK_FORMAT_CONFIGS[deck.format].hasCommander || !deck.commander) return 'ready';
-    if (deck.gradeBracketSignature) return 'ready';
-    return bracketAnalysis.status === 'error' ? 'error' : 'pending';
-  }, [deck, bracketAnalysis.status]);
-
-  // Session-scoped reveal key for score animations. Non-null only when analysis
-  // is ready and the deck has a gradeBracketSignature. The module-level registry
-  // in use-animated-number ensures the reveal fires exactly once per key (even
-  // across tab switches and remounts) — no latch state needed here.
-  const scoreRevealKey = useMemo<string | null>(() => {
-    if (!deck) return null;
-    if (analysisState !== 'ready') return null;
-    if (!deck.gradeBracketSignature) return null;
-    return `${deck.id}:${deck.gradeBracketSignature}`;
-  }, [deck, analysisState]);
-
-  // UX-311: deep-link from a StatsHero shortfall to the Coach filter that fixes
-  // it. Switches to the Coach tab and sets the focus so CoachFeed activates the
-  // matching chip (the same one-shot mechanism as NextBestMove deep-links).
-  const handleNavigateToTune = useCallback(
-    (lane: LaneId) => {
-      openView('tune');
-      setTuneFocusLane(lane);
-    },
-    [openView]
-  );
-
-  // Owned-substitute plan ("From your collection") — derived live from the
-  // persisted gap analysis + the live collection (ownership is intentionally a
-  // UI-layer concern; the analysis orchestrator stays collection-agnostic).
-  // For each EDHREC staple the deck wants but doesn't own, find an owned card
-  // filling the same role within color identity. Pure + cheap → recompute on
-  // change rather than persist.
-  // One candidate per NAME, not per physical copy: the finder ranks by name
-  // (role, identity, similarity are all per card, not per copy), so 11.5k
-  // copies collapse to ~4.4k names — and the pool survives deck edits (E276).
-  const ownedPool = useMemo(() => {
-    const byName = new Map<string, SubstituteCandidate>();
-    for (const c of collectionCards) {
-      if (byName.has(c.name)) continue;
-      byName.set(c.name, {
-        name: c.name,
-        colorIdentity: c.colorIdentity ?? [],
-        cmc: c.cmc,
-        typeLine: c.typeLine,
-      });
-    }
-    return [...byName.values()];
-  }, [collectionCards]);
-  // E517: v2 re-ranks the owned alternatives once its card facts load (the Coach tab asks).
-  const substitutesReady = useSubstituteRanking(view === 'tune');
-  const substitutionPlan = useMemo(() => {
-    if (!deck || !DECK_FORMAT_CONFIGS[deck.format].hasCommander) return null;
-    const gap = deck.gapAnalysis;
-    if (!gap || gap.length === 0) return null;
-    // Staples worth substituting: role-bearing, not owned, in a role the deck is short on.
-    const missingStaples = staplesToSubstitute(
-      gap,
-      ownedNames,
-      liveRoleCounts ?? {},
-      deck.roleTargets ?? {}
-    );
-    if (missingStaples.length === 0) return null;
-
-    const deckNames = new Set(deck.cards.map((c) => c.card.name));
-    const inclusionByName = new Map<string, number>(Object.entries(deck.cardInclusionMap ?? {}));
-    // Options variant: each primary carries ranked owned alternatives for the
-    // "N other owned options" expander (deck generation still uses the greedy
-    // single-pick buildSubstitutionPlan).
-    return buildSubstitutionOptions(missingStaples, ownedPool, deckNames, commanderColorIdentity, {
-      inclusionByName,
-      rerank: substitutesReady ? substitutesV2.ownedAlternativesReranker([...deckNames]) : null,
-    });
-  }, [deck, ownedNames, ownedPool, commanderColorIdentity, substitutesReady, liveRoleCounts]);
-
-  // Strong on-color duals for the deck's colors, fetched live for the
-  // "Re-analyze lands" tool's acquire rows (duals worth getting, not just ones
-  // you own). Gated to 2+ color decks (minLength 2) — mono-color decks have no
-  // duals to fetch; the owned-swap path still works for them. Cached 10min by
-  // the search client, so re-opens are cheap. Failure is silent → owned-only.
-  const identityKey = useMemo(
-    () => [...commanderColorIdentity].sort().join(''),
-    [commanderColorIdentity]
-  );
-  const { results: fetchedFixingLands } = useSearchCards(identityKey, {
-    fetcher: fetchFixingLands,
-    limit: 60,
-    minLength: 2,
+    ownedOnly,
   });
-
-  // Merit-based land upgrades — the "Re-analyze lands" tool. Scores on-color
-  // candidate lands by intrinsic strength (popularity-blind, so a strong new
-  // land EDHREC hasn't rated still surfaces) and proposes safe swaps for weak
-  // lands in the deck. Candidate pool = the user's OWNED unused lands (apply-now)
-  // + the fetched duals above (acquire). EnrichedCard is camelCase and lacks
-  // produced_mana; we map owned copies to the ScryfallCard shape the engine reads
-  // (producedManaColors' oracle-text fallback recovers colors) — mirroring
-  // classifyOwnedCommanderPlaystyles. Fetched cards are already full ScryfallCards.
-  const landUpgrades = useMemo(() => {
-    const identity = new Set(commanderColorIdentity);
-    if (!deck || identity.size === 0) return [];
-    const owned = collectionLandsAsCards(collectionCards);
-    const pool = landUpgradeCandidates(owned, fetchedFixingLands);
-    return computeLandUpgrades(deckCards, identity, pool, ownedNames, deck.cardInclusionMap);
-  }, [deck, commanderColorIdentity, collectionCards, deckCards, fetchedFixingLands, ownedNames]);
-
-  /**
-   * The engine's suggestions for the AI refine pass (T102 slice 4). Assembled
-   * from lanes the coach ALREADY computed, so there is no new engine call and
-   * the deterministic generator stays untouched.
-   *
-   * These are EVIDENCE, not the model's whole world — it also searches the card
-   * database server-side. See `buildRefinePool` for why that changed and for
-   * which of these lanes actually contain anything on a real deck.
-   *
-   * Owned-only builds still filter here via the same `constrainsToCollection`
-   * predicate generation itself used (the fine-grained strategy survives on
-   * `buildReport`, not `generationContext`, which only persists the boolean),
-   * but the guarantee is enforced on the server now.
-   *
-   * A hand-built deck has no `buildReport`, so this alone defaults false —
-   * callers OR it with the user's live `ownedOnly` toggle so the AI panel
-   * still respects "owned only" on decks that were never generated.
-   */
-  const refineOwnedOnly = useMemo(
-    () => constrainsToCollection(deck?.buildReport?.collectionStrategy ?? 'prefer'),
-    [deck?.buildReport?.collectionStrategy]
-  );
-  /**
-   * The deck's AI sources contract (T112). The player's choice wins; until
-   * they make one, a deck built from the collection or mostly owned already
-   * reads as "cards you own" — that default is what stops a hand-built deck
-   * from being prescribed a shopping list on its very first reading. The
-   * threshold is coarse on purpose: once the player touches the control the
-   * answer is persisted and this derivation never runs again for the deck.
-   */
-  const aiScope: AiScope = useMemo(() => {
-    if (deck?.aiScope) return deck.aiScope;
-    if (refineOwnedOnly) return 'owned';
-    const cards = deck?.cards ?? [];
-    if (cards.length === 0) return 'any';
-    const owned = cards.filter((c) => ownedNames.has(c.card.name)).length;
-    return owned / cards.length >= 0.8 ? 'owned' : 'any';
-  }, [deck?.aiScope, deck?.cards, refineOwnedOnly, ownedNames]);
-  /** E274: the Coach tab's live refine reading, for the feed's "AI agrees" join. */
-  const [aiAgrees, setAiAgrees] = useState<ReadonlyMap<string, string> | null>(null);
-  const refinePool = useMemo(
-    () =>
-      deck
-        ? buildRefinePool({
-            gaps: deck.gapAnalysis ?? [],
-            synergy: deck.synergyAnalysis?.suggestions ?? [],
-            substitutes: substitutionPlan?.rows ?? [],
-            hiddenGems: deck.hiddenGems ?? [],
-            landUpgrades,
-            deckNames: deckCardNames,
-            ownedNames: isCollectionScope(aiScope) ? ownedNames : undefined,
-          })
-        : [],
-    [deck, substitutionPlan, landUpgrades, deckCardNames, aiScope, ownedNames]
-  );
-  // New arrivals, tailored to THIS deck: only cards the coach recommends for
-  // it or that finish a one-away combo (lib/coach/arrival-watchlist.ts says which
-  // lanes, and why not the owned-only ones). The raw arrivals are "in color
-  // identity, acquired since the deck last changed", which on any real import
-  // reads as random: every red card you bought lit up a Krenko deck.
-  const coachWanted = useMemo(
-    () =>
-      coachWantedNames(
-        {
-          gaps: deck?.gapAnalysis,
-          synergy: deck?.synergyAnalysis?.suggestions,
-          hiddenGems: deck?.hiddenGems,
-        },
-        mainboardComboData?.oneAway
-      ),
-    [deck?.gapAnalysis, deck?.synergyAnalysis, deck?.hiddenGems, mainboardComboData]
-  );
-  const coachArrivals = useMemo(
-    () => narrowArrivals(arrivalsByType, coachWanted),
-    [arrivalsByType, coachWanted]
-  );
-  // The wanted list is what Home's "+N new cards" narrows by, so Home and this
-  // page count the same cards (lib/coach/arrival-watchlist.ts). Recorded only once
-  // every input has landed: a list taken mid-load (collection still
-  // hydrating, combos still fetching) is short, and Home would under-count.
-  const arrivalsSettled = !collectionHydrating && !comboData.loading;
-  const deckIdForWatch = deck?.id;
-  // Joined so the selector returns a primitive: other decks' edits don't
-  // re-render this page, only a deck being added or deleted.
-  const liveDeckIds = useDecksStore((s) => s.decks.map((d) => d.id).join(','));
-  useEffect(() => {
-    if (!deckIdForWatch || !arrivalsSettled) return;
-    rememberArrivalWatchlist(deckIdForWatch, coachWanted, liveDeckIds.split(','));
-  }, [deckIdForWatch, arrivalsSettled, coachWanted, liveDeckIds]);
+  const {
+    setAuditionPinnedCutName,
+    setAuditionCard,
+    addChosenCard,
+    setPendingMove,
+    setPendingAdd,
+    setPendingAddPrinting,
+    setPendingAddGroup,
+    commitCrossDeckMove,
+    handleAddEngineCard,
+    handleCutEngineCard,
+    setShowFill,
+    addingEngineNames,
+    auditionCard,
+    auditionReport,
+    auditionPinnedCutName,
+    showFill,
+    pendingAdd,
+    replaceOptions,
+    pendingMoveFor,
+    addToSideboardAndClose,
+    addToConsideringAndClose,
+    addAnywayAndClose,
+    refillAfterCut,
+    refillOptions,
+    setRefillAfterCut,
+    addZoneLabel,
+    handleScryfallDrop,
+  } = useDeckAddFlow({
+    deckIsFull,
+    addZone,
+    setShowAddPanel,
+    buildTimeNudge,
+    deck,
+    commanderNames,
+    formatConfig,
+    mainboardLimit,
+    commanderColorIdentity,
+    collectionCards,
+    isCommander,
+    replaceCuts,
+    mainboardComboData,
+    ownershipFor,
+    executeReallocation,
+  });
+  const {
+    handleApplyCoachMove,
+    handleApplyCostSwaps,
+    swappingSlot,
+    handleSwapInDeck,
+    bracketFitSwapName,
+    handleApplyPlan,
+  } = useDeckCoachApply({
+    deck,
+    collectionCards,
+    crossDeckMoves,
+    deckIsFull,
+    setPendingMove,
+    setPendingAdd,
+    setPendingAddPrinting,
+    setPendingAddGroup,
+    commitCrossDeckMove,
+    handleAddEngineCard,
+    handleCutEngineCard,
+    setPlanOpen,
+  });
+  const { refinePool, aiScope, landUpgrades, setAiAgrees, substitutionPlan, aiAgrees } =
+    useDeckRefineData({
+      collectionCards,
+      view,
+      deck,
+      ownedNames,
+      liveRoleCounts,
+      commanderColorIdentity,
+      deckCards,
+      deckCardNames,
+    });
+  const { coachArrivals, arrivalsSettled } = useCoachArrivals({
+    deck,
+    mainboardComboData,
+    arrivalsByType,
+    comboData,
+  });
   // Same-role re-roll index for the AI panel's swap rows — built from the engine
   // pool so a re-roll never needs another model call.
   //
@@ -1381,85 +483,13 @@ export function DeckEditorPage() {
         : new Map<string, string[]>(),
     [refinePool, taggerReady]
   );
-
-  // `/` opens the search panel; `c` jumps to the Power tab and reveals the
-  // combos panel; `a` opens the Coach tab (suggestions). Skipped while the user
-  // is typing into another input/textarea so the keys still type literally
-  // inside a rename/search box.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const target = e.target as HTMLElement | null;
-      const tag = target?.tagName?.toLowerCase();
-      if (tag === 'input' || tag === 'textarea' || target?.isContentEditable) return;
-      if (e.key === '/') {
-        e.preventDefault();
-        setShowAddPanel(true);
-        window.requestAnimationFrame(() => searchPanelRef.current?.focusInput());
-      } else if (e.key === 'c' || e.key === 'C') {
-        e.preventDefault();
-        // Combos render under the Power tab. Switch there, then reveal the
-        // panel on the next frame (it only mounts once Power is active).
-        openAnalysisTab('power');
-        window.requestAnimationFrame(handleViewCombos);
-      } else if (e.key === 'a' || e.key === 'A') {
-        e.preventDefault();
-        openAnalysisTab('tune'); // Suggestions live under the Coach tab (view id stays 'tune').
-      }
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [openAnalysisTab, handleViewCombos]);
-
-  // Hero totals — a quick at-a-glance summary above the deck composition.
-  // The count/value reflect the *mainboard deck only* (commanders + main
-  // cards), matching the legality banner's notion of the deck; the sideboard
-  // is surfaced separately (as "+N sideboard", distinct from the "+N
-  // considering" maybe-pile right next to it — E183) so the hero doesn't
-  // claim "104 cards" on a 100-card deck. Computed BEFORE the missing-deck
-  // early return so the hook order stays stable across renders.
-  const pricesVersion = useDeckPrices([deck?.commander, deck?.partnerCommander, ...deckCards]);
-  const heroTotals = useMemo(() => {
-    if (!deck) return { count: 0, value: 0, sideboard: 0, considering: 0 };
-    return {
-      count: (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0) + deck.cards.length,
-      value: (void pricesVersion, deckValue(deck, currency)),
-      sideboard: deck.sideboard.length,
-      considering: (deck.considering ?? []).length,
-    };
-  }, [deck, currency, pricesVersion]);
-
-  // The deck's cover behind the hero, the same face its index tile wears
-  // (lib/deck/deck-cover). Undefined only for a deck with no art at all; the hero
-  // then keeps its plain color-border look.
-  const heroArt = useMemo(() => (deck ? deckCoverArt(deck) : undefined), [deck]);
-  // The card menu's "Use as deck cover". `chosen` is only the pick while that
-  // card is still in the deck; after it leaves, the deck is back on automatic
-  // and the menu should say so.
-  const deckId = deck?.id;
-  const coverCardName = deck?.coverCardName ?? null;
-  const setCover = useCallback(
-    (name: string | null) => {
-      if (!deckId) return;
-      updateDeck(deckId, { coverCardName: name });
-      pushToast({
-        message: name ? `${name} is now this deck's cover.` : 'The deck picks its own cover again.',
-        tone: 'success',
-      });
-    },
-    [deckId, updateDeck, pushToast]
-  );
-  const cover = useMemo(() => {
-    if (!deck) return undefined;
-    const current = pickDeckCover(deck)?.name ?? null;
-    return { chosen: coverCardName === current ? coverCardName : null, current, set: setCover };
-  }, [deck, coverCardName, setCover]);
+  useDeckEditorHotkeys({ setShowAddPanel, searchPanelRef, openAnalysisTab, handleViewCombos });
+  const { heroArt, heroTotals, cover } = useDeckHeroData({ deck, deckCards });
 
   // CoachFeed "Fit?" button — open the audition for a feed row's incoming card.
   // For swap rows, also store the outgoing card name so CardFitPanel can pin it
   // as the first cut suggestion (pre-seeding the natural swap target).
   // Reuses the same getCardByName + setAuditionCard flow as the card-search path.
-  // Defined BEFORE the missing-deck early return so hook order is stable.
   const handleCoachPreviewFit = useCallback(
     async (change: Change) => {
       if (!deck) return;
@@ -1468,28 +498,8 @@ export function DeckEditorPage() {
       setAuditionPinnedCutName(change.type === 'swap' && change.inName ? change.inName : null);
       setAuditionCard(scry);
     },
-    [deck]
+    [deck, setAuditionCard, setAuditionPinnedCutName]
   );
-
-  if (!id) return <Navigate to="/decks" replace />;
-  if (!deck) {
-    if (!decksHydrated || syncing) {
-      return (
-        <div className="page-loader page-loader--message" role="status" aria-live="polite">
-          <span className="spinner" aria-hidden="true" />
-          <span className="page-loader-message">Loading deck…</span>
-        </div>
-      );
-    }
-    return (
-      <div className="deck-editor-missing">
-        <p>That deck no longer exists.</p>
-        <Button variant="primary" to="/decks">
-          Back to decks
-        </Button>
-      </div>
-    );
-  }
 
   const handleCommitRename = (name: string) => renameDeck(deck.id, name);
   // Undoable from the toast, so it doesn't confirm first (T157) — deleteDeck
@@ -1510,1667 +520,61 @@ export function DeckEditorPage() {
       window.requestAnimationFrame(() => searchPanelRef.current?.focusInput());
     }
   };
-
-  // The Add cards "+" for a card already resolved to its printing, into the
-  // zone the "Add cards to" toggle names. The search panel's + and a card
-  // dropped from Scryfall both come through here, so they behave the same.
-  // `full` defaults to the deck's own size; a multi-card drop passes its
-  // running count. Returns 'full' when it opened the replace-when-full prompt
-  // instead of adding.
-  const addChosenCard = (
-    card: ScryfallCard,
-    notify: boolean,
-    full: boolean = deckIsFull,
-    group: string | null = null
-  ): 'added' | 'full' => {
-    if (addZone === 'side' || addZone === 'considering') {
-      // allocateAndAdd resolves the copy itself (free / auto-move /
-      // proxy) — the panel's own pick only ever sees free copies, so
-      // routing through it is what makes "add an owned card whose copy
-      // is in another deck" Just Work instead of silently proxying.
-      allocateAndAdd(card, addZone === 'side' ? 'sideboard' : 'considering', notify, group);
-      return 'added';
+  const { renderSwapSuggestions, renderSimilarCards, renderAddPanelContent } = useDeckCardRenderers(
+    {
+      addZone,
+      setAddZone,
+      formatConfig,
+      buildTimeNudge,
+      openAnalysisTab,
+      handleViewCombos,
+      handleViewWinConditions,
+      handleViewBracket,
+      searchPanelRef,
+      deck,
+      commanderColorIdentity,
+      commanderNames,
+      existingCardCounts,
+      atCopyLimit,
+      binderByCardName,
+      addChosenCard,
+      setAuditionCard,
+      mainboardComboData,
+      ownershipFor,
+      analysisState,
+      bracketAnalysis,
+      commanderKey,
+      refinePool,
+      aiScope,
+      refineAlternatives,
+      deckIsFull,
+      setShowAddPanel,
+      handleApplyCoachMove,
+      handleApplyCostSwaps,
+      swappingSlot,
+      handleSwapInDeck,
+      collectionCards,
+      freeCountFor,
     }
-    // A full Commander deck would overfill — open the intelligent
-    // replace-when-full prompt instead of silently going to 101.
-    if (full) {
-      // The sheet gets out of the way so DeckSizePrompt isn't stacked
-      // on top of it.
-      setShowAddPanel(false);
-      setPendingMove(null);
-      setPendingAdd(card.name);
-      setPendingAddPrinting(card);
-      setPendingAddGroup(group);
-      return 'full';
-    }
-    // Arm the build-time nudge BEFORE the mutation lands, so its
-    // baseline token snapshot is genuinely "before" — see
-    // notifyMainboardAdd's own doc for why the order matters.
-    buildTimeNudge.notifyMainboardAdd(card.name);
-    allocateAndAdd(card, 'main', notify, group);
-    return 'added';
-  };
-
-  // A card link dropped on the editor (a card image dragged off scryfall.com)
-  // adds that exact printing through addChosenCard, with the same copy-limit
-  // refusal and off-color note the search panel gives its +.
-  const addZoneLabel =
-    addZone === 'side' ? 'Sideboard' : addZone === 'considering' ? 'Considering' : 'Mainboard';
-  const handleScryfallDrop = async (text: string) => {
-    const refs = parseScryfallCardRefs(text);
-    if (refs.length === 0) {
-      pushToast({ message: "That link isn't a Scryfall card.", tone: 'error' });
-      return;
-    }
-    const { cards, error } = await getCardsByRefs(refs).catch((e: unknown) => ({
-      cards: [] as ScryfallCard[],
-      error: e,
-    }));
-    if (cards.length === 0) {
-      pushToast({
-        message: userMessage(error, "Couldn't find that card on Scryfall."),
-        tone: 'error',
-      });
-      return;
-    }
-    const zoneCards = addZone === 'side' ? deck.sideboard : deck.cards;
-    const addedByName = new Map<string, number>();
-    let mainCount = deck.cards.length;
-    for (const card of cards) {
-      const copies =
-        zoneCards.filter((c) => c.card.name === card.name).length +
-        (addedByName.get(card.name) ?? 0);
-      if (addZone === 'main' && commanderNames.includes(card.name)) {
-        pushToast({ message: `${card.name} is already your commander.`, tone: 'info' });
-        continue;
-      }
-      if (addZone !== 'considering' && copies >= getMaxCopies(card, !!formatConfig?.isSingleton)) {
-        pushToast({ message: `${card.name} is already at its copy limit.`, tone: 'info' });
-        continue;
-      }
-      if (addChosenCard(card, true, addZone === 'main' && mainCount >= mainboardLimit) === 'full')
-        break;
-      addedByName.set(card.name, (addedByName.get(card.name) ?? 0) + 1);
-      if (addZone === 'main') mainCount += 1;
-      const offColor =
-        commanderColorIdentity.length > 0 &&
-        (card.color_identity ?? []).some((k) => !commanderColorIdentity.includes(k));
-      if (offColor)
-        pushToast(
-          addZone === 'main'
-            ? { message: `${card.name} is outside your commander's color identity.`, tone: 'warn' }
-            : {
-                message: `${card.name} is outside your commander's color identity. It can sit here, but not in the mainboard.`,
-                tone: 'info',
-              }
-        );
-    }
-    const missed = refs.length - cards.length;
-    if (missed > 0)
-      pushToast({
-        message: `Couldn't find ${missed} of the dropped cards on Scryfall.`,
-        tone: 'error',
-      });
-  };
-
-  // The add-cards panel's contents (zone toggle + coach strip + search),
-  // hosted by the card-picker sheet (bottom sheet on mobile, centered
-  // modal ≥1024px). `close` is the sheet's animated `dismiss`.
-  const renderAddPanelContent = (close: () => void) => (
-    <>
-      <div className="card-picker-handle" aria-hidden />
-      <AddZoneToggle addZone={addZone} setAddZone={setAddZone} formatConfig={formatConfig} />
-      {/* Build-time coach nudge (E169 Half B) — strictly mainboard-only:
-          an add to sideboard/considering doesn't touch the mainboard
-          signature the combo/bracket/win-condition engines analyze, so
-          it can never produce a nudge, and switching zone tabs away
-          from Mainboard hides any nudge already showing. */}
-      {addZone === 'main' && (
-        <BuildTimeCoachStrip
-          nudge={buildTimeNudge.nudge}
-          onView={(kind) => {
-            // A navigating strip (STYLE_GUIDE "Build-time coach
-            // strip"), unlike the tap-opens-sheet insight strips: the
-            // detail lives one tab over in the Power bento, not in a
-            // local sheet, so leaving the add flow is unavoidable —
-            // make it a deliberate close (dismiss the sheet) rather
-            // than an accidental one.
-            buildTimeNudge.dismiss();
-            close();
-            openAnalysisTab('power');
-            window.requestAnimationFrame(() => {
-              if (kind === 'combo') handleViewCombos();
-              else if (kind === 'wincon') handleViewWinConditions();
-              else handleViewBracket();
-            });
-          }}
-          onDismiss={buildTimeNudge.dismiss}
-        />
-      )}
-      <CardSearchPanel
-        ref={searchPanelRef}
-        deckId={deck.id}
-        commanderColorIdentity={commanderColorIdentity}
-        commanderNames={commanderNames}
-        addZone={addZone}
-        existingCardCounts={existingCardCounts}
-        atCopyLimit={atCopyLimit}
-        binderByCardName={binderByCardName}
-        groupNames={collectGroupNames(deck)}
-        onAdd={({ card, group }) => addChosenCard(card, false, undefined, group ?? null)}
-        onPreviewFit={(card) => setAuditionCard(card)}
-        onClose={close}
-        suggestions={deck.gapAnalysis}
-        oneAwayCombos={mainboardComboData?.oneAway}
-        hiddenGems={deck.hiddenGems}
-        ownershipFor={ownershipFor}
-        // Suggestions are read against a commander, so they wait for one; the
-        // format's own rules (legality, and identity once there is one) don't.
-        enableSuggestions={!!formatConfig?.hasCommander && !!deck.commander}
-        noCommanderYet={!!formatConfig?.hasCommander && !deck.commander}
-        legalityKey={formatConfig?.legalityKey}
-        suggestionsPending={analysisState === 'pending'}
-        suggestionsFailed={analysisState === 'error'}
-        onRetrySuggestions={analysisState === 'error' ? bracketAnalysis.retry : undefined}
-        commanderKey={commanderKey}
-        aiSlot={
-          formatConfig?.hasCommander && deck.commander ? (
-            /* `key={deck.id}` on EVERY mount of this panel is load-bearing, not
-               cosmetic: `/decks/:id` has no route key, so react-router reuses
-               this page element when navigating between decks and the panel
-               would otherwise never unmount — leaving the previous deck's
-               reading on screen (its "Apply all" would push those swaps into the
-               deck now open) and its dismissal set in state, which the next save
-               would write back under this deck's key. */
-            <DeckAiRefine
-              key={deck.id}
-              variant="suggestions"
-              deckId={deck.id}
-              format={deck.format}
-              commander={deck.commander}
-              partnerCommander={deck.partnerCommander ?? null}
-              mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
-              pool={refinePool}
-              scope={aiScope}
-              alternatives={refineAlternatives}
-              bracketTarget={deck.bracketOverride ?? null}
-              bracketEstimate={deck.bracketEstimation?.bracket ?? null}
-              onApplyMove={(change) => {
-                // Mirror the panel's own onAdd: a pure add on a full deck
-                // opens the replace-when-full prompt, so the sheet gets
-                // out of its way first (swaps stay in place).
-                if (change.type === 'add' && deckIsFull) {
-                  setShowAddPanel(false);
-                }
-                void handleApplyCoachMove(change);
-              }}
-              onApplyAll={(swaps) => handleApplyCostSwaps(swaps, 'ai')}
-            />
-          ) : undefined
-        }
-      />
-    </>
   );
-
-  // Capture the slot before removing so Undo can re-add the same card with
-  // the same allocated printing. (`addCard` mints a fresh slotId, but the
-  // collection allocation is what actually matters to the user.)
-  const handleRemoveCard = (slotId: string) => {
-    const slot = deck.cards.find((c) => c.slotId === slotId);
-    if (!slot) return;
-    recordEdit(deck.id, `remove ${slot.card.name}`, () => removeCard(deck.id, slotId));
-    pushToast({
-      message: `Removed ${slot.card.name}`,
-      tone: 'success',
-      actionLabel: 'Undo',
-      onAction: () => undoEdit(deck.id),
-    });
-  };
-
-  // ── Physical-copy reallocation (move owned cards between decks) ────────────
-  // A move pulls one physical copy out of a donor deck and (optionally) into a
-  // recipient deck, with an explicit donor outcome. A cross-deck move can't be a
-  // single per-deck undo command, so it reverses via one toast "Undo" that
-  // atomically restores BOTH decks' pre-move snapshots (the blessed
-  // compensating-mutation pattern under LWW). Ctrl+Z stays in-deck-only.
-
-  // Locate the slot in the current deck to move a copy of `name` OUT of. Prefers
-  // an allocated slot (a real physical copy to move), else an unowned slot
-  // (relocating just the list entry).
-  const findDonorSlotInDeck = (
-    name: string
-  ): { zone: 'main' | 'sideboard'; slotId: string; copyId: string | null } | null => {
-    if (!deck) return null;
-    const key = name.toLowerCase();
-    const mainAlloc = deck.cards.find(
-      (c) => c.card.name.toLowerCase() === key && c.allocatedCopyId
-    );
-    if (mainAlloc)
-      return { zone: 'main', slotId: mainAlloc.slotId, copyId: mainAlloc.allocatedCopyId };
-    const sideAlloc = deck.sideboard.find(
-      (c) => c.card.name.toLowerCase() === key && c.allocatedCopyId
-    );
-    if (sideAlloc)
-      return { zone: 'sideboard', slotId: sideAlloc.slotId, copyId: sideAlloc.allocatedCopyId };
-    const main = deck.cards.find((c) => c.card.name.toLowerCase() === key);
-    if (main) return { zone: 'main', slotId: main.slotId, copyId: null };
-    const side = deck.sideboard.find((c) => c.card.name.toLowerCase() === key);
-    if (side) return { zone: 'sideboard', slotId: side.slotId, copyId: null };
-    return null;
-  };
-
-  // Apply the chosen donor outcome to the slot losing the copy. Commander/partner
-  // slots can only be freed (leave-gap) — they have no portable list slot.
-  const applyDonorOutcome = (
-    donorDeckId: string,
-    zone: DonorZone,
-    slotId: string | null,
-    donorCard: ScryfallCard,
-    outcome: DonorOutcome,
-    replacement: { name: string; card: ScryfallCard } | null
-  ): void => {
-    // Cube donors never route here — a cube is freed via releaseCubePick (no slot,
-    // leave-gap only). Guard so a future cube-outbound path can't silently no-op.
-    if (zone === 'cube') {
-      if (import.meta.env.DEV)
-        throw new Error('[applyDonorOutcome] cube zone must use releaseCubePick');
-      return;
-    }
-    if (zone === 'commander') return void setCommander(donorDeckId, donorCard, null);
-    if (zone === 'partner') return void setPartnerCommander(donorDeckId, donorCard, null);
-    if (!slotId) return;
-    if (outcome === 'remove') {
-      if (zone === 'sideboard') removeSideboardCard(donorDeckId, slotId);
-      else removeCard(donorDeckId, slotId);
-      return;
-    }
-    if (outcome === 'replace' && replacement) {
-      const alloc =
-        pickCollectionCopy(
-          replacement.name,
-          collectionCards,
-          buildAllocationMap(useDecksStore.getState().decks, useCubeStore.getState().saved),
-          replacement.card.id
-        )?.copyId ?? null;
-      if (zone === 'sideboard') {
-        removeSideboardCard(donorDeckId, slotId);
-        addSideboardCard(donorDeckId, replacement.card, alloc);
-      } else {
-        swapCard(donorDeckId, slotId, replacement.card, alloc);
-      }
-      return;
-    }
-    // leave-gap (default): the donor keeps the card as an unowned copy it needs.
-    if (zone === 'sideboard') {
-      // setCardAllocation only touches the mainboard; clear a sideboard slot's
-      // allocation by re-seating it unowned.
-      const slot = useDecksStore
-        .getState()
-        .decks.find((d) => d.id === donorDeckId)
-        ?.sideboard.find((c) => c.slotId === slotId);
-      removeSideboardCard(donorDeckId, slotId);
-      if (slot) addSideboardCard(donorDeckId, slot.card, null);
-    } else {
-      setCardAllocation(donorDeckId, slotId, null);
-    }
-  };
-
-  // Execute a cross-deck reallocation and offer a single toast-Undo that
-  // atomically restores both decks.
-  const executeReallocation = (opts: {
-    donorDeckId: string;
-    /** Set when the donor is a physical cube (instead of a deck) — snapshot the
-     *  cube so Undo restores the released pick atomically alongside the deck. */
-    donorCubeId?: string;
-    recipientDeckId: string;
-    recipientApply: () => void;
-    donorApply: () => void;
-    label: string;
-  }): void => {
-    const decksNow = useDecksStore.getState().decks;
-    const snapDonor = decksNow.find((d) => d.id === opts.donorDeckId) ?? null;
-    const snapRecipient =
-      opts.recipientDeckId === opts.donorDeckId
-        ? null
-        : (decksNow.find((d) => d.id === opts.recipientDeckId) ?? null);
-    const snapCube = opts.donorCubeId
-      ? (useCubeStore.getState().saved.find((c) => c.id === opts.donorCubeId) ?? null)
-      : null;
-    // Ordering matters for crash-safety. A cube steal writes two different entity
-    // rows (cube + deck) with no cross-entity dedupe heal, so RELEASE from the cube
-    // first: a crash between the two writes then leaves the copy FREE (re-bindable),
-    // never double-claimed. The deck→deck path keeps recipient-first because its
-    // `replace` donor outcome must pick a free copy AFTER the moved copy is still
-    // claimed (reversing it would let the replacement grab the copy being moved).
-    // Deferred heal: between the two deck writes the moved copy is claimed
-    // twice, and healing that half-state strips one claim by deck order.
-    withAllocationHealDeferred(() => {
-      if (opts.donorCubeId) {
-        opts.donorApply();
-        opts.recipientApply();
-      } else {
-        opts.recipientApply();
-        opts.donorApply();
-      }
-    });
-    haptics.tap();
-    pushToast({
-      message: opts.label,
-      tone: 'success',
-      actionLabel: 'Undo',
-      onAction: () => {
-        withAllocationHealDeferred(() => {
-          if (snapDonor) replaceDeck(opts.donorDeckId, snapDonor);
-          if (snapRecipient) replaceDeck(opts.recipientDeckId, snapRecipient);
-        });
-        // Restore the cube's pre-release picks (re-binds the freed copy).
-        if (snapCube) useCubeStore.getState().updateSaved(snapCube.id, { picks: snapCube.picks });
-        haptics.tap();
-      },
-    });
-  };
-
-  // Surface 2 commit (from MoveToDeckSheet): send a copy of `card` from this deck
-  // into `targetDeckId`, applying the donor outcome to THIS deck.
-  const handleMoveConfirm = (
-    card: ScryfallCard,
-    targetDeckId: string,
-    outcome: DonorOutcome,
-    replacement: { name: string; card: ScryfallCard } | null
-  ): void => {
-    if (!deck) return;
-    setMoveCard(null);
-    const slot = findDonorSlotInDeck(card.name);
-    if (!slot) return;
-    const target = decks.find((d) => d.id === targetDeckId);
-    executeReallocation({
-      donorDeckId: deck.id,
-      recipientDeckId: targetDeckId,
-      recipientApply: () => addCard(targetDeckId, card, slot.copyId),
-      donorApply: () =>
-        applyDonorOutcome(deck.id, slot.zone, slot.slotId, card, outcome, replacement),
-      label: `Moved ${card.name} → ${target?.name ?? 'deck'}`,
-    });
-  };
-
-  // Surface 3: free an owned copy back to the collection (the slot stays as a
-  // card you still need). Single-deck → normal undo + toast.
-  const handleReleaseConfirm = (): void => {
-    if (!deck || !releaseCard) return;
-    const card = releaseCard;
-    setReleaseCard(null);
-    const slot = deck.cards.find((c) => c.card.name === card.name && c.allocatedCopyId);
-    if (slot) {
-      recordEdit(deck.id, `release ${card.name}`, () =>
-        setCardAllocation(deck.id, slot.slotId, null)
-      );
-    } else if (deck.commander?.name === card.name && deck.commanderAllocatedCopyId) {
-      recordEdit(deck.id, `release ${card.name}`, () =>
-        setCommander(deck.id, deck.commander, null)
-      );
-    } else if (deck.partnerCommander?.name === card.name && deck.partnerCommanderAllocatedCopyId) {
-      recordEdit(deck.id, `release ${card.name}`, () =>
-        setPartnerCommander(deck.id, deck.partnerCommander, null)
-      );
-    } else {
-      return;
-    }
-    pushToast({
-      message: `${card.name} released. The copy is now free.`,
-      tone: 'success',
-      actionLabel: 'Undo',
-      onAction: () => undoEdit(deck.id),
-    });
-  };
-
-  // Pull an owned copy of a slot's card into THIS deck from whichever other deck
-  // OR physical cube holds it, leaving that donor a gap (it keeps the card
-  // listed, now shown "In [this deck]"). One atomic Undo restores both. The
-  // explicit "Move here…" / "Use my copy" click IS the conscious choice — we
-  // don't pop a second sheet; the donor always gets leave-gap. (Replace/remove
-  // live in the outbound "Move to another deck" flow; a cube only ever leaves a
-  // gap.) Keyed by slotId so duplicate-name rows are exact.
-  const handleMoveSharedCopy = (slotId: string): void => {
-    if (!deck) return;
-    const slot = deck.cards.find((c) => c.slotId === slotId);
-    if (!slot) return;
-    const stealable = findStealableCopy(
-      slot.card.name,
-      collectionCards,
-      useDecksStore.getState().decks,
-      deck.id,
-      slot.card.id,
-      useCubeStore.getState().saved
-    );
-    if (stealable) {
-      const fromCube = stealable.donorKind === 'cube';
-      executeReallocation({
-        donorDeckId: stealable.donorDeckId,
-        donorCubeId: fromCube ? stealable.donorId : undefined,
-        recipientDeckId: deck.id,
-        recipientApply: () => setCardAllocation(deck.id, slotId, stealable.copyId),
-        donorApply: () =>
-          fromCube
-            ? useCubeStore.getState().releaseCubePick(stealable.donorId, stealable.copyId)
-            : applyDonorOutcome(
-                stealable.donorDeckId,
-                stealable.donorZone,
-                stealable.donorSlotId,
-                stealable.donorCard!,
-                'leave-gap',
-                null
-              ),
-        label: `Moved ${slot.card.name} here from ${stealable.donorDeckName}`,
-      });
-      return;
-    }
-    // A free copy is available — bind it directly (no cross-deck move).
-    const claim = pickCollectionCopy(
-      slot.card.name,
-      collectionCards,
-      buildAllocationMap(useDecksStore.getState().decks, useCubeStore.getState().saved),
-      slot.card.id
-    );
-    if (claim) {
-      recordEdit(deck.id, `use my ${slot.card.name}`, () =>
-        setCardAllocation(deck.id, slotId, claim.copyId)
-      );
-      pushToast({ message: `Using your copy of ${slot.card.name}`, tone: 'success' });
-      haptics.tap();
-    }
-  };
-
-  // Per-row "Use my copy" (row ⋮): resolve the card to its first unowned slot and
-  // pull a copy in via the same conscious leave-gap move.
-  const handleUseOwnCopy = (card: ScryfallCard): void => {
-    if (!deck) return;
-    const slot = deck.cards.find(
-      (c) => c.card.name === card.name && !c.allocatedCopyId && !c.proxy
-    );
-    if (slot) handleMoveSharedCopy(slot.slotId);
-  };
-
-  // Row ⋮ "Mark as proxy" / "Not a proxy": a proxy slot never claims a copy, so
-  // no matcher (boot, sync, Repair) pulls one back in (lib/deck/proxy-slot.ts).
-  const handleSetProxy = (slotIds: string[], proxy: boolean): void => {
-    if (!deck) return;
-    const { decks: all } = useDecksStore.getState();
-    const plan = planProxyToggle(deck, slotIds, proxy, collectionCards, all, savedCubes);
-    if (!plan) return;
-    if (plan.kind === 'hand-over') {
-      const { waiting, copy, slot } = plan;
-      return executeReallocation({
-        donorDeckId: deck.id,
-        recipientDeckId: waiting.deckId,
-        recipientApply: () => setCardAllocation(waiting.deckId, waiting.slotId, copy.copyId),
-        donorApply: () => setCardProxy(deck.id, slot.slotId, true),
-        label: proxyToastMessage(plan),
-      });
-    }
-    const copyId = plan.kind === 'unmark' ? plan.copyId : null;
-    recordEdit(deck.id, `${proxy ? '' : 'un'}proxy ${plan.slot.card.name}`, () =>
-      setCardProxy(deck.id, plan.slot.slotId, proxy, copyId)
-    );
-    haptics.tap();
-    const onAction = () => undoEdit(deck.id);
-    pushToast({ message: proxyToastMessage(plan), tone: 'success', actionLabel: 'Undo', onAction });
-  };
-
-  // The single brain for adding an already-resolved card — used by every add path
-  // (collection search panel, Coach/Engine lanes, size-aware prompt) so they behave
-  // identically. Binds a free owned copy if one exists; otherwise adds the slot
-  // unbound — classifyAllocation renders it "In [deck]" (owned but every copy is
-  // elsewhere) or "unowned" (not owned). It NEVER moves a copy out of another deck:
-  // pulling a copy in is always a separate, conscious choice (per-row "Use my copy"
-  // / the Shared-copies review). This matches what import/generate already do.
-  // The Undo a single-add toast carries. It takes back THAT edit: if another
-  // edit landed first, Undo says so rather than undoing the wrong one.
-  // `topBefore` is the history top before the add, so a no-op add offers nothing.
-  const addUndoAction = (deckId: string, topBefore: unknown) => {
-    const command = useDeckHistoryStore.getState().topCommand(deckId);
-    if (!command || command === topBefore) return {};
-    return {
-      actionLabel: 'Undo',
-      onAction: () => {
-        if (!useDeckHistoryStore.getState().undoIfLatest(deckId, command)) {
-          pushToast({ message: 'Other edits came after this one.', tone: 'info' });
-        }
-      },
-    };
-  };
-
-  const allocateAndAdd = (
-    card: ScryfallCard,
-    zone: 'main' | 'sideboard' | 'considering',
-    notify: boolean,
-    group: string | null = null
-  ): void => {
-    if (!deck) return;
-    const plan = planCardAdd(
-      card.name,
-      card.id,
-      collectionCards,
-      useDecksStore.getState().decks,
-      useCubeStore.getState().saved
-    );
-    const allocatedId = plan.kind === 'bind' ? plan.copyId : null;
-    const label = zone === 'main' ? `add ${card.name}` : `add ${card.name} to ${zone}`;
-    const topBefore = useDeckHistoryStore.getState().topCommand(deck.id);
-    recordEdit(deck.id, label, () => {
-      const slotId =
-        zone === 'sideboard'
-          ? addSideboardCard(deck.id, card, allocatedId)
-          : zone === 'considering'
-            ? addConsideringCard(deck.id, card, allocatedId)
-            : addCard(deck.id, card, allocatedId);
-      // Same write the card menu's "file into group" makes, in the same edit
-      // so one undo takes back both.
-      if (group) {
-        const tagZone: DeckZone =
-          zone === 'sideboard' ? 'sideboard' : zone === 'considering' ? 'considering' : 'cards';
-        setCardTags(deck.id, tagZone, [slotId], [group]);
-      }
-    });
-    if (notify)
-      pushToast({
-        message: zone === 'main' ? `Added ${card.name}` : `Added ${card.name} to ${zone}`,
-        tone: 'success',
-        ...addUndoAction(deck.id, topBefore),
-      });
-  };
-
-  // Resolve a card by name (Scryfall) then route through allocateAndAdd. Used by
-  // the Optimize plan and the Coach/Engine lanes (which only have a card name).
-  const addResolvedCard = async (
-    cardName: string,
-    zone: 'main' | 'sideboard' | 'considering' = 'main',
-    printing: ScryfallCard | null = null,
-    group: string | null = null
-  ) => {
-    if (!deck) return;
-    setAddingEngineNames((prev) => new Set(prev).add(cardName));
-    try {
-      const scry = printing ?? (await getCardByName(cardName));
-      if (!scry) return;
-      allocateAndAdd(scry, zone, true, group);
-      haptics.tap();
-    } catch {
-      pushToast({ message: `Couldn't add ${cardName}`, tone: 'error' });
-    } finally {
-      setAddingEngineNames((prev) => {
-        const next = new Set(prev);
-        next.delete(cardName);
-        return next;
-      });
-    }
-  };
-
-  // Add from a Tune lane. A Commander deck at its card limit would overfill, so
-  // open the replace-when-full prompt instead of silently going to 101; otherwise
-  // add straight away.
-  const handleAddEngineCard = async (cardName: string) => {
-    if (!deck) return;
-    if (deckIsFull) {
-      setPendingMove(null);
-      setPendingAdd(cardName);
-      setPendingAddPrinting(null);
-      setPendingAddGroup(null);
-      return;
-    }
-    await addResolvedCard(cardName);
-  };
-
-  // Cut a single in-deck card by name (the Improve lane's "Consider cutting"
-  // rows). removeCard is synchronous, so no in-flight gate. If the cut drops a
-  // previously-full Commander deck below the limit, nudge for a same-role refill.
-  const handleCutEngineCard = (cardName: string) => {
-    if (!deck) return;
-    const key = cardName.toLowerCase();
-    const slotId = deck.cards.find((c) => c.card.name.toLowerCase() === key)?.slotId;
-    if (!slotId) return;
-    const wasFull = deck.cards.length >= mainboardLimit;
-    recordEdit(deck.id, `cut ${cardName}`, () => removeCard(deck.id, slotId));
-    pushToast({ message: `Cut ${cardName}`, tone: 'success' });
-    haptics.tap();
-    if (isCommander && wasFull) {
-      setRefillAfterCut({ name: cardName, role: classifyCandidate(cardName) ?? null });
-    }
-  };
-
-  // Replace a chosen in-deck card with the pending add (1-for-1 keeps the deck
-  // legal): cut the slot first so its physical copy frees up, then add.
-  const handleReplaceWhenFull = async (cutSlotId: string) => {
-    if (!deck || !pendingAdd) return;
-    const name = pendingAdd;
-    const printing = pendingPrinting;
-    const group = pendingAddGroup;
-    setPendingAdd(null);
-    if (pendingMoveFor) {
-      // Atomic 1-for-1 here too: the cut frees its copy, the moved one binds.
-      await commitCrossDeckMove(pendingMoveFor, (deckId, card, copyId) =>
-        swapCard(deckId, cutSlotId, card, copyId)
-      );
-      return;
-    }
-    const cutName = deck.cards.find((c) => c.slotId === cutSlotId)?.card.name;
-    setAddingEngineNames((prev) => new Set(prev).add(name));
-    try {
-      const scry = printing ?? (await getCardByName(name));
-      if (!scry) {
-        pushToast({ message: `Couldn't add ${name}`, tone: 'error' });
-        return;
-      }
-      const before = beginEdit(deck.id);
-      const topBefore = useDeckHistoryStore.getState().topCommand(deck.id);
-      const allocations = buildAllocationMap(
-        useDecksStore.getState().decks,
-        useCubeStore.getState().saved
-      );
-      const claim = pickCollectionCopy(name, collectionCards, allocations, scry.id);
-      // Atomic 1-for-1: never passes through a transient over/under-size state.
-      const newSlotId = swapCard(deck.id, cutSlotId, scry, claim?.copyId ?? null);
-      // Filed in the same edit as the swap, so one undo takes back both.
-      if (group && newSlotId) setCardTags(deck.id, 'cards', [newSlotId], [group]);
-      if (before)
-        commitEdit(deck.id, cutName ? `replace ${cutName} → ${name}` : `add ${name}`, before);
-      pushToast({
-        message: `Added ${name}`,
-        tone: 'success',
-        ...addUndoAction(deck.id, topBefore),
-      });
-      haptics.tap();
-    } catch {
-      pushToast({ message: `Couldn't add ${name}`, tone: 'error' });
-    } finally {
-      setAddingEngineNames((prev) => {
-        const next = new Set(prev);
-        next.delete(name);
-        return next;
-      });
-    }
-  };
-
-  // Full-deck escape hatches: stash the card off-mainboard, or add over-limit.
-  const closeFullPromptInto = async (
-    zone: 'main' | 'sideboard' | 'considering',
-    moveAdd: Parameters<typeof commitCrossDeckMove>[1]
-  ) => {
-    if (!pendingAdd) return;
-    const name = pendingAdd;
-    const printing = pendingPrinting;
-    const group = pendingAddGroup;
-    setPendingAdd(null);
-    if (pendingMoveFor) return commitCrossDeckMove(pendingMoveFor, moveAdd);
-    await addResolvedCard(name, zone, printing, group);
-  };
-  const addToSideboardAndClose = () => closeFullPromptInto('sideboard', addSideboardCard);
-  const addToConsideringAndClose = () => closeFullPromptInto('considering', addConsideringCard);
-  const addAnywayAndClose = () => closeFullPromptInto('main', addCard);
-
-  // Replace-when-full options (E20 intelligent cuts): rank cuts by how
-  // *related/replaceable* they are vs the card being added (shared role, same
-  // type, similar CMC) and surface the optimizer's real per-card reason instead
-  // of a flat "weak slot". `all` is every deck card for "pick another". Plain
-  // consts (not hooks) — computed below the early-return guard, only meaningful
-  // while a prompt is open. `anyRelated` drives honest copy: when no cut actually
-  // relates to the add, the prompt says "make room" rather than implying a swap.
-  const replaceOptions =
-    !pendingAdd || !deck
-      ? null
-      : (() => {
-          const labelFor = (name: string): string | undefined => {
-            const r = classifyCandidate(name);
-            return r ? ROLE_LABEL[r] : undefined;
-          };
-          const toOpt = (
-            c: { slotId: string; card: ScryfallCard },
-            hint?: string,
-            factors?: WhyFactor[]
-          ): SizePromptOption => ({
-            key: c.slotId,
-            name: c.card.name,
-            roleLabel: labelFor(c.card.name),
-            hint,
-            factors,
-            onPick: () => void handleReplaceWhenFull(c.slotId),
-          });
-          // Stub when the add card hasn't resolved yet (or the resolve is for a
-          // previous prompt) — name-based role still works.
-          const resolvedAdd =
-            pendingPrinting ??
-            (pendingAddCard?.forName === pendingAdd ? pendingAddCard.card : null);
-          const addCard: ScryfallCard =
-            resolvedAdd ?? ({ name: pendingAdd, type_line: '', cmc: 0 } as ScryfallCard);
-          const ranked = replaceCuts.cutsFor(addCard);
-          const suggested = ranked.map((r) =>
-            toOpt({ slotId: r.slotId, card: r.card }, r.reason, r.factors)
-          );
-          const anyRelated = ranked.some((r) => r.related);
-          const all = [...deck.cards]
-            .sort((a, b) => printedName(a.card).localeCompare(printedName(b.card)))
-            .map((c) => toOpt(c));
-          return { suggested, all, anyRelated };
-        })();
-
-  // E20 audition fit report — engine/curve/role/color + ranked cuts for the card
-  // the user is previewing. Computed only while the panel is open (a plain const,
-  // like replaceOptions — past the early-return guard so `deck` is defined).
-  const auditionReport =
-    auditionCard && deck
-      ? computeAddFit({
-          addCard: auditionCard,
-          deckCards: deck.cards,
-          analysis: deck,
-          inDeckCombos: mainboardComboData?.inDeck,
-          commanderColorIdentity,
-        })
-      : null;
-
-  // Refill-after-cut options: same-role staples the deck is missing (owned-first
-  // hint), to bring the deck back to its legal count.
-  const refillOptions: SizePromptOption[] =
-    !refillAfterCut || !deck
-      ? []
-      : (() => {
-          const role = refillAfterCut.role;
-          const deckNames = new Set(deck.cards.map((c) => c.card.name.toLowerCase()));
-          return (deck.gapAnalysis ?? [])
-            .filter((g) => (!role || g.role === role) && !deckNames.has(g.name.toLowerCase()))
-            .slice(0, 8)
-            .map((g) => ({
-              key: g.name,
-              name: g.name,
-              roleLabel: g.roleLabel,
-              hint: ownershipFor(g.name) === 'owned' ? 'owned' : undefined,
-              onPick: () => {
-                setRefillAfterCut(null);
-                void addResolvedCard(g.name);
-              },
-            }));
-        })();
-
-  // In-context swap: cut the in-deck card at `slotId` and add `newName` in its
-  // place (resolve → allocate → add). Removal runs BEFORE the add so the freed
-  // physical copy is re-allocatable; net size is unchanged (1-for-1), keeping a
-  // 99-card deck legal. `close()` dismisses the preview (the card it showed is
-  // gone). Uses its own loading gate (swappingSlot).
-  const handleSwapInDeck = async (
-    slotId: string,
-    oldName: string,
-    newName: string,
-    close: () => void
-  ) => {
-    if (!deck) return;
-    setSwappingSlot(slotId);
-    try {
-      const scry = await getCardByName(newName);
-      if (!scry) {
-        pushToast({ message: `Couldn't find ${newName}`, tone: 'error' });
-        return;
-      }
-      const before = beginEdit(deck.id);
-      const allocations = buildAllocationMap(
-        useDecksStore.getState().decks,
-        useCubeStore.getState().saved
-      );
-      const claim = pickCollectionCopy(newName, collectionCards, allocations, scry.id);
-      // Atomic swap: one state update, so no transient "card removed" deck row.
-      swapCard(deck.id, slotId, scry, claim?.copyId ?? null);
-      if (before) commitEdit(deck.id, `swap ${oldName} → ${newName}`, before);
-      pushToast({ message: `Swapped ${oldName} → ${newName}`, tone: 'success' });
-      haptics.tap();
-      close();
-    } catch {
-      pushToast({ message: `Couldn't swap ${oldName}`, tone: 'error' });
-    } finally {
-      setSwappingSlot(null);
-    }
-  };
-
-  // Commit a "Your decks" move: the physical copy leaves its sibling deck for
-  // this one, and the owned replacement takes its slot there. `place` seats the
-  // card here (a plain add, a 1-for-1 swap into a full deck, or another zone).
-  // One Undo restores both decks (executeReallocation).
-  const commitCrossDeckMove = async (
-    move: CrossDeckMove,
-    place: (deckId: string, card: ScryfallCard, copyId: string) => void
-  ): Promise<void> => {
-    if (!deck) return;
-    const donor = useDecksStore.getState().decks.find((d) => d.id === move.fromDeckId);
-    const slot = donor?.cards.find((c) => c.slotId === move.slotId);
-    const patch = collectionCards.find((c) => c.copyId === move.replacementCopyId);
-    if (!donor || !slot || !patch) {
-      pushToast({
-        message: `${move.cardName} has changed since this suggestion.`,
-        tone: 'error',
-      });
-      return;
-    }
-    setAddingEngineNames((prev) => new Set(prev).add(move.cardName));
-    try {
-      const patchCard = await getOwnedPrinting(patch.scryfallId, patch.name);
-      executeReallocation({
-        donorDeckId: donor.id,
-        recipientDeckId: deck.id,
-        recipientApply: () => place(deck.id, slot.card, slot.allocatedCopyId ?? move.cardCopyId),
-        donorApply: () => swapCard(donor.id, slot.slotId, patchCard, patch.copyId),
-        label: `Moved ${move.cardName} here. ${patch.name} covers ${donor.name}.`,
-      });
-    } catch {
-      pushToast({ message: `Couldn't move ${move.cardName}`, tone: 'error' });
-    } finally {
-      setAddingEngineNames((prev) => {
-        const next = new Set(prev);
-        next.delete(move.cardName);
-        return next;
-      });
-    }
-  };
-
-  // CoachFeed unified apply handler — routes add/cut/swap changes from the
-  // CoachFeed to the existing engine add/cut/swap flows.
-  const handleApplyCoachMove = async (change: Change) => {
-    if (!deck) return;
-    if (change.lane === 'decks') {
-      // One move per card into this deck (the engine dedupes card × target).
-      const move = crossDeckMoves.find((m) => m.cardName === change.name);
-      if (!move) return;
-      if (deckIsFull) {
-        setPendingMove(move);
-        setPendingAdd(move.cardName);
-        setPendingAddPrinting(null);
-        setPendingAddGroup(null);
-        return;
-      }
-      await commitCrossDeckMove(move, addCard);
-      return;
-    }
-    if (change.type === 'add') {
-      await handleAddEngineCard(change.name);
-    } else if (change.type === 'cut') {
-      handleCutEngineCard(change.name);
-    } else if (change.type === 'swap' && change.inName) {
-      if (bracketFitSwapName === change.inName) return;
-      const slotId = deck.cards.find((c) => c.card.name === change.inName)?.slotId;
-      if (!slotId) return;
-      setBracketFitSwapName(change.inName);
-      void handleSwapInDeck(slotId, change.inName, change.name, () => {}).finally(() =>
-        setBracketFitSwapName(null)
-      );
-    }
-  };
-
-  // The in-context "Swap this card" alternatives for an in-deck card: role-scoped
-  // EDHREC alternatives (same functional role, not the card itself), owned-first,
-  // capped. Empty when the role is untagged or nothing fits.
-  const swapAlternativesFor = (card: ScryfallCard) => {
-    if (!deck) return [];
-    const role = classifyCandidate(card.name);
-    if (!role) return [];
-    // Never re-propose a card already in the deck (addCard doesn't dedup, so it
-    // would duplicate a slot) — guards the gapAnalysis recompute/offline window.
-    const deckCardNames = new Set(deck.cards.map((c) => c.card.name));
-    const gaps = (deck.gapAnalysis ?? []).filter(
-      (g) => g.role === role && g.name !== card.name && !deckCardNames.has(g.name)
-    );
-    if (gaps.length === 0) return [];
-    // Each alternative is a real swap (this card → the alternative), so the row
-    // shows the trade: the focused card dimmed on the left, the alternative
-    // coming in. The apply path still reads the incoming name (`onSwap`).
-    const built = gaps.map((g) => {
-      const ownership = ownershipFor(g.name);
-      return {
-        ...toSwapAgainst(fromGapCard(g, ownership), card.name),
-        // Each same-role alternative gets its own grounded "why this over the
-        // others" — replaces the six identical "{role} staple" reason lines.
-        whyFactors: buildSwapAlternativeFactors({
-          inclusion: g.inclusion,
-          synergy: g.synergy,
-          owned: ownership === 'owned',
-          roleLabel: g.roleLabel,
-          commanderName: deck.commander?.name,
-        }),
-      };
-    });
-    // E517: owned first, then by how well each replaces this card (v2), else by play rate.
-    return (
-      substitutesV2.rankSwapAlternatives(card.name, role, built, [...deckCardNames]) ??
-      sortOwnedFirst(built)
-    ).slice(0, 6);
-  };
-
-  const renderSwapSuggestions = (card: ScryfallCard, slotId: string, close: () => void) => {
-    const alternatives = swapAlternativesFor(card);
-    if (!deck || alternatives.length === 0) return null;
-    return (
-      <SwapThisCard
-        currentName={card.name}
-        alternatives={alternatives}
-        swapping={swappingSlot === slotId}
-        commanderName={deck.commander?.name}
-        onSwap={(name) => void handleSwapInDeck(slotId, card.name, name, close)}
-      />
-    );
-  };
-
-  // In-context "Similar cards" for an in-deck card: owned look-alikes from the
-  // collection, then broader synergy-axis discovery (see <SimilarCardsStrip>).
-  // Same `(card, slotId, close)` shape + swap mechanics as renderSwapSuggestions.
-  const renderSimilarCards = (card: ScryfallCard, slotId: string, close: () => void) => {
-    if (!deck) return null;
-    return (
-      <SimilarCardsStrip
-        target={card}
-        deckCardNames={deck.cards.map((c) => c.card.name)}
-        excludeNames={swapAlternativesFor(card).map((c) => c.name)}
-        collectionCards={collectionCards}
-        ownershipFor={ownershipFor}
-        freeCountFor={freeCountFor}
-        identity={commanderColorIdentity}
-        inclusionMap={deck.cardInclusionMap ?? {}}
-        onSwap={(name) => void handleSwapInDeck(slotId, card.name, name, close)}
-        swapping={swappingSlot === slotId}
-        commanderName={deck.commander?.name}
-        enabled
-      />
-    );
-  };
-
-  // Apply a batch of 1-for-1 swaps as ONE undo entry: each pair cuts the named
-  // in-deck card and adds the replacement. Drives both the budget "Apply all
-  // drop-ins" and the bracket "Converge to target" bulk actions — both are
-  // swap-only, so the deck size never changes. `kind` only tunes the copy.
-  const handleApplyCostSwaps = async (
-    swaps: Array<{ removeName: string; addName: string }>,
-    kind: 'budget' | 'bracket' | 'ai' = 'budget'
-  ) => {
-    if (!deck) return;
-    const kindLabel = kind === 'ai' ? 'AI' : kind;
-    try {
-      const slotsByName = new Map<string, string[]>();
-      for (const c of deck.cards) {
-        const k = c.card.name.toLowerCase();
-        const arr = slotsByName.get(k) ?? [];
-        arr.push(c.slotId);
-        slotsByName.set(k, arr);
-      }
-      // Bracket the whole batch as one undo entry (begin before the loop,
-      // commit once after) — Cmd+Z reverts the entire budget plan at once.
-      const before = beginEdit(deck.id);
-      let done = 0;
-      for (const { removeName, addName } of swaps) {
-        const slotId = slotsByName.get(removeName.toLowerCase())?.shift();
-        if (!slotId) continue;
-        try {
-          const scry = await getCardByName(addName);
-          if (!scry) continue;
-          const allocations = buildAllocationMap(
-            useDecksStore.getState().decks,
-            useCubeStore.getState().saved
-          );
-          const claim = pickCollectionCopy(addName, collectionCards, allocations, scry.id);
-          swapCard(deck.id, slotId, scry, claim?.copyId ?? null);
-          done += 1;
-        } catch {
-          /* skip cards that won't resolve — leave the original in place */
-        }
-      }
-      if (before)
-        commitEdit(deck.id, `apply ${done} ${kindLabel} swap${done === 1 ? '' : 's'}`, before);
-      pushToast({
-        message: `Applied ${done} ${kindLabel} swap${done === 1 ? '' : 's'}`,
-        tone: 'success',
-      });
-    } catch {
-      pushToast({ message: `Couldn't apply ${kindLabel} swaps`, tone: 'error' });
-    }
-  };
-
-  // E458: apply the plan in place (one undo entry) or to a fresh copy, which
-  // leaves this list as it was. A copy the plan never reached is removed again.
-  const handleApplyPlan = async (steps: PlanStep[], toCopy: boolean) => {
-    if (!deck) return;
-    const upgradedName = `${deck.name} (upgraded)`;
-    const targetId = toCopy ? duplicateDeck(deck.id) : deck.id;
-    if (!targetId) return;
-    if (toCopy) renameDeck(targetId, upgradedName);
-    let done = 0;
-    try {
-      done = await applyUpgradePlan(targetId, steps);
-    } catch (err) {
-      logger.warn('[UpgradePlan] apply failed', err);
-    }
-    if (done === 0) {
-      if (toCopy) deleteDeck(targetId);
-      pushToast({ message: "Couldn't apply the plan. Try again.", tone: 'error' });
-      return;
-    }
-    setPlanOpen(false);
-    if (toCopy) {
-      pushToast({
-        message: `Saved as ${upgradedName}`,
-        tone: 'success',
-        actionLabel: 'Open',
-        onAction: () => navigate(`/decks/${targetId}`),
-      });
-    } else {
-      pushToast({
-        message: `Applied ${done} ${done === 1 ? 'swap' : 'swaps'}`,
-        tone: 'success',
-        actionLabel: 'Undo',
-        onAction: () => undoEdit(deck.id),
-      });
-    }
-  };
-
-  // ⋮ Deck actions: printing swaps that never touch a copy binding, each one
-  // write and one undo entry (lib/deck/deck-printing-actions).
-  const printingLookupFailed = (err: unknown, fallback: string) => {
-    if (!(err instanceof PrintingLookupOfflineError)) logger.warn('[Printings] lookup failed', err);
-    pushToast({
-      message:
-        err instanceof PrintingLookupOfflineError
-          ? "You're offline. Reconnect to look up printings."
-          : fallback,
-      tone: 'error',
-    });
-  };
-
-  const handleCheapestPrintings = async () => {
-    const deckId = deck.id;
-    try {
-      const { changed, saved, unresolved } = await applyCheapestPrintings(deckId, currency);
-      if (changed > 0) {
-        pushToast({
-          message: `Switched ${changed} ${changed === 1 ? 'printing' : 'printings'}. Missing cards cost ${formatMoney(saved, { currency })} less`,
-          tone: 'success',
-          actionLabel: 'Undo',
-          onAction: () => undoEdit(deckId),
-        });
-      } else if (unresolved > 0) {
-        pushToast({ message: "Couldn't look up cheaper printings.", tone: 'error' });
-      } else {
-        pushToast({ message: 'No cheaper printings for your missing cards', tone: 'info' });
-      }
-    } catch (err) {
-      printingLookupFailed(err, "Couldn't look up cheaper printings.");
-    }
-  };
-
-  const handleMatchMyCopies = async () => {
-    const deckId = deck.id;
-    try {
-      const { changed } = await applyMatchMyCopies(deckId);
-      if (changed === 0) {
-        pushToast({ message: "Couldn't look up your copies' printings.", tone: 'error' });
-        return;
-      }
-      pushToast({
-        message: `Matched ${changed} ${changed === 1 ? 'card' : 'cards'} to your copies`,
-        tone: 'success',
-        actionLabel: 'Undo',
-        onAction: () => undoEdit(deckId),
-      });
-    } catch (err) {
-      printingLookupFailed(err, "Couldn't look up your copies' printings.");
-    }
-  };
-
-  const handleRemoveSideboardCard = (slotId: string) => {
-    const slot = deck.sideboard.find((c) => c.slotId === slotId);
-    if (!slot) return;
-    recordEdit(deck.id, `remove ${slot.card.name} from sideboard`, () =>
-      removeSideboardCard(deck.id, slotId)
-    );
-    pushToast({
-      message: `Removed ${slot.card.name} from sideboard`,
-      tone: 'success',
-      actionLabel: 'Undo',
-      onAction: () => undoEdit(deck.id),
-    });
-  };
-
-  // Both zone moves take the row's slot ids — one copy, or its whole stack —
-  // and commit as ONE bulkMoveZone write (E180) regardless of how many slots
-  // move, inside a single recordEdit so "move all 4" is one undo entry too.
-  const handleMoveToSideboard = (slotIds: string[]) => {
-    const name = deck.cards.find((c) => c.slotId === slotIds[0])?.card.name ?? 'card';
-    const label =
-      slotIds.length === 1
-        ? `move ${name} to sideboard`
-        : `move ${slotIds.length} × ${name} to sideboard`;
-    recordEdit(deck.id, label, () => bulkMoveZone(deck.id, slotIds, 'cards', 'sideboard'));
-  };
-
-  const handleMoveToMainboard = (slotIds: string[]) => {
-    const name = deck.sideboard.find((c) => c.slotId === slotIds[0])?.card.name ?? 'card';
-    const label =
-      slotIds.length === 1
-        ? `move ${name} to mainboard`
-        : `move ${slotIds.length} × ${name} to mainboard`;
-    recordEdit(deck.id, label, () => bulkMoveZone(deck.id, slotIds, 'sideboard', 'cards'));
-  };
-
-  // Considering (E122) — mirrors the sideboard zone-move pair above exactly:
-  // one recordEdit per bulk move (so "move all 4" is one undo entry), no toast
-  // (the undo/redo toolbar covers it, same as the sideboard moves).
-  const handleRemoveConsideringCard = (slotId: string) => {
-    const slot = deck.considering.find((c) => c.slotId === slotId);
-    if (!slot) return;
-    recordEdit(deck.id, `remove ${slot.card.name} from considering`, () =>
-      removeConsideringCard(deck.id, slotId)
-    );
-    pushToast({
-      message: `Removed ${slot.card.name} from considering`,
-      tone: 'success',
-      actionLabel: 'Undo',
-      onAction: () => undoEdit(deck.id),
-    });
-  };
-
-  const handleMoveToConsidering = (slotIds: string[]) => {
-    const name = deck.cards.find((c) => c.slotId === slotIds[0])?.card.name ?? 'card';
-    const label =
-      slotIds.length === 1
-        ? `move ${name} to considering`
-        : `move ${slotIds.length} × ${name} to considering`;
-    recordEdit(deck.id, label, () => bulkMoveZone(deck.id, slotIds, 'cards', 'considering'));
-  };
-
-  const handleMoveFromConsidering = (slotIds: string[]) => {
-    const name = deck.considering.find((c) => c.slotId === slotIds[0])?.card.name ?? 'card';
-    const label =
-      slotIds.length === 1
-        ? `move ${name} to mainboard`
-        : `move ${slotIds.length} × ${name} to mainboard`;
-    recordEdit(deck.id, label, () => bulkMoveZone(deck.id, slotIds, 'considering', 'cards'));
-  };
-
-  // ── Multi-select bulk operations (E172) ────────────────────────────────
-  // Each wraps ONE store write (bulkRemoveCards/bulkMoveZone/bulkEditTag are
-  // single-`set()` primitives regardless of how many slots they touch) in
-  // ONE recordEdit, so "remove/move/tag 12 selected rows" is one undo entry
-  // AND one sync push — the crux constraint this whole slice exists for.
-  const handleBulkRemove = (zone: DeckZone, slotIds: string[]) => {
-    if (!deck || slotIds.length === 0) return;
-    const zoneList = deck[zone] ?? [];
-    const name = zoneList.find((c) => slotIds.includes(c.slotId))?.card.name ?? 'card';
-    const label = slotIds.length === 1 ? `remove ${name}` : `remove ${slotIds.length} cards`;
-    recordEdit(deck.id, label, () => bulkRemoveCards(deck.id, zone, slotIds));
-    pushToast({
-      message: slotIds.length === 1 ? `Removed ${name}` : `Removed ${slotIds.length} cards`,
-      tone: 'success',
-      actionLabel: 'Undo',
-      onAction: () => undoEdit(deck.id),
-    });
-  };
-
-  const ZONE_LABEL: Record<DeckZone, string> = {
-    cards: 'mainboard',
-    sideboard: 'sideboard',
-    considering: 'considering',
-  };
-
-  const handleBulkMove = (slotIds: string[], from: DeckZone, to: DeckZone) => {
-    if (!deck || slotIds.length === 0) return;
-    const label = `move ${slotIds.length} ${slotIds.length === 1 ? 'card' : 'cards'} to ${ZONE_LABEL[to]}`;
-    recordEdit(deck.id, label, () => bulkMoveZone(deck.id, slotIds, from, to));
-  };
-
-  const handleBulkEditTag = (zone: DeckZone, slotIds: string[], tag: string, add: boolean) => {
-    if (!deck || slotIds.length === 0) return;
-    const label = add
-      ? `tag ${slotIds.length} cards "${tag}"`
-      : `untag "${tag}" from ${slotIds.length} cards`;
-    recordEdit(deck.id, label, () => bulkEditTag(deck.id, zone, slotIds, tag, add));
-  };
-
-  // Manual drag reorder (E172) — DeckDisplay computes the fractional
-  // sortIndex itself (pure, no store access needed); this just wraps the
-  // single-write commit in an undo entry, consistent with every other edit.
-  const handleReorder = (zone: DeckZone, slotIds: string[], sortIndex: number) => {
-    if (!deck || slotIds.length === 0) return;
-    recordEdit(deck.id, 'reorder', () => setCardSortIndex(deck.id, zone, slotIds, sortIndex));
-  };
-
-  const handleMakeCommanderClick = (slotId: string, card: ScryfallCard) => {
-    const slot =
-      deck.cards.find((c) => c.slotId === slotId) ??
-      deck.sideboard.find((c) => c.slotId === slotId);
-    if (!slot) return;
-    const target = { slotId, card, allocatedCopyId: slot.allocatedCopyId ?? null };
-    // No current commander → just set it directly, no dialog needed.
-    if (!deck.commander) {
-      recordEdit(deck.id, `make ${card.name} commander`, () =>
-        chooseCommander(deck.id, card, target.allocatedCopyId, { fromSlotId: slotId })
-      );
-      pushToast({ message: `${card.name} is now the commander.`, tone: 'success' });
-      return;
-    }
-    setMakeCommanderTarget(target);
-  };
-
-  const handleConfirmMakeCommander = (keepOldInDeck: boolean) => {
-    const target = makeCommanderTarget;
-    if (!target) return;
-    const oldCommander = deck.commander;
-    setMakeCommanderTarget(null);
-
-    recordEdit(deck.id, `make ${target.card.name} commander`, () =>
-      chooseCommander(deck.id, target.card, target.allocatedCopyId, {
-        fromSlotId: target.slotId,
-        keepPrevious: keepOldInDeck,
-      })
-    );
-    pushToast({
-      message: `${target.card.name} is now the commander${
-        keepOldInDeck && oldCommander ? ` · ${oldCommander.name} moved to the deck` : ''
-      }.`,
-      tone: 'success',
-    });
-  };
-
-  // Commander picker (E465). Mirrors the partner picker below: a card already
-  // in the deck moves into the command zone with its copy claim; one that
-  // isn't claims a free owned copy if there is one. Either way it's ONE store
-  // write and one undo entry. Replacing an existing commander goes through
-  // the same keep/remove confirm as Make commander.
-  const handleSelectCommanderFromPicker = (card: ScryfallCard) => {
-    setShowCommanderPicker(false);
-    if (card.name === deck.commander?.name || card.name === deck.partnerCommander?.name) return;
-    const slot =
-      deck.cards.find((c) => c.card.name === card.name) ??
-      deck.sideboard.find((c) => c.card.name === card.name);
-    let allocated: string | null;
-    if (slot) {
-      allocated = slot.allocatedCopyId ?? null;
-    } else {
-      const allocations = buildAllocationMap(
-        useDecksStore.getState().decks,
-        useCubeStore.getState().saved
-      );
-      allocated =
-        pickCollectionCopy(card.name, collectionCards, allocations, card.id)?.copyId ?? null;
-    }
-    if (deck.commander) {
-      setMakeCommanderTarget({ slotId: slot?.slotId ?? null, card, allocatedCopyId: allocated });
-      return;
-    }
-    recordEdit(deck.id, `make ${card.name} commander`, () =>
-      chooseCommander(deck.id, card, allocated, { fromSlotId: slot?.slotId })
-    );
-    // Off-color cards are flagged by the deck checks, never removed; the toast
-    // counts them so the pick's consequence is said once, where it happened.
-    const after = useDecksStore.getState().decks.find((d) => d.id === deck.id);
-    const identity = deckColorIdentity(card, after?.partnerCommander ?? null);
-    const offColor = (after?.cards ?? []).filter(
-      (c) => !fitsColorIdentity(c.card, identity)
-    ).length;
-    pushToast({
-      message: `${commanderShortName(card)} is the commander.${
-        offColor === 0
-          ? ''
-          : offColor === 1
-            ? ' 1 card is off color.'
-            : ` ${offColor} cards are off color.`
-      }`,
-      tone: 'success',
-      actionLabel: 'Undo',
-      onAction: () => undoEdit(deck.id),
-    });
-  };
-
-  // Whether a deck card is a legal partner for the current commander — gates
-  // the "Make partner" row action. Requires a commander already set; the
-  // partner mechanic itself (generic Partner, "Partner with X", Friends
-  // forever, Choose a Background, Doctor's companion) is checked in
-  // areValidPartners, which also rejects pairing a card with itself. Plain
-  // function (not a hook) since it lives below the missing-deck early return.
-  const canMakePartner = (card: ScryfallCard) =>
-    !!deck.commander && areValidPartners(deck.commander, card);
-
-  const handleMakePartnerClick = (slotId: string, card: ScryfallCard) => {
-    const mainSlot = deck.cards.find((c) => c.slotId === slotId);
-    const sideSlot = mainSlot ? null : deck.sideboard.find((c) => c.slotId === slotId);
-    const slot = mainSlot ?? sideSlot;
-    if (!slot) return;
-    const target = {
-      slotId,
-      card,
-      zone: (mainSlot ? 'main' : 'side') as 'main' | 'side',
-      allocatedCopyId: slot.allocatedCopyId,
-    };
-    // No current partner → pull the card out of the deck and pair it directly.
-    if (!deck.partnerCommander) {
-      recordEdit(deck.id, `make ${card.name} partner`, () => {
-        if (target.zone === 'main') removeCard(deck.id, slotId);
-        else removeSideboardCard(deck.id, slotId);
-        setPartnerCommander(deck.id, card, target.allocatedCopyId);
-      });
-      pushToast({ message: `${card.name} is now the partner commander.`, tone: 'success' });
-      return;
-    }
-    setMakePartnerTarget(target);
-  };
-
-  const handleConfirmMakePartner = (keepOldInDeck: boolean) => {
-    const target = makePartnerTarget;
-    if (!target) return;
-    const oldPartner = deck.partnerCommander;
-    const oldAllocated = deck.partnerCommanderAllocatedCopyId;
-    setMakePartnerTarget(null);
-
-    recordEdit(deck.id, `make ${target.card.name} partner`, () => {
-      if (target.zone === 'main') removeCard(deck.id, target.slotId);
-      else removeSideboardCard(deck.id, target.slotId);
-
-      if (keepOldInDeck && oldPartner) {
-        addCard(deck.id, oldPartner, oldAllocated);
-      }
-      setPartnerCommander(deck.id, target.card, target.allocatedCopyId);
-    });
-    pushToast({
-      message: `${target.card.name} is now the partner commander${
-        keepOldInDeck && oldPartner ? ` · ${oldPartner.name} moved to the deck` : ''
-      }.`,
-      tone: 'success',
-    });
-  };
-
-  // Picker entry point (hero): pair a legal partner that may not already be in
-  // the deck. If the chosen card IS in the deck, reuse its slot/allocation and
-  // pull it out (mirrors make-commander); otherwise claim a free owned copy.
-  // Passing null clears the partner.
-  const handleSelectPartnerFromPicker = (card: ScryfallCard | null) => {
-    if (!card) {
-      recordEdit(deck.id, 'remove partner', () => setPartnerCommander(deck.id, null, null));
-      pushToast({ message: 'Partner commander removed.', tone: 'success' });
-      return;
-    }
-    const mainSlot = deck.cards.find((c) => c.card.name === card.name);
-    const sideSlot = mainSlot ? null : deck.sideboard.find((c) => c.card.name === card.name);
-    const slot = mainSlot ?? sideSlot;
-    let allocated: string | null;
-    if (slot) {
-      allocated = slot.allocatedCopyId ?? null;
-    } else {
-      const allocations = buildAllocationMap(
-        useDecksStore.getState().decks,
-        useCubeStore.getState().saved
-      );
-      allocated =
-        pickCollectionCopy(card.name, collectionCards, allocations, card.id)?.copyId ?? null;
-    }
-    recordEdit(deck.id, `make ${card.name} partner`, () => {
-      if (slot) {
-        if (mainSlot) removeCard(deck.id, slot.slotId);
-        else removeSideboardCard(deck.id, slot.slotId);
-      }
-      setPartnerCommander(deck.id, card, allocated);
-    });
-    setShowPartnerPicker(false);
-    pushToast({ message: `${card.name} is now the partner commander.`, tone: 'success' });
-  };
-
-  // Qty handler for both the click-to-type-exact-number path (absolute
-  // target) and the +/− stepper (relative delta) — one function so both
-  // routes share the same allocation logic and the same maxCopies ceiling
-  // by construction (E168 slice 3). Zone-aware (E175): `zone` selects which
-  // of the deck's three card arrays this edit targets — previously
-  // hard-wired to `deck.cards`, which meant the mainboard stepper could
-  // never be safely reused for sideboard/considering rows without risking a
-  // silent cross-zone mutation. `planQtyChange` (lib/deck/deck-qty.ts) is the pure
-  // diff; the add/remove itself is ONE store write via bulkAddCards/
-  // bulkRemoveCards regardless of how many copies change (never loop
-  // per-card store actions — each would fire its own sync push). Bulk
-  // removes show ONE toast for the whole batch with an Undo that restores
-  // every original allocation — important for basics where the user might
-  // drop 8 copies in a single edit.
-  const handleSetQty = (
-    zone: DeckZone,
-    card: ScryfallCard,
-    qty: number,
-    opts?: { relative?: boolean }
-  ) => {
-    const current = deck[zone].filter((c) => c.card.name === card.name);
-    // Considering is a staging area, not a real deck zone — no copy-limit
-    // ceiling on it (mirrors why it's excluded from legality elsewhere).
-    const maxCopies =
-      zone === 'considering' ? undefined : getMaxCopies(card, !!formatConfig?.isSingleton);
-    const plan = planQtyChange(current, qty, opts, maxCopies);
-    if (plan.addCount === 0 && plan.remove.length === 0) return;
-
-    const zoneSuffix =
-      zone === 'cards' ? '' : ` to ${zone === 'sideboard' ? 'sideboard' : 'considering'}`;
-
-    if (plan.addCount > 0) {
-      // Quantity increments bind free owned copies; any beyond what's free are
-      // added unbound (listed as "In [deck]"/"unowned"). Never pulls copies from
-      // other decks — that's a conscious choice elsewhere. One in-deck undo entry.
-      const label =
-        plan.addCount === 1
-          ? `add ${card.name}${zoneSuffix}`
-          : `add ${plan.addCount} × ${card.name}${zoneSuffix}`;
-      recordEdit(deck.id, label, () => {
-        // Reuse the live allocations between iterations so two adds don't try to
-        // claim the same collection copy — this is a local computation only,
-        // not a store write; the write itself happens once, below.
-        const allocations = buildAllocationMap(
-          useDecksStore.getState().decks,
-          useCubeStore.getState().saved
-        );
-        const entries: Array<{ card: ScryfallCard; allocatedCopyId: string | null }> = [];
-        for (let i = 0; i < plan.addCount; i++) {
-          const claim = pickCollectionCopy(card.name, collectionCards, allocations, card.id);
-          const allocatedId = claim?.copyId ?? null;
-          if (allocatedId) {
-            allocations.set(
-              allocatedId,
-              makeDeckAllocationInfo(deck.id, deck.name, deck.color, card.name)
-            );
-          }
-          entries.push({ card, allocatedCopyId: allocatedId });
-        }
-        bulkAddCards(deck.id, zone, entries);
-      });
-      return;
-    }
-    // A decrement drops |delta| slots as one undo entry. Unallocated copies
-    // go first so an owned copy stays bound to the row as long as possible
-    // (see pickSlotsToRelease) — only spills into allocated slots once
-    // there's no unallocated stock left to shed.
-    const dropping = plan.remove;
-    const dropLabel =
-      dropping.length === 1
-        ? `remove ${card.name}${zoneSuffix}`
-        : `remove ${dropping.length} × ${card.name}${zoneSuffix}`;
-    recordEdit(deck.id, dropLabel, () => {
-      bulkRemoveCards(
-        deck.id,
-        zone,
-        dropping.map((s) => s.slotId)
-      );
-    });
-    pushToast({
-      message:
-        dropping.length === 1
-          ? `Removed ${card.name}${zoneSuffix}`
-          : `Removed ${dropping.length} × ${card.name}${zoneSuffix}`,
-      tone: 'success',
-      actionLabel: 'Undo',
-      onAction: () => undoEdit(deck.id),
-    });
-  };
-
-  const handleEditCard = (slotId: string, card: ScryfallCard) => {
-    setEditingSlot({ slotId, card });
-  };
-
-  // ── User tags (E171) ──────────────────────────────────────────────────
-  const handleSetCardTags = (zone: DeckZone, slotIds: string[], tags: string[]) => {
-    if (!deck) return;
-    recordEdit(deck.id, 'edit tags', () => setCardTags(deck.id, zone, slotIds, tags));
-  };
-  const handleRenameDeckTag = (from: string, to: string) => {
-    if (!deck) return;
-    recordEdit(deck.id, `rename tag "${from}"`, () => renameDeckTag(deck.id, from, to));
-  };
-  const handleRemoveDeckTag = (tag: string) => {
-    if (!deck) return;
-    recordEdit(deck.id, `remove tag "${tag}"`, () => removeDeckTag(deck.id, tag));
-  };
-
-  const handleEditConfirm = (selection: PrintingSelection) => {
-    if (!editingSlot || !deck) return;
-    const newCard = selection.card;
-    const slotsForName = deck.cards.filter((c) => c.card.name === editingSlot.card.name);
-
-    // If the chosen printing — or the chosen FINISH of it (a foil pick while
-    // only the foil is committed) — is owned but every such copy is committed
-    // elsewhere, don't silently bind a lesser copy or leave the slot unbound:
-    // offer to pull the exact copy in from its donor (Move), or trade this
-    // slot's current copy back to the donor (Swap). Nothing moves without the
-    // explicit choice; the reallocation itself happens in
-    // handleMovePrintingConfirm. findStealableCopy scopes its "a free copy
-    // exists" bail-out to these preferences, so it returns null whenever the
-    // normal binding below can satisfy the pick.
-    const donor = findStealableCopy(
-      newCard.name,
-      collectionCards,
-      decks,
-      deck.id,
-      newCard.id,
-      savedCubes,
-      selection.finish
-    );
-    const donorCopy = donor ? collectionCards.find((c) => c.copyId === donor.copyId) : undefined;
-    // Only prompt when the pull delivers the printing the user picked — the
-    // finder's fallback can surface a different-printing copy, but a deck
-    // lists an unowned printing freely (no prompt, slot just goes unbound).
-    if (donor && donorCopy?.scryfallId === newCard.id) {
-      const editSlot = deck.cards.find((c) => c.slotId === editingSlot.slotId);
-      // Swap needs a reciprocal owned copy this slot can hand back — and a
-      // mainboard deck donor whose slot we can rewrite. A copy bound to a
-      // printing other than the slot's own (a suboptimal binding) has no clean
-      // ScryfallCard to send, so require the slot to hold its own printing.
-      const displaced = editSlot?.allocatedCopyId
-        ? collectionCards.find((c) => c.copyId === editSlot.allocatedCopyId)
-        : undefined;
-      const canSwap =
-        donor.donorKind === 'deck' &&
-        donor.donorZone === 'main' &&
-        !!displaced &&
-        displaced.scryfallId === editSlot!.card.id;
-      // Name the finish in the prompt when the pulled copy is a premium one,
-      // so "your foil <set> copy is in <deck>" reads as the reason for the ask.
-      const finishPrefix =
-        donorCopy.finish === 'foil' ? 'foil ' : donorCopy.finish === 'etched' ? 'etched ' : '';
-      setMovePrompt({
-        editSlotId: editingSlot.slotId,
-        newCard,
-        chosenSetName: `${finishPrefix}${newCard.set_name ?? newCard.set?.toUpperCase() ?? 'this'}`,
-        donor,
-        swap: canSwap
-          ? {
-              returnCopyId: displaced!.copyId,
-              returnCard: editSlot!.card,
-              returnSetName: editSlot!.card.set_name ?? displaced!.setCode,
-            }
-          : null,
-      });
-      setEditingSlot(null);
-      return;
-    }
-
-    // Bind each rebound slot to a free owned copy of the NEW printing so picking
-    // a printing you own actually sources it from your collection — previously
-    // the swap always nulled the allocation, so an owned printing read as
-    // unowned. Release these slots' own copies first, and pick greedily, so N
-    // same-name slots don't double-claim one physical copy.
-    const allocations = buildAllocationMap(decks, savedCubes);
-    for (const slot of slotsForName) {
-      if (slot.allocatedCopyId) allocations.delete(slot.allocatedCopyId);
-    }
-    const bindings = new Map<string, string | null>();
-    for (const slot of slotsForName) {
-      // The chosen finish rides along as a preference: owning both finishes of
-      // the picked printing binds the one the user asked for (foil stays foil)
-      // instead of the ranking's non-foil default.
-      const copy = pickCollectionCopy(
-        newCard.name,
-        collectionCards,
-        allocations,
-        newCard.id,
-        selection.finish
-      );
-      // pickCollectionCopy falls back to any free copy of the name; the slot now
-      // shows newCard, so only keep a copy that is actually the chosen printing.
-      if (copy && copy.scryfallId === newCard.id) {
-        bindings.set(slot.slotId, copy.copyId);
-        allocations.set(
-          copy.copyId,
-          makeDeckAllocationInfo(deck.id, deck.name, deck.color, newCard.name)
-        );
-      } else {
-        bindings.set(slot.slotId, null);
-      }
-    }
-    recordEdit(deck.id, `change printing of ${newCard.name}`, () => {
-      for (const slot of slotsForName) {
-        updateCardPrinting(deck.id, slot.slotId, newCard, bindings.get(slot.slotId) ?? null);
-      }
-    });
-    setEditingSlot(null);
-    pushToast({ message: `Updated printing for ${newCard.name}`, tone: 'success' });
-  };
-
-  // Commit the pending move/swap from the edit-printing picker. Both directions
-  // reuse the shared reallocation engine (snapshot both decks + one Undo toast):
-  // the recipient side sets the chosen printing on every same-name slot and binds
-  // the pulled copy to the edited slot; the donor side either leaves a gap (Move)
-  // or takes this slot's displaced copy in return (Swap).
-  const handleMovePrintingConfirm = (mode: 'move' | 'swap'): void => {
-    if (!deck || !movePrompt) return;
-    const { editSlotId, newCard, donor, swap } = movePrompt;
-    setMovePrompt(null);
-    const fromCube = donor.donorKind === 'cube';
-    executeReallocation({
-      donorDeckId: donor.donorDeckId,
-      donorCubeId: fromCube ? donor.donorId : undefined,
-      recipientDeckId: deck.id,
-      // Only the edited slot changes — bring the one pulled copy into it. Other
-      // same-name slots keep their own printing and binding; a move relocates a
-      // single physical copy, not the whole playset.
-      recipientApply: () => updateCardPrinting(deck.id, editSlotId, newCard, donor.copyId),
-      donorApply: () => {
-        if (fromCube) {
-          useCubeStore.getState().releaseCubePick(donor.donorId, donor.copyId);
-        } else if (mode === 'swap' && swap) {
-          // Hand our displaced copy back to the donor's mainboard slot so it stays
-          // whole — its slot now shows (and holds) that printing.
-          updateCardPrinting(
-            donor.donorDeckId,
-            donor.donorSlotId!,
-            swap.returnCard,
-            swap.returnCopyId
-          );
-        } else {
-          applyDonorOutcome(
-            donor.donorDeckId,
-            donor.donorZone,
-            donor.donorSlotId,
-            donor.donorCard!,
-            'leave-gap',
-            null
-          );
-        }
-      },
-      label:
-        mode === 'swap' && swap
-          ? `Swapped ${newCard.name} with ${donor.donorDeckName}`
-          : `Moved ${newCard.name} here from ${donor.donorDeckName}`,
-    });
-  };
+  const {
+    handleRemoveCard,
+    handleRemoveSideboardCard,
+    handleRemoveConsideringCard,
+    handleMoveToSideboard,
+    handleMoveToMainboard,
+    handleMoveToConsidering,
+    handleMoveFromConsidering,
+    handleSetQty,
+    handleEditCard,
+    handleSetCardTags,
+    handleRenameDeckTag,
+    handleRemoveDeckTag,
+    handleBulkRemove,
+    handleBulkMove,
+    handleBulkEditTag,
+    handleReorder,
+  } = useDeckZoneEdits({ deck, formatConfig, collectionCards, setEditingSlot });
 
   // Page-top hub tabs: Deck (card list) · Stats (mana + overview) · Power +
   // Tune. Stats always shows for every format.
@@ -3283,712 +687,212 @@ export function DeckEditorPage() {
         </div>
       )}
 
-      <div className="deck-editor-layout">
-        <div className="deck-editor-main">
-          <DeckDisplay
-            title={deck.name}
-            deckId={deck.id}
-            format={deck.format}
-            commander={deck.commander}
-            partnerCommander={deck.partnerCommander}
-            selectedThemes={deck.generationContext?.selectedThemes}
-            commanderAllocatedCopyId={deck.commanderAllocatedCopyId}
-            partnerCommanderAllocatedCopyId={deck.partnerCommanderAllocatedCopyId}
-            // The deck's own slots, never rebuilt field by field: a copy that
-            // listed fields dropped `proxy` and `sortIndex` on the way.
-            cards={deck.cards}
-            sideboard={deck.sideboard}
-            considering={deck.considering ?? []}
-            onRemoveCard={handleRemoveCard}
-            onRemoveSideboardCard={handleRemoveSideboardCard}
-            onRemoveConsideringCard={handleRemoveConsideringCard}
-            onMoveToSideboard={handleMoveToSideboard}
-            onMoveToMainboard={handleMoveToMainboard}
-            onMoveToConsidering={handleMoveToConsidering}
-            onMoveFromConsidering={handleMoveFromConsidering}
-            onSetQty={handleSetQty}
-            onEditCard={handleEditCard}
-            onSetCardTags={handleSetCardTags}
-            onRenameDeckTag={handleRenameDeckTag}
-            onRemoveDeckTag={handleRemoveDeckTag}
-            onBulkRemove={handleBulkRemove}
-            onBulkMove={handleBulkMove}
-            onBulkEditTag={handleBulkEditTag}
-            onReorder={handleReorder}
-            onMakeCommander={formatConfig?.hasCommander ? handleMakeCommanderClick : undefined}
-            canMakeCommander={
-              formatConfig?.hasCommander
-                ? deck.format === 'paupercommander'
-                  ? isPdhCommanderEligible
-                  : isValidCommander
-                : undefined
-            }
-            onMakePartner={
-              formatConfig?.hasCommander && deck.commander ? handleMakePartnerClick : undefined
-            }
-            canMakePartner={
-              formatConfig?.hasCommander && deck.commander ? canMakePartner : undefined
-            }
-            onChangeCommander={
-              formatConfig?.hasCommander && deck.commander
-                ? () => setShowCommanderPicker(true)
-                : undefined
-            }
-            cover={cover}
-            onEditPartner={
-              formatConfig?.hasCommander && deck.commander && canHavePartner(deck.commander)
-                ? () => setShowPartnerPicker(true)
-                : undefined
-            }
-            onMoveToAnotherDeck={decks.length > 1 ? setMoveCard : undefined}
-            onReleaseCopy={setReleaseCard}
-            onSetProxy={handleSetProxy}
-            onUseOwnCopy={handleUseOwnCopy}
-            collectionByCopyId={collectionById}
-            binderByCopyId={binderByCopyId}
-            onAddFromSearch={(q) => {
-              setShowAddPanel(true);
-              window.requestAnimationFrame(() => searchPanelRef.current?.seed(q));
-            }}
-            roleCounts={deck.roleCounts}
-            roleTargets={deck.roleTargets}
-            categoryTargets={deck.categoryTargets}
-            buildReport={deck.buildReport}
-            onAddSuggestedCard={handleAddEngineCard}
-            {...(isCommander &&
-              deck.commander &&
-              deck.cards.length < mainboardLimit && {
-                openSlots: mainboardLimit - deck.cards.length,
-                onFill: () => setShowFill(true),
-              })}
-            addingSuggestedCardNames={addingEngineNames}
-            oneAwayCombos={mainboardComboData?.oneAway}
-            ownedOracleIds={ownedOracleIdSet}
-            landUpgradeCount={landUpgrades.length}
-            arrivalsByType={coachArrivals}
-            autoOpenArrivals={arrivalsDeepLink && arrivalsSettled}
-            existingCardCounts={existingCardCounts}
-            ownershipFor={ownershipFor}
-            onMarkArrivalsReviewed={() => markArrivalsReviewed(deck.id)}
-            cardInclusionMap={deck.cardInclusionMap}
-            combosByOracle={combosByOracle}
-            rampSubtypeCounts={deck.rampSubtypeCounts}
-            removalSubtypeCounts={deck.removalSubtypeCounts}
-            boardwipeSubtypeCounts={deck.boardwipeSubtypeCounts}
-            cardDrawSubtypeCounts={deck.cardDrawSubtypeCounts}
-            bracketEstimation={deck.bracketEstimation}
-            bracketOverride={deck.bracketOverride}
-            bracketMissesCombos={bracketAnalysis.missesCombos}
-            onSetBracketOverride={(b) => updateDeck(deck.id, { bracketOverride: b })}
-            clockLibrary={deckLibrary}
-            bracketTableSlot={<BracketTableRead deckId={deck.id} />}
-            archetypeOverride={deck.archetypeOverride}
-            onSetArchetypeOverride={(a) => updateDeck(deck.id, { archetypeOverride: a })}
-            deckGrade={deck.deckGrade}
-            planScore={deck.planScore}
-            edhrecNumDecks={deck.edhrecNumDecks}
-            averageSalt={deck.averageSalt}
-            saltiestCards={deck.saltiestCards}
-            exportOpen={exportOpen}
-            onExportOpenChange={setExportOpen}
-            activeView={safeView}
-            tabbed={viewTabs.length > 1}
-            onShowTestHand={() => setShowTestHand(true)}
-            statStripSlot={isDesktop ? statSlot : null}
-            deckActionsInHeader
-            editActions={deckEditActions({
-              paste: () => setAppendOpen(true),
-              bulkEdit: () => setBulkEditOpen(true),
-              resync: () => setResyncOpen(true),
-              matchCopies: hasCopyMismatches ? () => void handleMatchMyCopies() : undefined,
-              cheapestPrintings: hasMissingSlots ? () => void handleCheapestPrintings() : undefined,
-            })}
-            suggestGroups={suggestGroups}
-            onAddCards={handleToggleAddPanel}
-            onChooseCommander={
-              formatConfig?.hasCommander ? () => setShowCommanderPicker(true) : undefined
-            }
-            analysisState={analysisState}
-            scoreRevealKey={scoreRevealKey}
-            onNavigateToTune={
-              // Only wire the deep-link when analysis has run — until then the
-              // Tune lanes don't exist yet, so a deep-link would land on nothing.
-              analysisState === 'ready' ? handleNavigateToTune : undefined
-            }
-            onRetryAnalysis={
-              analysisState === 'error' || bracketAnalysis.edhrecMissing
-                ? bracketAnalysis.retry
-                : undefined
-            }
-            edhrecMissing={bracketAnalysis.edhrecMissing}
-            renderSwapSuggestions={renderSwapSuggestions}
-            renderSimilarCards={renderSimilarCards}
-            powerHeroSlot={
-              formatConfig?.hasCommander ? (
-                <PowerHero
-                  bracket={effectiveBracket(deck) ?? null}
-                  bracketOverridden={deck.bracketOverride != null}
-                  bracketEstimate={deck.bracketEstimation?.bracket ?? null}
-                  revealKey={scoreRevealKey}
-                  bracketReasons={
-                    deck.bracketEstimation ? bracketReasons(deck.bracketEstimation) : []
-                  }
-                  bracketBorderline={
-                    deck.bracketEstimation ? bracketBorderline(deck.bracketEstimation) : null
-                  }
-                  engineLabel={deck.synergyAnalysis?.axes[0]?.label}
-                  engineProducers={deck.synergyAnalysis?.axes[0]?.producers}
-                  enginePayoffs={deck.synergyAnalysis?.axes[0]?.payoffs}
-                  engineLopsided={(deck.synergyAnalysis?.warnings.length ?? 0) > 0}
-                  comboInDeck={mainboardComboData?.inDeck.length ?? 0}
-                  comboOneAway={mainboardComboData?.oneAway.length ?? 0}
-                  comboOwnedMissing={comboOwnedMissingCount}
-                  combosLoading={!!formatConfig?.hasCommander && comboData.loading}
-                  bracketMissesCombos={bracketAnalysis.missesCombos}
-                  combosError={comboData.error}
-                  onRetryCombos={comboData.refetch}
-                  bracketPending={analysisState === 'pending'}
-                  // Link a pillar to its panel only when that panel actually renders below.
-                  onViewBracket={
-                    deck.bracketEstimation || deck.bracketOverride != null
-                      ? handleViewBracket
-                      : undefined
-                  }
-                  onViewEngine={
-                    deck.synergyAnalysis &&
-                    (deck.synergyAnalysis.warnings.length > 0 ||
-                      deck.synergyAnalysis.axes.length > 0)
-                      ? handleViewEngine
-                      : undefined
-                  }
-                  onViewCombos={handleViewCombos}
-                  winConditionSummary={buildWinConditionSummary(
-                    deck.winConditions,
-                    bracketAnalysis.missesCombos
-                  )}
-                  winConditionWarn={
-                    deck.winConditions?.noClearWinCondition && !bracketAnalysis.missesCombos
-                  }
-                  onViewWinConditions={deck.winConditions ? handleViewWinConditions : undefined}
-                  // UX-313: target bracket control in the PowerHero
-                  bracketOverride={deck.bracketOverride}
-                  onSetBracketOverride={(b) => updateDeck(deck.id, { bracketOverride: b })}
-                />
-              ) : undefined
-            }
-            tableRecordSlot={<TableRecordPanel deckId={deck.id} />}
-            aiReviewSlot={
-              formatConfig?.hasCommander && deck.commander ? (
-                <>
-                  <AiSourcesControl
-                    value={aiScope}
-                    onChange={(scope) => updateDeck(deck.id, { aiScope: scope })}
-                    collectionEmpty={collectionCards.length === 0}
-                  />
-                  <DeckAiReview
-                    deckId={deck.id}
-                    scope={aiScope}
-                    format={deck.format}
-                    commander={deck.commander}
-                    partnerCommander={deck.partnerCommander ?? null}
-                    mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
-                    bracketTarget={deck.bracketOverride ?? null}
-                    bracketEstimate={deck.bracketEstimation?.bracket ?? null}
-                  />
-                  <DeckAiRefine
-                    key={deck.id}
-                    variant="coach"
-                    onReading={setAiAgrees}
-                    deckId={deck.id}
-                    format={deck.format}
-                    commander={deck.commander}
-                    partnerCommander={deck.partnerCommander ?? null}
-                    mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
-                    pool={refinePool}
-                    scope={aiScope}
-                    alternatives={refineAlternatives}
-                    bracketTarget={deck.bracketOverride ?? null}
-                    bracketEstimate={deck.bracketEstimation?.bracket ?? null}
-                    onApplyMove={handleApplyCoachMove}
-                    onApplyAll={(swaps) => handleApplyCostSwaps(swaps, 'ai')}
-                  />
-                </>
-              ) : undefined
-            }
-            combosSlot={
-              formatConfig?.hasCommander ? (
-                <DeckCombosPanel
-                  ref={combosRef}
-                  deckId={deck.id}
-                  deckOracleIds={deckOracleIds}
-                  mainboardOracleIds={mainboardOracleIds}
-                  format={deck.format}
-                  colorIdentity={comboColorIdentity}
-                  combos={comboData}
-                  onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
-                />
-              ) : undefined
-            }
-            coachFeedSlot={
-              formatConfig?.hasCommander && !deck.commander ? (
-                // Coach reads a deck against its commander; with none yet its
-                // feed would be empty and its "looks tuned" line untrue (E465).
-                <EmptyState
-                  tagline="Choose a commander to get Coach suggestions."
-                  actions={
-                    <Button
-                      variant="primary"
-                      className="empty-state-action"
-                      onClick={() => setShowCommanderPicker(true)}
-                    >
-                      Choose a commander
-                    </Button>
-                  }
-                />
-              ) : formatConfig?.hasCommander ? (
-                <CoachFeed
-                  gaps={deck.gapAnalysis ?? []}
-                  optimize={deck.optimizeSwaps}
-                  misfits={deck.misfits}
-                  synergy={deck.synergyAnalysis?.suggestions ?? []}
-                  substitutes={substitutionPlan?.rows ?? []}
-                  costPlan={(coachSettings.savesMoney && effectiveCostPlan) || undefined}
-                  bracketFit={deck.bracketFit ?? undefined}
-                  landUpgrades={landUpgrades}
-                  oneAwayCombos={winningCombos(mainboardComboData, coachSettings.deckPayoffs)}
-                  crossDeckMoves={crossDeckMoves}
-                  planScore={deck.planScore}
-                  roleCounts={liveRoleCounts ?? {}}
-                  roleTargets={deck.roleTargets ?? {}}
-                  deckSize={
-                    deck.cards.length + (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0)
-                  }
-                  deckTarget={DECK_FORMAT_CONFIGS[deck.format].deckSize}
-                  bracketOverridePresent={deck.bracketOverride != null}
-                  resolveOwnership={ownershipFor}
-                  ownedNames={ownedNames}
-                  deckNames={deckCardNames}
-                  onApplyMove={handleApplyCoachMove}
-                  onApplyAllDropIns={handleApplyCostSwaps}
-                  onConvergeBracket={(swaps) => handleApplyCostSwaps(swaps, 'bracket')}
-                  onPreviewFit={(change) => void handleCoachPreviewFit(change)}
-                  initialFilter={tuneFocusLane ?? undefined}
-                  onFilterHandled={clearTuneFocus}
-                  analysisState={analysisState}
-                  onRetryAnalysis={
-                    analysisState === 'error' || bracketAnalysis.edhrecMissing
-                      ? bracketAnalysis.retry
-                      : undefined
-                  }
-                  edhrecMissing={bracketAnalysis.edhrecMissing}
-                  commanderName={deck.commander?.name}
-                  busyNames={
-                    bracketFitSwapName
-                      ? new Set([...addingEngineNames, bracketFitSwapName])
-                      : addingEngineNames
-                  }
-                  browser={
-                    <DeckAnalysisPanel
-                      deckId={deck.id}
-                      format={deck.format}
-                      commander={deck.commander}
-                      partnerCommander={deck.partnerCommander}
-                      mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
-                      onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
-                    />
-                  }
-                  ownedOnly={ownedOnly}
-                  onOwnedOnlyChange={handleOwnedOnlyChange}
-                  settingsBreak={coachSettings.check}
-                  hasReplaceCut={replaceCuts.hasCut}
-                  hasProtectedCut={replaceCuts.hasProtectedCut}
-                  cutSwaps={{ deck, combos: mainboardComboData, owned: collectionCards }}
-                  targetBracket={coachSettings.targetBracket}
-                  aiAgrees={aiAgrees ?? undefined}
-                  upgradePlan={
-                    planAvailable
-                      ? {
-                          deckId: deck.id,
-                          tools: upgradePlanTools,
-                          open: planOpen,
-                          onOpenChange: setPlanOpen,
-                          onApply: handleApplyPlan,
-                        }
-                      : undefined
-                  }
-                  nextBestMoves={nextBestMoves}
-                  combosLoading={!!formatConfig?.hasCommander && comboData.loading}
-                  onNbmNavigate={handleNbmNavigate}
-                  onNbmApply={handleAddEngineCard}
-                  onNbmFill={
-                    isCommander && deck.commander && deck.cards.length < mainboardLimit
-                      ? () => setShowFill(true)
-                      : undefined
-                  }
-                />
-              ) : undefined
-            }
-            engineSlot={
-              formatConfig?.hasCommander &&
-              deck.synergyAnalysis &&
-              (deck.synergyAnalysis.warnings.length > 0 || deck.synergyAnalysis.axes.length > 0) ? (
-                // Power tab keeps only the axis-balance diagnostics; the off-meta
-                // picks live in the Tune Improve engine (synergy source).
-                <EnginePanel
-                  analysis={deck.synergyAnalysis}
-                  onAdd={handleAddEngineCard}
-                  showSuggestions={false}
-                  axisSummaries={axisSummaries}
-                  allCards={deckCards}
-                />
-              ) : undefined
-            }
-            winConditionSlot={
-              formatConfig?.hasCommander && deck.winConditions ? (
-                <WinConditionPanel
-                  analysis={deck.winConditions}
-                  library={deckLibrary}
-                  combosUncounted={bracketAnalysis.missesCombos}
-                  winConTags={deck.winConTags}
-                  onToggleWinConTag={(name) =>
-                    updateDeck(deck.id, { winConTags: toggleWinConTag(deck.winConTags, name) })
-                  }
-                />
-              ) : undefined
-            }
-          />
-        </div>
-      </div>
+      <DeckEditorLayout
+        deck={deck}
+        handleRemoveCard={handleRemoveCard}
+        handleRemoveSideboardCard={handleRemoveSideboardCard}
+        handleRemoveConsideringCard={handleRemoveConsideringCard}
+        handleMoveToSideboard={handleMoveToSideboard}
+        handleMoveToMainboard={handleMoveToMainboard}
+        handleMoveToConsidering={handleMoveToConsidering}
+        handleMoveFromConsidering={handleMoveFromConsidering}
+        handleSetQty={handleSetQty}
+        handleEditCard={handleEditCard}
+        handleSetCardTags={handleSetCardTags}
+        handleRenameDeckTag={handleRenameDeckTag}
+        handleRemoveDeckTag={handleRemoveDeckTag}
+        handleBulkRemove={handleBulkRemove}
+        handleBulkMove={handleBulkMove}
+        handleBulkEditTag={handleBulkEditTag}
+        handleReorder={handleReorder}
+        formatConfig={formatConfig}
+        handleMakeCommanderClick={handleMakeCommanderClick}
+        handleMakePartnerClick={handleMakePartnerClick}
+        canMakePartner={canMakePartner}
+        setShowCommanderPicker={setShowCommanderPicker}
+        cover={cover}
+        setShowPartnerPicker={setShowPartnerPicker}
+        setMoveCard={setMoveCard}
+        setReleaseCard={setReleaseCard}
+        handleSetProxy={handleSetProxy}
+        handleUseOwnCopy={handleUseOwnCopy}
+        collectionById={collectionById}
+        binderByCopyId={binderByCopyId}
+        setShowAddPanel={setShowAddPanel}
+        searchPanelRef={searchPanelRef}
+        handleAddEngineCard={handleAddEngineCard}
+        isCommander={isCommander}
+        mainboardLimit={mainboardLimit}
+        setShowFill={setShowFill}
+        addingEngineNames={addingEngineNames}
+        mainboardComboData={mainboardComboData}
+        ownedOracleIdSet={ownedOracleIdSet}
+        landUpgrades={landUpgrades}
+        coachArrivals={coachArrivals}
+        arrivalsDeepLink={arrivalsDeepLink}
+        arrivalsSettled={arrivalsSettled}
+        existingCardCounts={existingCardCounts}
+        ownershipFor={ownershipFor}
+        combosByOracle={combosByOracle}
+        bracketAnalysis={bracketAnalysis}
+        deckLibrary={deckLibrary}
+        exportOpen={exportOpen}
+        setExportOpen={setExportOpen}
+        safeView={safeView}
+        viewTabs={viewTabs}
+        setShowTestHand={setShowTestHand}
+        isDesktop={isDesktop}
+        statSlot={statSlot}
+        setAppendOpen={setAppendOpen}
+        setBulkEditOpen={setBulkEditOpen}
+        setResyncOpen={setResyncOpen}
+        hasCopyMismatches={hasCopyMismatches}
+        handleMatchMyCopies={handleMatchMyCopies}
+        hasMissingSlots={hasMissingSlots}
+        handleCheapestPrintings={handleCheapestPrintings}
+        suggestGroups={suggestGroups}
+        handleToggleAddPanel={handleToggleAddPanel}
+        analysisState={analysisState}
+        scoreRevealKey={scoreRevealKey}
+        handleNavigateToTune={handleNavigateToTune}
+        renderSwapSuggestions={renderSwapSuggestions}
+        renderSimilarCards={renderSimilarCards}
+        comboOwnedMissingCount={comboOwnedMissingCount}
+        comboData={comboData}
+        handleViewBracket={handleViewBracket}
+        handleViewEngine={handleViewEngine}
+        handleViewCombos={handleViewCombos}
+        handleViewWinConditions={handleViewWinConditions}
+        aiScope={aiScope}
+        collectionCards={collectionCards}
+        setAiAgrees={setAiAgrees}
+        refinePool={refinePool}
+        refineAlternatives={refineAlternatives}
+        handleApplyCoachMove={handleApplyCoachMove}
+        handleApplyCostSwaps={handleApplyCostSwaps}
+        combosRef={combosRef}
+        deckOracleIds={deckOracleIds}
+        mainboardOracleIds={mainboardOracleIds}
+        comboColorIdentity={comboColorIdentity}
+        substitutionPlan={substitutionPlan}
+        coachSettings={coachSettings}
+        effectiveCostPlan={effectiveCostPlan}
+        crossDeckMoves={crossDeckMoves}
+        liveRoleCounts={liveRoleCounts}
+        ownedNames={ownedNames}
+        deckCardNames={deckCardNames}
+        handleCoachPreviewFit={handleCoachPreviewFit}
+        tuneFocusLane={tuneFocusLane}
+        clearTuneFocus={clearTuneFocus}
+        bracketFitSwapName={bracketFitSwapName}
+        ownedOnly={ownedOnly}
+        handleOwnedOnlyChange={handleOwnedOnlyChange}
+        replaceCuts={replaceCuts}
+        aiAgrees={aiAgrees}
+        planAvailable={planAvailable}
+        upgradePlanTools={upgradePlanTools}
+        planOpen={planOpen}
+        setPlanOpen={setPlanOpen}
+        handleApplyPlan={handleApplyPlan}
+        nextBestMoves={nextBestMoves}
+        handleNbmNavigate={handleNbmNavigate}
+        axisSummaries={axisSummaries}
+        deckCards={deckCards}
+      />
 
-      {/* Test hand — a breakpoint-aware overlay (bottom sheet on mobile,
-          centered modal ≥1024px) via the shared card-picker sheet. Goldfishing
-          is a distinct activity, opened on demand from the Deck-view toolbar so
-          it's never pinned inline or in a tab. */}
-      {showTestHand && (
-        <DeckTestHandSheet deckId={deck.id} onClose={() => setShowTestHand(false)} />
-      )}
-
-      {/* Add cards — a breakpoint-aware overlay (bottom sheet on mobile,
-          centered modal ≥1024px) via the shared card-picker sheet. Open in
-          every format, commander or not (E465): a commander deck can take
-          cards before it has a commander, and the search shows every color
-          until it does. */}
-      {showAddPanel && (
-        <DeckEditorCardPickerSheet
-          label="Add cards"
-          className="deck-add-sheet"
-          onClose={() => {
-            setShowAddPanel(false);
-            buildTimeNudge.dismiss();
-          }}
-        >
-          {(dismiss) => renderAddPanelContent(dismiss)}
-        </DeckEditorCardPickerSheet>
-      )}
-
-      {auditionCard && auditionReport && deck && (
-        <CardFitPanel
-          addCard={auditionCard}
-          report={auditionReport}
-          commanderName={deck.commander?.name}
-          busySlotId={swappingSlot}
-          pinnedCutName={auditionPinnedCutName ?? undefined}
-          onSwapCut={(cut) =>
-            void handleSwapInDeck(cut.slotId, cut.card.name, auditionCard.name, () => {
-              setAuditionCard(null);
-              setAuditionPinnedCutName(null);
-            })
-          }
-          onAddAnyway={() => {
-            const name = auditionCard.name;
-            setAuditionCard(null);
-            setAuditionPinnedCutName(null);
-            void handleAddEngineCard(name);
-          }}
-          onClose={() => {
-            setAuditionCard(null);
-            setAuditionPinnedCutName(null);
-          }}
-        />
-      )}
-
-      {tokensOpen && <DeckTokensSheet tokens={deckTokens} onClose={() => setTokensOpen(false)} />}
-      {primerOpen && <DeckPrimerSheet deck={deck} onClose={() => setPrimerOpen(false)} />}
-      {appendOpen && <AppendDeckDialog deck={deck} onClose={() => setAppendOpen(false)} />}
-      {bulkEditOpen && <BulkEditDeckDialog deck={deck} onClose={() => setBulkEditOpen(false)} />}
-      {resyncOpen && (
-        <BulkEditDeckDialog deck={deck} mode="resync" onClose={() => setResyncOpen(false)} />
-      )}
-      {pullListOpen && (
-        <PullListSheet
-          deck={deck}
-          collection={collectionCards}
-          binderDefs={binderDefs}
-          allocations={printingAllocationMap}
-          onClose={() => setPullListOpen(false)}
-        />
-      )}
-
-      {editingSlot && (
-        <CardEditDialog
-          cardName={editingSlot.card.name}
-          currentScryfallId={editingSlot.card.id}
-          fallbackCard={editingSlot.card}
-          // The slot's real finish is whatever physical copy it's bound to —
-          // an unbound slot has no finish, so it reads as non-foil.
-          currentFinish={(() => {
-            const copyId = deck.cards.find((c) => c.slotId === editingSlot.slotId)?.allocatedCopyId;
-            return (copyId && collectionById?.get(copyId)?.finish) || 'nonfoil';
-          })()}
-          resolveAvailability={resolveAvailability}
-          resolveOwnedFinishes={resolveOwnedFinishes}
-          onConfirm={handleEditConfirm}
-          onCancel={() => setEditingSlot(null)}
-        />
-      )}
-
-      {movePrompt && (
-        <MovePrintingPrompt
-          cardName={movePrompt.newCard.name}
-          chosenSetName={movePrompt.chosenSetName}
-          donorName={movePrompt.donor.donorDeckName}
-          donorKind={movePrompt.donor.donorKind}
-          swap={movePrompt.swap ? { returnSetName: movePrompt.swap.returnSetName } : null}
-          onMove={() => handleMovePrintingConfirm('move')}
-          onSwap={() => handleMovePrintingConfirm('swap')}
-          onCancel={() => setMovePrompt(null)}
-        />
-      )}
-
-      {makeCommanderTarget && deck.commander && (
-        <ReplaceCommanderDialog
-          which="commander"
-          incoming={makeCommanderTarget.card.name}
-          current={deck.commander.name}
-          onCancel={() => setMakeCommanderTarget(null)}
-          onConfirm={handleConfirmMakeCommander}
-        />
-      )}
-
-      {makePartnerTarget && deck.partnerCommander && (
-        <ReplaceCommanderDialog
-          which="partner"
-          incoming={makePartnerTarget.card.name}
-          current={deck.partnerCommander.name}
-          onCancel={() => setMakePartnerTarget(null)}
-          onConfirm={handleConfirmMakePartner}
-        />
-      )}
-
-      {showCommanderPicker && formatConfig?.hasCommander && (
-        <CommanderPickerSheet
-          format={deck.format}
-          deckCards={[...deck.cards, ...deck.sideboard].map((c) => c.card)}
-          exclude={commanderNames}
-          onPick={handleSelectCommanderFromPicker}
-          onClose={() => setShowCommanderPicker(false)}
-        />
-      )}
-
-      {showPartnerPicker && deck.commander && (
-        <Modal onClose={() => setShowPartnerPicker(false)} labelledBy="partner-picker-title">
-          <h2 id="partner-picker-title" className="choice-dialog-title">
-            Partner commander
-          </h2>
-          {/* collectionMode={false}: the editor isn't constrained to owned
-              cards, so the picker lists every legal partner and the build does
-              the allocation when one is chosen. */}
-          <PartnerCommanderSelector
-            commander={deck.commander}
-            partner={deck.partnerCommander}
-            onSelect={handleSelectPartnerFromPicker}
-            collectionMode={false}
-          />
-        </Modal>
-      )}
-
-      {showFill && deck && (
-        <FillDeckSheet
-          deck={deck}
-          target={mainboardLimit}
-          ownedNames={ownedNames}
-          onClose={() => setShowFill(false)}
-          onAdd={(cards) => {
-            setShowFill(false);
-            // One write and one undo entry for the whole fill, binding free
-            // owned copies the same way a quantity increment does.
-            recordEdit(deck.id, `fill ${cards.length} cards`, () => {
-              const allocations = buildAllocationMap(
-                useDecksStore.getState().decks,
-                useCubeStore.getState().saved
-              );
-              const entries = cards.map((card) => {
-                const claim = pickCollectionCopy(card.name, collectionCards, allocations, card.id);
-                const allocatedCopyId = claim?.copyId ?? null;
-                if (allocatedCopyId) {
-                  allocations.set(
-                    allocatedCopyId,
-                    makeDeckAllocationInfo(deck.id, deck.name, deck.color, card.name)
-                  );
-                }
-                return { card, allocatedCopyId };
-              });
-              bulkAddCards(deck.id, 'cards', entries);
-            });
-            pushToast({
-              message: `Added ${cards.length} ${cards.length === 1 ? 'card' : 'cards'}`,
-              tone: 'success',
-              actionLabel: 'Undo',
-              onAction: () => undoEdit(deck.id),
-            });
-            haptics.tap();
-          }}
-        />
-      )}
-
-      {/* Deck-size guard: replace-when-full (adding to a full Commander deck). */}
-      {pendingAdd && replaceOptions && deck && (
-        <DeckSizePrompt
-          title={`Deck is full (${deck.cards.length}/${mainboardLimit})`}
-          subtitle={
-            replaceOptions.anyRelated
-              ? `Replace a card with ${pendingAdd}?`
-              : `Cut a weak card to make room for ${pendingAdd}?`
-          }
-          actionVerb="Replace"
-          subject={{ name: pendingAdd, label: "The card you're adding" }}
-          aiSlot={
-            // A move's apply carries the sibling deck's patch; the AI verdict
-            // applies a plain swap, so it stays out of a move's prompt.
-            formatConfig?.hasCommander && deck.commander && !pendingMoveFor ? (
-              <DeckAiRefine
-                key={deck.id}
-                variant="replace"
-                deckId={deck.id}
-                format={deck.format}
-                commander={deck.commander}
-                partnerCommander={deck.partnerCommander ?? null}
-                mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
-                pool={[{ name: pendingAdd, oracleId: '', qty: 1 }]}
-                scope="any"
-                bracketTarget={deck.bracketOverride ?? null}
-                bracketEstimate={deck.bracketEstimation?.bracket ?? null}
-                onApplyMove={(change) => {
-                  // A verdict swap resolves the whole prompt: apply through the
-                  // coach path (atomic swap + undo) and close.
-                  void handleApplyCoachMove(change);
-                  setPendingAdd(null);
-                }}
-              />
-            ) : undefined
-          }
-          options={replaceOptions.suggested}
-          moreOptions={replaceOptions.all}
-          footer={[
-            { label: 'Add to sideboard', onClick: () => void addToSideboardAndClose() },
-            { label: 'Add to considering', onClick: () => void addToConsideringAndClose() },
-            { label: 'Add anyway', onClick: () => void addAnywayAndClose() },
-            { label: 'Cancel', onClick: () => setPendingAdd(null), primary: true },
-          ]}
-          onClose={() => setPendingAdd(null)}
-        />
-      )}
-
-      {/* Deck-size guard: refill nudge (a cut dropped a full deck below 100). */}
-      {refillAfterCut && deck && (
-        <DeckSizePrompt
-          title={`Cut ${refillAfterCut.name}`}
-          subtitle="Add a replacement to keep your deck at its limit?"
-          actionVerb="Add"
-          subject={{ name: refillAfterCut.name, label: 'The card you cut' }}
-          options={refillOptions}
-          footer={[{ label: 'Leave it', onClick: () => setRefillAfterCut(null), primary: true }]}
-          onClose={() => setRefillAfterCut(null)}
-        />
-      )}
-
-      {/* Physical-copy reallocation — move owned cards between decks. */}
-      {moveCard && deck && (
-        <MoveToDeckSheet
-          card={moveCard}
-          currentDeck={deck}
-          collectionCards={collectionCards}
-          ownershipFor={ownershipFor}
-          freeCountFor={freeCountFor}
-          onConfirm={(targetId, outcome, replacement) =>
-            handleMoveConfirm(moveCard, targetId, outcome, replacement)
-          }
-          onCancel={() => setMoveCard(null)}
-        />
-      )}
-
-      {releaseCard && deck && (
-        <ConfirmDialog
-          title={`Release your copy of ${releaseCard.name}?`}
-          body={`The copy frees up for another deck or trade. ${releaseCard.name} stays in this deck as a card you still need.`}
-          confirmLabel="Release copy"
-          onConfirm={handleReleaseConfirm}
-          onCancel={() => setReleaseCard(null)}
-        />
-      )}
-
-      {feedbackOpen && deck && (
-        <DeckFeedbackSheet deck={deck} onClose={() => setFeedbackOpen(false)} />
-      )}
-
-      {showSharedCopies && deck && (
-        <SharedCopiesSheet
-          deckName={deck.name}
-          contested={listContestedCards(deck, collectionCards, decks, savedCubes)}
-          onMove={handleMoveSharedCopy}
-          onClose={() => setShowSharedCopies(false)}
-        />
-      )}
-
-      {/* One-shot post-generation build report sheet (UX-316).
-          Shown once per deck immediately after generation; never again. */}
-      {showBuildReport && deck?.buildReport && (
-        <BuildReportSheet
-          deckId={deck.id}
-          commanderName={deck.commander?.name}
-          commanderImageUrl={
-            deck.commander?.image_uris?.art_crop ??
-            deck.commander?.card_faces?.[0]?.image_uris?.art_crop
-          }
-          report={deck.buildReport}
-          oneAwayCombos={mainboardComboData?.oneAway}
-          ownedOracleIds={ownedOracleIdSet}
-          comboSeedContext={comboSeedContext}
-          onClose={() => setShowBuildReport(false)}
-          onReviewConflicts={() => {
-            setShowBuildReport(false);
-            setShowSharedCopies(true);
-          }}
-          /* The post-generation moment (T102 slice 4). Same panel as the Coach
-             tab, so the offer meets the user while they're judging the fresh
-             deck instead of waiting to be found. It self-hides when the feature
-             is off and never auto-runs — the press is still the user's. */
-          refineSlot={
-            deck.commander ? (
-              <DeckAiRefine
-                key={deck.id}
-                deckId={deck.id}
-                format={deck.format}
-                commander={deck.commander}
-                partnerCommander={deck.partnerCommander ?? null}
-                mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
-                pool={refinePool}
-                scope={aiScope}
-                alternatives={refineAlternatives}
-                bracketTarget={deck.bracketOverride ?? null}
-                bracketEstimate={deck.bracketEstimation?.bracket ?? null}
-                onApplyMove={handleApplyCoachMove}
-                onApplyAll={(swaps) => handleApplyCostSwaps(swaps, 'ai')}
-              />
-            ) : undefined
-          }
-        />
-      )}
+      <DeckEditorOverlays
+        showTestHand={showTestHand}
+        deck={deck}
+        setShowTestHand={setShowTestHand}
+        showAddPanel={showAddPanel}
+        setShowAddPanel={setShowAddPanel}
+        buildTimeNudge={buildTimeNudge}
+        renderAddPanelContent={renderAddPanelContent}
+        auditionCard={auditionCard}
+        auditionReport={auditionReport}
+        swappingSlot={swappingSlot}
+        auditionPinnedCutName={auditionPinnedCutName}
+        handleSwapInDeck={handleSwapInDeck}
+        setAuditionCard={setAuditionCard}
+        setAuditionPinnedCutName={setAuditionPinnedCutName}
+        handleAddEngineCard={handleAddEngineCard}
+        tokensOpen={tokensOpen}
+        deckTokens={deckTokens}
+        setTokensOpen={setTokensOpen}
+        primerOpen={primerOpen}
+        setPrimerOpen={setPrimerOpen}
+        appendOpen={appendOpen}
+        setAppendOpen={setAppendOpen}
+        bulkEditOpen={bulkEditOpen}
+        setBulkEditOpen={setBulkEditOpen}
+        resyncOpen={resyncOpen}
+        setResyncOpen={setResyncOpen}
+        pullListOpen={pullListOpen}
+        collectionCards={collectionCards}
+        binderDefs={binderDefs}
+        printingAllocationMap={printingAllocationMap}
+        setPullListOpen={setPullListOpen}
+        editingSlot={editingSlot}
+        collectionById={collectionById}
+        resolveAvailability={resolveAvailability}
+        resolveOwnedFinishes={resolveOwnedFinishes}
+        handleEditConfirm={handleEditConfirm}
+        setEditingSlot={setEditingSlot}
+        movePrompt={movePrompt}
+        handleMovePrintingConfirm={handleMovePrintingConfirm}
+        setMovePrompt={setMovePrompt}
+        makeCommanderTarget={makeCommanderTarget}
+        setMakeCommanderTarget={setMakeCommanderTarget}
+        handleConfirmMakeCommander={handleConfirmMakeCommander}
+        makePartnerTarget={makePartnerTarget}
+        setMakePartnerTarget={setMakePartnerTarget}
+        handleConfirmMakePartner={handleConfirmMakePartner}
+        showCommanderPicker={showCommanderPicker}
+        formatConfig={formatConfig}
+        commanderNames={commanderNames}
+        handleSelectCommanderFromPicker={handleSelectCommanderFromPicker}
+        setShowCommanderPicker={setShowCommanderPicker}
+        showPartnerPicker={showPartnerPicker}
+        setShowPartnerPicker={setShowPartnerPicker}
+        handleSelectPartnerFromPicker={handleSelectPartnerFromPicker}
+        showFill={showFill}
+        mainboardLimit={mainboardLimit}
+        ownedNames={ownedNames}
+        setShowFill={setShowFill}
+        pendingAdd={pendingAdd}
+        replaceOptions={replaceOptions}
+        pendingMoveFor={pendingMoveFor}
+        handleApplyCoachMove={handleApplyCoachMove}
+        setPendingAdd={setPendingAdd}
+        addToSideboardAndClose={addToSideboardAndClose}
+        addToConsideringAndClose={addToConsideringAndClose}
+        addAnywayAndClose={addAnywayAndClose}
+        refillAfterCut={refillAfterCut}
+        refillOptions={refillOptions}
+        setRefillAfterCut={setRefillAfterCut}
+        moveCard={moveCard}
+        ownershipFor={ownershipFor}
+        freeCountFor={freeCountFor}
+        handleMoveConfirm={handleMoveConfirm}
+        setMoveCard={setMoveCard}
+        releaseCard={releaseCard}
+        handleReleaseConfirm={handleReleaseConfirm}
+        setReleaseCard={setReleaseCard}
+        feedbackOpen={feedbackOpen}
+        setFeedbackOpen={setFeedbackOpen}
+        showSharedCopies={showSharedCopies}
+        handleMoveSharedCopy={handleMoveSharedCopy}
+        setShowSharedCopies={setShowSharedCopies}
+        showBuildReport={showBuildReport}
+        mainboardComboData={mainboardComboData}
+        ownedOracleIdSet={ownedOracleIdSet}
+        comboSeedContext={comboSeedContext}
+        setShowBuildReport={setShowBuildReport}
+        refinePool={refinePool}
+        aiScope={aiScope}
+        refineAlternatives={refineAlternatives}
+        handleApplyCostSwaps={handleApplyCostSwaps}
+      />
 
       <DeckScryfallDropOverlay zoneLabel={addZoneLabel} onDropText={handleScryfallDrop} />
 
