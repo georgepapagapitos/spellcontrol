@@ -157,6 +157,12 @@ describe('coarse-pointer ghosts stay off their neighbors', () => {
     expect(px(lineHeight)).toBe(44);
     expect(decl(deck, '.deck-meta-link', 'font')).toBe('inherit');
     expect(decl(deck, '.deck-meta-link', 'padding')).toBe('0');
+    // And it shares the line's baseline with the plain segments around it.
+    // `vertical-align: bottom` dropped both links to the foot of a line box
+    // the color pips had made taller than the text (2026-10-12 screenshot).
+    expect(decl(deck, '.deck-meta-link', 'vertical-align')).toBe('baseline');
+    expect(decl(deck, '.deck-meta-link', 'align-items')).toBe('baseline');
+    expect(decl(deck, '.deck-meta-link > svg', 'align-self')).toBe('center');
 
     // So no meta link may grow a ghost: an inline link can't know which line
     // it's on, and any reach past its line box lands on the name or on the
