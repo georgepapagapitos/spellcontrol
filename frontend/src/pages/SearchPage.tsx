@@ -299,7 +299,7 @@ function SearchRulesHit({ hit }: { hit: RulesHit }) {
         strokeWidth={2}
         aria-hidden
       />
-      <span className="search-rules-hit-body">
+      <span className="text-stack">
         <span className="search-rules-hit-head">
           <span className="search-rules-hit-name">{hit.name}</span>
           <span className="search-rules-hit-meta">{hit.meta}</span>

@@ -552,6 +552,15 @@ select {
   gap: 0;
 }
 
+/* A column of text lines (name over meta) that fills its row and can shrink. */
+.text-stack {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  min-width: 0;
+}
+
 /* A flex child that gives way and ellipsizes instead of pushing its siblings. */
 .truncate-fill {
   flex: 1;
@@ -565,6 +574,16 @@ select {
 .truncate-meta {
   font-size: var(--text-xs);
   color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A one-line row title that ellipsizes: the name over a meta line. */
+.truncate-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -102,7 +102,7 @@ export function ImportHistorySheet({ onClose }: Props) {
                           aria-label={`Select ${prettyImportName(h.name, h.format)}`}
                         />
                       </label>
-                      <div className="import-history-text">
+                      <div className="text-stack">
                         <div className="import-history-name">
                           <span className="import-history-name-label">
                             {prettyImportName(h.name, h.format)}

@@ -57,15 +57,6 @@
   min-width: 0;
 }
 
-.build-time-coach-strip-headline {
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* Below 600px there's no room for a teaser line alongside two buttons —
    matches UX-334's "hide the teaser entirely below 600px" ruling. */
 @media (max-width: 599px) {

@@ -1156,7 +1156,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
                 <span className="scanner-card-panel-thumb">
                   {img ? <img src={img} alt="" /> : null}
                 </span>
-                <span className="scanner-card-panel-body">
+                <span className="text-stack">
                   <span className="scanner-card-panel-name">
                     {qty > 1 && <span className="scanner-card-panel-qty">{qty}× </span>}
                     {card.name}

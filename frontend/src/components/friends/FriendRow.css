@@ -56,15 +56,6 @@
   white-space: nowrap;
 }
 
-.friend-row-handle,
-.friend-row-since {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .friend-row-peek {
   margin-top: var(--space-0-5);
   font-size: var(--text-sm);

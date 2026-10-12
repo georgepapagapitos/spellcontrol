@@ -59,10 +59,10 @@ export function BrewerCard({ brewer, variant = 'card', as = 'li' }: BrewerCardPr
         )}
         <span className="brewer-card-body">
           <span className="brewer-card-name">{primary}</span>
-          {secondary && <span className="brewer-card-handle">{secondary}</span>}
-          <span className="brewer-card-stats">{stats}</span>
+          {secondary && <span className="truncate-meta">{secondary}</span>}
+          <span className="truncate-meta brewer-card-stats">{stats}</span>
           {brewer.topCommander && (
-            <span className="brewer-card-commander">Brews {brewer.topCommander}</span>
+            <span className="truncate-meta">Brews {brewer.topCommander}</span>
           )}
         </span>
         {variant !== 'row' && <ColorIdentityBar colors={brewer.topColors} />}

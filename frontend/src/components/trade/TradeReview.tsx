@@ -456,7 +456,7 @@ function GetLine({
     <li className="trade-review-line">
       <ThumbButton name={line.name} src={printing?.imageSmall} onClick={onInspect} />
       <span className="trade-review-info">
-        <span className="trade-review-name" title={line.name}>
+        <span className="truncate-name" title={line.name}>
           {line.name}
         </span>
         {segments.length > 0 && (
@@ -541,7 +541,7 @@ function GiveLine({
         />
         <span className="trade-review-info">
           <span className="trade-review-name-row">
-            <span className="trade-review-name" title={line.name}>
+            <span className="truncate-name" title={line.name}>
               {line.name}
             </span>
             {line.wanted && <span className="trade-review-wanted">{friendName} wants</span>}

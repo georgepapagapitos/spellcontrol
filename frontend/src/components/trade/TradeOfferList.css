@@ -70,15 +70,6 @@
   min-width: 0;
 }
 
-.trade-offer-who-name {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .trade-offer-who-dir {
   font-size: var(--text-xs);
   font-weight: 500;

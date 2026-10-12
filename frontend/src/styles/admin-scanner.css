@@ -601,13 +601,6 @@
   object-fit: cover;
   display: block;
 }
-.scanner-card-panel-body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-0-5);
-}
 .scanner-card-panel-name {
   font-family: var(--font-display);
   font-size: var(--text-md);

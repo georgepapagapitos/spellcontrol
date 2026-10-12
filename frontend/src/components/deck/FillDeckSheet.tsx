@@ -261,7 +261,7 @@ export function FillDeckSheet({
                         <li key={`${c.name}-${i}`} className="fill-deck-row">
                           <Thumb card={c} />
                           <span className="fill-deck-card">
-                            <span className="fill-deck-name">{c.name}</span>
+                            <span className="truncate-name">{c.name}</span>
                             {phase.result.reasons[c.name] && (
                               <span className="fill-deck-why">{phase.result.reasons[c.name]}</span>
                             )}

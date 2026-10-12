@@ -2055,14 +2055,6 @@ button.playtest-card-pt__value--editable:focus-visible {
   color: var(--text-primary);
 }
 
-.playtest-ctx-attached > span {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .playtest-ctx-attached--none {
   color: var(--text-muted);
   font-size: var(--text-xs);
@@ -2197,14 +2189,6 @@ button.playtest-card-pt__value--editable:focus-visible {
   padding: var(--space-0-5) var(--space-2-5);
   font-size: var(--text-sm);
   color: var(--text-primary);
-}
-
-.playtest-ctx-sticker span {
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* ── Mobile zones panel (used under 1024px) ──────────────────────────── */

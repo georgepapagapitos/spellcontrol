@@ -109,16 +109,6 @@
   white-space: nowrap;
 }
 
-.brewer-card-handle,
-.brewer-card-stats,
-.brewer-card-commander {
-  overflow: hidden;
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .brewer-card-stats {
   color: var(--text-secondary);
   font-weight: 600;

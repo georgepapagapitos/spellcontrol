@@ -195,7 +195,7 @@ export function PriceMoversCard() {
             <li key={`${m.scryfallId}:${m.finish}`}>
               <button type="button" className="home-movers-row" onClick={() => openPreview(i)}>
                 <MoverThumb name={m.name} owned={ownedCopy.get(m.scryfallId)?.imageNormal} />
-                <span className="home-movers-info">
+                <span className="text-stack home-movers-info">
                   <span className="home-movers-name">{m.name}</span>
                   <span className="home-movers-price">
                     {formatMoney(m.after)}

@@ -46,7 +46,7 @@ export function FollowedBrewersCard({
             <li key={item.id} className="home-followed-row">
               <UserAvatar name={who} size={32} />
               <span className="home-followed-text">
-                <Link to={`/d/${item.slug}`} className="home-followed-deck">
+                <Link to={`/d/${item.slug}`} className="truncate-name home-followed-deck">
                   {item.deckName}
                 </Link>
                 <span className="truncate-meta home-followed-by">

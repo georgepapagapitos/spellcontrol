@@ -110,7 +110,7 @@ export function MoveToDeckSheet({
               icon={<ChevronLeft width={18} height={18} strokeWidth={2} />}
             />
           )}
-          <div className="move-deck-titles">
+          <div className="text-stack">
             <h2 id={titleId} className="move-deck-title">
               {target ? `Move to ${target.name}?` : 'Move to another deck'}
             </h2>
@@ -155,7 +155,7 @@ export function MoveToDeckSheet({
                         </span>
                       )}
                       <span className="move-deck-row-text">
-                        <span className="move-deck-row-name">{d.name}</span>
+                        <span className="truncate-name">{d.name}</span>
                         <span className="move-deck-row-count">
                           {total} {total === 1 ? 'card' : 'cards'}
                         </span>

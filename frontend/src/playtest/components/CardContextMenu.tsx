@@ -195,7 +195,7 @@ export function CardContextMenu({
     <>
       {attachedToName ? (
         <div className="playtest-ctx-attached">
-          <span>{attachedToName}</span>
+          <span className="truncate-fill">{attachedToName}</span>
           <button type="button" onClick={() => onAttach(null)}>
             Unattach
           </button>
@@ -257,7 +257,7 @@ export function CardContextMenu({
       )}
       {stickers.map((s, i) => (
         <div key={`${i}-${s}`} className="playtest-ctx-sticker">
-          <span>{s}</span>
+          <span className="truncate-fill">{s}</span>
           <IconButton
             onClick={() => onRemoveSticker(i)}
             label={`Remove sticker ${s}`}

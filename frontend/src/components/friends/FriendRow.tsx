@@ -40,9 +40,9 @@ export function FriendRow({ friend, busy, onRemove }: Props) {
           <span className="friend-row-name" title={primary}>
             {primary}
           </span>
-          {secondary && <span className="friend-row-handle">{secondary}</span>}
+          {secondary && <span className="truncate-meta">{secondary}</span>}
           <span className="friend-row-peek">{peek}</span>
-          <span className="friend-row-since">
+          <span className="truncate-meta">
             Friends since {formatRelativeTime(friend.friendedAt)}
           </span>
         </span>

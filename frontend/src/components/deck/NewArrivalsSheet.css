@@ -169,23 +169,6 @@
   }
 }
 
-.new-arrivals-row-meta {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-0-5);
-  min-width: 0;
-  flex: 1;
-}
-
-.new-arrivals-row-name {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .new-arrivals-row-sub {
   display: flex;
   align-items: center;

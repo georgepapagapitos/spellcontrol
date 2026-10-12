@@ -10,14 +10,6 @@
   padding: var(--space-1) var(--space-1) var(--space-2-5);
 }
 
-.move-deck-titles {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-0-5);
-  min-width: 0;
-  flex: 1;
-}
-
 .move-deck-title {
   margin: 0;
   font-size: var(--text-md);
@@ -101,15 +93,6 @@
   flex-direction: column;
   gap: var(--space-0-5);
   min-width: 0;
-}
-
-.move-deck-row-name {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .move-deck-row-count {

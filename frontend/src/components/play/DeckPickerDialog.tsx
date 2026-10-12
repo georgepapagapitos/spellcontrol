@@ -269,7 +269,7 @@ function MyDecksTab({
                   aria-current={deck.id === value || undefined}
                   onClick={() => onChoose(pickedFromDeck(deck))}
                 >
-                  <span className="deck-picker-row-text">
+                  <span className="text-stack">
                     <span className="deck-picker-row-name">{deck.name}</span>
                     {deck.commander && (
                       <span className="deck-picker-row-meta">{deck.commander.name}</span>
@@ -410,7 +410,7 @@ function StarterRow({
         onClick={() => onPick(product)}
         disabled={busy}
       >
-        <span className="deck-picker-row-text">
+        <span className="text-stack">
           <span className="deck-picker-row-name">{product.name}</span>
           <span className="deck-picker-row-meta">
             {summary?.name ??
