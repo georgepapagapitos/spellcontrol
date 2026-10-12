@@ -38,7 +38,7 @@ function LandThumb({ name }: { name: string }): JSX.Element {
 
 function ManabaseSkeleton(): JSX.Element {
   return (
-    <ul className="brew-land-skeleton" aria-hidden>
+    <ul className="list-stack list-stack--snug" aria-hidden>
       {Array.from({ length: 5 }, (_, i) => (
         <li key={i} className="deck-analysis-skeleton-bar is-body" />
       ))}

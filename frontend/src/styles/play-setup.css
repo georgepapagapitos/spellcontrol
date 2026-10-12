@@ -306,15 +306,6 @@
   margin: 0;
 }
 
-.play-setup-roster-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1-5);
-}
-
 .play-setup-seat {
   /* A wrapping row rather than a fixed grid: the name field grows to fill
      at normal sizes and the deck controls drop to a second line at large

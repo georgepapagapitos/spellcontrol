@@ -103,7 +103,7 @@ function TrendingCommanderTile({
           <span className="commander-result-art-skeleton" />
         )}
       </span>
-      <span className="commander-result-body">
+      <span className="text-stack text-stack--auto">
         <span className="commander-result-headline">
           <span className="commander-result-name">Build with {commanderName}</span>
           <Count className="trending-deck-count" value={deckCount} placement="inline" />
@@ -129,7 +129,7 @@ function TrendingDeckTile({ deck }: { deck: TrendingDeck }) {
           <span className="commander-result-art-skeleton" />
         )}
       </span>
-      <span className="commander-result-body">
+      <span className="text-stack text-stack--auto">
         <span className="commander-result-headline">
           <span className="commander-result-name">{deck.deckName}</span>
           <Count
@@ -140,7 +140,9 @@ function TrendingDeckTile({ deck }: { deck: TrendingDeck }) {
             title={playersLabel}
           />
         </span>
-        {deck.commanderName && <span className="commander-result-type">{deck.commanderName}</span>}
+        {deck.commanderName && (
+          <span className="truncate-meta truncate-meta--secondary">{deck.commanderName}</span>
+        )}
       </span>
     </Link>
   );

@@ -63,14 +63,6 @@
   line-height: 1;
 }
 
-.playtest-table-signal__name {
-  color: var(--text-secondary);
-  font-size: var(--text-xs);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .playtest-table-signal .sr-only {
   position: absolute;
   width: 1px;

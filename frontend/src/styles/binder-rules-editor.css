@@ -301,14 +301,6 @@
   display: inline-flex;
 }
 
-.color-swatch-option input {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
 .color-swatch {
   display: block;
   width: 28px;

@@ -192,7 +192,7 @@ export function SimilarCardsStrip({
       {owned.length > 0 && (
         <div className="similar-cards-group">
           <span className="similar-cards-group-label">From your collection</span>
-          <ul className="similar-cards-list">
+          <ul className="list-stack list-stack--snug">
             {owned.map((c, i) => (
               <DeckCardRow
                 key={`owned:${c.name}`}
@@ -215,7 +215,7 @@ export function SimilarCardsStrip({
           {loading && discovery.length === 0 ? (
             <p className="similar-cards-loading">Finding similar cards…</p>
           ) : (
-            <ul className="similar-cards-list">
+            <ul className="list-stack list-stack--snug">
               {discovery.map((c, i) => (
                 <DeckCardRow
                   key={`discovery:${c.name}`}

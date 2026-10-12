@@ -42,14 +42,6 @@
     background var(--motion-fast) ease;
 }
 
-.seat-menu-facing-btn input {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
 @media (hover: hover) and (pointer: fine) {
   .seat-menu-facing-btn:hover {
     color: var(--text-primary);

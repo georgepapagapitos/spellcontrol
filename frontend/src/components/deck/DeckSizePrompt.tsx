@@ -96,7 +96,7 @@ function OptionRow({
       >
         <Thumb name={option.name} />
       </button>
-      <span className="deck-size-prompt-card">
+      <span className="text-stack text-stack--auto">
         <span className="truncate-name">{option.name}</span>
         <span className="deck-size-prompt-meta">
           {option.roleLabel && <span className="deck-size-prompt-role">{option.roleLabel}</span>}

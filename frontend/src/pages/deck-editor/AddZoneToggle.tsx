@@ -26,6 +26,7 @@ export function AddZoneToggle({
     <fieldset className="deck-editor-zone-toggle" aria-label="Add cards to">
       <label className="deck-editor-zone-toggle-option">
         <input
+          className="overlay-input"
           type="radio"
           name="deck-editor-add-zone"
           value="main"
@@ -37,6 +38,7 @@ export function AddZoneToggle({
       {formatConfig && formatConfig.sideboardSize > 0 && (
         <label className="deck-editor-zone-toggle-option">
           <input
+            className="overlay-input"
             type="radio"
             name="deck-editor-add-zone"
             value="side"
@@ -48,6 +50,7 @@ export function AddZoneToggle({
       )}
       <label className="deck-editor-zone-toggle-option">
         <input
+          className="overlay-input"
           type="radio"
           name="deck-editor-add-zone"
           value="considering"

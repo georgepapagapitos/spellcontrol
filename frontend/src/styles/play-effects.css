@@ -672,14 +672,6 @@
   font-weight: 700;
 }
 
-.layout-option input {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  opacity: 0;
-  cursor: inherit;
-}
-
 @media (hover: hover) and (pointer: fine) {
   .layout-option:hover {
     border-color: var(--border-strong);

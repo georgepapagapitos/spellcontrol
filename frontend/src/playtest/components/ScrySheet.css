@@ -45,14 +45,6 @@
     color var(--motion-fast);
 }
 
-.playtest-scry-mode input {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  opacity: 0;
-  cursor: inherit;
-}
-
 .playtest-scry-mode span {
   display: flex;
   align-items: center;
@@ -327,14 +319,6 @@
   font-size: var(--text-xs);
   text-align: center;
   overflow: hidden;
-}
-
-.playtest-scry-face__name {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .playtest-scry-face.is-dragging-overlay {

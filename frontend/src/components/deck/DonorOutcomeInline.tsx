@@ -156,7 +156,7 @@ export function DonorOutcomeInline({
               No owned alternatives found. Pick another option.
             </p>
           ) : (
-            <ul className="donor-outcome-replace-list">
+            <ul className="list-stack list-stack--snug">
               {owned.map((c) => (
                 <DeckCardRow
                   key={c.name}

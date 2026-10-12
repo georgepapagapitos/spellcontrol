@@ -268,6 +268,7 @@ function BracketGroup({ customization, update }: DeckCustomizerProps) {
             return (
               <label key={String(b.v)} className={`bracket-pill${active ? ' active' : ''}`}>
                 <input
+                  className="overlay-input"
                   type="radio"
                   name={bracketGroup}
                   value={String(b.v)}

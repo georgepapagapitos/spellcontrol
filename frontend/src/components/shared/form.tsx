@@ -66,7 +66,7 @@ export function SwitchRow({
       disabled={disabled}
       onClick={() => onChange(!checked)}
     >
-      <span className="switch-row-text">
+      <span className="text-stack text-stack--auto">
         <span id={`${id}-label`} className="switch-row-label">
           {label}
         </span>
@@ -120,6 +120,7 @@ export function SegmentedControl<T extends string | number | boolean>({
           className={`segmented-option${o.value === value ? ' is-selected' : ''}${o.disabled ? ' is-disabled' : ''}`}
         >
           <input
+            className="overlay-input"
             type="radio"
             name={name}
             value={String(o.value)}

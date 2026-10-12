@@ -139,7 +139,7 @@ export function PullListSheet({
       >
         <div className="card-picker-handle" aria-hidden />
         <header className="pull-list-head">
-          <div className="pull-list-titles">
+          <div className="text-stack text-stack--auto">
             <h2 id={titleId} className="pull-list-title">
               Pull list
             </h2>

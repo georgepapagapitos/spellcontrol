@@ -1780,14 +1780,6 @@ button.playtest-card-pt__value--editable:focus-visible {
   color: var(--text-primary);
 }
 
-.playtest-token-tile__type {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .playtest-token-tile:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;

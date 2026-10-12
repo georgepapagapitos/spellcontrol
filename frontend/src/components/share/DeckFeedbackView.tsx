@@ -561,6 +561,7 @@ export function DeckFeedbackView({ data, token }: Props) {
               return (
                 <label key={b} className={`feedback-bracket${active ? ' is-active' : ''}`}>
                   <input
+                    className="overlay-input"
                     type="radio"
                     name={bracketGroup}
                     checked={active}

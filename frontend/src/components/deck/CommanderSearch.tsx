@@ -1100,7 +1100,7 @@ export function CommanderSearch({
                   <span className="commander-result-art">
                     <span className="commander-result-art-skeleton" />
                   </span>
-                  <span className="commander-result-body">
+                  <span className="text-stack text-stack--auto">
                     <span className="commander-finder-skeleton-line" />
                     <span className="commander-finder-skeleton-line is-short" />
                   </span>
@@ -1200,7 +1200,7 @@ export function CommanderSearch({
                       coverageBar
                       numDecks={e.numDecks}
                       detail={
-                        <span className="commander-result-type">
+                        <span className="truncate-meta truncate-meta--secondary">
                           Not in your collection{price ? ` · ${price}` : ''}
                         </span>
                       }

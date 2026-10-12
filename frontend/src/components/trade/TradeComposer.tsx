@@ -807,7 +807,9 @@ function TradeSide({
                     </span>
                     {row.wanted && <WantedBadge />}
                   </span>
-                  {row.detail && <span className="trade-picked-detail">{row.detail}</span>}
+                  {row.detail && (
+                    <span className="truncate-meta truncate-meta--secondary">{row.detail}</span>
+                  )}
                 </span>
                 <Plus width={16} height={16} aria-hidden className="trade-result-add" />
               </button>
@@ -900,7 +902,7 @@ function PickedRow({
           {/* WHICH printing is leaving — the thing a quantity alone can never
               say, and the reason this row exists. */}
           {inTrade.length > 0 && (
-            <span className="trade-picked-detail">
+            <span className="truncate-meta truncate-meta--secondary">
               {inTrade
                 .map((g) => {
                   const n = countIn(g);
@@ -909,7 +911,9 @@ function PickedRow({
                 .join(' + ')}
             </span>
           )}
-          {row.detail && <span className="trade-picked-detail">{row.detail}</span>}
+          {row.detail && (
+            <span className="truncate-meta truncate-meta--secondary">{row.detail}</span>
+          )}
         </span>
 
         {row.value && <span className="trade-picked-value">{row.value}</span>}

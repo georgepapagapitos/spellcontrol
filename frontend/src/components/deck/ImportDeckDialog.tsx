@@ -685,6 +685,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                   return (
                     <label key={fmt} className={`format-pill${active ? ' active' : ''}`}>
                       <input
+                        className="overlay-input overlay-input--inherit"
                         type="radio"
                         name={formatGroup}
                         value={fmt}
@@ -979,7 +980,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                           <>
                             <span className="import-deck-summary-warn">Pick a commander</span>
                             {d.candidates.length > 0 && (
-                              <ul className="import-deck-commander-list">
+                              <ul className="list-stack list-stack--snug">
                                 {d.candidates.map((card) => (
                                   <li key={card.id}>
                                     <button
@@ -1080,7 +1081,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                   </div>
                 ) : commanderCandidates.length > 0 && !showCommanderSearch ? (
                   <>
-                    <ul className="import-deck-commander-list">
+                    <ul className="list-stack list-stack--snug">
                       {commanderCandidates.map((card) => (
                         <li key={card.id}>
                           <button

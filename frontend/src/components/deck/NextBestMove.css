@@ -96,14 +96,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.next-best-move-body {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-0-5);
-}
-
 .next-best-move-title {
   margin: 0;
   font-size: var(--text-sm);

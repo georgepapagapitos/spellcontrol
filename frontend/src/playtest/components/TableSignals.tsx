@@ -146,7 +146,7 @@ export function TableSignals() {
               <span className="playtest-table-signal__emote" aria-hidden>
                 {m.emote}
               </span>
-              <span className="playtest-table-signal__name" aria-hidden>
+              <span className="truncate-meta truncate-meta--secondary" aria-hidden>
                 {m.name}
               </span>
               <span className="sr-only">{m.text}</span>

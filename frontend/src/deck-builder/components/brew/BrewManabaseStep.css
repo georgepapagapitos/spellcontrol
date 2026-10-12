@@ -78,15 +78,6 @@
   font-size: var(--text-sm);
 }
 
-.brew-land-skeleton {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1-5);
-}
-
 .brew-land-error {
   display: flex;
   flex-direction: column;

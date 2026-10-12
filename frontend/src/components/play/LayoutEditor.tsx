@@ -72,6 +72,7 @@ export function LayoutPicker({
               className={`layout-option ${current === opt.id ? 'is-selected' : ''}`}
             >
               <input
+                className="overlay-input overlay-input--inherit"
                 type="radio"
                 name={layoutGroup}
                 value={opt.id}

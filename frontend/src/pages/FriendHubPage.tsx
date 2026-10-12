@@ -794,7 +794,7 @@ function WantCardTile({ match }: { match: WantMatch }) {
       <span className="friend-hub-radar-name" title={match.name}>
         {match.name}
       </span>
-      <span className="friend-hub-radar-sub" title={sub}>
+      <span className="truncate-meta truncate-meta--secondary friend-hub-radar-sub" title={sub}>
         {sub}
       </span>
     </li>

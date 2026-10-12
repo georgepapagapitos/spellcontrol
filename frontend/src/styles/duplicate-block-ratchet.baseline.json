@@ -62,21 +62,6 @@
       "styles/feedback-spinner.css:.visually-hidden"
     ]
   },
-  "0fe11b792e": {
-    "size": 10,
-    "locations": [
-      "components/decks/DiscoverFiltersPopover.css:.discover-filter-chip input",
-      "components/shared/form.css:.segmented-option input",
-      "playtest/components/TakebackModePicker.css:.playtest-takeback-picker__row input",
-      "styles/admin-scanner.css:.scan-row-input",
-      "styles/binder-rules-editor.css:.color-swatch-option input",
-      "styles/deck-builder-deck-extras.css:.deck-editor-zone-toggle-option input",
-      "styles/deck-builder-settings.css:.bracket-pill input",
-      "styles/play-layout-editor.css:.seat-menu-facing-btn input",
-      "styles/play-panel-menus.css:.seat-menu-swatch input",
-      "styles/shared.css:.feedback-bracket input"
-    ]
-  },
   "1107b02c74": {
     "size": 2,
     "locations": [
@@ -706,18 +691,6 @@
       "styles/settings-page.css:.you-layout .you-nav-row[aria-current='page']"
     ]
   },
-  "b8b108d91c": {
-    "size": 7,
-    "locations": [
-      "components/deck/DeckSizePrompt.css:.deck-size-prompt-card",
-      "components/deck/DeckTokensSheet.css:.deck-tokens-sheet-titles",
-      "components/deck/NextBestMove.css:.next-best-move-body",
-      "components/deck/PullListSheet.css:.pull-list-titles",
-      "components/shared/form.css:.switch-row-text",
-      "pages/PodsIndexPage.css:.pods-invited-info",
-      "styles/commander-result.css:.commander-result-body"
-    ]
-  },
   "b8b43fbaf2": {
     "size": 2,
     "locations": [
@@ -818,18 +791,6 @@
       "styles/deck-builder-decks-index.css:.decks-index-list"
     ]
   },
-  "ce54044bd4": {
-    "size": 7,
-    "locations": [
-      "components/deck/DonorOutcomeInline.css:.donor-outcome-replace-list",
-      "components/deck/EnginePanel.css:.engine-warnings",
-      "components/deck/SimilarCardsStrip.css:.similar-cards-list",
-      "deck-builder/components/brew/BrewManabaseStep.css:.brew-land-skeleton",
-      "playtest/components/PlaytestLogSheet.css:.playtest-log-entries",
-      "styles/deck-builder-import-dialog.css:.import-deck-commander-list",
-      "styles/play-setup.css:.play-setup-roster-list"
-    ]
-  },
   "ce7ec285bd": {
     "size": 2,
     "locations": [
@@ -850,17 +811,6 @@
       "components/deck/GenerationModePicker.css:.gen-mode-chips",
       "styles/binder-rules-editor.css:.color-picker",
       "styles/deck-builder-deck-extras.css:.format-pill-row"
-    ]
-  },
-  "d35c6fb532": {
-    "size": 6,
-    "locations": [
-      "components/deck/GenerationModePicker.css:.gen-mode-card input",
-      "components/deck/GenerationModePicker.css:.gen-mode-chip input",
-      "playtest/components/ScrySheet.css:.playtest-scry-mode input",
-      "styles/deck-builder-customizer.css:.option-card input",
-      "styles/deck-builder-deck-extras.css:.format-pill input",
-      "styles/play-effects.css:.layout-option input"
     ]
   },
   "d43a5ab7fd": {
@@ -956,18 +906,6 @@
       "components/deck/DeckCurvePhases.css:.deck-curve-phases-head",
       "components/play/GameNights.css:.game-nights-header",
       "pages/cube/cube.css:.cube-result-head"
-    ]
-  },
-  "e9adc99acb": {
-    "size": 7,
-    "locations": [
-      "components/binder/BinderEditorPreviewStrip.css:.binder-editor-preview-strip-sub",
-      "components/trade/RadarCardTile.css:.friend-hub-radar-sub",
-      "components/trade/TradeComposer.css:.trade-picked-detail",
-      "playtest/components/ScrySheet.css:.playtest-scry-face__name",
-      "playtest/components/TableSignals.css:.playtest-table-signal__name",
-      "styles/commander-result.css:.commander-result-type",
-      "styles/playtest.css:.playtest-token-tile__type"
     ]
   },
   "eb06d37631": {

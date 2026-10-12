@@ -113,7 +113,7 @@ export function NextBestMove({
               <span className="next-best-move-rank" aria-hidden="true">
                 {i + 1}
               </span>
-              <div className="next-best-move-body">
+              <div className="text-stack text-stack--auto next-best-move-body">
                 <p className="next-best-move-title">{move.title}</p>
                 <p className="next-best-move-detail">{move.detail}</p>
               </div>
@@ -174,7 +174,7 @@ export function NextBestMove({
             <span className="next-best-move-rank" aria-hidden="true">
               <Loader2 className="next-best-move-spinner" aria-hidden="true" />
             </span>
-            <div className="next-best-move-body">
+            <div className="text-stack text-stack--auto next-best-move-body">
               <p className="next-best-move-title">Checking for combos…</p>
               <p className="next-best-move-detail">Scanning your deck for near-miss combos.</p>
             </div>

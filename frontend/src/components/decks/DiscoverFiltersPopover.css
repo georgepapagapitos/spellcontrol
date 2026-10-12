@@ -53,14 +53,6 @@
 /* Visually hidden, stretched over the styled span — the whole chip is the
    hit target and keyboard/AT semantics stay native (mirrors
    .settings-currency-option input). */
-.discover-filter-chip input {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
 /* Shape/size/resting/hover come from the shared `.filter-chip`
    (styles/search-controls.css) on the span itself — this file only adds
    what `:checked`/`:focus-visible` need, since a checkbox has no

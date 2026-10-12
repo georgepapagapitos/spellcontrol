@@ -257,6 +257,7 @@ export function ScrySheet({
             {MODES.map((m) => (
               <label key={m} className={`playtest-scry-mode${m === mode ? ' is-active' : ''}`}>
                 <input
+                  className="overlay-input overlay-input--inherit"
                   type="radio"
                   name={modeName}
                   checked={m === mode}
@@ -528,7 +529,7 @@ function ScryCardFace({ card, dragging }: { card: PlaytestCard; dragging?: boole
       ) : (
         <span className="playtest-scry-face__placeholder">{card.name}</span>
       )}
-      <span className="playtest-scry-face__name">{card.name}</span>
+      <span className="truncate-meta truncate-meta--secondary">{card.name}</span>
     </div>
   );
 }
