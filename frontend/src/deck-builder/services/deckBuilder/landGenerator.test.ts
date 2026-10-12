@@ -778,15 +778,21 @@ describe('a nonbasic target the first pass can not fill', () => {
   });
 
   it('mono-color: the fallback reaches lands that tap for {C}', async () => {
-    vi.mocked(searchCards).mockImplementation(async (query: string) => ({
-      data: query.includes('o:{R}') ? [] : [land("Rogue's Passage"), land('Reliquary Tower')],
-    }));
+    const page = (data: ScryfallCard[]) => ({
+      object: 'list' as const,
+      total_cards: data.length,
+      has_more: false,
+      data,
+    });
+    vi.mocked(searchCards).mockImplementation(async (query: string) =>
+      page(query.includes('o:{R}') ? [] : [land("Rogue's Passage"), land('Reliquary Tower')])
+    );
     try {
       const lands = await landsFor([], ['R'], 6, 4, null);
       expect(nonbasicNames(lands)).toEqual(["Rogue's Passage", 'Reliquary Tower']);
       expect(lands).toHaveLength(6);
     } finally {
-      vi.mocked(searchCards).mockImplementation(async () => ({ data: [] }));
+      vi.mocked(searchCards).mockImplementation(async () => page([]));
     }
   });
 });
