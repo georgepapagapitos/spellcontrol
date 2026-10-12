@@ -114,6 +114,12 @@
   text-align: left;
   color: var(--text-primary);
 }
+@media (pointer: coarse) {
+  .rules-ref-keyword-head {
+    min-height: 44px;
+  }
+}
+
 .rules-ref-keyword-head:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

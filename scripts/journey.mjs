@@ -16,9 +16,8 @@
 //     NO_WRAP_AT_PHONE below)
 //   - a screenshot, so a failure comes with the picture
 //
-// It also REPORTS (without failing) every touch target under 44px at phone
-// width — see undersizedTouchTargets below for why that one is reported rather
-// than gated, and what has to be true before it becomes a gate.
+// It also fails any touch target whose real hit area is under 44px at phone
+// width (bar the ruled exceptions) — see undersizedTouchTargets below.
 //
 // With --a11y it also runs axe-core (WCAG 2.2 A/AA) on every screen, and on
 // desktop re-runs its color-contrast rule under every theme and every type
@@ -480,41 +479,36 @@ const NO_WRAP_AT_PHONE = [
 /**
  * Touch targets below the 44px floor, at phone width only.
  *
- * ⚠️ REPORTED, NOT FAILED — deliberately, and this is the honest reason:
- * the first full run of this check found **21 distinct undersized classes
- * across 16 of 38 screens** (93 `.deck-row`, 30 `.deck-analysis-suggest-add`,
- * 16 `.role-badge-btn`, 12 `.commander-color-pip`, …), overwhelmingly in the
- * deck editor and deck-creation surfaces. Failing the nightly on that would
- * make it permanently red, which is worse than no check at all — a red run is
- * supposed to be a board row, not the status quo. Allowlisting 21 classes
- * would not be "debt made visible" either; it would be switching the check off
- * while looking like it is on.
+ * A FAILING check (E1000). It reported without failing while the inventory
+ * stood at 21 classes; the corrected measure (below) cleared the real misses,
+ * and a phone run on 2026-10-12 reads zero.
  *
- * So it publishes a count per screen and the offending selectors into
- * report.json every night. The inventory is board row E317, owned by the
- * playtest sweep's remaining batches. **Flip this into `rec.fail` once that
- * inventory is empty** — one line, below.
+ * What it measures is the HIT area, not the box and not the ::after rect: it
+ * walks out from the control's centre with elementFromPoint until the answer
+ * stops being the control, so a ghost that a neighbour paints over, an
+ * overflow:hidden ancestor that clips it, or padding that only an ancestor
+ * answers all read short. An ancestor answering does not count (a wrapper's
+ * padding presses nothing); a wrapping <label> does. Whole-pixel sampling
+ * reads a 44px ghost as 43, hence the 43 cut.
  *
- * Three of those classes will never leave the report, because they are
- * RULINGS and not misses. Re-measured in a browser 2026-09-20 (hit areas, not
- * boxes) before writing this down:
- *   - `.deck-row` and every control inside it (the kebab, the qty readout, the
- *     ± steppers) are capped by the row's `min-height: 36px` under
- *     `(pointer: coarse)`. That number is deliberate and the comment on it
- *     says why: a 100-row deck list, full-width rows, and a 44px version was
+ * Five classes are RULINGS and not misses; they answer to WCAG 2.5.8's 24px
+ * (the RULED_AA set in the function) and nothing else may join them without a
+ * measured reason:
+ *   - `.deck-row-open` and `.deck-row-menu-trigger` (and the rest of the
+ *     controls in a deck row) are capped by the row's `min-height: 36px`
+ *     under `(pointer: coarse)`. That number is deliberate and the comment on
+ *     it says why: a 100-row deck list, full-width rows, and a 44px version was
  *     tried and reverted because it stranded one 20px line of text in ~50px of
- *     padding. 36x36 clears WCAG 2.5.8 (24x24 AA); 44 is the AAA bar. ~230 of
- *     the reported instances on a 100-card deck are this one line.
- *   - `.card-list-binder-badge` / `.card-list-deck-badge` ghosts are 44 wide
- *     and capped at 36 tall on purpose (collection.css): a 44px-tall ghost
- *     overhangs the card art in a 118x208 tile and steals the tile's own tap,
- *     which opens the card. Measured hit area 53x37 — a secondary action
- *     nested in a primary target, above the AA floor.
- *   - `.deck-curve-phases-bar-hit` is a chart column, 32px wide with a 39px
- *     hit area. Widening one column eats its neighbor; the fix is a different
- *     chart, not a floor.
- * So the flip needs those three carried as documented exceptions, not as an
- * allowlist of 21 — and nothing else added to it without a measured reason.
+ *     padding. 36 clears the 24px AA bar; 44 is the AAA bar.
+ *   - `.role-badge-btn` is a 24px ghost growing away from the quantity
+ *     editor beside it (#2853): a 44px one would overlap that editor.
+ *   - `.art-badge` (the card-list binder / deck badges) ghosts are capped at
+ *     36 tall on purpose (collection.css): a 44px-tall ghost overhangs the card
+ *     art in a 118x208 tile and steals the tile's own tap, which opens the card.
+ *     A secondary action nested in a primary target, above the AA floor.
+ *   - `.deck-curve-phases-bar-hit` is a chart column about 32px wide.
+ *     Widening one column eats its neighbor; the fix is a different chart, not
+ *     a floor.
  *
  * It exists because a *static* CSS guard structurally cannot find this family
  * of defect, and the 2026-09-15 sweep found four in three batches — every one
@@ -552,12 +546,34 @@ const NO_WRAP_AT_PHONE = [
  *     "Fan Content Policy" on /you).
  */
 function undersizedTouchTargets() {
+  const RULED_AA = new Set([
+    '.deck-row-open',
+    '.deck-row-menu-trigger',
+    '.role-badge-btn',
+    '.art-badge',
+    '.deck-curve-phases-bar-hit',
+  ]);
   const out = [];
   const seen = new Set();
   const sel = 'button,a[href],input,select,textarea,[role="button"],[role="tab"],[role="switch"]';
+  const saved = [...document.querySelectorAll('*')]
+    .filter((e) => e.scrollTop || e.scrollLeft)
+    .map((e) => [e, e.scrollTop, e.scrollLeft]);
+  /** Centre `el` in its nearest scrolling ancestor, so a fixed bar or the fold
+   *  cannot cut the walk short. scrollIntoView is a no-op on main.app-main. */
+  const centre = (el) => {
+    for (let n = el.parentElement; n; n = n.parentElement) {
+      const oy = getComputedStyle(n).overflowY;
+      if ((oy === 'auto' || oy === 'scroll') && n.scrollHeight > n.clientHeight) {
+        const nr = n.getBoundingClientRect();
+        const er = el.getBoundingClientRect();
+        n.scrollTop += er.top + er.height / 2 - (nr.top + nr.height / 2);
+      }
+    }
+  };
   for (const el of document.querySelectorAll(sel)) {
-    const r = el.getBoundingClientRect();
-    if (r.width === 0 || r.height === 0) continue;
+    const r0 = el.getBoundingClientRect();
+    if (r0.width === 0 || r0.height === 0) continue;
     const cs = getComputedStyle(el);
     if (cs.visibility === 'hidden' || cs.display === 'none') continue;
     if (cs.pointerEvents === 'none') continue;
@@ -567,22 +583,50 @@ function undersizedTouchTargets() {
       if (lr.width >= 44 && lr.height >= 44) continue;
     }
     if (el.tagName === 'A' && cs.display === 'inline') continue;
-    const after = getComputedStyle(el, '::after');
-    const gw = after.content !== 'none' ? parseFloat(after.width) || 0 : 0;
-    const gh = after.content !== 'none' ? parseFloat(after.height) || 0 : 0;
-    const w = Math.round(Math.max(r.width, gw));
-    const h = Math.round(Math.max(r.height, gh));
-    if (w >= 44 && h >= 44) continue;
+    // A box that already clears 44 both ways is a hit area of at least that,
+    // short of an occluder that overlappingTouchTargets owns.
+    if (r0.width >= 44 && r0.height >= 44) continue;
+    centre(el);
+    const r = el.getBoundingClientRect();
+    const cx = Math.round(r.x + r.width / 2);
+    const cy = Math.round(r.y + r.height / 2);
+    // The hit area is what a press resolves to, not the painted box and not
+    // the ::after rect: walk out from the centre until elementFromPoint stops
+    // answering with the control. An ancestor answering does NOT count (a
+    // wrapper's padding presses nothing); a wrapping <label> does, because it
+    // forwards the click.
+    const hits = (x, y) => {
+      const h = document.elementFromPoint(x, y);
+      return !!h && (h === el || el.contains(h) || (label && label !== el && h === label));
+    };
+    if (!hits(cx, cy)) continue;
+    const run = (dx, dy) => {
+      let n = 0;
+      while (n < 60 && hits(cx + dx * (n + 1), cy + dy * (n + 1))) n++;
+      return n;
+    };
+    const w = run(-1, 0) + run(1, 0) + 1;
+    const h = run(0, -1) + run(0, 1) + 1;
+    // elementFromPoint samples whole pixels, so a 44px ghost reads 43.
+    if (w >= 43 && h >= 43) continue;
     const first = String(el.className || '')
       .trim()
       .split(/\s+/)
       .filter(Boolean)[0];
     const key = first ? `.${first}` : el.tagName.toLowerCase();
+    // The ruled exceptions (see the header above) answer to WCAG 2.5.8's 24px.
+    if (RULED_AA.has(key) && w >= 24 && h >= 24) continue;
     const name = (el.getAttribute('aria-label') || el.textContent.trim() || '').slice(0, 30);
     const line = `${key} ${w}x${h}${name ? ` "${name}"` : ''}`;
     if (seen.has(line)) continue;
     seen.add(line);
     out.push(line);
+  }
+  const keep = new Map(saved.map(([e, t, l]) => [e, [t, l]]));
+  for (const e of document.querySelectorAll('*')) {
+    const [top, left] = keep.get(e) ?? [0, 0];
+    if (e.scrollTop !== top || e.scrollLeft !== left)
+      e.scrollTo({ top, left, behavior: 'instant' });
   }
   return out;
 }
@@ -977,6 +1021,7 @@ async function main() {
           touching.length > 0 ||
           wrapped.length > 0 ||
           overlapping.length > 0 ||
+          smallTargets.length > 0 ||
           a11yNodeCount(a11y) > 0;
         results.push(rec);
         console.log(

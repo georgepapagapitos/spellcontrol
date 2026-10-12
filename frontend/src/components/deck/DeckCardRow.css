@@ -140,6 +140,15 @@
   object-position: center;
 }
 
+/* The thumb is its own button and its overflow clips any ghost, so on touch it
+   grows to the 44px floor itself (52x39 measured). */
+@media (pointer: coarse) {
+  .deck-card-row-art--crop img,
+  .deck-card-row-art--crop .deck-card-row-art-ph {
+    aspect-ratio: 52 / 44;
+  }
+}
+
 /* Skeleton shown in the art box while a name-only row resolves its CDN image —
    keeps the row's layout stable (no shift) and reads as "loading" not "broken". */
 .deck-card-row-art-ph {
