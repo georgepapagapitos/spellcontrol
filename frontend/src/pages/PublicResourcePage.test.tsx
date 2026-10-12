@@ -44,7 +44,8 @@ describe('PublicResourcePage', () => {
     expect(container.querySelector('[aria-busy="true"]')).toBeTruthy();
     expect(await screen.findByText('binder view Artifacts')).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledWith('binder', 'artifacts-1234abcd');
-    expect(document.title).toContain('Artifacts');
+    // The title is set by a passive effect, which can flush after the text appears.
+    await waitFor(() => expect(document.title).toContain('Artifacts'));
   });
 
   it('renders a list on the list route', async () => {
@@ -60,7 +61,7 @@ describe('PublicResourcePage', () => {
     await screen.findByText(/private, was removed/);
     expect(screen.getByText(/private, was removed, or the address is wrong/)).toBeTruthy();
     expect(screen.getByText('Go to SpellControl').closest('a')?.getAttribute('href')).toBe('/');
-    expect(document.title).toContain('Page not found');
+    await waitFor(() => expect(document.title).toContain('Page not found'));
   });
 
   it('offers a retry after a network failure, and recovers', async () => {
