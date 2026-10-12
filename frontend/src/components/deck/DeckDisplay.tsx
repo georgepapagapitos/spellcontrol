@@ -507,6 +507,7 @@ export function DeckDisplay({
   );
   const rowsFor = useCallback(
     (zone: typeof cards) => {
+      void pricesVersion; // re-price rows when the price cache changes
       const rows = buildRows(zone, currency, collectionByCopyId, crossDeck);
       return viewerOwned ? withViewerOwnership(rows, viewerOwned) : rows;
     },
@@ -516,6 +517,7 @@ export function DeckDisplay({
   // Commander rows are synthetic so they always render first; their slot
   // ids are blank because remove is not allowed on the commander.
   const commanderRows: Row[] = useMemo(() => {
+    void pricesVersion;
     const rows = buildCommanderRows({
       commander,
       partnerCommander,
@@ -789,7 +791,7 @@ export function DeckDisplay({
   // copy (i.e. status !== 'allocated'). Surfaces buy-list info inline so we
   // don't need a separate banner above the deck.
   const missing = useMemo(
-    () => summarizeMissing(cards, collectionByCopyId, currency),
+    () => (void pricesVersion, summarizeMissing(cards, collectionByCopyId, currency)),
     [cards, collectionByCopyId, currency, pricesVersion]
   );
   // Tally of the unallocated (missing) cards — the tappable "missing" stat opens
