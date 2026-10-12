@@ -1421,10 +1421,9 @@ export function DeckEditorPage() {
   const pricesVersion = useDeckPrices([deck?.commander, deck?.partnerCommander, ...deckCards]);
   const heroTotals = useMemo(() => {
     if (!deck) return { count: 0, value: 0, sideboard: 0, considering: 0 };
-    void pricesVersion; // re-read prices when the price cache changes
     return {
       count: (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0) + deck.cards.length,
-      value: deckValue(deck, currency),
+      value: (void pricesVersion, deckValue(deck, currency)),
       sideboard: deck.sideboard.length,
       considering: (deck.considering ?? []).length,
     };

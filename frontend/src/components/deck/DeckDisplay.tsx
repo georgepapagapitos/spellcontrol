@@ -115,7 +115,7 @@ import { DeckAnalysisView } from './DeckAnalysisView';
 import { CardName } from '@/components/shared/CardName';
 import { buttonClass } from '@/components/shared/Button';
 import type { DeckDisplayProps } from './deck-display-types';
-import type { DeckView } from '@/lib/deck-analysis/deck-view';
+import { VIEW_HEADINGS } from '@/lib/deck-analysis/deck-view';
 import type { AnalysisTabId } from '@/lib/deck-analysis/deck-view';
 import {
   titlesUnder,
@@ -1887,13 +1887,6 @@ export function DeckDisplay({
     </CardPreviewContext.Provider>
   );
 }
-
-const VIEW_HEADINGS: Record<DeckView, string> = {
-  deck: 'Deck',
-  stats: 'Deck stats',
-  power: 'Power',
-  tune: 'Coach',
-};
 
 /** The "Deck stats" heading under the list; 'stats' is a place on the Deck
  *  tab now, not a tab of its own. */
