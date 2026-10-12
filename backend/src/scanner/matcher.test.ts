@@ -6,6 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   classify,
+  formatPreloadTimings,
   CONFIDENT_SCORE,
   BORDERLINE_SCORE,
   BORDERLINE_TOP_N,
@@ -76,5 +77,24 @@ describe('matcher thresholds', () => {
     expect(PHASH_CANDIDATE_K).toBeGreaterThanOrEqual(20);
     expect(BORDERLINE_TOP_N).toBeGreaterThanOrEqual(3);
     expect(BORDERLINE_TOP_N).toBeLessThan(PHASH_CANDIDATE_K);
+  });
+});
+
+describe('formatPreloadTimings', () => {
+  it('renders every phase on one line', () => {
+    expect(
+      formatPreloadTimings({
+        readMs: 12,
+        decodeMs: 110,
+        indexMs: 35,
+        workerTotalMs: 200,
+        ortMs: 320,
+        totalMs: 340,
+        loopMaxDelayMs: 301.456,
+        loopP99DelayMs: 12,
+      })
+    ).toBe(
+      '[matcher] preload phases — worker=200ms (read=12ms decode=110ms) uuidIndex=35ms onnxCreate=320ms total=340ms loopDelayMax=301.5ms loopDelayP99=12.0ms'
+    );
   });
 });

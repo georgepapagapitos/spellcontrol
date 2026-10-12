@@ -11,6 +11,8 @@ import { decodeEmbeddingDbRaw, type EmbeddingDbRaw } from './embedding-db';
 export interface LoadedDbs {
   hashDb: HashDb;
   embeddingDb: EmbeddingDbRaw;
+  /** Worker-side phase timings, for the preload log line. */
+  timings: { readMs: number; decodeMs: number };
 }
 
 async function readAb(filePath: string): Promise<ArrayBuffer> {
@@ -21,16 +23,23 @@ async function readAb(filePath: string): Promise<ArrayBuffer> {
 async function main(): Promise<void> {
   const { hashPath, embeddingPath } = workerData as { hashPath: string; embeddingPath: string };
   try {
+    const readStart = performance.now();
     const [h, e] = await Promise.all([readAb(hashPath), readAb(embeddingPath)]);
+    const readMs = Math.round(performance.now() - readStart);
+    const decodeStart = performance.now();
     const hashDb = decodeHashDb(h);
     const embeddingDb = decodeEmbeddingDbRaw(e);
-    parentPort!.postMessage({ ok: true, dbs: { hashDb, embeddingDb } }, [
-      hashDb.hashLo.buffer as ArrayBuffer,
-      hashDb.hashHi.buffer as ArrayBuffer,
-      hashDb.uuids.buffer as ArrayBuffer,
-      embeddingDb.refs.buffer as ArrayBuffer,
-      embeddingDb.uuids.buffer as ArrayBuffer,
-    ]);
+    const decodeMs = Math.round(performance.now() - decodeStart);
+    parentPort!.postMessage(
+      { ok: true, dbs: { hashDb, embeddingDb, timings: { readMs, decodeMs } } },
+      [
+        hashDb.hashLo.buffer as ArrayBuffer,
+        hashDb.hashHi.buffer as ArrayBuffer,
+        hashDb.uuids.buffer as ArrayBuffer,
+        embeddingDb.refs.buffer as ArrayBuffer,
+        embeddingDb.uuids.buffer as ArrayBuffer,
+      ]
+    );
   } catch (err) {
     parentPort!.postMessage({ ok: false, error: err instanceof Error ? err.message : String(err) });
   }

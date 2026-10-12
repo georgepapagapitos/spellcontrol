@@ -33,6 +33,7 @@ import {
   type EmbeddingDb,
   type EmbedMatch,
 } from './embedding-db';
+import { monitorEventLoopDelay } from 'node:perf_hooks';
 import type { LoadedDbs } from './load-dbs.worker';
 
 /** Raw dot-product score above which the top-1 is "confident". Must stay
@@ -101,15 +102,32 @@ export async function createMatcher(opts: MatcherOptions): Promise<Matcher> {
 
   logger.info(`[matcher] loading from ${opts.dataDir}`);
   const t0 = Date.now();
-  const [{ hashDb, embeddingDb }, session] = await Promise.all([
+  const loopDelay = monitorEventLoopDelay({ resolution: 10 });
+  loopDelay.enable();
+  const [{ hashDb, embeddingDb, timings }, { session, ortMs }] = await Promise.all([
     loadDbsOffThread(hashPath, embeddingPath),
-    ort.InferenceSession.create(modelPath, {
-      executionProviders: ['cpu'],
-      graphOptimizationLevel: 'all',
-    }),
+    (async () => {
+      const start = Date.now();
+      const s = await ort.InferenceSession.create(modelPath, {
+        executionProviders: ['cpu'],
+        graphOptimizationLevel: 'all',
+      });
+      return { session: s, ortMs: Date.now() - start };
+    })(),
   ]);
+  loopDelay.disable();
+  const totalMs = Date.now() - t0;
   logger.info(
-    `[matcher] ready in ${Date.now() - t0}ms — hashes=${hashDb.recordCount}, embeddings=${embeddingDb.recordCount}`
+    `[matcher] ready in ${totalMs}ms — hashes=${hashDb.recordCount}, embeddings=${embeddingDb.recordCount}`
+  );
+  logger.info(
+    formatPreloadTimings({
+      ...timings,
+      ortMs,
+      totalMs,
+      loopMaxDelayMs: loopDelay.max / 1e6,
+      loopP99DelayMs: loopDelay.percentile(99) / 1e6,
+    })
   );
 
   // Inference mutex — onnxruntime-node sessions are not thread-safe.
@@ -143,6 +161,7 @@ export async function createMatcher(opts: MatcherOptions): Promise<Matcher> {
  * the scanner.
  */
 export async function loadDbsOffThread(hashPath: string, embeddingPath: string) {
+  const fallbackStart = Date.now();
   try {
     const loaded = await new Promise<LoadedDbs>((resolve, reject) => {
       const ext = path.extname(__filename);
@@ -159,16 +178,50 @@ export async function loadDbsOffThread(hashPath: string, embeddingPath: string) 
       worker.once('exit', (code) => reject(new Error(`load worker exited with code ${code}`)));
     });
     const { uuids, recordCount } = loaded.embeddingDb;
+    const indexStart = Date.now();
     const uuidIndex = await buildUuidIndexYielding(uuids, recordCount);
-    return { hashDb: loaded.hashDb, embeddingDb: { ...loaded.embeddingDb, uuidIndex } };
+    return {
+      hashDb: loaded.hashDb,
+      embeddingDb: { ...loaded.embeddingDb, uuidIndex },
+      timings: {
+        ...loaded.timings,
+        indexMs: Date.now() - indexStart,
+        workerTotalMs: indexStart - fallbackStart,
+      },
+    };
   } catch (err) {
     logger.warn('[matcher] worker load failed, loading on the main thread:', err);
     const [hashDb, embeddingDb] = await Promise.all([
       loadHashDbFromFile(hashPath),
       loadEmbeddingDbFromFile(embeddingPath),
     ]);
-    return { hashDb, embeddingDb };
+    return {
+      hashDb,
+      embeddingDb,
+      timings: { readMs: 0, decodeMs: Date.now() - fallbackStart, indexMs: 0, workerTotalMs: 0 },
+    };
   }
+}
+
+export interface PreloadTimings {
+  readMs: number;
+  decodeMs: number;
+  indexMs: number;
+  /** Wall time from spawning the worker until its result arrived (includes startup). */
+  workerTotalMs: number;
+  ortMs: number;
+  totalMs: number;
+  loopMaxDelayMs: number;
+  loopP99DelayMs: number;
+}
+
+/** One-line phase breakdown of the preload, logged next to `[matcher] ready`. */
+export function formatPreloadTimings(t: PreloadTimings): string {
+  return (
+    `[matcher] preload phases — worker=${t.workerTotalMs}ms (read=${t.readMs}ms decode=${t.decodeMs}ms)` +
+    ` uuidIndex=${t.indexMs}ms onnxCreate=${t.ortMs}ms total=${t.totalMs}ms` +
+    ` loopDelayMax=${t.loopMaxDelayMs.toFixed(1)}ms loopDelayP99=${t.loopP99DelayMs.toFixed(1)}ms`
+  );
 }
 
 async function runMatch(
