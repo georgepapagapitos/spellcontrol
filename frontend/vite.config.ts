@@ -17,6 +17,24 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: path.resolve(__dirname, 'index.html'),
+      // A dynamic import() of a module that is also imported statically moves
+      // nothing into another chunk (E312). Fail the build on a new one. The
+      // only allowed case is store/collection: lib/sync reaches it dynamically
+      // on purpose, to break the collection -> local-cards -> sync cycle that
+      // src/import-cycles.test.ts keeps at zero. The warning there is expected.
+      onLog(
+        level: string,
+        log: { code?: string; message: string },
+        handler: (l: string, g: unknown) => void
+      ) {
+        if (
+          log.code === 'INEFFECTIVE_DYNAMIC_IMPORT' &&
+          !/src[/\\]store[/\\]collection\.ts is dynamically/.test(log.message)
+        ) {
+          throw new Error(log.message);
+        }
+        handler(level, log);
+      },
     },
   },
   plugins: [react()],
