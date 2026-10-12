@@ -386,7 +386,7 @@ function AddedGroupBlock({
 
   return (
     <div className="binder-drift-queue-group">
-      <div className="binder-drift-queue-group-header">
+      <div className="row-between row-between--snug">
         <span className="binder-drift-list-title binder-drift-list-title--added">
           <RouteTitle
             direction="in"
@@ -455,7 +455,7 @@ function RemovedGroupBlock({
 }) {
   return (
     <div className="binder-drift-queue-group">
-      <div className="binder-drift-queue-group-header">
+      <div className="row-between row-between--snug">
         <span className="binder-drift-list-title binder-drift-list-title--removed">
           {group.destination.kind === 'not-owned' ? (
             'no longer owned'

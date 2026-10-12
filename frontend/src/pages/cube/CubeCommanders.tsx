@@ -429,7 +429,7 @@ function CommanderDraftSimReport({
             for someone.
           </p>
         ) : (
-          <ul className="cube-commander-coverage-pill-list">
+          <ul className="pill-list">
             {result.unbuildableIdentities.map((id) => (
               <Chip key={id} as="li" className="cube-commander-coverage-pill" tone="neutral">
                 {IDENTITY_LABEL[id]}

@@ -317,7 +317,7 @@ export function ScrySheet({
             {columns.hand.length > 0 && (
               <div className="playtest-scry-hand">
                 <h3 className="playtest-scry-column__heading">To hand</h3>
-                <ul className="playtest-scry-hand__list" aria-label="To hand">
+                <ul className="pill-list" aria-label="To hand">
                   {columns.hand.map((cardId) => {
                     const card = byId.get(cardId);
                     if (!card) return null;

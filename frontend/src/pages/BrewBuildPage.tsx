@@ -224,7 +224,7 @@ export function BrewBuildPage(): JSX.Element {
       </header>
 
       {draft && !active && (
-        <section className="deck-builder-section brew-resume-banner">
+        <section className="deck-builder-section row-between brew-resume-banner">
           <div>
             <strong>Resume your brew of {draft.commanderName}?</strong>
             <span> Saved {relativeTime(draft.savedAt)}.</span>

@@ -1,22 +1,4 @@
 {
-  "1255788411": {
-    "size": 4,
-    "locations": [
-      "components/play/GameResultEditDialog.css:.game-edit-winners, .game-edit-seats",
-      "styles/deck-builder-combos-list.css:.deck-combos-results",
-      "styles/play-history-inline.css:.game-stats-rows",
-      "styles/shared.css:.feedback-rows"
-    ]
-  },
-  "015de370ca": {
-    "size": 4,
-    "locations": [
-      "components/deck/CommanderSearch.css:.commander-finder-source",
-      "pages/TagsPage.css:.tags-results-toolbar",
-      "styles/binder-hero.css:.binder-drift-queue-group-header",
-      "styles/deck-builder-customizer.css:.collection-group-title-row"
-    ]
-  },
   "02eb2f6ff7": {
     "size": 2,
     "locations": [
@@ -67,16 +49,6 @@
     "locations": [
       "playtest/components/OpponentBoardModal.css:.opponent-board-empty",
       "styles/playtest.css:.playtest-zone-empty"
-    ]
-  },
-  "1155ebfa97": {
-    "size": 5,
-    "locations": [
-      "pages/TagsPage.css:.tags-selected-list",
-      "pages/cube/cube.css:.cube-commander-coverage-pill-list",
-      "pages/cube/cube.css:.cube-draft-sim-pill-list",
-      "playtest/components/ScrySheet.css:.playtest-scry-hand__list",
-      "styles/play-setup.css:.play-setup-counter-chips"
     ]
   },
   "12281a241c": {
@@ -508,16 +480,6 @@
       "playtest/components/OpponentBoardModal.css:.opponent-board-head"
     ]
   },
-  "9e21e35097": {
-    "size": 5,
-    "locations": [
-      "pages/BrewBuildPage.css:.brew-resume-banner",
-      "styles/deck-builder-display.css:.deck-toolbar",
-      "styles/forms-banners.css:.unresolved-summary",
-      "styles/import-upload.css:.import-card-footer",
-      "styles/import-upload.css:.import-card-header"
-    ]
-  },
   "a2ad206ec2": {
     "size": 4,
     "locations": [
@@ -532,16 +494,6 @@
     "locations": [
       "components/deck/AppendDeckDialog.css:.append-deck-offline",
       "components/deck/GenerationModePicker.css:.gen-mode-offline"
-    ]
-  },
-  "a6144aae8b": {
-    "size": 5,
-    "locations": [
-      "components/play/GameNights.css:.game-nights-list",
-      "components/trade/TradeIncomingReview.css:.trade-incoming-cards",
-      "components/trade/TradeOfferList.css:.trade-offer-list",
-      "pages/cube/cube.css:.cube-supplier-list",
-      "styles/deck-builder-commander-profile.css:.cmdr-profile-abilities"
     ]
   },
   "a69641d48a": {

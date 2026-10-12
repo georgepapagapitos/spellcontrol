@@ -622,3 +622,36 @@ select {
 .list-stack--snug {
   gap: var(--space-1-5);
 }
+
+.list-stack--loose {
+  gap: var(--space-3);
+}
+
+/* Rows that nearly touch: the rows draw their own padding or hairlines. */
+.list-stack--hairline {
+  gap: var(--space-0-5);
+}
+
+/* A ul/ol of pills or chips that wraps, bullets, margin and padding reset. */
+.pill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A header or footer row: content left, actions right, wrapping when narrow.
+   `--snug` tightens the gap from --space-4 to --space-2. */
+.row-between {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.row-between--snug {
+  gap: var(--space-2);
+}

@@ -886,15 +886,6 @@
   font-size: var(--text-sm);
 }
 
-.feedback-rows {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-0-5);
-}
-
 /* Deck rows are li shells holding a preview button (.feedback-row-main) +
    a scissors toggle; add/search rows stay single full-row buttons
    (.feedback-add-result). Both share the inner thumb/name/type/mana layout. */

@@ -701,7 +701,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
 
           {fetchErrors.length > 0 && (
             <div className="import-review-section import-review-section--warn" role="alert">
-              <div className="unresolved-summary">
+              <div className="row-between">
                 <span>
                   {fetchErrorMessage(
                     fetchErrors.length,
@@ -729,7 +729,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
 
           {malformedRows.length > 0 && (
             <div className="import-review-section import-review-section--warn" role="alert">
-              <div className="unresolved-summary">
+              <div className="row-between">
                 <span>
                   {malformedRows.length} row{malformedRows.length !== 1 ? 's' : ''} couldn't be read
                   at all. They weren't imported.
@@ -759,7 +759,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
 
           {hasCollection && unresolvedNames.length > 0 && (
             <div className="import-review-section import-review-section--warn">
-              <div className="unresolved-summary">
+              <div className="row-between">
                 <span>
                   {unresolvedNames.length} card{unresolvedNames.length !== 1 ? 's' : ''} didn't
                   match Scryfall. Fix them below, or leave them as bare entries with no image or
@@ -798,7 +798,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
               <div className="file-drop-message">Drop files to stage</div>
             </div>
           )}
-          <div className="import-card-header">
+          <div className="row-between import-card-header">
             <h2 className="import-card-title">Import your collection</h2>
             <div className="import-card-header-actions">
               {canScan && !hideScanButton && (
@@ -995,7 +995,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
             />
           </Disclosure>
 
-          <div className="import-card-footer">
+          <div className="row-between import-card-footer">
             <span className="import-card-hint">
               {'Plain CSV or TXT · '}
               <a href="https://manabox.app/" target="_blank" rel="noopener noreferrer">

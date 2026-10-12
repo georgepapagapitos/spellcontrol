@@ -478,14 +478,6 @@
   color: var(--text-secondary);
   text-align: right;
 }
-.cube-commander-coverage-pill-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-}
 .cube-commander-coverage-pill {
   display: inline-flex;
   align-items: center;
@@ -912,14 +904,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-}
-.cube-draft-sim-pill-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
 }
 .cube-draft-sim-pill {
   display: inline-flex;
@@ -1533,14 +1517,6 @@
   font-size: var(--text-sm);
   color: var(--text-primary);
   font-weight: 600;
-}
-.cube-supplier-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
 }
 .cube-supplier-row {
   display: flex;

@@ -72,7 +72,7 @@ export function GameResultEditDialog({
 
       <fieldset className="game-edit-field">
         <legend className="game-edit-legend">Winner</legend>
-        <ul className="game-edit-winners">
+        <ul className="list-stack list-stack--hairline">
           {record.players.map((p) => (
             <li key={p.seat}>
               <label className={p.eliminated ? 'game-edit-winner is-out' : 'game-edit-winner'}>
@@ -104,7 +104,7 @@ export function GameResultEditDialog({
 
       <fieldset className="game-edit-field">
         <legend className="game-edit-legend">Decks</legend>
-        <ul className="game-edit-seats">
+        <ul className="list-stack list-stack--hairline">
           {record.players.map((p) => {
             const deck = deckFor(p.seat);
             return (

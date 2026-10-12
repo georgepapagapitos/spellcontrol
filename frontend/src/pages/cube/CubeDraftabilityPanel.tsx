@@ -210,7 +210,7 @@ function DraftSimReport({
             Every archetype this cube supports got drafted by someone.
           </p>
         ) : (
-          <ul className="cube-draft-sim-pill-list">
+          <ul className="pill-list">
             {result.undraftedArchetypes.map((a) => (
               <Chip key={a.axis} as="li" className="cube-draft-sim-pill" tone="neutral">
                 {a.label}

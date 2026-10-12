@@ -995,7 +995,7 @@ export function CommanderSearch({
       )}
 
       {(hasLegends || isPhone) && (
-        <div className="commander-finder-source">
+        <div className="row-between row-between--snug">
           {hasLegends && (
             <SegmentedControl
               ariaLabel={`Which ${nouns}`}

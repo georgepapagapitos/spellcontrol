@@ -482,7 +482,7 @@ export function LocalSetup({
               Counters on every seat
             </span>
             {counters.length > 0 && (
-              <ul className="play-setup-counter-chips" aria-labelledby="setup-counters-label">
+              <ul className="pill-list" aria-labelledby="setup-counters-label">
                 {counters.map((name) => (
                   <li key={name}>
                     <Chip

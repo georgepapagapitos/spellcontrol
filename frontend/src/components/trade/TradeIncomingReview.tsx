@@ -245,7 +245,7 @@ export function TradeIncomingReview({
                 <span className="trade-review-side-value">{formatMoney(giveValue)}</span>
               )}
             </h3>
-            <ul className="trade-incoming-cards">
+            <ul className="list-stack list-stack--loose">
               {resolved.map(({ choice, cardKey, groups, copies, deckNames, shortfall }) => {
                 const asked = choice.asked.quantity;
                 return (

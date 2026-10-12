@@ -62,7 +62,7 @@ export function CubeSuppliers({
   return (
     <div className="cube-suppliers">
       <h3>Who brings what</h3>
-      <ul className="cube-supplier-list">
+      <ul className="list-stack list-stack--loose">
         {rows.map((r) => (
           <li key={r.username} className="cube-supplier-row">
             <div className="cube-supplier-head">

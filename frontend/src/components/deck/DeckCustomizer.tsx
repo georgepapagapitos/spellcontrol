@@ -512,7 +512,7 @@ function CollectionGroup({ customization, update }: DeckCustomizerProps) {
           onChange={(e) => update({ collectionMode: e.target.checked })}
         />
         <span className="collection-group-text">
-          <span className="collection-group-title-row">
+          <span className="row-between row-between--snug">
             <span className="collection-group-title">Use my collection</span>
             <span className="collection-group-badge" aria-hidden>
               {uniqueCount.toLocaleString()} unique

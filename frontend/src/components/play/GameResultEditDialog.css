@@ -49,16 +49,6 @@
   color: var(--text-muted);
 }
 
-.game-edit-winners,
-.game-edit-seats {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-0-5);
-}
-
 /* Whole-row label: the radio is small, the row is the target. */
 .game-edit-winner {
   display: flex;
