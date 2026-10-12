@@ -1,4 +1,5 @@
 import { useMemo, useState, type JSX } from 'react';
+import { describeTargetMiss } from '@/deck-builder/services/deckBuilder/targetMisses';
 import './BuildReportPanel.css';
 import { AlertOctagon, Check, Loader2, Plus, Sparkles } from 'lucide-react';
 import type { BuildReport, DeckDataSource, GenerationMode } from '@/deck-builder/types';
@@ -211,6 +212,7 @@ export function BuildReportPanel({
     generationNote,
     commanderPreviewNote,
     archetypeNote,
+    targetMisses,
     landCountNote,
     poolExhaustionNote,
     thinPoolFillNote,
@@ -312,6 +314,14 @@ export function BuildReportPanel({
           </span>
         </p>
       )}
+
+      {/* E1006: every number the user asked for that the deck missed, ahead of
+          every other flag. */}
+      {targetMisses?.map((miss) => (
+        <p key={miss.key} className="build-report-flag" data-target-miss={miss.key}>
+          {describeTargetMiss(miss)}
+        </p>
+      ))}
 
       {integrityNotes?.map((note) => (
         <p key={note} className="build-report-flag">

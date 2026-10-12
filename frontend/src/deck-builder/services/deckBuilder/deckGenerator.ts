@@ -133,6 +133,7 @@ import { resolveOwnedCards } from './ownedCardResolution';
 import { pageInclusionOf, weakestFirst, shareKeeper, seatsAsNonbo } from './ownedShareEviction';
 import { ownedShareHeld } from './deckGeneration/ownedShareHeld';
 import { withNonbasicShortfall } from './deckGeneration/nonbasicShortfallNote';
+import { computeTargetMisses, poolExhaustionCause } from './targetMisses';
 import {
   buildUnownedLeftOutNote,
   finalDeckMembership,
@@ -454,11 +455,10 @@ export function buildPoolExhaustionNote(params: {
 }): string | undefined {
   const excess = params.finalLandCount - params.plannedLandCount;
   if (excess <= 0) return undefined;
-  const cause = params.hasCollectionNames
-    ? 'your collection'
-    : params.hasScryfallQuery
-      ? 'your Scryfall filter'
-      : 'your budget and card limits';
+  const cause = poolExhaustionCause({
+    collectionConstrains: params.hasCollectionNames,
+    hasScryfallQuery: params.hasScryfallQuery,
+  });
   const spellWord = params.finalNonLandCount === 1 ? 'spell' : 'spells';
   return `Ran out of cards after ${params.finalNonLandCount} ${spellWord}. ${excess} slot${excess === 1 ? ' is a basic land' : 's are basic lands'} because ${cause} left too few options.`;
 }
@@ -4633,7 +4633,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     finalLandCount: categories.lands.length,
     finalNonLandCount: nonLandCards.length,
     hasScryfallQuery: !!scryfallQuery,
-    hasCollectionNames: !!context.collectionNames,
+    // Only an owned-only strategy is limited by the collection; under prefer
+    // and partial the build reaches past it, so it can't be what ran dry.
+    hasCollectionNames: constrainsToCollection(collectionStrategy) && !!context.collectionNames,
   });
 
   // landCountNote, composed HERE (not at auto-tune decision time) from the
@@ -4671,12 +4673,19 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     );
   }
 
+  let budgetSpend = 0;
+  for (const c of [...nonLandCards, ...categories.lands]) {
+    if (isOwnedBudgetExempt(c.name, context.collectionNames, ignoreOwnedBudget)) continue;
+    const p = getCardPrice(c, currency);
+    budgetSpend += p ? parseFloat(p) || 0 : 0;
+  }
   landCountNote = withNonbasicShortfall(
     landCountNote,
     categories.lands,
     effectiveNonBasicLandCount,
     customization,
-    constrainsToCollection(collectionStrategy) && !!context.collectionNames
+    constrainsToCollection(collectionStrategy) && !!context.collectionNames,
+    { repairs: coherenceRepairs, spend: budgetSpend }
   );
 
   // Budget honesty: recompute the real final total over the FINAL deck (post
@@ -4937,7 +4946,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     Object.entries(categories).flatMap(([cat, cards]) => (cat === 'lands' ? [] : cards))
   );
 
-  return {
+  const generated: GeneratedDeck = {
     commander,
     partnerCommander,
     categories,
@@ -5035,4 +5044,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     gameChangerNames: [...state.gameChangerNames],
     deckGrade,
   };
+
+  // E1006: late and read-only. Nothing above changes for it.
+  const targetMisses = computeTargetMisses(generated, context, { effectiveNonBasicLandCount });
+  if (targetMisses.length > 0) generated.targetMisses = targetMisses;
+  return generated;
 }
