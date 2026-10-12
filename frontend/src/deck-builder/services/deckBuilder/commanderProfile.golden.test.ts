@@ -84,6 +84,6 @@ describe('commander profile against the golden set', () => {
       return tp / fired;
     };
     expect(per('tribal')).toBeGreaterThanOrEqual(0.6);
-    expect(per('voltron')).toBeGreaterThanOrEqual(0.4);
+    expect(per('voltron')).toBeGreaterThanOrEqual(0.7);
   });
 });

@@ -551,9 +551,24 @@ const DETECTORS: Detector[] = [
   },
 ];
 
-// Voltron is detected structurally (not via a single oracle phrase).
+// Voltron is detected structurally (not via a single oracle phrase). The text
+// half asks whether the commander suits ITSELF up, not whether it mentions
+// gear: "attach ... to ~", "if ~ is equipped", Aura/Equipment spells it makes
+// cheaper or recasts, or a "commander you control" clause. Equipment tutors,
+// buffs it hands to other creatures ("gains double strike") and "enchanted
+// creature" removal are the gear-matters or support decks the golden set rejects.
 const VOLTRON_TEXT =
-  /\bequip|\bequipped\b|\baura\b|\benchanted\b|\bcommanders? you control\b|\bdouble strike\b/;
+  /\battach(?:ed)?\b[^.]*\bto (?:~|it|him|her)\b|\b(?:~|it|he|she)(?: is|'s) (?:equipped|enchanted)\b|\b(?:aura|equipment)\b[^.]*\bspells?\b[^.]*\bcost\b|\bcast (?:an? )?(?:aura|equipment)\b[^.]*\bfrom\b|\bcommanders? you control\b|\bequipped creatures?\b/;
+// The keyword route (evasion/protection stacks) only counts when the commander's
+// text is about itself. Text that lends something to other creatures, triggers on
+// other permanents or hits a target (Lyra's other Angels, Avacyn's indestructible,
+// Atarka's Dragons) is a support or engine commander that happens to fly. Three or
+// more keywords stand on their own.
+const LENDS_OUTWARD =
+  /\b(?:other|each|target|enters|dies|upkeep|proliferate)\b|\bwhenever (?:an?|you|one or more)\b|\bcreatures? you control\b/;
+// A lone evasion/protection keyword plus "whenever ~ deals combat damage" is a
+// commander that wants to connect (Vorosh, Black Widow).
+const SELF_COMBAT = /\bwhenever ~ deals combat damage\b/;
 // Exported so the display-side playstyle index can recover these from oracle
 // text for collection cards, which carry no Scryfall `keywords` array.
 export const VOLTRON_KEYWORDS = new Set([
@@ -634,7 +649,7 @@ export function buildCommanderProfile(
   // voltron plan: that rule alone was 12% precise against the golden set.
   const kw = new Set((commander.keywords ?? []).map((k) => k.toLowerCase()));
   const voltronHits = [...kw].filter((k) => VOLTRON_KEYWORDS.has(k));
-  const suitsUp = VOLTRON_TEXT.test(text);
+  const suitsUp = VOLTRON_TEXT.test(text) || kw.has('double strike');
   const engineKeywords: CommanderKeyword[] = [
     'tokens',
     'sacrifice',
@@ -647,7 +662,11 @@ export function buildCommanderProfile(
   if (
     !seen.has('voltron') &&
     frontTypeLine(commander).toLowerCase().includes('creature') &&
-    (suitsUp || (voltronHits.length >= 2 && !hasEngine))
+    (suitsUp ||
+      (!hasEngine &&
+        (voltronHits.length >= 3 ||
+          (!LENDS_OUTWARD.test(text) &&
+            (voltronHits.length >= 2 || (voltronHits.length >= 1 && SELF_COMBAT.test(text)))))))
   ) {
     abilities.push({
       keyword: 'voltron',
