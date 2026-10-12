@@ -10,6 +10,10 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   isFreeInteraction: vi.fn(() => false),
 }));
 
+vi.mock('../commanderDeckAnalysis', () => ({
+  countedRoleOf: (card: { name: string }) => roleMap[card.name] ?? null,
+}));
+
 vi.mock('../categorize', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../categorize')>();
   return {
