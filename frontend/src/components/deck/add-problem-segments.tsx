@@ -62,3 +62,17 @@ export function ProblemSegments({ segments }: { segments: React.ReactElement[] }
     </Fragment>
   ));
 }
+
+/** The add-cards result list: every tab's rows are options of one listbox, and a listbox needs a name. */
+export function ResultList({ children }: { children: React.ReactNode }) {
+  return (
+    <ul
+      className="card-search-results"
+      id="card-search-results"
+      role="listbox"
+      aria-label="Search results"
+    >
+      {children}
+    </ul>
+  );
+}

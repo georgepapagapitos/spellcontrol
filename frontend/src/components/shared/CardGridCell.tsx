@@ -93,7 +93,7 @@ export function GridCaptionList({
       aria-label="Card details"
     >
       {(Object.keys(GRID_CAPTION_LABEL) as (keyof GridCaptionPrefs)[]).map((k) => (
-        <li key={k}>
+        <li key={k} role="presentation">
           <button
             type="button"
             role="menuitemcheckbox"
