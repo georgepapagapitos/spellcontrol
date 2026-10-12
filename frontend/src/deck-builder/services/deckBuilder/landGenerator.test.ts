@@ -58,6 +58,8 @@ vi.mock('@/deck-builder/services/scryfall/client', () => ({
 
 vi.mock('@/deck-builder/services/tagger/client', () => ({
   isTapland: vi.fn(() => false),
+  // The Scryfall fallback reads it (synergy fingerprint) and threw without it.
+  getCardTags: vi.fn(() => []),
 }));
 
 import { countColorPips, generateLands } from './landGenerator';
@@ -726,5 +728,71 @@ describe('E631: a scaling one-color burst land keeps its color in a mono-color d
     );
     expect(names).toContain('Tainted Wood');
     expect(names).not.toContain('Three Tree City');
+  });
+});
+
+// Zo-Zu, 2026-10-12: asked for 32 lands with 26 basics, an owned-only build
+// shipped 29 Mountains and 3 nonbasics.
+describe('a nonbasic target the first pass can not fill', () => {
+  const land = (name: string) =>
+    sc({ id: `id-${name}`, oracle_id: `o-${name}`, name, cmc: 0, type_line: 'Land' });
+  const row = (name: string, inclusion: number): EDHRECCard => ({
+    name,
+    sanitized: name,
+    primary_type: 'Land',
+    inclusion,
+    num_decks: 100,
+  });
+  const nonbasicNames = (cards: ScryfallCard[]) =>
+    cards.filter((c) => !c.type_line.includes('Basic')).map((c) => c.name);
+
+  it('owned-only: an owned land past the first 2x candidates is still seen', async () => {
+    const page = Array.from({ length: 14 }, (_, i) => row(`Land ${i + 1}`, 60 - i));
+    vi.mocked(getCardsByNames).mockImplementationOnce(
+      async (names: string[]) => new Map(names.map((n) => [n, land(n)]))
+    );
+    const lands = await generateLands(
+      page,
+      ['R'],
+      6,
+      new Set(),
+      4,
+      99,
+      [],
+      undefined,
+      new Set(),
+      null,
+      null,
+      null,
+      null,
+      new Set(['Land 13', 'Land 14', 'Mountain']),
+      undefined,
+      'USD',
+      false,
+      '',
+      undefined,
+      'full'
+    );
+    expect(nonbasicNames(lands).sort()).toEqual(['Land 13', 'Land 14']);
+    expect(lands).toHaveLength(6);
+  });
+
+  it('mono-color: the fallback reaches lands that tap for {C}', async () => {
+    const page = (data: ScryfallCard[]) => ({
+      object: 'list' as const,
+      total_cards: data.length,
+      has_more: false,
+      data,
+    });
+    vi.mocked(searchCards).mockImplementation(async (query: string) =>
+      page(query.includes('o:{R}') ? [] : [land("Rogue's Passage"), land('Reliquary Tower')])
+    );
+    try {
+      const lands = await landsFor([], ['R'], 6, 4, null);
+      expect(nonbasicNames(lands)).toEqual(["Rogue's Passage", 'Reliquary Tower']);
+      expect(lands).toHaveLength(6);
+    } finally {
+      vi.mocked(searchCards).mockImplementation(async () => page([]));
+    }
   });
 });

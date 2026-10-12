@@ -4675,7 +4675,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     landCountNote,
     categories.lands,
     effectiveNonBasicLandCount,
-    customization
+    customization,
+    constrainsToCollection(collectionStrategy) && !!context.collectionNames
   );
 
   // Budget honesty: recompute the real final total over the FINAL deck (post

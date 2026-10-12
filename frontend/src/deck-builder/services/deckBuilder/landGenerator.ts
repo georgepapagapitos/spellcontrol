@@ -187,9 +187,14 @@ export async function generateLands(
       `[DeckGen] Picking ${nonBasicTarget} non-basic lands from ${nonBasicEdhrecLands.length} EDHREC suggestions`
     );
 
-    // Batch fetch candidate lands — fetch more than needed to account for filtering
+    // Batch fetch candidate lands — fetch more than needed to account for filtering.
+    // Owned-only builds drop unowned names BEFORE the cut: cutting first kept the
+    // top 12 of the page, the picker then threw away the unowned ones, and a
+    // Zo-Zu build asked for 6 nonbasics seated 3 while owning more on the page.
+    const ownedOnly = constrainsToCollection(collectionStrategy);
     const landNamesToFetch = nonBasicEdhrecLands
       .filter((c) => !usedNames.has(c.name) && !bannedCards.has(c.name))
+      .filter((c) => !ownedOnly || !notInCollection(c.name, collectionNames))
       .slice(0, nonBasicTarget * 2)
       .map((c) => c.name);
 
@@ -442,13 +447,20 @@ export async function generateLands(
     );
   }
 
-  // If we didn't get enough from EDHREC, search Scryfall for more
-  if (lands.length < nonBasicTarget) {
+  // If we didn't get enough from EDHREC, search Scryfall for more: lands that
+  // make the deck's colors first, then any land in identity. The second query
+  // is what a mono-color deck plays as nonbasics (Rogue's Passage, Reliquary
+  // Tower); the colored query alone can't see a land that taps for {C}.
+  const fallbackQueries =
+    colorIdentity.length > 0
+      ? [
+          `t:land (${colorIdentity.map((c) => `o:{${c}}`).join(' OR ')}) -t:basic`,
+          't:land -t:basic',
+        ]
+      : ['t:land id:c -t:basic'];
+  for (const query of fallbackQueries) {
+    if (lands.length >= nonBasicTarget) break;
     onProgress?.('Selecting non-basic lands', 87);
-    const query =
-      colorIdentity.length > 0
-        ? `t:land (${colorIdentity.map((c) => `o:{${c}}`).join(' OR ')}) -t:basic`
-        : `t:land id:c -t:basic`;
     const moreLands = await fillWithScryfall(
       query,
       colorIdentity,

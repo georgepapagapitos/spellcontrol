@@ -19,20 +19,31 @@ describe('buildNonbasicShortfallNote', () => {
   const lands = [...NONBASICS, ...BASICS];
 
   it('names the slots a basic took when a price ceiling left the target short', () => {
-    expect(buildNonbasicShortfallNote({ lands, targetNonBasic: 7, hasPriceCeiling: true })).toBe(
+    expect(buildNonbasicShortfallNote({ lands, targetNonBasic: 7, reason: 'budget' })).toBe(
       '1 nonbasic slot went to a basic: no fitting land under the budget.'
     );
-    expect(buildNonbasicShortfallNote({ lands, targetNonBasic: 8, hasPriceCeiling: true })).toBe(
+    expect(buildNonbasicShortfallNote({ lands, targetNonBasic: 8, reason: 'budget' })).toBe(
       '2 nonbasic slots went to basics: no fitting land under the budget.'
     );
   });
 
-  it('stays silent when the target was met, exceeded, or no price ceiling applies', () => {
-    expect(buildNonbasicShortfallNote({ lands, targetNonBasic: 6, hasPriceCeiling: true })).toBe(
+  it('stays silent when the target was met or exceeded', () => {
+    expect(buildNonbasicShortfallNote({ lands, targetNonBasic: 6, reason: 'budget' })).toBe(
       undefined
     );
-    expect(buildNonbasicShortfallNote({ lands, targetNonBasic: 8, hasPriceCeiling: false })).toBe(
+    expect(buildNonbasicShortfallNote({ lands, targetNonBasic: 5, reason: 'pool' })).toBe(
       undefined
+    );
+  });
+
+  // Zo-Zu, 2026-10-12: an owned-only build asked for 6 nonbasics, seated 3 and
+  // said nothing, because the note fired only under a price ceiling.
+  it('names a shortfall with no price ceiling, by its cause', () => {
+    expect(buildNonbasicShortfallNote({ lands, targetNonBasic: 8, reason: 'collection' })).toBe(
+      '2 nonbasic slots went to basics: no other fitting land in your collection.'
+    );
+    expect(buildNonbasicShortfallNote({ lands, targetNonBasic: 7, reason: 'pool' })).toBe(
+      '1 nonbasic slot went to a basic: no other fitting land for this deck.'
     );
   });
 });
@@ -44,6 +55,14 @@ describe('withNonbasicShortfall', () => {
       'Auto-tuned. 1 nonbasic slot went to a basic: no fitting land under the budget.'
     );
     expect(withNonbasicShortfall(undefined, lands, 7, { maxCardPrice: 1 })).toContain('1 nonbasic');
-    expect(withNonbasicShortfall('Auto-tuned.', lands, 7, {})).toBe('Auto-tuned.');
+    expect(withNonbasicShortfall('Auto-tuned.', lands, 6, {})).toBe('Auto-tuned.');
+  });
+
+  it('reads the budget first, then the collection, then the pool', () => {
+    expect(withNonbasicShortfall(undefined, lands, 7, { deckBudget: 75 }, true)).toContain(
+      'under the budget'
+    );
+    expect(withNonbasicShortfall(undefined, lands, 7, {}, true)).toContain('in your collection');
+    expect(withNonbasicShortfall(undefined, lands, 7, {})).toContain('for this deck');
   });
 });
