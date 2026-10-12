@@ -3,7 +3,7 @@
 // Guard (E498): the post-gen fixup and the role-surplus pass read ONE role per
 // card, `countedRoleOf` (oracle-validated). Fixup used the raw tagger tag, so
 // Blasphemous Edict (tagged boardwipe, but "each player sacrifices thirteen
-// creatures" is not a wipe by the evidence rule) opened and filled a wipe gap
+// creatures of their choice" is not a wipe by the evidence rule) opened and filled a wipe gap
 // the surplus pass never saw: lathril cut Growing Rites of Itlimoc (27%) for it,
 // and the surplus pass swapped the result straight back out. Real tag rows
 // and oracle text (Scryfall).
@@ -48,16 +48,18 @@ const card = (name: string, oracle_text: string, extra: Partial<ScryfallCard> = 
 
 const edict = card(
   EDICT,
-  "You may pay {B} rather than pay this spell's mana cost if there are thirteen or more creatures on the battlefield.\nEach player sacrifices thirteen creatures."
+  "You may pay {B} rather than pay this spell's mana cost if there are thirteen or more creatures on the battlefield.\nEach player sacrifices thirteen creatures of their choice."
 );
 const kindred = card(
   KINDRED,
-  "Choose a creature type. Destroy all creatures that aren't of the chosen type."
+  "Choose a creature type. Destroy all creatures that aren't of the chosen type.",
+  { cmc: 7 }
 );
-const rites = card(RITES, 'Whenever you play a creature, you may reveal it.', {
-  type_line: 'Enchantment',
-  cmc: 3,
-});
+const rites = card(
+  RITES,
+  'When Growing Rites of Itlimoc enters, look at the top four cards of your library. You may reveal a creature card from among them and put it into your hand. Put the rest on the bottom of your library in any order.\nAt the beginning of your end step, if you control four or more creatures, transform Growing Rites of Itlimoc.',
+  { type_line: 'Legendary Enchantment', cmc: 3 }
+);
 
 describe('fixup and surplus read the same role', () => {
   it('counts Kindred Dominance as the wipe and Blasphemous Edict as not one', () => {
