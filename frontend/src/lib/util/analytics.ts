@@ -1,4 +1,9 @@
 import { apiUrl } from '@/lib/api/api-base';
+import {
+  installChunkReload,
+  isChunkLoadError,
+  isReloadingForNewBuild,
+} from '@/lib/util/chunk-reload';
 
 /**
  * First-party, cookieless beacon (see backend/src/routes/events.ts).
@@ -111,7 +116,15 @@ export function track(name: EventName, path?: string): void {
 // ---------------------------------------------------------------------------
 // Client errors
 
-export type ErrorKind = 'error' | 'rejection' | 'render';
+/**
+ * `reload` is not a defect: a tab opened before a deploy asked for a chunk the
+ * new build replaced, and the page reloaded itself onto the new build (see
+ * lib/util/chunk-reload.ts). It is counted under its own kind so the defect
+ * kinds stay a list of things to fix, while the admin view can still say how
+ * often a deploy strands a tab. A chunk error the reload could NOT fix (the
+ * once-a-minute guard already spent) keeps its real kind and counts as a defect.
+ */
+export type ErrorKind = 'error' | 'rejection' | 'render' | 'reload';
 
 /** Browser noise that is not a defect: benign observer warnings, aborted navigations. */
 const IGNORED = /ResizeObserver loop|AbortError|The operation was aborted/;
@@ -139,9 +152,12 @@ export function describeError(value: unknown): { message: string; frame: string 
   return { message: message.slice(0, 500), frame };
 }
 
-export function reportError(kind: ErrorKind, value: unknown): void {
+export function reportError(reported: ErrorKind, value: unknown): void {
   const { message, frame } = describeError(value);
   if (IGNORED.test(message)) return;
+  // One failed import surfaces on several paths; once a reload is fixing it,
+  // all of them share the one `reload` kind and so dedupe to one beacon.
+  const kind = isChunkLoadError(value) && isReloadingForNewBuild() ? 'reload' : reported;
   const key = `${kind}|${message}|${frame}`;
   if (seen.has(key) || seen.size >= MAX_ERRORS_PER_LOAD) return;
   seen.add(key);
@@ -150,6 +166,9 @@ export function reportError(kind: ErrorKind, value: unknown): void {
 
 /** Window-level listeners; the ErrorBoundary covers render crashes itself. */
 export function installErrorReporting(): void {
+  // First, so a chunk error has already started its reload when the listeners
+  // below report it, and is counted as a reload rather than a defect.
+  installChunkReload();
   window.addEventListener('error', (e) => reportError('error', e.error ?? e.message));
   window.addEventListener('unhandledrejection', (e) => reportError('rejection', e.reason));
 }

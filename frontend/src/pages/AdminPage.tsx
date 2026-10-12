@@ -924,11 +924,16 @@ export function groupErrors(rows: ErrorCountRow[]): (ErrorCountRow & { days: num
 
 function ErrorTable({ rows }: { rows: ErrorCountRow[] }) {
   const grouped = groupErrors(rows).slice(0, 50);
-  const total = rows.reduce((n, r) => n + r.count, 0);
+  // A reload row is a tab that recovered across a deploy, not a defect, so it
+  // stays out of the error total and gets its own count.
+  const total = rows.reduce((n, r) => (r.kind === 'reload' ? n : n + r.count), 0);
+  const reloads = rows.reduce((n, r) => (r.kind === 'reload' ? n + r.count : n), 0);
   return (
     <ScrollTable label="Client errors" className="admin-table admin-table--dense">
       <caption>
         Client errors ({total.toLocaleString()} in 30 days, {grouped.length} distinct)
+        {reloads > 0 &&
+          `; ${reloads.toLocaleString()} tabs reloaded onto a new build after a deploy`}
       </caption>
       <thead>
         <tr>

@@ -10,6 +10,7 @@ import {
   startVitals,
   track,
 } from './analytics';
+import { _resetForTests, recoverFromChunkError } from './chunk-reload';
 
 describe('normalizePath', () => {
   it('collapses ids, tokens and slugs', () => {
@@ -110,6 +111,40 @@ describe('reportError', () => {
     reportError('rejection', new DOMException('The operation was aborted.', 'AbortError'));
     await new Promise((r) => setTimeout(r, 0));
     expect(sent).toEqual([]);
+  });
+
+  describe('a chunk a deploy replaced', () => {
+    const originalLocation = window.location;
+    beforeEach(() => {
+      sessionStorage.clear();
+      _resetForTests();
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: { ...originalLocation, reload: vi.fn() },
+      });
+    });
+    afterEach(() => {
+      _resetForTests();
+      Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
+    });
+
+    it('counts a failure the reload is fixing once, as a reload, whichever paths it surfaces on', async () => {
+      const err = new Error('Unable to preload CSS for /assets/CubePage-a1.css');
+      expect(recoverFromChunkError(err)).toBe(true);
+      reportError('rejection', err);
+      reportError('render', err);
+      await new Promise((r) => setTimeout(r, 0));
+      expect(sent.map((s) => JSON.parse(s).kind)).toEqual(['reload']);
+    });
+
+    it('counts a failure the reload could not fix under its real kind, as a defect', async () => {
+      sessionStorage.setItem('sc-chunk-reload-at', String(Date.now()));
+      const err = new TypeError('Importing a module script failed.');
+      expect(recoverFromChunkError(err)).toBe(false);
+      reportError('rejection', err);
+      await new Promise((r) => setTimeout(r, 0));
+      expect(sent.map((s) => JSON.parse(s).kind)).toEqual(['rejection']);
+    });
   });
 });
 

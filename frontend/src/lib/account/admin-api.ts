@@ -158,7 +158,8 @@ export interface EventCountRow {
 export interface ErrorCountRow {
   day: string;
   path: string;
-  kind: 'error' | 'rejection' | 'render';
+  /** `reload`: a tab open across a deploy that reloaded itself onto the new build. */
+  kind: 'error' | 'rejection' | 'render' | 'reload';
   message: string;
   frame: string;
   count: number;

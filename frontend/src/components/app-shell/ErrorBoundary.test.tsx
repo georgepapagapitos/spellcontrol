@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { _resetForTests } from '@/lib/util/chunk-reload';
 import { ErrorBoundary } from './ErrorBoundary';
 
 const reportError = vi.hoisted(() => vi.fn());
@@ -99,6 +100,7 @@ describe('ErrorBoundary: a chunk a deploy replaced', () => {
   }
   beforeEach(() => {
     sessionStorage.clear();
+    _resetForTests();
     reportError.mockClear();
     reloadSpy = vi.fn();
     Object.defineProperty(window, 'location', {
@@ -111,14 +113,28 @@ describe('ErrorBoundary: a chunk a deploy replaced', () => {
     Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
   });
 
-  it('reloads once for the new build and does not count it as a crash', () => {
+  it('reloads once for the new build, and leaves the beacon to count it as a reload', () => {
     render(
       <ErrorBoundary>
         <StaleChunk />
       </ErrorBoundary>
     );
     expect(reloadSpy).toHaveBeenCalledTimes(1);
-    expect(reportError).not.toHaveBeenCalled();
+    // analytics.reportError files a chunk error under `reload` once a reload is
+    // under way (analytics.test.ts); the boundary only has to hand it over.
+    expect(reportError).toHaveBeenCalledWith('render', expect.any(TypeError));
+  });
+
+  it("reloads for a page stylesheet the deploy replaced (Vite's CSS preload wording)", () => {
+    function StaleCss(): never {
+      throw new Error('Unable to preload CSS for /assets/DeckEditorPage-Cq1x2a.css');
+    }
+    render(
+      <ErrorBoundary>
+        <StaleCss />
+      </ErrorBoundary>
+    );
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
   });
 
   it('a second failure within the minute offers Reload, never a Retry that cannot work', () => {
