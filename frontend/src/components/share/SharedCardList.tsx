@@ -6,7 +6,7 @@ import { BinderBadge } from '@/components/shared/BinderBadge';
 import { CardRow } from '../shared/CardRow';
 import { CardTableFrame, CardTableHead, SHARED_TABLE_COLUMNS } from '../shared/CardTable';
 import { useMediaQuery } from '@/lib/util/use-media-query';
-import { ownedAriaSuffix, SPARE_LABEL, SPARE_TITLE, type CardOwnership } from './SharedCardTile';
+import { ownedAriaSuffix, spareLabel, SPARE_TITLE, type CardOwnership } from './SharedCardTile';
 import type { AllocationInfo } from '@/lib/collection/allocations-core';
 
 export interface SharedCardListItem {
@@ -20,6 +20,8 @@ export interface SharedCardListItem {
   allocations?: AllocationInfo[];
   /** The owner has a copy to spare — see SharedCardTile. */
   spare?: boolean;
+  /** How many are spare; the chip says "2 spare" above one. */
+  spareCount?: number;
   /** A control at the row's end (the trade "+"). */
   action?: ReactNode;
 }
@@ -123,7 +125,7 @@ export function SharedCardList({
                 <>
                   {it.spare && (
                     <span className="collection-list-surplus" title={SPARE_TITLE}>
-                      {SPARE_LABEL}
+                      {spareLabel(it.spareCount ?? 1)}
                     </span>
                   )}
                   {it.ownership?.owned && (

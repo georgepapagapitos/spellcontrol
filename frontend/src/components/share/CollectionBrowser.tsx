@@ -245,6 +245,7 @@ export function CollectionBrowser({
                     card={g.card}
                     quantity={g.quantity}
                     spare={g.spare}
+                    spareCount={g.spareCount}
                     note={trade?.caption?.(g) ?? undefined}
                     flag={trade?.flag?.(g) ?? undefined}
                     pickedCount={trade?.pickedCount?.(g)}
@@ -263,6 +264,7 @@ export function CollectionBrowser({
                 card: g.card,
                 quantity: g.quantity,
                 spare: g.spare,
+                spareCount: g.spareCount,
                 action: trade?.renderAdd?.(g),
               }))}
               onPreview={setPreviewIndex}

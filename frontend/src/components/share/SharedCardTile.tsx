@@ -40,8 +40,10 @@ interface Props {
   /** The OWNER's decks this card is in (friend hub): only ones the viewer can
    *  open, each carrying its own `href`. */
   allocations?: AllocationInfo[];
-  /** The owner has a copy to spare (friend hub). A yes/no, never a count. */
+  /** The owner has a copy to spare (friend hub). Pair with spareCount for "2 spare". */
   spare?: boolean;
+  /** Spare copies of this card. Above one the note counts them; absent, a spare reads as one. */
+  spareCount?: number;
   /** The caption prefs, when the surface owns them (the collection browser's
    *  Details control). Absent: this tile reads the stored device-wide prefs. */
   captionPrefs?: GridCaptionPrefs;
@@ -61,6 +63,11 @@ interface Props {
  *  tooltip, which a phone can't show. It means the owner has a copy past the
  *  one they keep that no deck or cube claims, so it says "copy". */
 export const SPARE_LABEL = 'Spare copy';
+
+/** "Spare copy" for one, "2 spare" for more: the own-side idiom (describeOwned). */
+export function spareLabel(count: number): string {
+  return count > 1 ? `${count} spare` : SPARE_LABEL;
+}
 
 /** Tooltip for the list row's chip, same meaning as SPARE_LABEL. */
 export const SPARE_TITLE = 'A spare: past the one copy they keep, and in none of their decks.';
@@ -114,6 +121,7 @@ export function SharedCardTile({
   hideValue,
   allocations,
   spare,
+  spareCount,
   captionPrefs: captionPrefsProp,
   note: noteProp,
   flag,
@@ -142,7 +150,7 @@ export function SharedCardTile({
     hideValue || !captionPrefs.sortValue
       ? null
       : formatMoney(enriched.purchasePrice, localValues ? undefined : { currency: 'USD' });
-  const note = noteProp ?? (spare ? SPARE_LABEL : null);
+  const note = noteProp ?? (spare ? spareLabel(spareCount ?? 1) : null);
 
   return (
     <CardGridCell

@@ -27,6 +27,8 @@ const EMPTY: PublicCard[] = [];
  *  just the first one, so its own flag would under-report). */
 export interface BrowserGroup extends GroupedCard {
   spare: boolean;
+  /** How many copies in the group are spare: the same per-copy flag, counted. */
+  spareCount: number;
 }
 
 export interface BrowserChip {
@@ -151,14 +153,18 @@ export function useCollectionBrowser({
   }, [list, friendCards, search, query, chips, chipPredicates, matches]);
 
   const sorted = useMemo<BrowserGroup[]>(() => {
-    const spareKeys = new Set<string>();
+    const spareCounts = new Map<string, number>();
     const groups = groupCards(filteredCopies);
-    for (const c of filteredCopies) if (c.spare) spareKeys.add(`${c.scryfallId}::${c.finish}`);
+    for (const c of filteredCopies)
+      if (c.spare) {
+        const k = `${c.scryfallId}::${c.finish}`;
+        spareCounts.set(k, (spareCounts.get(k) ?? 0) + 1);
+      }
     // A ranked sort is the name order with the ranking laid over it: the sort
     // is stable, so ties keep their A to Z order.
     const byPriority = sort === 'priority' && priority;
     const ordered = sortGrouped(groups, byPriority ? 'name' : sort, byPriority ? 'asc' : dir).map(
-      (g) => ({ ...g, spare: spareKeys.has(g.key) })
+      (g) => ({ ...g, spare: spareCounts.has(g.key), spareCount: spareCounts.get(g.key) ?? 0 })
     );
     if (!byPriority) return ordered;
     const sign = dir === 'asc' ? 1 : -1;
