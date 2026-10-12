@@ -61,7 +61,13 @@ export const EVENT_NAMES = new Set([
   'walkthrough_finished',
 ]);
 
-export const ERROR_KINDS = new Set(['error', 'rejection', 'render']);
+/**
+ * `reload` is a tab opened before a deploy that asked for a chunk the new build
+ * replaced and reloaded itself onto the new build (frontend
+ * lib/util/chunk-reload.ts). Stored so the admin view can say how often a deploy
+ * strands a tab, but it is not a defect: the burst alert leaves it out.
+ */
+export const ERROR_KINDS = new Set(['error', 'rejection', 'render', 'reload']);
 
 /** Core Web Vitals bands (web.dev thresholds): [good ≤, needs-improvement ≤]. */
 export const VITAL_BANDS: Record<string, [number, number]> = {
@@ -179,12 +185,14 @@ async function countVital(path: string, body: Record<string, unknown>): Promise<
 /**
  * Client errors counted in the last `minutes` — the heartbeat's burst check
  * (see heartbeat.ts). Sums `count`, so one error looping in one tab counts
- * every time it fires, which is what a burst alert should see.
+ * every time it fires, which is what a burst alert should see. A `reload` row is
+ * left out: every deploy produces a wave of them from tabs that were open, and
+ * each one already recovered.
  */
 export async function recentErrorCount(minutes: number): Promise<number> {
   const { rows } = await getPool().query<{ n: string }>(
     `SELECT COALESCE(SUM(count), 0)::text AS n FROM error_counts
-      WHERE last_seen > now() - ($1::int * interval '1 minute')`,
+      WHERE last_seen > now() - ($1::int * interval '1 minute') AND kind <> 'reload'`,
     [minutes]
   );
   return Number(rows[0]?.n ?? 0);

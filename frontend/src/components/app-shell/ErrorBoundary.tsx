@@ -3,7 +3,7 @@ import { logger } from '@/lib/util/logger';
 import { Component, type ReactNode } from 'react';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
-import { isChunkLoadError, reloadForNewBuild } from '@/lib/util/chunk-reload';
+import { isChunkLoadError, recoverFromChunkError } from '@/lib/util/chunk-reload';
 
 interface Props {
   children: ReactNode;
@@ -22,9 +22,9 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     // A page chunk that a deploy replaced: reload once for the new build
-    // rather than show an error the Retry button can never clear.
-    if (isChunkLoadError(error) && reloadForNewBuild()) return;
-    logger.error('[ErrorBoundary]', error, info.componentStack);
+    // rather than show an error the Retry button can never clear. The beacon
+    // still hears about it, and counts it as a reload rather than a crash.
+    if (!recoverFromChunkError(error)) logger.error('[ErrorBoundary]', error, info.componentStack);
     reportError('render', error);
   }
 

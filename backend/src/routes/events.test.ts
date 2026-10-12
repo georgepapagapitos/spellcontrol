@@ -5,6 +5,7 @@ import type { Pool } from 'pg';
 import { sql } from 'drizzle-orm';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { getDb } from '../db';
+import { recentErrorCount } from './events';
 
 let app: Server;
 let pool: Pool;
@@ -124,6 +125,29 @@ describe('POST /api/events {name:"error"}', () => {
     expect(rows).toEqual([
       expect.objectContaining({ kind: 'rejection', message: '[no message]', frame: '', count: 1 }),
     ]);
+  });
+
+  it('stores a tab that reloaded onto a new build, but keeps it out of the burst alert', async () => {
+    await pool.query('DELETE FROM error_counts');
+    const reload = {
+      name: 'error',
+      path: '/decks/:id',
+      kind: 'reload',
+      message: 'Unable to preload CSS for /assets/DeckEditorPage-Cq1x2a.css',
+    };
+    for (let i = 0; i < 3; i++) await request(app).post('/api/events').send(reload);
+    await request(app)
+      .post('/api/events')
+      .send({ name: 'error', path: '/', kind: 'render', message: 'boom' });
+    const rows = await errorRows();
+    expect(rows).toHaveLength(2);
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'render', count: 1 }),
+        expect.objectContaining({ kind: 'reload', count: 3 }),
+      ])
+    );
+    expect(await recentErrorCount(5)).toBe(1);
   });
 });
 

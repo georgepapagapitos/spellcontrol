@@ -68,4 +68,27 @@ describe('AdminPage — Analytics tab load states (playtest batch 12)', () => {
     expect(listEventsMock).toHaveBeenCalledTimes(2);
     await screen.findByText('No suggestion labels yet.');
   });
+
+  it('counts tabs that reloaded across a deploy apart from the errors (E644)', async () => {
+    const row = { day: '2026-10-12', path: '/decks/:id', frame: '', last_seen: '2026-10-12' };
+    listEventsMock.mockResolvedValueOnce({
+      ...empty,
+      errors: [
+        { ...row, kind: 'render', message: 'boom', count: 2 },
+        { ...row, kind: 'reload', message: 'Unable to preload CSS for /assets/a.css', count: 7 },
+      ],
+    });
+    render(
+      <MemoryRouter>
+        <AdminPage />
+      </MemoryRouter>
+    );
+    const caption = await screen.findByText(
+      (_, el) => el?.tagName === 'CAPTION' && /Client errors/.test(el.textContent ?? '')
+    );
+    expect(caption.textContent).toBe(
+      'Client errors (2 in 30 days, 2 distinct); 7 tabs reloaded onto a new build after a deploy'
+    );
+    await screen.findByText('No suggestion labels yet.');
+  });
 });
