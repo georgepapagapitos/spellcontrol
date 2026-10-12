@@ -222,12 +222,12 @@ describe('DeckDisplay third "why it\'s here" affordance (E120)', () => {
       type_line: 'Legendary Creature — Human',
       oracle_text: 'Whenever a creature you control enters the battlefield, draw a card.',
     });
-    // A blink creature re-triggers the commander's ETB ability (Restoration Angel).
+    // A token maker brings creatures in for the commander's enters trigger (Avenger of Zendikar).
     const card = creature({
       id: 'sf-14',
       name: 'ETB Synergy Card',
       oracle_text:
-        'Flash\nFlying\nWhen this creature enters, you may exile target non-Angel creature you control, then return that card to the battlefield under your control.',
+        'When this creature enters, create a 0/1 green Plant creature token for each land you control.\nLandfall — Whenever a land you control enters, you may put a +1/+1 counter on each Plant creature you control.',
     });
 
     const { container } = render(

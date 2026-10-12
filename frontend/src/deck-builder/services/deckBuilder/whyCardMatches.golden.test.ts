@@ -5,7 +5,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import golden from './__fixtures__/why-pills.golden.fixture.json';
 
 // Guard for the "why it fits your commander" pills. The fixture is a golden set
-// of 1,994 card × check pairs from real Oracle text, each rated by two blind
+// of 2,088 card × check pairs from real Oracle text, each rated by two blind
 // raters against __fixtures__/why-pills.golden.md. Before this guard, 46% of
 // the pills on the 500 most-played cards were right (Wild Growth read as
 // "Suits up / protects your commander"; every fetchland read as a tutor).

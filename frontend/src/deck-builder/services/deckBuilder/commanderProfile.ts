@@ -23,6 +23,7 @@ import { creatureTypePlurals, resolveCreatureType } from '@/deck-builder/service
 
 export type CommanderKeyword =
   | 'etb'
+  | 'creature-etb'
   | 'attack-trigger'
   | 'sacrifice'
   | 'dies-trigger'
@@ -277,6 +278,16 @@ const DETECTORS: Detector[] = [
     commander: /\b(when|whenever)\b[^.]*?\benters\b/,
     wants: ['Blink and flicker effects to re-trigger it', 'Creatures with strong ETB abilities'],
     themes: ['blink', 'flicker', 'etb'],
+  },
+  {
+    // Pays off OTHER creatures entering ("whenever a creature you control
+    // enters"). Distinct from 'etb', which is the commander's own ability. The
+    // [^.,] stops "whenever a creature dies, ... enters" from reading as this.
+    keyword: 'creature-etb',
+    label: 'Creature-enters trigger',
+    commander: /\bwhenever\b[^.,]*?\bcreatures?\b[^.,]*?\benters\b/,
+    wants: ['Token makers and creature reanimation', 'Blink effects that re-enter creatures'],
+    themes: ['tokens', 'reanimator', 'blink'],
   },
   {
     keyword: 'attack-trigger',
@@ -705,6 +716,7 @@ function buildSummary(name: string, abilities: CommanderAbility[]): string {
   }
   const phrases: Record<CommanderKeyword, string> = {
     etb: 'abuse enters-the-battlefield triggers',
+    'creature-etb': 'profit as creatures enter the battlefield',
     'attack-trigger': 'attack to trigger powerful abilities',
     sacrifice: 'sacrifice creatures and artifacts for value',
     'dies-trigger': 'profit when your creatures die',

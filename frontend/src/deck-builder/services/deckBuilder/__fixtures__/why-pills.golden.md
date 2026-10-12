@@ -3,7 +3,8 @@
 This is the definition `why-pills.golden.fixture.json` was rated against and
 the contract `whyCardMatches` (whyCardMatches.ts) is held to by
 `whyCardMatches.golden.test.ts`. Every item was rated blind by two
-independent raters (96% agreement); the rulings at the end settled the 72
+independent raters (96% agreement; the creature-etb items added 2026-10-12 agreed
+99%, kappa 0.98, 1 disagreement); the rulings at the end settled the 73
 disagreements. To change what a pill means, change this file first, re-rate the
 affected items, then change the code.
 
@@ -33,11 +34,30 @@ General rules for every check:
 
 ## etb — "Re-triggers ETB effects"
 
+For a commander whose OWN enters-the-battlefield ability is the plan ("when
+this creature enters, ..."). The card has to make that ability happen again.
+
 YES: exiles/bounces and returns YOUR permanents (blink, flicker), or makes ETB
 triggers trigger again / an additional time (Panharmonicon effects), or copies
 permanents entering.
 NO: a creature that merely has its own ETB ability; removal that exiles an
 opponent's permanent; "this land enters tapped".
+
+## creature-etb — "Puts creatures onto the battlefield"
+
+For a commander that pays off OTHER creatures entering ("whenever a creature
+you control enters, ..."). The card has to put one or more creatures onto the
+battlefield, or make them enter again.
+YES: creates a creature token you control (including amass, populate and
+"a token that's a copy of" a creature); puts a creature card onto the
+battlefield from hand, library, graveyard or exile (reanimation, Sneak Attack,
+Natural Order); exiles and returns YOUR creatures (blink, flicker: they enter
+again); doubles or adds to the creature tokens you create.
+NO: a plain creature with no way to bring more bodies; tokens that are not
+creatures (Treasure, Clue, Food); returning a creature card to hand (a
+regrowth is not an entry); cost reducers, flash or anthems for creature
+spells; animating a land or artifact into a creature (nothing enters); a land
+that enters tapped; tokens or reanimation only the opponent controls.
 
 ## attack-trigger — "Evasion or attack payoff"
 
@@ -265,5 +285,8 @@ lore, bore) on your permanents: TRUE.
 R18. Predefined tokens are judged by their abilities even though those are
 reminder text: a Food maker gains life, a Treasure maker ramps, a Clue
 maker draws.
+R19. creature-etb (E642, 2026-10-12): a permanent that returns to the battlefield
+only as a NON-creature (Enduring Vitality's own return, "it's an enchantment")
+is FALSE; nothing creature-shaped enters.
 R17. Sacrificing an artifact as one option among card types (Braids): FALSE for
 artifact-matters; artifact specifically as a cost: TRUE.
