@@ -106,11 +106,11 @@ export function CollectionCombosPage() {
     enabled: !loadingCollection,
   });
 
-  // E212: `source: 'server'` means the device-local combo dataset couldn't be
-  // cached, so this went through the server matcher instead — which caps
-  // candidates at 2000 for memory safety and can under-report a collection
-  // this size. Never present that silently as the final answer.
-  const partial = data?.source === 'server';
+  // E212: `source: 'server'` is the default now (E560; the device-local dataset
+  // is opt-in). The server matcher caps candidates at 2000 for memory safety
+  // and says when it did (`truncated`), which is the only time it can
+  // under-report a collection this size. Never present that silently as final.
+  const partial = data?.source === 'server' && data.truncated !== false;
 
   // Memoized because the `?? []` fallback would otherwise mint a fresh array
   // identity every render, invalidating every downstream filter memo.

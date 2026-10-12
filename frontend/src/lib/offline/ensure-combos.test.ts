@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ensureCombosCached, resetCombosCacheForTesting } from './ensure-combos';
 import {
+  discardUnoptedComboCache,
+  ensureCombosCached,
+  resetCombosCacheForTesting,
+} from './ensure-combos';
+import {
+  clearOfflineData,
   getOfflineDataStats,
+  offlineDbExists,
   readManifest,
   readStandaloneCombosVersion,
   writeStandaloneCombosVersion,
@@ -9,6 +15,8 @@ import {
 import { importCombos } from './combos-import';
 
 vi.mock('./db', () => ({
+  clearOfflineData: vi.fn(),
+  offlineDbExists: vi.fn(),
   getOfflineDataStats: vi.fn(),
   readManifest: vi.fn(),
   readStandaloneCombosVersion: vi.fn(),
@@ -27,6 +35,18 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 const manifest = (combosVersion: string) => ({ combosVersion });
 
+/** What the Settings download writes; its presence is the opt-in. */
+const OPTED_IN = {
+  oracleVersion: 'o1',
+  oracleCardCount: 30000,
+  oracleByteSize: 0,
+  oracleUpdatedAt: 0,
+  combosVersion: '',
+  combosCount: 0,
+  combosByteSize: 0,
+  combosUpdatedAt: 0,
+};
+
 /** fetch stub routing combos-version/combos URLs to canned responses. */
 function routeFetch(routes: { manifest?: Response | Error; combos?: Response | Error }) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
@@ -42,11 +62,76 @@ beforeEach(() => {
   vi.clearAllMocks();
   resetCombosCacheForTesting();
   vi.mocked(getOfflineDataStats).mockResolvedValue({ cardCount: 0, comboCount: 0 });
-  vi.mocked(readManifest).mockResolvedValue(null);
+  vi.mocked(readManifest).mockResolvedValue(OPTED_IN);
   vi.mocked(readStandaloneCombosVersion).mockResolvedValue(null);
+  vi.mocked(offlineDbExists).mockResolvedValue(true);
 });
 
-describe('ensureCombosCached', () => {
+describe('not opted in to offline card data (E560)', () => {
+  beforeEach(() => {
+    vi.mocked(readManifest).mockResolvedValue(null);
+  });
+
+  it('never fetches or downloads the dataset, even with nothing cached', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    expect(await ensureCombosCached()).toBe(false);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(importCombos).not.toHaveBeenCalled();
+    expect(writeStandaloneCombosVersion).not.toHaveBeenCalled();
+  });
+
+  it('does not serve a leftover dataset either: the server answers', async () => {
+    vi.mocked(getOfflineDataStats).mockResolvedValue({ cardCount: 0, comboCount: 112875 });
+    vi.mocked(readStandaloneCombosVersion).mockResolvedValue('v1');
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    expect(await ensureCombosCached()).toBe(false);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('discardUnoptedComboCache', () => {
+  it('clears a dataset an earlier build downloaded silently', async () => {
+    vi.mocked(readManifest).mockResolvedValue(null);
+    vi.mocked(getOfflineDataStats).mockResolvedValue({ cardCount: 0, comboCount: 112875 });
+
+    expect(await discardUnoptedComboCache()).toBe(true);
+    expect(clearOfflineData).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears an unfinished download (rows with no version stamp)', async () => {
+    vi.mocked(readManifest).mockResolvedValue(null);
+    vi.mocked(getOfflineDataStats).mockResolvedValue({ cardCount: 0, comboCount: 3 });
+
+    expect(await discardUnoptedComboCache()).toBe(true);
+  });
+
+  it('leaves a visitor who opted in alone', async () => {
+    vi.mocked(getOfflineDataStats).mockResolvedValue({ cardCount: 30000, comboCount: 112875 });
+
+    expect(await discardUnoptedComboCache()).toBe(false);
+    expect(clearOfflineData).not.toHaveBeenCalled();
+  });
+
+  it('does not create the database for a visitor who never had one', async () => {
+    vi.mocked(readManifest).mockResolvedValue(null);
+    vi.mocked(offlineDbExists).mockResolvedValue(false);
+
+    expect(await discardUnoptedComboCache()).toBe(false);
+    expect(getOfflineDataStats).not.toHaveBeenCalled();
+    expect(clearOfflineData).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when the database is empty', async () => {
+    vi.mocked(readManifest).mockResolvedValue(null);
+
+    expect(await discardUnoptedComboCache()).toBe(false);
+    expect(clearOfflineData).not.toHaveBeenCalled();
+  });
+});
+
+describe('ensureCombosCached (opted in)', () => {
   it('downloads + stores the dataset when nothing is cached', async () => {
     const fetchSpy = routeFetch({ manifest: jsonResponse(manifest('v1')) });
 

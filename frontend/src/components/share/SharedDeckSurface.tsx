@@ -100,9 +100,6 @@ interface Props {
  *  - **Coach / AI review** — they coach the OWNER against the OWNER's
  *    collection, and the AI calls cost money per run.
  *  - **Table record** — the owner's own game history.
- *  - **Combos, for a signed-out guest** — `POST /api/combos/match` is
- *    `requireAuth`, so the panel is gated on being signed in, NOT on owning
- *    the deck. A signed-in visitor sees combos on someone else's deck.
  *  - **Every editing affordance** — row menus, qty steppers, add/remove, drag
  *    reorder, bracket target, win-con tagging. Each is gated by its handler
  *    being absent, so nothing renders disabled (which would imply the action
@@ -118,7 +115,6 @@ export function SharedDeckSurface({
 }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [reportOpen, setReportOpen] = useState(false);
-  const authed = useAuth((s) => s.status === 'authed');
   const currency = useCurrency();
   const authUsername = useAuth((s) => s.user?.username);
 
@@ -179,10 +175,10 @@ export function SharedDeckSurface({
   }, [collectionCards]);
   const ownedOracleIdSet = useMemo(() => new Set(ownedOracleIds), [ownedOracleIds]);
 
-  // Gated on AUTH, not ownership: the match endpoint requires a session, so a
-  // guest would only ever get a 401 and an error panel. Passing an empty id
-  // list keeps the hook inert without breaking the rules-of-hooks order.
-  const combosEnabled = authed && hasCommander;
+  // Gated on having a commander, not on auth or ownership: the match endpoint
+  // is public (E560), so a signed-out visitor sees combos too. Passing an empty
+  // id list keeps the hook inert without breaking the rules-of-hooks order.
+  const combosEnabled = hasCommander;
   const comboData = useDeckCombos({
     deckOracleIds: combosEnabled ? deckOracleIds : [],
     ownedOracleIds,

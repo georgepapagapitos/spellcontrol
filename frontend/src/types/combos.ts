@@ -61,6 +61,13 @@ export interface ComboMatchResponse {
    * as final (E212).
    */
   source: 'local' | 'server';
+  /**
+   * Server matcher only: true when its 2000-candidate cap dropped combos, so the
+   * answer is incomplete. `false` means a server answer is exact. Absent on a
+   * local result, and on a response from a server that predates the field (read
+   * that as truncated).
+   */
+  truncated?: boolean;
   /** True count before the backend's ALMOST_LIMIT truncation. */
   almostInCollectionTotal: number;
 }
