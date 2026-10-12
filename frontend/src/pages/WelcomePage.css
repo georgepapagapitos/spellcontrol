@@ -217,6 +217,16 @@
   text-decoration: none;
 }
 
+@media (pointer: coarse) {
+  .welcome-footer a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 @media (hover: hover) and (pointer: fine) {
   .welcome-footer a:hover {
     text-decoration: underline;

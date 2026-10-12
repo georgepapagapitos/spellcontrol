@@ -26,4 +26,37 @@ describe('E1000 residual touch targets', () => {
     expect(m![1]).toMatch(/width:\s*calc\(100% \+ 4px\)/);
     expect(m![1]).toMatch(/height:\s*44px/);
   });
+
+  /**
+   * The second half of E1000, from the nightly's hit-walk (elementFromPoint,
+   * not the CSS): each of these read under 44 in a real phone run. The journey
+   * now fails on any new one; these pin the specific fixes.
+   */
+  it('the deck section collapse ghost clears the icon and the row beside it', () => {
+    const css = read('deck-builder-card-list.css');
+    expect(css).toMatch(/\.deck-section-collapse\s*\{[^}]*z-index:\s*1/);
+    expect(css).toMatch(/\.deck-section-collapse::after\s*\{[^}]*top:\s*calc\(50% - 3px\)/);
+  });
+
+  it('the card preview context row and pills reach 44 on touch', () => {
+    const css = read('footer-card-preview.css');
+    expect(css).toMatch(/\.card-preview-context\s*\{[^}]*min-height:\s*44px/);
+    expect(css).toMatch(/\.card-preview-context-pill::after\s*\{[^}]*inset:\s*-11px 0/);
+    expect(css).toMatch(/\.card-preview-ext-link::after\s*\{[^}]*inset:\s*-9px -6px/);
+  });
+
+  it('the combo Add and details toggle, the keyword head and the footer links take the floor', () => {
+    expect(read('deck-builder-combos-list.css')).toMatch(
+      /\.deck-combos-details-toggle,\s*\.deck-combos-add\s*\{[^}]*min-height:\s*44px/
+    );
+    expect(read('../components/rules/RulesReference.css')).toMatch(
+      /\.rules-ref-keyword-head\s*\{[^}]*min-height:\s*44px/
+    );
+    expect(read('../components/deck/BuildReportSheet.css')).toMatch(
+      /\.build-report-sheet-close\s*\{[^}]*min-height:\s*44px/
+    );
+    expect(read('../pages/WelcomePage.css')).toMatch(
+      /\.welcome-footer a\s*\{[^}]*min-height:\s*44px/
+    );
+  });
 });

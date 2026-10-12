@@ -663,6 +663,20 @@
   transform: translate(-50%, -50%);
 }
 
+/* The section icon beside it and the first row under it are later positioned
+   siblings, so they took 8px off the right and 3px off the bottom of the
+   ghost (measured 37x42). Lifting the button over the icon and biasing the
+   ghost up, clear of the row, restores the 44px. */
+@media (pointer: coarse) {
+  .deck-section-collapse {
+    z-index: 1;
+  }
+
+  .deck-section-collapse::after {
+    top: calc(50% - 3px);
+  }
+}
+
 .deck-section-collapse:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

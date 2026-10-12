@@ -2754,7 +2754,8 @@ i.ss.set-symbol--mythic {
     left: 50%;
     width: calc(100% + 16px);
     height: 44px;
-    transform: translate(-50%, -50%);
+    /* 1px down: the hub tabs above end 1px inside a centered ghost. */
+    transform: translate(-50%, calc(-50% + 1px));
   }
 
   .card-list-binder-badge {

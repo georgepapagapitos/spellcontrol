@@ -139,6 +139,13 @@
   transition: color var(--motion-fast);
 }
 
+@media (pointer: coarse) {
+  .build-report-sheet-close {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 .build-report-sheet-close:focus-visible {
   color: var(--text-primary);
   outline: 2px solid var(--accent);
