@@ -26,6 +26,7 @@ import { podStatsRouter } from './routes/pod-stats';
 import { tonightTradesRouter } from './routes/tonight-trades';
 import { tradesRouter } from './routes/trades';
 import { publicationsRouter } from './routes/publications';
+import { RESOURCE_PUBLICATIONS_DDL } from './db/schema-resource-publications';
 import { publicRouter } from './routes/public';
 import { reportsRouter } from './routes/reports';
 import { discoverRouter } from './routes/discover';
@@ -517,6 +518,7 @@ export async function createTestEnv(): Promise<TestEnv> {
       PRIMARY KEY (user_id, deck_id)
     );
     CREATE UNIQUE INDEX deck_publications_slug_idx ON deck_publications(slug);
+    ${RESOURCE_PUBLICATIONS_DDL}
     CREATE INDEX deck_publications_public_idx
       ON deck_publications(updated_at DESC) WHERE unpublished_at IS NULL;
     CREATE INDEX deck_publications_published_idx

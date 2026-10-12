@@ -47,6 +47,7 @@ import { podStatsRouter } from './routes/pod-stats';
 import { tonightTradesRouter } from './routes/tonight-trades';
 import { tradesRouter } from './routes/trades';
 import { publicationsRouter } from './routes/publications';
+import { resourceLandingLookup } from './publications/resource-pages';
 import {
   publicRouter,
   lookupPublicDeckLandingMeta,
@@ -1199,6 +1200,8 @@ if (existsSync(SPA_DIR)) {
   app.get('/s/:token', createShareLandingHandler(SPA_DIR));
   app.get('/d/:token', createShareLandingHandler(SPA_DIR, lookupPublicDeckLandingMeta));
   app.get('/u/:token', createShareLandingHandler(SPA_DIR, lookupPublicUserLandingMeta));
+  app.get('/b/:token', createShareLandingHandler(SPA_DIR, resourceLandingLookup('binder')));
+  app.get('/l/:token', createShareLandingHandler(SPA_DIR, resourceLandingLookup('list')));
   app.get('/gn/s/:token', createShareLandingHandler(SPA_DIR, lookupGameNightSeriesLandingMeta));
   app.get('/gn/:token', createShareLandingHandler(SPA_DIR, lookupGameNightLandingMeta));
   // Deliberately NOT /gn/i/:token (E208 named guest invites). That link is one

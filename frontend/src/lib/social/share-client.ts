@@ -1,5 +1,7 @@
 import type {
+  PublicBinder,
   PublicDeck,
+  PublicList,
   PublicShareResponse,
   ShareAudience,
   ShareKind,
@@ -209,6 +211,29 @@ export async function fetchPublicDeckPage(slug: string): Promise<PublicDeckPage>
     throw new Error(await readError(res, "Couldn't load this deck. Check the link and try again."));
   }
   return (await res.json()) as PublicDeckPage;
+}
+
+/** `GET /api/public/binders/:slug` and `/lists/:slug` (E401). Same payload
+ *  shape as a /s/:token share of that kind, plus the page's slug and dates. */
+export type PublicResourcePage = {
+  slug: string;
+  publishedAt: number;
+  updatedAt: number;
+} & ({ kind: 'binder'; data: PublicBinder } | { kind: 'list'; data: PublicList });
+
+/** Read a published binder or list page. 404 = unknown, unpublished, deleted or private. */
+export async function fetchPublicResourcePage(
+  kind: 'binder' | 'list',
+  slug: string
+): Promise<PublicResourcePage> {
+  const res = await fetch(
+    apiUrl(`/api/public/${kind === 'binder' ? 'binders' : 'lists'}/${encodeURIComponent(slug)}`)
+  );
+  if (res.status === 404) throw new ShareNotFoundError();
+  if (!res.ok) {
+    throw new Error(await readError(res, "Couldn't load this page. Check the link and try again."));
+  }
+  return (await res.json()) as PublicResourcePage;
 }
 
 /**

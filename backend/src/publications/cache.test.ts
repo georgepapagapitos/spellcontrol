@@ -102,6 +102,7 @@ describe('LruTtlCache<PublicUserProfile>', () => {
       isOfficial: false,
       deckCount: 0,
       decks: [],
+      resources: [],
       stats: { likesReceived: 0, copiesReceived: 0 },
       topCommanders: [],
       colorSpread: { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 },

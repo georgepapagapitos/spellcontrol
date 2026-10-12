@@ -21,6 +21,14 @@ export interface PublicProfileDeck {
   updatedAt: number;
 }
 
+/** A published binder or list on a profile (E401), linked at /b/:slug or /l/:slug. */
+export interface PublicProfileResource {
+  slug: string;
+  name: string;
+  publishedAt: number;
+  updatedAt: number;
+}
+
 export type ProfileColor = 'W' | 'U' | 'B' | 'R' | 'G' | 'C';
 
 export interface ProfileTopCommander {
@@ -52,6 +60,9 @@ export interface PublicProfile {
   moderationHidden: boolean;
   deckCount: number;
   decks: PublicProfileDeck[];
+  /** Absent on a response from before binders and lists had public pages. */
+  binders?: PublicProfileResource[];
+  lists?: PublicProfileResource[];
   followerCount: number;
   followingCount: number;
   /** Per viewer: false for a guest and on your own profile. */

@@ -5,6 +5,7 @@ import {
   invalidatePublicUserCache,
 } from './cache';
 import { invalidateShareContext } from '../shares/context';
+import { invalidateResourcePageCache } from './resource-pages';
 
 /**
  * Drop every public-read cache entry that renders this user's identity or
@@ -19,10 +20,14 @@ import { invalidateShareContext } from '../shares/context';
  */
 export async function purgeUserPublicCaches(userId: string): Promise<void> {
   const pool = getPool();
-  const [pubs, tokens] = await Promise.all([
+  const [pubs, tokens, resourcePubs] = await Promise.all([
     pool.query<{ slug: string }>(`SELECT slug FROM deck_publications WHERE user_id = $1`, [userId]),
     pool.query<{ token: string }>(`SELECT token FROM shares WHERE user_id = $1`, [userId]),
+    pool.query<{ slug: string }>(`SELECT slug FROM resource_publications WHERE user_id = $1`, [
+      userId,
+    ]),
   ]);
+  for (const { slug } of resourcePubs.rows) invalidateResourcePageCache(slug);
   for (const { slug } of pubs.rows) invalidateDeckPublicationCache(slug);
   for (const { token } of tokens.rows) invalidateShareContext(token);
   // The Brewers rails name accounts too (a hidden or deleted one must leave them).

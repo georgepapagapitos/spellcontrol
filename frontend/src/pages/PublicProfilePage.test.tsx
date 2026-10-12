@@ -497,3 +497,38 @@ describe('PublicProfilePage — banner, stats, follow and what they brew (T175)'
     expect(document.querySelector('.public-profile-banner')).toBeNull();
   });
 });
+
+describe('PublicProfilePage — published binders and lists', () => {
+  it('links each one under the decks, binders and lists in their own groups', async () => {
+    fetchPublicProfileMock.mockResolvedValue(
+      profile({
+        binders: [{ slug: 'artifacts-1234abcd', name: 'Artifacts', publishedAt: 0, updatedAt: 0 }],
+        lists: [{ slug: 'wantlist-1234abcd', name: 'Wantlist', publishedAt: 0, updatedAt: 0 }],
+      })
+    );
+    renderProfile();
+    const binders = await screen.findByRole('region', { name: 'Binders' });
+    expect(binders.querySelector('a')?.getAttribute('href')).toBe('/b/artifacts-1234abcd');
+    const lists = screen.getByRole('region', { name: 'Lists' });
+    expect(lists.querySelector('a')?.getAttribute('href')).toBe('/l/wantlist-1234abcd');
+  });
+
+  it('shows no shelf when there are none, and none on a moderation-hidden profile', async () => {
+    fetchPublicProfileMock.mockResolvedValue(profile());
+    const { unmount } = renderProfile();
+    await screen.findByText(/hasn't shared any decks yet/);
+    expect(screen.queryByRole('region', { name: 'Binders' })).toBeNull();
+    unmount();
+
+    fetchPublicProfileMock.mockResolvedValue(
+      profile({
+        isOwner: true,
+        moderationHidden: true,
+        binders: [{ slug: 'a-1', name: 'Artifacts', publishedAt: 0, updatedAt: 0 }],
+      })
+    );
+    renderProfile();
+    await screen.findByText(/hidden by a moderator/);
+    expect(screen.queryByRole('region', { name: 'Binders' })).toBeNull();
+  });
+});

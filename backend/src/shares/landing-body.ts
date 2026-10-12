@@ -1,4 +1,5 @@
 import type { PublicDeckSummary } from '../publications/cache';
+import type { PublicResourcePage, PublicResourceSummary } from '../publications/resource-pages';
 import { asRecord, asString, type PublicDeck } from './projections';
 import { escapeHtmlAttr as esc } from './og';
 
@@ -95,6 +96,8 @@ export function buildProfileLandingBody(profile: {
   displayName: string | null;
   bio: string | null;
   decks: PublicDeckSummary[];
+  /** Published binders and lists (E401); absent reads as none. */
+  resources?: PublicResourceSummary[];
 }): string {
   const parts = [`<h1>${esc(profile.displayName ?? profile.username)}</h1>`];
   if (profile.bio) parts.push(`<p>${esc(profile.bio)}</p>`);
@@ -106,6 +109,48 @@ export function buildProfileLandingBody(profile: {
         }</li>`
     );
     parts.push(`<h2>Public decks</h2><ul>${items.join('')}</ul>`);
+  }
+  for (const [kind, heading, path] of [
+    ['binder', 'Public binders', '/b/'],
+    ['list', 'Public lists', '/l/'],
+  ] as const) {
+    const rows = (profile.resources ?? []).filter((r) => r.kind === kind);
+    if (!rows.length) continue;
+    const items = rows.map((r) => `<li><a href="${path}${esc(r.slug)}">${esc(r.name)}</a></li>`);
+    parts.push(`<h2>${heading}</h2><ul>${items.join('')}</ul>`);
+  }
+  return wrap(parts.join(''));
+}
+
+/** A body is capped so one huge binder cannot make the landing HTML enormous. */
+const RESOURCE_BODY_MAX_CARDS = 500;
+
+export function buildResourceLandingBody(page: PublicResourcePage): string {
+  const { data } = page;
+  const owner = data.ownerDisplayName ?? data.ownerUsername;
+  const parts = [
+    `<h1>${esc(data.name)}</h1>`,
+    `<p>A ${page.kind === 'binder' ? 'binder' : 'card list'} by <a href="/u/${esc(
+      data.ownerUsername
+    )}">${esc(owner)}</a>.</p>`,
+  ];
+  let budget = RESOURCE_BODY_MAX_CARDS;
+  if (page.kind === 'binder') {
+    for (const section of page.data.sections) {
+      if (budget <= 0) break;
+      const counts = new Map<string, number>();
+      for (const card of section.cards.slice(0, budget)) {
+        counts.set(card.name, (counts.get(card.name) ?? 0) + 1);
+      }
+      budget -= section.cards.slice(0, budget).length;
+      const items = [...counts].map(([name, n]) => `<li>${n} ${esc(name)}</li>`);
+      parts.push(`<h2>${esc(section.label)}</h2><ul>${items.join('')}</ul>`);
+    }
+  } else {
+    const items = page.data.entries
+      .slice(0, budget)
+      .map((e) => `<li>${e.quantity} ${esc(e.name)}</li>`);
+    parts.push(`<ul>${items.join('')}</ul>`);
   }
   return wrap(parts.join(''));
 }

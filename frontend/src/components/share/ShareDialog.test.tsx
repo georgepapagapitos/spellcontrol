@@ -12,6 +12,9 @@ const {
   getPublicationMock,
   publishDeckMock,
   unpublishDeckMock,
+  getResourcePublicationMock,
+  publishResourceMock,
+  unpublishResourceMock,
   listFriendsMock,
 } = vi.hoisted(() => ({
   createShareMock: vi.fn(),
@@ -20,6 +23,9 @@ const {
   getPublicationMock: vi.fn(),
   publishDeckMock: vi.fn(),
   unpublishDeckMock: vi.fn(),
+  getResourcePublicationMock: vi.fn(),
+  publishResourceMock: vi.fn(),
+  unpublishResourceMock: vi.fn(),
   listFriendsMock: vi.fn(),
 }));
 
@@ -34,6 +40,11 @@ vi.mock('@/lib/social/publications-client', () => ({
   publishDeck: (deckId: string) => publishDeckMock(deckId),
   unpublishDeck: (deckId: string) => unpublishDeckMock(deckId),
   publicationUrl: (slug: string) => `https://spellcontrol.com/d/${slug}`,
+  getResourcePublication: (kind: string, id: string) => getResourcePublicationMock(kind, id),
+  publishResource: (kind: string, id: string) => publishResourceMock(kind, id),
+  unpublishResource: (kind: string, id: string) => unpublishResourceMock(kind, id),
+  resourcePublicationUrl: (kind: string, slug: string) =>
+    `https://spellcontrol.com/${kind === 'binder' ? 'b' : 'l'}/${slug}`,
 }));
 vi.mock('@/lib/social/friends-client', () => ({ listFriends: () => listFriendsMock() }));
 
@@ -203,9 +214,105 @@ describe('ShareDialog — a deck', () => {
   });
 });
 
-describe('ShareDialog — other kinds', () => {
-  it('a binder keeps "Anyone with the link" until binders get a public page', async () => {
-    renderDialog('binder', 'b1');
+describe.each([
+  ['binder', 'b1', 'b'],
+  ['list', 'l1', 'l'],
+] as const)('ShareDialog — a %s', (kind, id, prefix) => {
+  const LIVE_PAGE = {
+    ...LIVE,
+    slug: `mine-${prefix}`,
+    url: `https://spellcontrol.com/${prefix}/mine-${prefix}`,
+  };
+  const pageUrl = `https://spellcontrol.com/${prefix}/mine-${prefix}`;
+
+  beforeEach(() => {
+    getResourcePublicationMock.mockResolvedValue(null);
+    publishResourceMock.mockResolvedValue(LIVE_PAGE);
+    unpublishResourceMock.mockResolvedValue(undefined);
+  });
+
+  it('offers exactly Public, Friends and Private, like a deck', async () => {
+    renderDialog(kind, id);
+    await loaded();
+    expect(
+      screen
+        .getAllByRole('radio')
+        .map((r) => r.closest('label')!.querySelector('.choice-option-label')!.textContent)
+    ).toEqual(['Public', 'Friends', 'Private']);
+    expect(getPublicationMock).not.toHaveBeenCalled();
+  });
+
+  it('opens on the real state and publishes nothing just by opening', async () => {
+    getResourcePublicationMock.mockResolvedValue(LIVE_PAGE);
+    renderDialog(kind, id);
+    await waitFor(() => expect(radio('Public').checked).toBe(true));
+    expect(getResourcePublicationMock).toHaveBeenCalledWith(kind, id);
+    expect(publishResourceMock).not.toHaveBeenCalled();
+    expect(createShareMock).not.toHaveBeenCalled();
+    expect(screen.getByDisplayValue(pageUrl)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'your profile' })).toBeTruthy();
+  });
+
+  it('Public publishes at once, shows the page link, and never fires the deck seal', async () => {
+    renderDialog(kind, id);
+    await loaded();
+    fireEvent.click(radio('Public'));
+    await waitFor(() => expect(radio('Public').checked).toBe(true));
+    expect(publishResourceMock).toHaveBeenCalledWith(kind, id);
+    expect(publishDeckMock).not.toHaveBeenCalled();
+    expect(fireSealMock).not.toHaveBeenCalled();
+    expect(screen.getByDisplayValue(pageUrl)).toBeTruthy();
+  });
+
+  it('Friends mints a friends share and drops the public link', async () => {
+    getResourcePublicationMock.mockResolvedValue(LIVE_PAGE);
+    renderDialog(kind, id);
+    await waitFor(() => expect(radio('Public').checked).toBe(true));
+    fireEvent.click(radio('Friends'));
+    await waitFor(() => expect(radio('Friends').checked).toBe(true));
+    expect(createShareMock).toHaveBeenCalledWith({
+      kind,
+      resourceId: id,
+      audience: 'friends',
+    });
+    expect(screen.queryByDisplayValue(pageUrl)).toBeNull();
+  });
+
+  it('Private revokes every live share and unpublishes the page', async () => {
+    getResourcePublicationMock.mockResolvedValue(LIVE_PAGE);
+    listSharesMock.mockResolvedValue([row('friends', { kind, resourceId: id })]);
+    renderDialog(kind, id);
+    await waitFor(() => expect(radio('Public').checked).toBe(true));
+    fireEvent.click(radio('Private'));
+    await waitFor(() => expect(radio('Private').checked).toBe(true));
+    expect(revokeShareMock).toHaveBeenCalledWith('tok-friends');
+    expect(unpublishResourceMock).toHaveBeenCalledWith(kind, id);
+    expect(screen.queryByRole('textbox', { name: 'Link' })).toBeNull();
+  });
+
+  it('an existing link share still works and reads as unpicked, with the older-link note', async () => {
+    listSharesMock.mockResolvedValue([row('link', { kind, resourceId: id })]);
+    renderDialog(kind, id);
+    await loaded();
+    expect(screen.getAllByRole('radio').some((r) => (r as HTMLInputElement).checked)).toBe(false);
+    expect(screen.getByText(/older link that anyone can open/)).toBeTruthy();
+    expect(revokeShareMock).not.toHaveBeenCalled();
+    expect(screen.getByDisplayValue('https://spellcontrol.com/s/tok-link')).toBeTruthy();
+  });
+
+  it('a failed change says so and keeps the previous choice', async () => {
+    publishResourceMock.mockRejectedValue(new Error("Couldn't make it public. Try again."));
+    renderDialog(kind, id);
+    await loaded();
+    fireEvent.click(radio('Public'));
+    expect((await screen.findByRole('alert')).textContent).toContain('public');
+    expect(radio('Private').checked).toBe(true);
+  });
+});
+
+describe('ShareDialog — a collection', () => {
+  it('keeps "Anyone with the link" until collections get a public page', async () => {
+    renderDialog('collection', undefined);
     await loaded();
     expect(
       screen
@@ -214,12 +321,9 @@ describe('ShareDialog — other kinds', () => {
     ).toEqual(['Anyone with the link', 'Friends', 'Private']);
     fireEvent.click(radio('Anyone with the link'));
     await waitFor(() => expect(radio('Anyone with the link').checked).toBe(true));
-    expect(createShareMock).toHaveBeenCalledWith({
-      kind: 'binder',
-      resourceId: 'b1',
-      audience: 'link',
-    });
-    expect(getPublicationMock).not.toHaveBeenCalled();
+    expect(createShareMock).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'collection', audience: 'link' })
+    );
   });
 });
 

@@ -10,7 +10,7 @@ const MAX_BASE_LENGTH = 60;
  * length. Falls back to 'deck' when nothing alphanumeric survives (an
  * all-emoji/symbol name).
  */
-function slugifyBase(name: string): string {
+function slugifyBase(name: string, fallback: string): string {
   const base = name
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
@@ -20,7 +20,7 @@ function slugifyBase(name: string): string {
     .replace(/^-+|-+$/g, '')
     .slice(0, MAX_BASE_LENGTH)
     .replace(/-+$/g, ''); // a length-cap cut can land mid hyphen-run
-  return base || 'deck';
+  return base || fallback;
 }
 
 /**
@@ -31,7 +31,7 @@ function slugifyBase(name: string): string {
  * `deck_publications_slug_idx` / the frozen-slug decision in PLAN.md §A1).
  * Non-deterministic by design — two calls with the same name never match.
  */
-export function generateDeckSlug(name: string): string {
+export function generateDeckSlug(name: string, fallback = 'deck'): string {
   const suffix = crypto.randomBytes(4).toString('hex');
-  return `${slugifyBase(name)}-${suffix}`;
+  return `${slugifyBase(name, fallback)}-${suffix}`;
 }
