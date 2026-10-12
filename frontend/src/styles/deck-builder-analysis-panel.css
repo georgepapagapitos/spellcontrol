@@ -171,6 +171,20 @@
   flex: 0 0 auto;
 }
 
+/* Coarse-pointer floor (E1000): the visible chip stays 30px tall, a ghost
+   supplies the 44px hit area. */
+@media (pointer: coarse) {
+  .deck-analysis-suggest-add {
+    position: relative;
+  }
+
+  .deck-analysis-suggest-add::after {
+    content: '';
+    position: absolute;
+    inset: -7px 0;
+  }
+}
+
 @media (hover: hover) and (pointer: fine) {
   .deck-analysis-suggest-add:hover {
     background: var(--accent-hover);
