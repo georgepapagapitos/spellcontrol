@@ -73,18 +73,27 @@
    (DeckFormatLink) and sharing (DeckVisibilityChip). It wears the line's
    voice and marks itself as tappable with the accent on its value. `font:
    inherit` carries the line's line-height too, so each link is exactly as
-   tall as the line box it sits in (the coarse-pointer rule below). */
+   tall as the line box it sits in (the coarse-pointer rule below).
+   Its text sits on the line's baseline like the plain segments between the
+   links. `bottom` pinned it to the line box's foot instead, and the color
+   pips make that box taller than the text, so both links sat a few pixels
+   low. A glyph has no baseline of its own, so it centers instead and leaves
+   the label to set the link's baseline. */
 .deck-meta-link {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-1);
   padding: 0;
   border: 0;
   background: none;
   color: inherit;
   font: inherit;
-  vertical-align: bottom;
+  vertical-align: baseline;
   cursor: pointer;
+}
+
+.deck-meta-link > svg {
+  align-self: center;
 }
 
 .deck-meta-link-value {
