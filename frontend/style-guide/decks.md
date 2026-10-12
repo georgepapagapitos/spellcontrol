@@ -942,6 +942,18 @@ one question and made you pick which. Rulings:
 - **Worth buying the commander for.** Under that same sort, popular commanders
   you don't own whose decks your collection covers, with the price, in their
   own labeled section below the results.
+- **What your collection leans toward (E284).** Under the same sort, a
+  `Disclosure` below that. Closed, its summary is the insight itself ("White
+  tokens, blue spellslinger"): the leans are read from the owned cards alone
+  (single-color, one per name; a playstyle's rules-text pattern, scored as a
+  lift over the whole collection, `lib/deck/collection-leans.ts`), so they cost
+  nothing and work offline. Opening it is what fetches: at most three EDHREC
+  tag pages, each in its color, then the page's top eight commanders scored by
+  the same coverage number and the best four shown. Each lean is its own group
+  with its own loading, empty ("share cards with your collection yet"), no-page
+  and failed-with-Retry states. A color needs 25 single-color cards and a
+  lean needs five matches, so a thin collection shows no section rather than a
+  guess.
 - **An empty result names the filter to drop** as buttons ("Search all
   commanders", "Within white", "Remove Reanimator"), never "No commanders
   found". A failed fetch is its own state with Retry, never an empty list.

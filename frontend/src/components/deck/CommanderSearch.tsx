@@ -73,6 +73,7 @@ import { FilterChipsRow, type FilterChipDescriptor } from '@/components/shared/F
 import { SegmentedControl } from '@/components/shared/form';
 import { RulesTextParagraphs } from '@/components/card/RulesText';
 import { CommanderPickArt } from './CommanderPickArt';
+import { CommanderLeans } from './CommanderLeans';
 
 /**
  * Resolves the commander-picker platform-deck-count badge (social W4) for a
@@ -1213,6 +1214,21 @@ export function CommanderSearch({
               })}
             </ul>
           </section>
+        )}
+
+        {showBuy && (
+          <CommanderLeans
+            cards={collectionCards}
+            colors={colors}
+            readiness={readiness}
+            ensureReadiness={ensureReadiness}
+            isOwned={(n) => ownedLegendNames.has(n.toLowerCase())}
+            selectingName={selecting}
+            onPick={(name) => {
+              const owned = collectionLegends.find((c) => c.name === name);
+              void selectEntry({ key: name, name, colors: [], playstyleIds: [], owned });
+            }}
+          />
         )}
       </div>
 
