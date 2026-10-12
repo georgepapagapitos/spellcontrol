@@ -48,6 +48,24 @@ export function priceKey(scryfallId: string, finish?: string): string {
 let cache = new Map<string, PriceEntry>();
 let loaded = false;
 
+// Change signal for the cache (useSyncExternalStore shape): a monotonically
+// increasing version plus subscribers, bumped whenever setPrices stores
+// something new. Lets a deck that is already on screen re-read prices when a
+// background refresh lands, without any store or synced row changing.
+let version = 0;
+const listeners = new Set<() => void>();
+
+export function subscribePrices(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+}
+
+export function getPricesVersion(): number {
+  return version;
+}
+
 /** Load the cache from localStorage into memory. Idempotent; call once at boot. */
 export function loadPrices(): void {
   if (loaded) return;
@@ -81,7 +99,11 @@ export function setPrices(entries: Record<string, PriceEntry>): void {
   // Only touch localStorage when something actually changed — `persistCardsState`
   // re-seeds the whole collection's prices on every persist, and re-serializing
   // a large map on an unrelated mutation (e.g. renaming a binder) would jank.
-  if (changed) persist();
+  if (changed) {
+    persist();
+    version++;
+    for (const fn of [...listeners]) fn();
+  }
 }
 
 export function getPrice(scryfallId: string, finish?: string): PriceEntry | undefined {
@@ -93,6 +115,8 @@ export function getPrice(scryfallId: string, finish?: string): PriceEntry | unde
 export function _resetForTests(): void {
   cache = new Map();
   loaded = false;
+  version = 0;
+  listeners.clear();
 }
 
 /**

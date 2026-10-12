@@ -63,6 +63,7 @@ import { useSetMap } from '@/lib/api';
 import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
 import { useDeckPullCounts } from '@/lib/collection/use-deck-pull-counts';
 import { deckValue } from '@/lib/deck/deck-value';
+import { useDeckPrices } from '@/components/deck/use-deck-prices';
 import { useCurrency } from '@/lib/collection/currency';
 import { formatMoney } from '@/lib/collection/format-money';
 import type { Deck, DeckSource } from '../store/decks';
@@ -202,9 +203,15 @@ export function DecksIndexPage() {
   // Each deck's value, once per render of the list: the Value sort orders by
   // it and every row prints it, so the two can never disagree.
   const currency = useCurrency();
+  // Resolves printings the price cache lacks (capped, once per TTL) and ticks
+  // when prices land, so the values below recompute (E422).
+  const pricesVersion = useDeckPrices(
+    decks.flatMap((d) => [d.commander, d.partnerCommander, ...d.cards.map((c) => c.card)])
+  );
   const deckValues = useMemo(
     () => new Map(decks.map((d) => [d.id, deckValue(d, currency)])),
-    [decks, currency]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [decks, currency, pricesVersion]
   );
   // Gate for the "From my binder" door — mirrors the tab's own empty state.
   const canBuildFromBinder = rawCollectionCards.length >= MIN_COLLECTION_SIZE;

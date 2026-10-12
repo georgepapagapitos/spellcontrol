@@ -14,6 +14,7 @@ import {
 import { useOverflowEdges } from '@/lib/util/use-overflow-edges';
 import { useDeckViewAnalytics } from '@/lib/util/use-deck-view-analytics';
 import { useCurrency } from '@/lib/collection/currency';
+import { useDeckPrices } from './use-deck-prices';
 import { isKeyboardContextMenu, keepsBrowserMenu } from '@/lib/overlays/context-menu';
 import { createPortal } from 'react-dom';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -114,7 +115,7 @@ import { DeckAnalysisView } from './DeckAnalysisView';
 import { CardName } from '@/components/shared/CardName';
 import { buttonClass } from '@/components/shared/Button';
 import type { DeckDisplayProps } from './deck-display-types';
-import type { DeckView } from '@/lib/deck-analysis/deck-view';
+import { VIEW_HEADINGS } from '@/lib/deck-analysis/deck-view';
 import type { AnalysisTabId } from '@/lib/deck-analysis/deck-view';
 import {
   titlesUnder,
@@ -264,6 +265,9 @@ export function DeckDisplay({
   // (E465). Drives the open-slot row and the empty state's second door.
   const chooseCommander = formatConfig.hasCommander && !commander ? onChooseCommander : undefined;
   const currency: CurrencyCode = useCurrency();
+  // Resolves printings the device price cache lacks and ticks when prices land,
+  // so the row prices and totals below recompute (E422).
+  const pricesVersion = useDeckPrices([commander, partnerCommander, ...cards.map((c) => c.card)]);
   // New-arrivals review (E140): whether the (single, all-category) sheet is open.
   const [arrivalsOpen, setArrivalsOpen] = useState(false);
   const [sort, setSort] = useState<SortMode>('name');
@@ -503,15 +507,17 @@ export function DeckDisplay({
   );
   const rowsFor = useCallback(
     (zone: typeof cards) => {
+      void pricesVersion; // re-price rows when the price cache changes
       const rows = buildRows(zone, currency, collectionByCopyId, crossDeck);
       return viewerOwned ? withViewerOwnership(rows, viewerOwned) : rows;
     },
-    [currency, collectionByCopyId, crossDeck, viewerOwned]
+    [currency, collectionByCopyId, crossDeck, viewerOwned, pricesVersion]
   );
 
   // Commander rows are synthetic so they always render first; their slot
   // ids are blank because remove is not allowed on the commander.
   const commanderRows: Row[] = useMemo(() => {
+    void pricesVersion;
     const rows = buildCommanderRows({
       commander,
       partnerCommander,
@@ -533,6 +539,7 @@ export function DeckDisplay({
     claimedByForName,
     currency,
     viewerOwned,
+    pricesVersion,
   ]);
 
   // Whether the bundled tagger data (role classification) has loaded —
@@ -784,8 +791,8 @@ export function DeckDisplay({
   // copy (i.e. status !== 'allocated'). Surfaces buy-list info inline so we
   // don't need a separate banner above the deck.
   const missing = useMemo(
-    () => summarizeMissing(cards, collectionByCopyId, currency),
-    [cards, collectionByCopyId, currency]
+    () => (void pricesVersion, summarizeMissing(cards, collectionByCopyId, currency)),
+    [cards, collectionByCopyId, currency, pricesVersion]
   );
   // Tally of the unallocated (missing) cards — the tappable "missing" stat opens
   // a carousel of these so the count doubles as a shopping list.
@@ -1880,13 +1887,6 @@ export function DeckDisplay({
     </CardPreviewContext.Provider>
   );
 }
-
-const VIEW_HEADINGS: Record<DeckView, string> = {
-  deck: 'Deck',
-  stats: 'Deck stats',
-  power: 'Power',
-  tune: 'Coach',
-};
 
 /** The "Deck stats" heading under the list; 'stats' is a place on the Deck
  *  tab now, not a tab of its own. */

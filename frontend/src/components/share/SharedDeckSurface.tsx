@@ -23,6 +23,7 @@ import { formatMoney } from '@/lib/collection/format-money';
 import { useCurrency } from '@/lib/collection/currency';
 import { deckCoverArt } from '@/lib/deck/deck-cover';
 import { deckValue } from '@/lib/deck/deck-value';
+import { useDeckPrices } from '../deck/use-deck-prices';
 import { effectiveBracket } from '../../store/decks';
 import { bracketTextWithEstimate } from '@/lib/deck-analysis/format-bracket-label';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
@@ -263,7 +264,16 @@ export function SharedDeckSurface({
   // getting a plain caption-and-title block instead — the same deck, dressed as
   // a different product.
   const heroArt = useMemo(() => deckCoverArt(deck), [deck]);
-  const heroValue = useMemo(() => deckValue(deck, currency), [deck, currency]);
+  const pricesVersion = useDeckPrices([
+    deck.commander,
+    deck.partnerCommander,
+    ...deck.cards.map((c) => c.card),
+  ]);
+  const heroValue = useMemo(
+    () => deckValue(deck, currency),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [deck, currency, pricesVersion]
+  );
   const bracketValue = effectiveBracket(deck);
   // A stated bracket that differs from the estimate carries the estimate
   // alongside it — the same "shown to other people, so it can't hide the
