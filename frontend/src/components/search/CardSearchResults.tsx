@@ -395,7 +395,9 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
                       <span className="inline-card-search-tile-printing">
                         {c.set.toUpperCase()} #{c.collector_number}
                       </span>
-                      {badge && <span className="inline-card-search-tile-owned">{badge}</span>}
+                      {badge && (
+                        <span className="truncate-meta inline-card-search-tile-owned">{badge}</span>
+                      )}
                     </span>
                     <IconButton
                       variant="secondary"

@@ -1134,14 +1134,6 @@
   text-overflow: ellipsis;
 }
 
-.inline-card-search-tile-owned {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .inline-card-search-tile-add {
   flex: none;
 }
@@ -1857,14 +1849,6 @@
   border-radius: var(--radius);
   background: var(--surface-raised);
   font-size: var(--text-sm);
-}
-
-.import-binder-file-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* BackLink — chevron + label, sits above a detail-page hero. Same

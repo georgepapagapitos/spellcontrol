@@ -105,7 +105,7 @@ export function CubeIndexPage() {
                       <span className="cube-index-row-name">{sc.name}</span>
                       {sc.isPhysical && <VerdictBadge tone="accent" label="Physical" />}
                     </span>
-                    <span className="cube-index-row-meta">
+                    <span className="truncate-meta cube-index-row-meta">
                       <SavedCubeMeta sc={sc} />
                     </span>
                   </span>

@@ -25,20 +25,11 @@
     ]
   },
   "06d374f354": {
-    "size": 12,
+    "size": 3,
     "locations": [
-      "components/deck/DeckFeedbackSheet.css:.deck-feedback-suggestion-name",
-      "components/play/BoardSheets.css:.board-roster-name",
-      "pages/SetsPage.css:.set-list-name",
-      "playtest/components/horde/HordeBand.css:.horde-band__combat-label",
-      "playtest/components/horde/HordeBand.css:.horde-band__line",
-      "styles/binder-card-management.css:.import-binder-file-name",
-      "styles/deck-builder-import-dialog.css:.import-deck-batch-file-name",
-      "styles/import-upload.css:.staged-files-name",
+      "styles/base-layout.css:.truncate-fill",
       "styles/playtest.css:.playtest-ctx-attached > span",
-      "styles/playtest.css:.playtest-ctx-sticker span",
-      "styles/shared.css:.feedback-row-name",
-      "styles/stats-breakdown.css:.breakdown-row-label"
+      "styles/playtest.css:.playtest-ctx-sticker span"
     ]
   },
   "0a53b3599f": {
@@ -268,22 +259,12 @@
     ]
   },
   "3ce40d8616": {
-    "size": 14,
+    "size": 4,
     "locations": [
       "components/binder/BinderEditor.css:.binder-editor-result small",
-      "components/deck/BuildTimeCoachStrip.css:.build-time-coach-strip-detail",
       "components/friends/FriendRow.css:.friend-row-handle, .friend-row-since",
-      "components/friends/PeopleSearch.css:.people-row-handle",
-      "components/home/FollowedBrewersCard.css:.home-followed-by",
       "components/social/BrewerCard.css:.brewer-card-handle, .brewer-card-stats, .brewer-card-commander",
-      "components/social/FriendsManagement.css:.friends-identity-handle",
-      "components/trade/TradeReview.css:.trade-tray-sub",
-      "pages/cube/cube.css:.cube-index-row-meta",
-      "pages/cube/cube.css:.cube-saved-meta",
-      "playtest/components/OpponentRail.css:.opponent-entry__permanents",
-      "styles/binder-card-management.css:.inline-card-search-tile-owned",
-      "styles/import-upload.css:.binder-import-row-file",
-      "styles/stats-breakdown.css:.collection-insight-row-detail"
+      "styles/base-layout.css:.truncate-meta"
     ]
   },
   "3d2139eae0": {
@@ -518,22 +499,6 @@
     "locations": [
       "components/play/RoomBrowser.css:.room-browser-row-meta",
       "components/play/TonightTrades.css:.tonight-trades-loading"
-    ]
-  },
-  "81a0490ee6": {
-    "size": 11,
-    "locations": [
-      "components/deck/BracketBreakdown.css:.bracket-breakdown-floors",
-      "components/deck/CoachFeed.css:.coach-feed-rows",
-      "components/deck/DeckColorBalance.css:.deck-color-balance-rows",
-      "components/deck/NextBestMove.css:.next-best-move-list",
-      "components/play/BoardSheets.css:.board-roster",
-      "components/trade/TradeReview.css:.trade-review-lines",
-      "pages/SetsPage.css:.set-list",
-      "pages/SetsPage.css:.sets-card-lines",
-      "styles/deck-builder-display.css:.toolbar-popover-list",
-      "styles/modals-dialogs.css:.shortcuts-overlay-list",
-      "styles/shared.css:.shared-cube-card-list"
     ]
   },
   "82667311be": {

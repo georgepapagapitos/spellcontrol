@@ -270,7 +270,7 @@ function PlayerRoster({
 
   return (
     <>
-      <ul className="board-roster" aria-label="Seats">
+      <ul className="list-stack list-stack--flush board-roster" aria-label="Seats">
         {players.map((p) => (
           <li key={p.id} className="board-roster-row">
             <span
@@ -278,7 +278,7 @@ function PlayerRoster({
               style={{ background: paletteForSeat(game.id, p.seat).base }}
               aria-hidden="true"
             />
-            <span className="board-roster-name">{p.name}</span>
+            <span className="truncate-fill board-roster-name">{p.name}</span>
             {!locked && (
               <IconButton
                 className="board-roster-remove"

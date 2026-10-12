@@ -49,7 +49,7 @@ export function FollowedBrewersCard({
                 <Link to={`/d/${item.slug}`} className="home-followed-deck">
                   {item.deckName}
                 </Link>
-                <span className="home-followed-by">
+                <span className="truncate-meta home-followed-by">
                   by{' '}
                   <Link to={`/u/${item.brewerUsername}`} className="home-followed-brewer">
                     {who}

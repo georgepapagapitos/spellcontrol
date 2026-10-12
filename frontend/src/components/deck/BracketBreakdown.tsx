@@ -571,7 +571,10 @@ export function BracketBreakdown({
           // One row per floor: the bracket it sets, why, and the cards that
           // set it, as their art. It was a two-column table inside a bordered
           // box inside the panel, for what is usually one reason.
-          <ul className="bracket-breakdown-floors" aria-label="Hard floors">
+          <ul
+            className="list-stack list-stack--flush bracket-breakdown-floors"
+            aria-label="Hard floors"
+          >
             {sortedFloors.map((f, i) => {
               // The rewritten combo row shows no art: the judgment below
               // names the deciding pair, and the Combos panel lists them all.

@@ -278,14 +278,6 @@
 
 /* ── Players ── */
 
-.board-roster {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
 .board-roster-row {
   display: flex;
   align-items: center;
@@ -299,14 +291,6 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-}
-
-.board-roster-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .board-roster-remove {

@@ -35,14 +35,6 @@
   color: var(--text-muted);
 }
 
-.next-best-move-list {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
 .next-best-move-row {
   --tier-color: var(--accent);
 

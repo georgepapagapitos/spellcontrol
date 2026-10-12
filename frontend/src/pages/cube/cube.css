@@ -157,13 +157,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.cube-saved-meta {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 /* Wrapper is out of the box tree so its OverflowMenu trigger button (styled
    via triggerClassName="cube-saved-action" below) is the direct flex child,
    matching every other action button in the row (sweep 3, E262: folded
@@ -1675,14 +1668,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.cube-index-row-meta {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* ---- new-cube chooser ---- */
 .cube-chooser {
   display: flex;

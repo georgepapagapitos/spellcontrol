@@ -712,7 +712,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                 <ul className="import-deck-batch-list">
                   {batchFiles.map((f, i) => (
                     <li key={f.name}>
-                      <span className="import-deck-batch-file-name">{f.name}</span>
+                      <span className="truncate-fill import-deck-batch-file-name">{f.name}</span>
                       <IconButton
                         className="import-deck-batch-remove"
                         onClick={() => {

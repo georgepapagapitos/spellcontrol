@@ -176,7 +176,7 @@ function InsightRow({ label, detail, onClick, to, bar }: InsightRowProps) {
   const text = (
     <span className="collection-insight-row-text">
       <span className="collection-insight-row-label">{label}</span>
-      <span className="collection-insight-row-detail">{detail}</span>
+      <span className="truncate-meta collection-insight-row-detail">{detail}</span>
       {bar}
     </span>
   );
@@ -416,7 +416,7 @@ function BreakdownRow({
     <>
       <div className="breakdown-row-head">
         {icon}
-        <span className="breakdown-row-label">
+        <span className="truncate-fill breakdown-row-label">
           {row.label}
           {/* A physical binder's size in the unit you shelve it by. Inside
               the label so a long name truncates this first, never the name. */}

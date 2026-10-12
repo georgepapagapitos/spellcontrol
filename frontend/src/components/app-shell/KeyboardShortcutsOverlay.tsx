@@ -45,7 +45,7 @@ export function KeyboardShortcutsOverlay({ groups, onClose }: Props) {
         {groups.map((g) => (
           <section key={g.title} className="shortcuts-overlay-section">
             <h3 className="shortcuts-overlay-section-title">{g.title}</h3>
-            <ul className="shortcuts-overlay-list">
+            <ul className="list-stack list-stack--flush shortcuts-overlay-list">
               {g.shortcuts.map((s) => (
                 <li key={s.description} className="shortcuts-overlay-row">
                   <span className="shortcuts-overlay-keys">

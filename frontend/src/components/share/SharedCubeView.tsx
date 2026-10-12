@@ -120,7 +120,7 @@ export function SharedCubeView({ data, action }: Props) {
                   </>
                 }
               />
-              <ul className="shared-cube-card-list">
+              <ul className="list-stack list-stack--flush shared-cube-card-list">
                 {cards.map((c) => (
                   <li key={c.oracleId} className="shared-cube-card-row">
                     <span className="shared-cube-card-name">{c.name}</span>

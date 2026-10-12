@@ -32,14 +32,6 @@
   white-space: nowrap;
 }
 
-.home-followed-by {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .home-followed-brewer {
   color: var(--text-secondary);
 }

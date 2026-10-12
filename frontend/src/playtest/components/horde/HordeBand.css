@@ -54,14 +54,6 @@
   color: var(--felt-text, #fff);
 }
 
-.horde-band__line {
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .horde-band__retry {
   border: 0;
   background: none;
@@ -89,14 +81,6 @@
   background: rgb(0 0 0 / 38%);
   color: var(--felt-text, #fff);
   font-size: var(--text-sm);
-}
-
-.horde-band__combat-label {
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .horde-band__combat-field {

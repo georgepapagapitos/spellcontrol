@@ -190,14 +190,6 @@
   padding: var(--space-0-5) 0;
 }
 
-.import-deck-batch-file-name {
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .import-deck-batch-remove {
   flex-shrink: 0;
   display: inline-flex;

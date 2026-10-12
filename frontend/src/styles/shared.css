@@ -814,14 +814,6 @@
   color: var(--text-secondary);
 }
 
-.shared-cube-card-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
 .shared-cube-card-row {
   display: flex;
   align-items: baseline;
@@ -974,14 +966,6 @@
 .feedback-row-thumb--ph {
   display: inline-block;
   border: 0.5px solid var(--border);
-}
-
-.feedback-row-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .feedback-row-type {

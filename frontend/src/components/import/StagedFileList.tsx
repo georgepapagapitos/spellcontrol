@@ -36,7 +36,7 @@ export function StagedFileList({
       <ul className="staged-files-list">
         {files.map((f, i) => (
           <li key={f.name}>
-            <span className="staged-files-name">{f.name}</span>
+            <span className="truncate-fill staged-files-name">{f.name}</span>
             <IconButton
               className="staged-files-remove"
               onClick={() => onRemove(i)}

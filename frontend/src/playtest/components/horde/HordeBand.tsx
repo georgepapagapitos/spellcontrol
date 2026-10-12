@@ -62,7 +62,7 @@ function CombatBar({
   const value = clampDamage(draft, max);
   return (
     <div className="horde-band__combat">
-      <span className="horde-band__combat-label">
+      <span className="truncate-fill horde-band__combat-label">
         Attacks · {power} power{variable > 0 ? ` + ${variable} variable` : ''}
       </span>
       <label className="horde-band__combat-field">
@@ -120,7 +120,7 @@ export function HordeBand({
     return (
       <section className="horde-band is-open" aria-label="The horde">
         <div className="horde-band__bar">
-          <span className="horde-band__line">
+          <span className="truncate-fill horde-band__line">
             {blocked.message}{' '}
             <button type="button" className="horde-band__retry" onClick={blocked.onAction}>
               {blocked.actionLabel}
@@ -136,14 +136,14 @@ export function HordeBand({
       <section className="horde-band is-open" aria-label="The horde">
         <div className="horde-band__bar">
           {hordeLoad.status === 'error' ? (
-            <span className="horde-band__line">
+            <span className="truncate-fill horde-band__line">
               Couldn't load the horde.{' '}
               <button type="button" className="horde-band__retry" onClick={() => retryLoad()}>
                 Retry
               </button>
             </span>
           ) : (
-            <span className="horde-band__line">Loading the horde…</span>
+            <span className="truncate-fill horde-band__line">Loading the horde…</span>
           )}
         </div>
       </section>
@@ -175,7 +175,7 @@ export function HordeBand({
               aria-expanded={open}
               onClick={() => setManualOpen(!open)}
             >
-              <span className="horde-band__line">
+              <span className="truncate-fill horde-band__line">
                 {statusText ?? hordeBandLine(horde, playerTurn)}
               </span>
               {open ? (

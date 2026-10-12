@@ -169,14 +169,6 @@
   color: var(--warn-text);
 }
 
-.deck-feedback-suggestion-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .deck-feedback-verdicts {
   display: inline-flex;
   gap: var(--space-1);

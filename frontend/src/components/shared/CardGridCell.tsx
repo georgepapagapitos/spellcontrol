@@ -87,7 +87,11 @@ export function GridCaptionList({
   onChange: (next: GridCaptionPrefs) => void;
 }) {
   return (
-    <ul className="toolbar-popover-list" role="menu" aria-label="Card details">
+    <ul
+      className="list-stack list-stack--flush toolbar-popover-list"
+      role="menu"
+      aria-label="Card details"
+    >
       {(Object.keys(GRID_CAPTION_LABEL) as (keyof GridCaptionPrefs)[]).map((k) => (
         <li key={k}>
           <button

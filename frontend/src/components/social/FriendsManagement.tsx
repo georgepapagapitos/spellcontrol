@@ -440,7 +440,9 @@ export function FriendsManagement() {
                               {identity.primary}
                             </span>
                             {identity.secondary && (
-                              <span className="friends-identity-handle">{identity.secondary}</span>
+                              <span className="truncate-meta friends-identity-handle">
+                                {identity.secondary}
+                              </span>
                             )}
                           </span>
                           <div className="friends-request-actions">
@@ -485,7 +487,9 @@ export function FriendsManagement() {
                               {identity.primary}
                             </span>
                             {identity.secondary && (
-                              <span className="friends-identity-handle">{identity.secondary}</span>
+                              <span className="truncate-meta friends-identity-handle">
+                                {identity.secondary}
+                              </span>
                             )}
                           </span>
                           <div className="friends-request-actions">

@@ -48,14 +48,6 @@
 /* ── Hard floors ── one hairline row per floor: the bracket it sets in a
    narrow tag column, then the reason, its detail and the cards that set it.
    No box and no accent bar: the panel is the frame (§ Surfaces: one frame). */
-.bracket-breakdown-floors {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
 .bracket-breakdown-floor {
   display: grid;
   grid-template-columns: 5.5rem minmax(0, 1fr);
