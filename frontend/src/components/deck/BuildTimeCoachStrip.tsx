@@ -43,7 +43,7 @@ export function BuildTimeCoachStrip({ nudge, onView, onDismiss }: Props): JSX.El
         {KIND_ICON[nudge.kind]}
       </span>
       <div className="build-time-coach-strip-body">
-        <p className="build-time-coach-strip-headline">{nudge.headline}</p>
+        <p className="truncate-name">{nudge.headline}</p>
         {nudge.detail && (
           <p className="truncate-meta build-time-coach-strip-detail">{nudge.detail}</p>
         )}

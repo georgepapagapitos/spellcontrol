@@ -279,7 +279,7 @@ function Timeline({ game, rows: allRows }: { game: GameState; rows: TimelineRow[
               }
               aria-hidden
             />
-            <div className="timeline-body">
+            <div className="text-stack">
               <div className="timeline-line">
                 {meta.target && <span className="timeline-name">{meta.target}</span>}
                 <span className="timeline-action">{meta.action}</span>

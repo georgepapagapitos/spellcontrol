@@ -135,8 +135,8 @@ function ProductResultRow({ product, set, disabled, onOpen }: ResultRowProps) {
             </span>
           )}
         </span>
-        <span className="product-result-text">
-          <span className="product-result-name">{product.name}</span>
+        <span className="text-stack">
+          <span className="truncate-name">{product.name}</span>
           <span className="product-result-meta">
             {product.type}
             {set ? ` · ${set.name}` : ` · ${product.code}`}

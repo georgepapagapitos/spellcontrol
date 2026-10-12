@@ -164,8 +164,8 @@ function ArrivalRowItem({
           <span className="new-arrivals-row-thumb-ph" />
         )}
       </span>
-      <span className="new-arrivals-row-meta">
-        <span className="new-arrivals-row-name">{row.name}</span>
+      <span className="text-stack">
+        <span className="truncate-name">{row.name}</span>
         <span className="new-arrivals-row-sub">
           <ManaCost cost={row.card.manaCost} />
           {row.qty > 1 && <span className="new-arrivals-row-qty">×{row.qty} owned</span>}

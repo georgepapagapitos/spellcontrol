@@ -257,7 +257,7 @@ export function TradeIncomingReview({
                         onClick={() => void inspect(choice.asked)}
                       />
                       <span className="trade-review-info">
-                        <span className="trade-review-name" title={choice.asked.name}>
+                        <span className="truncate-name" title={choice.asked.name}>
                           {choice.asked.name}
                         </span>
                         <span
@@ -339,7 +339,7 @@ export function TradeIncomingReview({
                     <li key={card.oracleId || card.name} className="trade-review-line">
                       <ThumbButton name={card.name} onClick={() => void inspect(card)} />
                       <span className="trade-review-info">
-                        <span className="trade-review-name" title={card.name}>
+                        <span className="truncate-name" title={card.name}>
                           {card.name}
                           {card.quantity > 1 && ` ×${card.quantity}`}
                         </span>

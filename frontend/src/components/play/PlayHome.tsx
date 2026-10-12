@@ -254,7 +254,7 @@ function LiveGameRow({
 }) {
   return (
     <div className="play-home-live-row">
-      <div className="play-home-live-body">
+      <div className="text-stack">
         <span className="play-home-live-label">
           {label}
           <span className="play-home-live-status"> · {game.status}</span>

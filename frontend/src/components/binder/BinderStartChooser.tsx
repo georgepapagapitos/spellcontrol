@@ -296,7 +296,7 @@ export function BinderStartChooser({
               <i key={i} style={{ height: `${s.h}%`, background: s.color }} />
             ))}
           </span>
-          <span className="binder-start-shelf-text">
+          <span className="text-stack">
             <span className="binder-start-tile-label">Organize my whole collection</span>
             <span className="binder-start-tile-desc">
               Binders that cover everything. You pick which to keep.

@@ -24,14 +24,6 @@
       "components/deck/DeckSizePrompt.css:.deck-size-prompt-title"
     ]
   },
-  "06d374f354": {
-    "size": 3,
-    "locations": [
-      "styles/base-layout.css:.truncate-fill",
-      "styles/playtest.css:.playtest-ctx-attached > span",
-      "styles/playtest.css:.playtest-ctx-sticker span"
-    ]
-  },
   "0a53b3599f": {
     "size": 2,
     "locations": [
@@ -47,21 +39,6 @@
       "styles/deck-builder-card-list.css:.deck-row-menu-trigger::after  [@media (pointer: coarse)]",
       "styles/deck-builder-card-list.css:.deck-row-select-check::after, .deck-row-drag-handle::after  [@media (pointer: coarse)]",
       "styles/deck-builder-display.css:.role-badge-btn::after  [@media (pointer: coarse)]"
-    ]
-  },
-  "0b3287efab": {
-    "size": 10,
-    "locations": [
-      "components/deck/BuildTimeCoachStrip.css:.build-time-coach-strip-headline",
-      "components/deck/DeckSizePrompt.css:.deck-size-prompt-name",
-      "components/deck/FillDeckSheet.css:.fill-deck-name",
-      "components/deck/MoveToDeckSheet.css:.move-deck-row-name",
-      "components/deck/NewArrivalsSheet.css:.new-arrivals-row-name",
-      "components/deck/SharedCopiesSheet.css:.shared-copies-row-name",
-      "components/home/FollowedBrewersCard.css:.home-followed-deck",
-      "components/import/ProductSearchPanel.css:.product-result-name",
-      "components/trade/TradeOfferList.css:.trade-offer-who-name",
-      "components/trade/TradeReview.css:.trade-review-name"
     ]
   },
   "0c651907da": {
@@ -232,39 +209,11 @@
       "styles/deck-builder-display.css:.toolbar-popover-item:focus-visible"
     ]
   },
-  "35cbd19bce": {
-    "size": 14,
-    "locations": [
-      "components/binder/BinderEditor.css:.binder-start-shelf-text",
-      "components/deck/MoveToDeckSheet.css:.move-deck-titles",
-      "components/deck/NewArrivalsSheet.css:.new-arrivals-row-meta",
-      "components/deck/SharedCopiesSheet.css:.shared-copies-row-text",
-      "components/deck/SharedCopiesSheet.css:.shared-copies-titles",
-      "components/home/PriceMoversCard.css:.home-movers-info",
-      "components/import/ImportHistorySheet.css:.import-history-text",
-      "components/import/ProductSearchPanel.css:.product-result-text",
-      "components/play/DeckPickerDialog.css:.deck-picker-row-text",
-      "components/play/PlayHome.css:.play-home-live-body",
-      "pages/SearchPage.css:.search-rules-hit-body",
-      "styles/admin-scanner.css:.scanner-card-panel-body",
-      "styles/collection.css:.collection-list-main",
-      "styles/play-history-inline.css:.timeline-body"
-    ]
-  },
   "3c7de40753": {
     "size": 2,
     "locations": [
       "styles/deck-builder-import-dialog.css:.import-deck-batch-mode",
       "styles/modals-dialogs.css:.name-input-mode"
-    ]
-  },
-  "3ce40d8616": {
-    "size": 4,
-    "locations": [
-      "components/binder/BinderEditor.css:.binder-editor-result small",
-      "components/friends/FriendRow.css:.friend-row-handle, .friend-row-since",
-      "components/social/BrewerCard.css:.brewer-card-handle, .brewer-card-stats, .brewer-card-commander",
-      "styles/base-layout.css:.truncate-meta"
     ]
   },
   "3d2139eae0": {

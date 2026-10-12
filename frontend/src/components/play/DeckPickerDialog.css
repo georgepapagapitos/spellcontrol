@@ -104,14 +104,6 @@
   color: var(--text-muted);
 }
 
-.deck-picker-row-text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-0-5);
-  min-width: 0;
-  flex: 1;
-}
-
 .deck-picker-row-name {
   font-weight: 600;
   color: var(--text-primary);

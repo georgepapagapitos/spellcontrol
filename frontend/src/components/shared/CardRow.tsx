@@ -313,7 +313,7 @@ export function CardRow({
           aria-hidden
         />
       )}
-      <div className="collection-list-main">
+      <div className="text-stack collection-list-main">
         <div className="collection-list-name">
           {/* Only the name truncates: the badges after it never shrink, so a
               long name on a phone keeps its deck, cube and binder marks. */}

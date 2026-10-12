@@ -23,15 +23,6 @@
   text-decoration: none;
 }
 
-.home-followed-deck {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .home-followed-brewer {
   color: var(--text-secondary);
 }

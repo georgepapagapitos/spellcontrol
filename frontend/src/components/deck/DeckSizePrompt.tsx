@@ -97,7 +97,7 @@ function OptionRow({
         <Thumb name={option.name} />
       </button>
       <span className="deck-size-prompt-card">
-        <span className="deck-size-prompt-name">{option.name}</span>
+        <span className="truncate-name">{option.name}</span>
         <span className="deck-size-prompt-meta">
           {option.roleLabel && <span className="deck-size-prompt-role">{option.roleLabel}</span>}
           {option.hint && <span className="deck-size-prompt-hint">{option.hint}</span>}
@@ -240,7 +240,7 @@ export function DeckSizePrompt({
             >
               <Thumb name={subject.name} />
               <span className="deck-size-prompt-subject-text">
-                <span className="deck-size-prompt-name">{subject.name}</span>
+                <span className="truncate-name">{subject.name}</span>
                 <span className="deck-size-prompt-hint">{subject.label}</span>
               </span>
             </button>

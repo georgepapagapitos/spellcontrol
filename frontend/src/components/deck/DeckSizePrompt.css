@@ -160,15 +160,6 @@
   gap: var(--space-0-5);
 }
 
-.deck-size-prompt-name {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .deck-size-prompt-meta {
   display: flex;
   align-items: center;

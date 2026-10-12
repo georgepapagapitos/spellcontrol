@@ -9,14 +9,6 @@
   padding: var(--space-1) var(--space-1) var(--space-2-5);
 }
 
-.shared-copies-titles {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-0-5);
-  min-width: 0;
-  flex: 1;
-}
-
 .shared-copies-title {
   margin: 0;
   font-size: var(--text-md);
@@ -60,23 +52,6 @@
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface-raised);
-}
-
-.shared-copies-row-text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-0-5);
-  min-width: 0;
-  flex: 1;
-}
-
-.shared-copies-row-name {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .shared-copies-row-where {

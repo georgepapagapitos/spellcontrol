@@ -170,15 +170,6 @@
   min-width: 0;
 }
 
-.trade-review-name {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .trade-review-wanted {
   flex: 0 0 auto;
   padding: 0 var(--space-2);

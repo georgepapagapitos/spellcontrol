@@ -286,7 +286,7 @@ function TradeOfferCard({
             <Link to={`/friends/${offer.counterpartyId}`} className="trade-offer-who">
               <UserAvatar name={who} size={28} />
               <span className="trade-offer-who-text">
-                <span className="trade-offer-who-name">{who}</span>
+                <span className="truncate-name trade-offer-who-name">{who}</span>
                 <span className="trade-offer-who-dir">
                   {offer.mine ? 'You offered' : 'Offered you'}
                 </span>

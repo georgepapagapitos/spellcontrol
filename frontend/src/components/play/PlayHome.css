@@ -28,14 +28,6 @@
   border-radius: var(--radius-lg);
 }
 
-.play-home-live-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-0-5);
-  flex: 1;
-  min-width: 0;
-}
-
 .play-home-live-label {
   font-weight: 600;
 }

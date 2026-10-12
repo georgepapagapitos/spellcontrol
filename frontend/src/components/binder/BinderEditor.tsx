@@ -256,7 +256,9 @@ function FooterResult({
     return (
       <div className="binder-editor-result">
         <strong>{fileCount > 1 ? `${fileCount} binders` : 'One binder'}</strong>
-        <small>Cards are added to your collection, kept in your order.</small>
+        <small className="truncate-meta">
+          Cards are added to your collection, kept in your order.
+        </small>
       </div>
     );
   }
@@ -266,7 +268,7 @@ function FooterResult({
         <strong>
           {pinned.toLocaleString()} pinned {pinned === 1 ? 'card' : 'cards'}
         </strong>
-        <small>Manual mode.</small>
+        <small className="truncate-meta">Manual mode.</small>
       </div>
     );
   }
@@ -286,7 +288,7 @@ function FooterResult({
         <span className="binder-editor-result-n">{landing.lands.toLocaleString()}</span>{' '}
         {landing.lands === 1 ? 'card lands' : 'cards land'} here
       </strong>
-      <small>{parts.join(' · ')}</small>
+      <small className="truncate-meta">{parts.join(' · ')}</small>
     </div>
   );
 }

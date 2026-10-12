@@ -54,7 +54,7 @@ export function SharedCopiesSheet({
       >
         <div className="card-picker-handle" aria-hidden />
         <header className="shared-copies-head">
-          <div className="shared-copies-titles">
+          <div className="text-stack">
             <h2 id={titleId} className="shared-copies-title">
               Shared with your other decks
             </h2>
@@ -77,8 +77,8 @@ export function SharedCopiesSheet({
           <ul className="shared-copies-list" role="list">
             {contested.map((c) => (
               <li key={c.slotId} className="shared-copies-row">
-                <span className="shared-copies-row-text">
-                  <span className="shared-copies-row-name">{c.cardName}</span>
+                <span className="text-stack">
+                  <span className="truncate-name">{c.cardName}</span>
                   <span className="shared-copies-row-where">
                     {c.donorKind === 'cube' ? (
                       <Boxes width={14} height={14} strokeWidth={1.8} aria-hidden />
