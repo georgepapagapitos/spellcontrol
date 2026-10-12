@@ -3185,6 +3185,8 @@ button.playtest-card-pt__value--editable:focus-visible {
 
 .playtest-life-table__total {
   min-width: 2.5ch;
+  /* 24px is the WCAG 2.5.8 floor on the box itself (axe ignores ghosts). */
+  min-height: 24px;
   padding: 0 var(--space-0-5);
   border: 0;
   background: none;
@@ -3282,7 +3284,7 @@ button.playtest-card-pt__value--editable:focus-visible {
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 18px;
+  min-height: 24px;
   padding: 0;
   border: 0;
   background: none;
@@ -3296,7 +3298,7 @@ button.playtest-card-pt__value--editable:focus-visible {
   color: var(--text-primary);
 }
 
-/* 18px is the drawn height; the press is 44 (same ghost-target technique as
+/* 24px is the drawn height; the press is 44 (same ghost-target technique as
    the life steps above). */
 @media (pointer: coarse) {
   .playtest-life-table__details {

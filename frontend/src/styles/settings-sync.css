@@ -128,7 +128,11 @@
 .sync-indicator-syncing {
   color: var(--accent);
   border-color: var(--accent-light);
-  background: var(--accent-light);
+  /* The tint is translucent, and this pill rides the always-dark header: in a
+     light theme it composited over dark leather and the text pair (made for a
+     tint over --surface) read 2.07:1. Lay it over --surface so the ground is
+     the one the pair was measured on. */
+  background: linear-gradient(var(--accent-light), var(--accent-light)), var(--surface);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);
   --accent: var(--accent-tint);

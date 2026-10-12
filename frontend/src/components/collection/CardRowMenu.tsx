@@ -89,7 +89,7 @@ export function CardRowMenu({
         items={items}
         header={
           currentBinder ? (
-            <div className="deck-row-menu-status" aria-live="polite">
+            <div className="deck-row-menu-status" role="presentation">
               <span
                 className="card-list-binder-badge-swatch"
                 style={{ background: currentBinder.color || 'var(--accent)' }}

@@ -57,7 +57,7 @@ import { hiddenGemReason } from '@/deck-builder/services/deckBuilder/hiddenGems'
 import { useDismissedSuggestions } from '@/lib/coach/dismissed-suggestions';
 import { useAddSuggestionLabels } from './use-add-suggestion-labels';
 import { useAddCastability } from './use-add-castability';
-import { problemSegmentsFor, ProblemSegments } from './add-problem-segments';
+import { problemSegmentsFor, ProblemSegments, ResultList } from './add-problem-segments';
 import { SYNTAX_TIP } from './card-search-syntax-tip';
 import { HiddenSuggestions } from './HiddenSuggestions';
 import { SuggestionDismissMenu } from './SuggestionDismissMenu';
@@ -1308,7 +1308,7 @@ function CollectionResults({
     <>
       {tagNote}
       {blockedNote}
-      <ul className="card-search-results" id="card-search-results" role="listbox">
+      <ResultList>
         {filtered.map((c, i) => {
           const ownedCount = collection.filter((x) => x.name === c.name).length;
           const inDeck = existingCardCounts.get(c.name) ?? 0;
@@ -1394,7 +1394,7 @@ function CollectionResults({
             </SearchResultRow>
           );
         })}
-      </ul>
+      </ResultList>
       {carousel.preview}
     </>
   );
@@ -1703,7 +1703,7 @@ function SuggestionsResults({
       {rows.length === 0 ? (
         <p className="card-search-empty">No suggestions match these availability filters.</p>
       ) : (
-        <ul className="card-search-results" id="card-search-results" role="listbox">
+        <ResultList>
           {staples.map((row, i) => renderRow(row, i))}
           {combos.length > 0 && (
             <li className="card-search-section" role="presentation" aria-hidden="true">
@@ -1717,7 +1717,7 @@ function SuggestionsResults({
             </li>
           )}
           {gems.map((row, i) => renderRow(row, staples.length + combos.length + i))}
-        </ul>
+        </ResultList>
       )}
       <HiddenSuggestions />
       {carousel.preview}
@@ -1923,7 +1923,7 @@ function ScryfallResults({
 
   return (
     <>
-      <ul className="card-search-results" id="card-search-results" role="listbox">
+      <ResultList>
         {display.map((c, i) => {
           const inDeck = existingCardCounts.get(c.name) ?? 0;
           const active = i === activeIndex;
@@ -1992,7 +1992,7 @@ function ScryfallResults({
             </SearchResultRow>
           );
         })}
-      </ul>
+      </ResultList>
       {carousel.preview}
     </>
   );

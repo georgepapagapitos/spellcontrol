@@ -40,6 +40,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import puppeteer from 'puppeteer-core';
 import { TIERS, executable } from './journey-browser.mjs';
+import { overlayWalk } from './journey-overlays.mjs';
 
 // Expected sample-pack card count, read straight from the source constant
 // (not re-typed here) so it can't drift from lib/binder/samples.ts.
@@ -68,10 +69,12 @@ const USERNAME = opt('--username', null);
  * Console noise that is not a defect of ours: the browser's own "Failed to
  * load resource" lines for answers the app handles (a guest's 401 on the
  * session probe, a 404 the not-found page renders, a rate limit), benign
- * observer warnings, devtools nags. Everything else fails the screen.
+ * observer warnings, devtools nags, and the scanner's OpenCV wasm: the page CSP
+ * refuses its `data:` fetch and Emscripten falls back to decoding the bytes
+ * itself, so the scanner opens and works (verified with a fake camera). Everything else fails the screen.
  */
 const IGNORED_CONSOLE =
-  /favicon|net::ERR_ABORTED|Failed to load resource.*(401|404|429)|ResizeObserver loop|Download the React DevTools|\[vite\]|DevTools|Scryfall fallback failed|Couldn't reach Scryfall/;
+  /favicon|net::ERR_ABORTED|Failed to load resource.*(401|404|429)|ResizeObserver loop|Download the React DevTools|\[vite\]|DevTools|Scryfall fallback failed|Couldn't reach Scryfall|data:application\/octet-stream/;
 /**
  * Third-party hosts the app calls straight from the browser. A headless
  * runner origin can be refused by them (Scryfall answers a WAF block with no
@@ -94,6 +97,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // 2026-09-29 burn-down (142 failing elements to 0) and a clean nightly, so a
 // new finding is a regression, and its row in a11y.json says what and where.
 const A11Y = argv.includes('--a11y');
+// --skip-routes: seed, then walk only the overlays (--a11y). For iterating on the overlay list.
+const SKIP_ROUTES = argv.includes('--skip-routes');
 const src = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const AXE_SRC = A11Y ? src('../frontend/node_modules/axe-core/axe.min.js') : '';
 // Read the registries rather than re-typing them, so a new theme or type set
@@ -319,7 +324,20 @@ async function keyboardWalk(page) {
       continue;
     }
     if (stop.key === last) {
-      findings.push({ kind: 'stuck', el: stop.id });
+      // A dialog with one tabbable control (the shortcuts overlay's Close)
+      // wraps onto itself: that is a one-stop dialog, not a trap.
+      const lone = await page.evaluate(() => {
+        const scope =
+          document.activeElement?.closest('[role=dialog],[aria-modal=true]') ?? document;
+        return (
+          [
+            ...scope.querySelectorAll(
+              'a[href],button:not([disabled]),input:not([disabled]):not([type=hidden]),select,textarea,[tabindex]:not([tabindex="-1"])'
+            ),
+          ].filter((e) => e.getClientRects().length > 0).length <= 1
+        );
+      });
+      if (!lone) findings.push({ kind: 'stuck', el: stop.id });
       break;
     }
     last = stop.key;
@@ -447,6 +465,9 @@ const TOUCHING_BY_DESIGN = new Set([
 const TOUCHING_BY_DESIGN_PARENTS = [
   // The card-preview sheet's sections (footer-card-preview.css .card-preview-sec).
   'div.card-preview-panel-inner',
+  // Switch rows share one hairline between them (form.css .switch-row + .switch-row,
+  // STYLE_GUIDE § Table settings): the Edit card sheet's flags.
+  'div.card-edit-flags',
 ];
 /**
  * The primary control rows, which must stay ONE row at phone width.
@@ -887,10 +908,19 @@ async function main() {
     args:
       BROWSER === 'firefox'
         ? []
-        : ['--no-first-run', '--no-default-browser-check', '--disable-gpu'],
+        : [
+            '--no-first-run',
+            '--no-default-browser-check',
+            '--disable-gpu',
+            // A synthetic camera, so the scanner screen opens in the a11y walk.
+            '--use-fake-device-for-media-stream',
+            '--use-fake-ui-for-media-stream',
+          ],
   });
   const results = [];
   let seeded = null;
+  // The generated deck (100 cards), for the overlay walk: the blank one has no hand to play.
+  let genDeckHref = null;
   let live = null;
   try {
     for (const tierName of VIEWPORTS) {
@@ -944,7 +974,7 @@ async function main() {
           console.log(`        ${msg}`);
         }
       };
-      const record = async (label) => {
+      const record = async (label, { keyboard = true, allow = [] } = {}) => {
         await sleep(300);
         const m = await page.evaluate(() => {
           const de = document.documentElement;
@@ -992,8 +1022,24 @@ async function main() {
         // every night.
         if (A11Y) await page.evaluate(saveScroll);
         const a11y = A11Y ? await axeSweep(page, tierName === 'desktop') : null;
-        if (a11y) a11y.keyboard = tierName === 'desktop' ? await keyboardWalk(page) : [];
+        if (a11y)
+          a11y.keyboard = tierName === 'desktop' && keyboard ? await keyboardWalk(page) : [];
         if (A11Y) await page.evaluate(restoreScroll);
+        // A ratcheted allowance (journey-overlays.mjs): known rules on one overlay.
+        let allowed = 0;
+        if (a11y && allow.length) {
+          for (const g of [
+            a11y.base,
+            ...Object.values(a11y.themes),
+            ...Object.values(a11y.typesets),
+          ]) {
+            for (let i = g.length - 1; i >= 0; i--) {
+              if (!allow.includes(g[i].id)) continue;
+              allowed += g[i].count;
+              g.splice(i, 1);
+            }
+          }
+        }
         const errs = consoleErrors.filter((e) => !IGNORED_CONSOLE.test(e));
         const file = `${slug(label)}__${tierName}.png`;
         await page.screenshot({ path: path.join(OUT, file) }).catch(() => {});
@@ -1011,6 +1057,7 @@ async function main() {
           smallTargets,
           overlapping,
           a11y,
+          allowed,
           file,
         };
         rec.fail =
@@ -1226,6 +1273,7 @@ async function main() {
             observed,
           };
         });
+        genDeckHref = await page.evaluate(() => location.pathname);
         await clickText(page, /^View my deck$/, { within: '.build-report-sheet button' });
 
         // --- The card-preview sheet, open on an in-deck card. No route
@@ -1363,7 +1411,7 @@ async function main() {
         '/pods': 'social',
       };
       const hubStrip = {};
-      for (const r of routes) {
+      for (const r of SKIP_ROUTES ? [] : routes) {
         const rec = await visit(r);
         const hub = HUB_OF[r];
         if (hub) {
@@ -1595,6 +1643,21 @@ async function main() {
             return { ok: observed >= 1, expected: '>= 1', observed };
           });
         }
+      }
+      // Menus, dialogs, sheets, the playtest table: the route walk never opens
+      // them, so their own surfaces were never swept (E536).
+      if (A11Y) {
+        await overlayWalk({
+          page,
+          tierName,
+          base: BASE,
+          settleMs: SETTLE_MS,
+          consoleErrors,
+          record,
+          assertPage,
+          deck: genDeckHref ?? deckHref,
+          binder: binderHref,
+        });
       }
       await context.close();
     }

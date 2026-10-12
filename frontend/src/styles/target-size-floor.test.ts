@@ -83,6 +83,8 @@ describe('target size floor (WCAG 2.5.8)', () => {
     ['.collection-grid-menu-btn', ['w', 'h']],
     ['.overflow-menu-trigger', ['w', 'h']],
     [':where(.art-badge[data-identity]:is(a, button))', ['w', 'h']],
+    ['.playtest-life-table__total', ['h']],
+    ['.playtest-life-table__details', ['h']],
   ];
 
   it.each(known)('%s has a 24px box in every pointer mode', (selector, axes) => {

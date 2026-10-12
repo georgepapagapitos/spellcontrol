@@ -257,3 +257,17 @@ describe('binder color fills use the picked ink', () => {
     }
   });
 });
+
+// The header sync pill rides the always-dark leather. Its syncing state paints
+// the translucent accent tint, which in a light theme composites over dark
+// leather unless it is laid over an opaque ground (the nightly a11y walk caught
+// it at 2.07:1 on azorius, boros, selesnya and simic).
+describe('the header sync pill paints its tint over an opaque ground', () => {
+  it('.sync-indicator-syncing layers --accent-light over --surface', () => {
+    const css = read('settings-sync.css').replace(/\/\*[\s\S]*?\*\//g, '');
+    const block = css.slice(css.indexOf('.sync-indicator-syncing {'));
+    const bg = block.slice(0, block.indexOf('}')).match(/background:\s*([^;]+);/)?.[1] ?? '';
+    expect(bg).toMatch(/linear-gradient\(var\(--accent-light\),\s*var\(--accent-light\)\)/);
+    expect(bg).toMatch(/var\(--surface\)\s*$/);
+  });
+});

@@ -178,7 +178,7 @@ function ShowPrefsList({
       aria-label="Row details"
     >
       {(Object.keys(SHOW_PREFS_LABEL) as (keyof ShowPrefs)[]).map((k) => (
-        <li key={k}>
+        <li key={k} role="presentation">
           <button
             type="button"
             role="menuitemcheckbox"

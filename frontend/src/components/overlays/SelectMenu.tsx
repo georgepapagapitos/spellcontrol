@@ -228,7 +228,7 @@ export function SelectMenu<T extends string | number>({
             visibleOptions.map((opt) => {
               const isActive = opt.value === value;
               return (
-                <li key={String(opt.value)}>
+                <li key={String(opt.value)} role="presentation">
                   <button
                     type="button"
                     role="option"
