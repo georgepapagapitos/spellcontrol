@@ -428,6 +428,8 @@ export interface AcquireCardPoolResult {
    *  how it was made. Null on EDHREC mode / cache hit. */
   altPool: AlternatePoolResult | null;
   scryfallQuery: string;
+  /** `scryfallQuery` minus mode constraints that only make sense for nonland spells. */
+  landScryfallQuery: string;
 }
 
 /**
@@ -444,6 +446,7 @@ export async function acquireCardPoolPhase(
 ): Promise<AcquireCardPoolResult> {
   const { usingCache } = ctx;
   let scryfallQuery = ctx.scryfallQuery;
+  let landScryfallQuery = ctx.scryfallQuery;
   let altPool: AlternatePoolResult | null = null;
 
   const { commander, partnerCommander, colorIdentity, customization, onProgress } = state.context;
@@ -490,6 +493,9 @@ export async function acquireCardPoolPhase(
     // so the strict printing upgrade + fallback fills match what was fetched.
     if (altPool.effectiveConstraint) {
       scryfallQuery = [scryfallQuery.trim(), altPool.effectiveConstraint].filter(Boolean).join(' ');
+      landScryfallQuery = [landScryfallQuery.trim(), altPool.landConstraint ?? altPool.effectiveConstraint]
+        .filter(Boolean)
+        .join(' ');
     }
   }
   // Try to fetch EDHREC data (works for all formats) — skip on cache hit
@@ -832,7 +838,7 @@ export async function acquireCardPoolPhase(
   await applyArchetypeBlend(state, thinOwnedOnPage);
   await applyOwnedSimilarPool(state, thinOwnedOnPage);
 
-  return { altPool, scryfallQuery };
+  return { altPool, scryfallQuery, landScryfallQuery };
 }
 
 /** E282: an owned-only build — "Only my cards" / "Available only" with a

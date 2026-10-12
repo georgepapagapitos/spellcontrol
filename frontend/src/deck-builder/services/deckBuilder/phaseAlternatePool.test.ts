@@ -286,6 +286,8 @@ describe('buildAlternatePool — oracle-role', () => {
     );
     expect(result.detail).toBe('permanents only');
     expect(result.effectiveConstraint).toBe('is:permanent -t:land');
+    // ...but the land fallback must not inherit it: '-t:land' leaves it zero lands.
+    expect(result.landConstraint).toBe('');
     // The permanents filter must also reach the pool queries themselves.
     expect(searchCards.mock.calls.every((c) => (c[0] as string).includes('is:permanent'))).toBe(
       true

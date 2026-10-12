@@ -53,6 +53,8 @@ export interface AlternatePoolResult {
    * mismatch here would delete the relaxed-era cards we just fetched).
    */
   effectiveConstraint: string;
+  /** The part of effectiveConstraint that also applies to lands. Omitted = all of it. */
+  landConstraint?: string;
 }
 
 /** Curated art motifs for the Art Theme picker — populous, visually iconic tags.
@@ -214,6 +216,9 @@ async function buildOraclePool(
     poolSize: data.cardlists.allNonLand.length,
     detail: customization.permanentsOnly ? 'permanents only' : undefined,
     effectiveConstraint: constraint,
+    // 'is:permanent -t:land' is a NONLAND pool restriction; the land fallback
+    // inherits the query, so it must not see it (it matched zero lands).
+    landConstraint: extraConstraint ?? '',
   };
 }
 

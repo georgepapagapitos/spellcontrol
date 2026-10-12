@@ -1714,6 +1714,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   const acquirePoolResult = await acquireCardPoolPhase(state, { usingCache, scryfallQuery });
   altPool = acquirePoolResult.altPool;
   scryfallQuery = acquirePoolResult.scryfallQuery;
+  const landScryfallQuery = acquirePoolResult.landScryfallQuery;
 
   if (!altPool && customization.mtgFormat !== 'paupercommander') {
     const coverageNote = buildEdhrecCoverageNote(
@@ -2854,7 +2855,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         context.collectionAvailableCounts,
         currency,
         arenaOnly,
-        scryfallQuery,
+        landScryfallQuery,
         preferredSet,
         collectionStrategy,
         collectionOwnedPercent,
@@ -3153,7 +3154,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         context.collectionAvailableCounts,
         currency,
         arenaOnly,
-        scryfallQuery,
+        landScryfallQuery,
         preferredSet,
         collectionStrategy,
         collectionOwnedPercent,

@@ -115,13 +115,30 @@ const searchCache = new Map<string, { data: ScryfallSearchResponse; timestamp: n
 const SEARCH_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 /**
- * Extract a set code from a scryfallQuery string.
+ * Extract the ONE set a scryfallQuery restricts the deck to.
  * Recognizes: set:xxx, s:xxx, e:xxx, edition:xxx (with or without quotes).
+ * Returns undefined when the query has no single required set: a negated term
+ * (`-set:cmm`, `not set:cmm`, `-(set:a or set:b)`) excludes rather than
+ * restricts, and an OR'd or repeated set (`set:cmm or set:clb`) names no single
+ * set. Read as a restriction those used to pin lands and pools to the very set
+ * the user excluded.
  */
 export function parseSetFromQuery(scryfallQuery: string): string | undefined {
   if (!scryfallQuery) return undefined;
-  const match = scryfallQuery.match(/\b(?:set|s|e|edition):["']?([a-zA-Z0-9_]+)["']?/i);
-  return match ? match[1].toLowerCase() : undefined;
+  const term = String.raw`(?:set|s|e|edition):["']?[a-zA-Z0-9_]+["']?`;
+  const positive = scryfallQuery
+    // negated parenthesised groups, innermost first (no nested-paren support needed)
+    .replace(/(?:^|\s)(?:-|not\s+)\([^()]*\)/gi, ' ')
+    .replace(new RegExp(String.raw`(?:^|\s)(?:-|not\s+)${term}`, 'gi'), ' ');
+  const found = [...positive.matchAll(new RegExp(String.raw`(?:^|[\s(])(${term})`, 'gi'))].map(
+    (m) => m[1].split(':')[1].replace(/["']/g, '').toLowerCase()
+  );
+  if (new Set(found).size !== 1) return undefined;
+  // An OR next to the set term makes it optional, not required.
+  if (new RegExp(String.raw`${term}\s+or|or\s+\(?${term}`, 'i').test(positive)) {
+    return undefined;
+  }
+  return found[0];
 }
 
 /**
