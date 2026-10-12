@@ -91,10 +91,19 @@ export function CollectionCombosPage() {
   const commanders = useMemo(() => ownedCommanders(collection), [collection]);
   const locations = useCardLocations().byOracleId;
 
+  // E319: hold the match until the collection has landed. The hook keys on the
+  // owned ids, so matching the empty/partial set that exists while hydrating
+  // and again once the full set arrives ran the matcher twice, and on the
+  // server fallback fired POST /api/combos/match twice.
+  const loadingCollection =
+    hydrating ||
+    (collection.length === 0 && authStatus === 'authed' && getSyncState() === 'syncing');
+
   const { data, loading, error, refetch } = useDeckCombos({
     deckOracleIds: [],
     ownedOracleIds,
     format: 'commander',
+    enabled: !loadingCollection,
   });
 
   // E212: `source: 'server'` means the device-local combo dataset couldn't be
@@ -282,10 +291,6 @@ export function CollectionCombosPage() {
   const rawTotal = rawComplete.length + rawOneAway.length;
 
   const hasCollection = ownedOracleIds.length > 0;
-  const loadingCollection =
-    hydrating ||
-    (collection.length === 0 && authStatus === 'authed' && getSyncState() === 'syncing');
-
   // The header and tabs render while loading too, so the strip is in place
   // before the collection is.
   if (loadingCollection) {
