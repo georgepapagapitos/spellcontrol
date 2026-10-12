@@ -76,14 +76,21 @@ describe('commander profile against the golden set', () => {
     expect(recall).toBeGreaterThanOrEqual(0.88);
   });
 
-  it('keeps the two keywords that were worst at their measured floors', () => {
-    const per = (k: string) => {
-      const rs = results.filter((r) => r.stratum !== 'extra');
+  it('keeps the keywords that were worst at their measured floors', () => {
+    const rs = results.filter((r) => r.stratum !== 'extra');
+    const precision = (k: string) => {
       const tp = rs.filter((r) => r.fired.has(k) && r.truth.includes(k)).length;
-      const fired = rs.filter((r) => r.fired.has(k)).length;
-      return tp / fired;
+      return tp / rs.filter((r) => r.fired.has(k)).length;
     };
-    expect(per('tribal')).toBeGreaterThanOrEqual(0.6);
-    expect(per('voltron')).toBeGreaterThanOrEqual(0.7);
+    const recall = (k: string) => {
+      const tp = rs.filter((r) => r.fired.has(k) && r.truth.includes(k)).length;
+      return tp / rs.filter((r) => r.truth.includes(k)).length;
+    };
+    expect(precision('tribal')).toBeGreaterThanOrEqual(0.85);
+    expect(precision('voltron')).toBeGreaterThanOrEqual(0.7);
+    expect(precision('spellcast')).toBeGreaterThanOrEqual(0.85);
+    expect(recall('proliferate')).toBeGreaterThanOrEqual(0.9);
+    expect(recall('landfall')).toBeGreaterThanOrEqual(0.9);
+    expect(recall('group-hug')).toBeGreaterThanOrEqual(0.85);
   });
 });

@@ -274,3 +274,7 @@ Tataru Taru, Gonti, Belbe). Loot and wheel symmetry (Cait, Malcolm) is not
 group-hug and not wheel-discard.
 R14. Attack-trigger needs the attack declaration: combat damage and boast payoffs
 (Drana, Varragoth) are not attack triggers; Annihilator is.
+R15. Tribal and tokens: a single token of the commander's own type (Adeline's
+Human, Eomer's Human Soldier) is not a tribal reference, while a swarm of it made
+by one ability (Krenko, Elenda, Namora, Nadier) is. Exclusions ("non-Human",
+"protection from Humans") are not references either.

@@ -263,6 +263,20 @@ function mentionsType(text: string, type: string): boolean {
   return new RegExp(`\\b(?:${alt})\\b`).test(text);
 }
 
+/**
+ * The text a type mention has to survive in to count as a tribal reference.
+ * Dropped: exclusions ("non-Human", "protection from Humans") and the single token a
+ * commander makes (Adeline's Human token is a Human-making commander, not a Human
+ * lord). Everything that remains names the type as something the commander
+ * rewards or counts.
+ */
+function typalText(text: string): string {
+  return text
+    .replace(/\bnon-?[a-z]+/g, ' ')
+    .replace(/\bprotection from [^.,;]*/g, ' ')
+    .replace(/\bcreates? (?:an?|one) [^.]*?\btoken\b/g, ' ');
+}
+
 export function detectTribes(card: ScryfallCard): string[] {
   const tl = frontTypeLine(card).toLowerCase();
   if (!tl.includes('creature')) return [];
@@ -382,7 +396,8 @@ const DETECTORS: Detector[] = [
   {
     keyword: 'proliferate',
     label: 'Proliferate',
-    commander: /\bproliferate\b/,
+    commander:
+      /\bproliferate\b|\bdouble the number of [^.]*?\bcounters?\b|\btwice that many\b[^.]*?\bcounters?\b|\bthat many plus (?:one|two)\b[^.]*?\bcounters?\b/,
     wants: ['Cards that place counters of any kind', 'Counter payoffs to scale'],
     themes: ['proliferate', 'counters'],
     // Singular only (as before); the bare word also read "Counter target spell".
@@ -472,7 +487,7 @@ const DETECTORS: Detector[] = [
     keyword: 'spellcast',
     label: 'Spellcast trigger',
     commander:
-      /^(?!.*\bopponents? casts?\b).*(?:\bwhenever (?:you|a player) (?:cast|casts|copy)(?: or copy)? (?:an? |their |your )?(?:(?:first|second|third) (?:noncreature )?)?(?:noncreature|instant|sorcery|spell\b(?! that targets)|white|blue|black|red|green|multicolored|colorless|historic|legendary|artifact, instant)|\bmagecraft\b|\bprowess\b|\binstants? (?:or|and) sorcer(?:y|ies)\b|\bextort\b|\bstorm\b)/,
+      /^(?!.*\b(?:opponents? casts?|can't cast)\b).*(?:\bwhenever (?:you|a player) (?:cast|casts|copy)(?: or copy)? (?:an? |their |your )?(?:(?:first|second|third) (?:noncreature )?)?(?:noncreature|instant|sorcery|spell\b(?! (?:from|they don't own|that targets(?! only a single)))|white|blue|black|red|green|multicolored|colorless|historic|legendary|artifact, instant)|\bmagecraft\b|\bprowess\b|\binstants? (?:or|and) sorcer(?:y|ies)\b(?![^.]*?\b(?:cost[^.]*?less|from your graveyard|flashback)\b)|\binstants? and sorcery spells you cast with mana value\b|\bextort\b|\bstorm\b)/,
     wants: ['Cheap instants and sorceries', 'Cost reducers and rituals', 'Spell copy effects'],
     themes: ['spellslinger', 'storm'],
     archetypeHint: Archetype.SPELLSLINGER,
@@ -498,7 +513,8 @@ const DETECTORS: Detector[] = [
   {
     keyword: 'landfall',
     label: 'Landfall',
-    commander: /\blandfall\b|\bwhenever a land enters\b|\bplay an additional land\b/,
+    commander:
+      /\blandfall\b|\bwhenever a land enters\b|\bplay (?:an|one|two|three|\d+) additional lands?\b|\bwhenever [^.]*?\bput (?:a|an) (?:basic )?land card\b[^.]*?\bonto the battlefield\b|\bthen you may put a land card\b[^.]*?\bonto the battlefield\b|\bland card from among (?:them|those cards)\b[^.]*?\bonto the battlefield\b|\bwhenever [^.]*?\bsearch your library for [^.]*?\blands?\b[^.]*?\bput (?:it|them) onto the battlefield\b/,
     wants: ['Extra land drops and land ramp', 'Fetch / land bounce for repeat triggers'],
     themes: ['landfall', 'lands'],
     archetypeHint: Archetype.LANDFALL,
@@ -537,7 +553,8 @@ const DETECTORS: Detector[] = [
   {
     keyword: 'group-hug',
     label: 'Group effects',
-    commander: /\beach player (draws|gains|may)\b/,
+    commander:
+      /\beach player (?:draws|gains (?!control)|may|adds|creates|loses \d+ life and draws)\b|\b(?:you and )?(?:target|each) opponent (?:each draw|may draw)\b|\bthat (?:attacking )?player draws\b|\bits controller may draw\b/,
     wants: ['Payoffs that turn shared resources to your favor', 'Protection / pillowfort'],
     themes: ['group hug', 'politics'],
   },
@@ -621,10 +638,11 @@ export function buildCommanderProfile(
   // not a tribal commander (10% precision against the golden set when the type
   // line alone decided it). `tribes` stays the detected KNOWN_TRIBES subtypes.
   const tribes = [...new Set(sources.flatMap(detectTribes))];
+  const typeText = typalText(text);
   const typal = [
-    ...new Set(sources.flatMap((src) => ownSubtypes(src).filter((t) => mentionsType(text, t)))),
+    ...new Set(sources.flatMap((src) => ownSubtypes(src).filter((t) => mentionsType(typeText, t)))),
   ];
-  const anyType = /\bchangeling\b|\bchosen (?:creature )?type\b|\bcreature types?\b/.test(text);
+  const anyType = /\bchangeling\b|\bchosen creature type\b|\bcreature types?\b/.test(text);
   if (typal.length > 0 || anyType) {
     const themeNames = [...new Set(typal.map(tribeTheme))];
     abilities.push({
