@@ -9,7 +9,7 @@ import {
 import { isScryfallLink, parseScryfallCardRefs } from '@/lib/cards/scryfall-card-link';
 import { AddButtonIcon, ScryfallCooldownNote } from './ScryfallCooldownNote';
 import { usePendingAdds } from './use-pending-adds';
-import { ManaCost } from '../ManaCost';
+import { ManaCost } from '@/components/shared/ManaCost';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
@@ -44,7 +44,7 @@ import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { AddGroupPicker, useAddGroup } from './AddGroupPicker';
 import { type SelectOption } from '@/lib/util/select-option';
 import type { FilterableRow } from '@/lib/search/collection-filter';
-import { BinderBadge } from '../BinderBadge';
+import { BinderBadge } from '@/components/shared/BinderBadge';
 import { type BinderInfo } from '@/lib/binder/binder-refs';
 import { SearchPill } from '@/components/search/SearchPill';
 import { Tabs, type TabItem } from '@/components/overlays/Tabs';

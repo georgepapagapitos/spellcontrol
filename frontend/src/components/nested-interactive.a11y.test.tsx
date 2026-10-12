@@ -17,7 +17,7 @@ import type { EnrichedCard } from '@/types';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { CardGridCell } from './shared/CardGridCell';
 import { OverflowMenu } from '@/components/overlays/OverflowMenu';
-import { DeckBadge } from './DeckBadge';
+import { DeckBadge } from '@/components/shared/DeckBadge';
 import { DeckDisplay, type DeckDisplayCard } from './deck/DeckDisplay';
 
 vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));

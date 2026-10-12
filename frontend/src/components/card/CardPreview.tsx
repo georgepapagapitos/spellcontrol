@@ -41,7 +41,7 @@ import { CardShareDialog } from './CardShareDialog';
 import { OverflowMenu } from '@/components/overlays/OverflowMenu';
 import { foilFinishLabel } from '@/lib/cards/foil-style';
 import { LANGUAGE_OPTIONS } from '@/lib/collection/copy-options';
-import { ManaCost } from '@/components/ManaCost';
+import { ManaCost } from '@/components/shared/ManaCost';
 import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
 import { SnapCarousel, type SnapCarouselHandle } from './SnapCarousel';
 import { useSwipeDownDismiss } from '@/lib/overlays/use-swipe-down-dismiss';

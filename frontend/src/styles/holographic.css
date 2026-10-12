@@ -409,5 +409,5 @@
   }
 }
 
-/* The list-row foil chip is `.foil-badge` (components/FoilBadge.css): a static
+/* The list-row foil chip is `.foil-badge` (components/shared/FoilBadge.css): a static
    per-finish fill, not this engine. */

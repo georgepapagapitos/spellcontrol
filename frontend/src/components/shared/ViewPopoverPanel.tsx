@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
-import { LegendContent } from '../Legend';
-import { ViewModeToggle, type ViewModeOption } from '../ViewModeToggle';
-import { ZoomControl } from '../ZoomControl';
+import { LegendContent } from './Legend';
+import { ViewModeToggle, type ViewModeOption } from './ViewModeToggle';
+import { ZoomControl } from './ZoomControl';
 import { GridCaptionList, type GridCaptionPrefs } from './CardGridCell';
 
 /**

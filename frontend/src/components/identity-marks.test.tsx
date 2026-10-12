@@ -2,8 +2,8 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import { DeckBadge } from './DeckBadge';
-import { BinderBadge } from './BinderBadge';
+import { DeckBadge } from '@/components/shared/DeckBadge';
+import { BinderBadge } from '@/components/shared/BinderBadge';
 import type { AllocationInfo } from '@/lib/collection/allocations';
 
 const deck = (id: string, name: string, color = '#c33'): AllocationInfo => ({

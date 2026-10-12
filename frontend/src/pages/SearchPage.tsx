@@ -6,7 +6,7 @@ import './SearchPage.css';
 import { SearchPill } from '@/components/search/SearchPill';
 import { InlineCardSearch, type InlineCardSearchView } from '@/components/search/InlineCardSearch';
 import { BrowseRails } from '../components/browse/BrowseRails';
-import { ViewModeToggle } from '../components/ViewModeToggle';
+import { ViewModeToggle } from '@/components/shared/ViewModeToggle';
 import { useCollapsedPref } from '@/lib/util/use-collapsed-pref';
 import { useResultsKeys } from '@/lib/search/use-results-keys';
 import { useStoredView } from '@/lib/util/use-stored-view';

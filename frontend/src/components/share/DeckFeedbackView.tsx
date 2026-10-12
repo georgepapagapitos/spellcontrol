@@ -12,9 +12,9 @@ import { renderMarkdownLite } from '@/lib/util/markdown-lite';
 import { publicCardToEnriched, deckCardToPublicCard } from '@/lib/social/shared-filter';
 import { useAuth } from '../../store/auth';
 import { CardPreview, type CardPreviewAction } from '@/components/card/CardPreview';
-import { ManaCost } from '../ManaCost';
+import { ManaCost } from '@/components/shared/ManaCost';
 import { SearchPill } from '@/components/search/SearchPill';
-import { ViewModeToggle } from '../ViewModeToggle';
+import { ViewModeToggle } from '@/components/shared/ViewModeToggle';
 import { SharedCardTile } from './SharedCardTile';
 
 import { useSharedFilters } from './use-shared-filters';

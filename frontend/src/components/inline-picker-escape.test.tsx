@@ -12,7 +12,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { InfoTip } from './overlays/InfoTip';
-import { Legend } from './Legend';
+import { Legend } from '@/components/shared/Legend';
 import { SetFilterPicker } from './search/SetFilterPicker';
 import { ChipExpressionBuilder } from './search/ChipExpressionBuilder';
 import { TypeLineExpressionBuilder } from './search/TypeLineExpressionBuilder';

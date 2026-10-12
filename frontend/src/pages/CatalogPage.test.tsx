@@ -15,6 +15,7 @@ const SECTIONS = [
   'surface',
   'meter',
   'symbols',
+  'display-pieces',
   'form',
   'nav',
   'states',

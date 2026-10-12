@@ -1,7 +1,7 @@
 import './PrintingChoices.css';
 import { Minus, Plus } from 'lucide-react';
-import { DeckBadge } from '../DeckBadge';
-import { BinderBadge } from '../BinderBadge';
+import { DeckBadge } from '@/components/shared/DeckBadge';
+import { BinderBadge } from '@/components/shared/BinderBadge';
 import { useAllocations, type AllocationInfo } from '@/lib/collection/allocations';
 import type { BinderRef } from '@/lib/binder/use-binder-by-copy';
 import { useCardThumb } from '@/lib/cards/card-thumbs';

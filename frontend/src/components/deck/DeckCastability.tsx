@@ -5,7 +5,7 @@ import {
   type CastabilityRow,
 } from '@/lib/deck-analysis/castability';
 import { InfoTip } from '@/components/overlays/InfoTip';
-import { ManaCost } from '../ManaCost';
+import { ManaCost } from '@/components/shared/ManaCost';
 
 const pct = (x: number): number => Math.round(x * 100);
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);

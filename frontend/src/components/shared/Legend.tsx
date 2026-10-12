@@ -6,13 +6,13 @@ import { computePopoverPlacement, getSafeViewport } from '@/lib/overlays/popover
 import { TYPE_ORDER } from '@spellcontrol/binder-routing';
 import { ROLE_BADGE_BY_TONE } from '@/lib/deck-analysis/role-badges';
 import type { RarityTint } from '@/lib/cards/set-symbols';
-import { TypeIcon } from './shared/ManaSymbol';
-import { SetSymbol } from './shared/SetSymbol';
+import { TypeIcon } from './ManaSymbol';
+import { SetSymbol } from './SetSymbol';
 import { FoilBadge } from './FoilBadge';
 import { DeckBadge } from './DeckBadge';
 import { makeDeckAllocationInfo } from '@/lib/collection/allocations';
 import { BinderBadge } from './BinderBadge';
-import { ConditionChip } from './shared/CardRow';
+import { ConditionChip } from './CardRow';
 import { CONDITION_OPTIONS } from '@/lib/collection/copy-options';
 import type { Condition } from '@/types';
 import { Chip } from '@/components/shared/Chip';

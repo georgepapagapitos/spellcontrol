@@ -3,7 +3,7 @@ import { Dices, X } from 'lucide-react';
 import { Modal } from '@/components/overlays/Modal';
 import { SearchPill } from '@/components/search/SearchPill';
 import { Tabs } from '@/components/overlays/Tabs';
-import { ManaCost } from '../ManaCost';
+import { ManaCost } from '@/components/shared/ManaCost';
 import { deckPickerLabels } from '@/lib/play/deck-picker-labels';
 import { searchStarterDecks, starterDeckLocalId } from '@/lib/play/starter-decks';
 import {

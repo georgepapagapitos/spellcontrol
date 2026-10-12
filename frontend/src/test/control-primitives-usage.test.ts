@@ -153,7 +153,7 @@ const ALLOWED: Record<Shape, Record<string, number | { count: number; why: strin
   rawClass: {
     'components/overlays/SelectMenu.tsx': { count: 1, why: TOOLBAR_FAMILY },
     'components/shared/ToolbarPopover.tsx': { count: 1, why: TOOLBAR_FAMILY },
-    'components/Legend.tsx': { count: 1, why: TOOLBAR_FAMILY },
+    'components/shared/Legend.tsx': { count: 1, why: TOOLBAR_FAMILY },
     'pages/deck-editor/AddZoneToggle.tsx': { count: 3, why: RADIO_FACE },
   },
   iconOnly: {

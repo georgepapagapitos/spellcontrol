@@ -4,7 +4,7 @@
   "components/deck/DeckColorBalance.css": 1,
   "components/deck/DeckCurvePhases.css": 1,
   "components/deck/GenerationTakeover.css": 1,
-  "components/FoilBadge.css": 1,
+  "components/shared/FoilBadge.css": 1,
   "components/shared/form.css": 1,
   "components/shared/MeterBar.css": 2,
   "components/shared/SealBurst.css": 1,

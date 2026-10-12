@@ -2,7 +2,7 @@ import '@/styles/shared.css';
 import { useMemo, type ReactNode } from 'react';
 import type { PublicCard } from '@/lib/social/shared-types';
 import { publicCardToEnriched } from '@/lib/social/shared-filter';
-import { BinderBadge } from '../BinderBadge';
+import { BinderBadge } from '@/components/shared/BinderBadge';
 import { CardRow } from '../shared/CardRow';
 import { CardTableFrame, CardTableHead, SHARED_TABLE_COLUMNS } from '../shared/CardTable';
 import { useMediaQuery } from '@/lib/util/use-media-query';
