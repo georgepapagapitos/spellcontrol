@@ -1715,6 +1715,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   altPool = acquirePoolResult.altPool;
   scryfallQuery = acquirePoolResult.scryfallQuery;
   const landScryfallQuery = acquirePoolResult.landScryfallQuery;
+  // permanents-only is the mode's own rule: a spell // land MDFC fronted by an
+  // instant or sorcery is not a permanent, so it cannot take a land slot there.
+  const landAllowed =
+    customization.generationMode === 'oracle-role' && customization.permanentsOnly
+      ? (card: ScryfallCard) => !/\b(Instant|Sorcery)\b/.test(getFrontFaceTypeLine(card))
+      : undefined;
 
   if (!altPool && customization.mtgFormat !== 'paupercommander') {
     const coverageNote = buildEdhrecCoverageNote(
@@ -2866,7 +2872,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         context.collectionBasicPrintings,
         fillGates,
         manaPhilosophy,
-        state.cfg.mtgFormat
+        state.cfg.mtgFormat,
+        landAllowed
       )),
     ];
 
@@ -3165,7 +3172,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         context.collectionBasicPrintings,
         fillGates,
         manaPhilosophy,
-        state.cfg.mtgFormat
+        state.cfg.mtgFormat,
+        landAllowed
       )),
     ];
   }

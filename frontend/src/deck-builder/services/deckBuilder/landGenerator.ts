@@ -159,7 +159,10 @@ export async function generateLands(
   // commander. Threaded to both land pick paths and the Command Tower
   // named-staple pick below (E-arena-leak: Path of Ancestry, not_legal in
   // brawl, shipped in a 60-card Brawl build with no legality gate at all).
-  mtgFormat?: string
+  mtgFormat?: string,
+  // Extra seat gate for Scryfall-sourced lands: permanents-only builds pass one
+  // that refuses a spell // land MDFC whose front face is an instant or sorcery.
+  landAllowed?: (card: ScryfallCard) => boolean
 ): Promise<ScryfallCard[]> {
   const lands: ScryfallCard[] = [];
   // E561: the nonbasic reserve held back from the spell picks comes back now.
@@ -181,7 +184,12 @@ export async function generateLands(
   // First, get non-basic lands from EDHREC
   const nonBasicTarget = count - basicCount;
 
-  if (nonBasicTarget > 0 && nonBasicEdhrecLands.length > 0) {
+  // No EDHREC land list (oracle-role, art-theme and historical pools, or a
+  // Scryfall-only fallback build): the merit widen below seeds the candidates
+  // and the SAME ranking as the EDHREC path orders them, instead of leaving the
+  // whole nonbasic target to the unranked Scryfall fallback.
+  const seedFromScryfall = nonBasicEdhrecLands.length === 0;
+  if (nonBasicTarget > 0) {
     onProgress?.('Loading utility lands', 82);
     logger.debug(
       `[DeckGen] Picking ${nonBasicTarget} non-basic lands from ${nonBasicEdhrecLands.length} EDHREC suggestions`
@@ -240,10 +248,24 @@ export async function generateLands(
     // lands (the E116 A/B lost Phyrexian Tower / Urborg / Bojuka Bog on Meren
     // to MDFCs). The widen's real job is the PLAIN fixers EDHREC misses — new
     // duals / rainbow lands — which is also the headline use case.
-    for (const card of await fetchMeritLands(
-      colorIdentity,
-      (c) => usedNames.has(c.name) || bannedCards.has(c.name) || landCardMap.has(c.name)
-    )) {
+    const widened = new Map(
+      (
+        await fetchMeritLands(
+          colorIdentity,
+          (c) => usedNames.has(c.name) || bannedCards.has(c.name) || landCardMap.has(c.name)
+        )
+      ).map((c) => [c.name, c])
+    );
+    if (seedFromScryfall) {
+      // These lands came from no EDHREC list and so skipped the query the
+      // fallback search applies: hold them to the user's filter and mode
+      // constraint (an era or motif) the same way.
+      if (preferredSet) {
+        for (const [name, card] of widened) if (card.set !== preferredSet) widened.delete(name);
+      }
+      await upgradeCardPrintings(widened, scryfallQuery, true);
+    }
+    for (const card of widened.values()) {
       landCardMap.set(card.name, card);
       if (!edhrecLandNames.has(card.name)) {
         edhrecLandNames.add(card.name);
@@ -377,6 +399,7 @@ export async function generateLands(
         // E525: the merit widen trusted its `t:land` query and EDHREC's list
         // its own label; the card's front face decides.
         (fitsLandSlot(sc) &&
+          (!landAllowed || landAllowed(sc)) &&
           !violatesUserCaps(
             sc,
             {
@@ -478,7 +501,7 @@ export async function generateLands(
       collectionStrategy,
       ignoreOwnedBudget,
       ignoreOwnedRarity,
-      undefined,
+      landAllowed,
       undefined,
       gates,
       mtgFormat,

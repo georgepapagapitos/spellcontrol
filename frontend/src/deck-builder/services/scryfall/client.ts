@@ -142,6 +142,17 @@ export function parseSetFromQuery(scryfallQuery: string): string | undefined {
 }
 
 /**
+ * The query without its required-set term (the one `parseSetFromQuery` returns),
+ * unchanged when it names no single required set.
+ */
+export function stripRequiredSetTerm(scryfallQuery: string): string {
+  if (!parseSetFromQuery(scryfallQuery)) return scryfallQuery.trim();
+  return scryfallQuery
+    .replace(/(?<![-\w])(?:set|s|e|edition):["']?[a-zA-Z0-9_]+["']?/gi, '')
+    .trim();
+}
+
+/**
  * Resolve token art for a playtest token by its display name (e.g. "Soldier"
  * out of a preset like "Soldier 1/1"). Token layouts are excluded from
  * `isPlayableCard` everywhere else in this module — tokens are exactly what's
@@ -1308,10 +1319,10 @@ async function liveUpgradeCardPrintings(
 ): Promise<void> {
   if (!scryfallQuery) return;
 
-  // Strip set filters — already handled by getCardsByNames' preferredSet
-  const filters = scryfallQuery
-    .replace(/\b(?:set|s|e|edition):["']?[a-zA-Z0-9_]+["']?/gi, '')
-    .trim();
+  // Strip only the one required set (getCardsByNames' preferredSet already
+  // handled it). Negated or OR'd set terms have no preferredSet, so they go to
+  // Scryfall as written and it applies them.
+  const filters = stripRequiredSetTerm(scryfallQuery);
   if (!filters) return;
 
   // Collect card names, using front-face name for DFCs in search queries

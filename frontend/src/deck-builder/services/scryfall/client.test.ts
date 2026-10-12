@@ -39,6 +39,8 @@ import {
   commanderSearchIdentity,
   upgradeCardPrintings,
   validateScryfallFilter,
+  parseSetFromQuery,
+  stripRequiredSetTerm,
 } from './client';
 import { resetScryfallRateLimit } from '@/lib/cards/scryfall-fetch';
 
@@ -1640,5 +1642,53 @@ describe('getCardsByNames arenaOnly batch post-process (E271)', () => {
     expect(searches).toHaveLength(1);
     expect(again.get(onArena)?.id).toBe('chunk-arena-print');
     expect(again.get(paperOnly)?.id).toBe(`batch-${paperOnly}`);
+  });
+});
+
+// The strict printing upgrade strips only the set getCardsByNames already
+// handled; a negated or OR'd set term must reach Scryfall as written.
+describe('stripRequiredSetTerm', () => {
+  it.each([
+    ['set:cmm', ''],
+    ['t:creature set:CLB', 't:creature'],
+    ['-set:cmm set:clb is:full-art', '-set:cmm  is:full-art'],
+    ['-set:cmm', '-set:cmm'],
+    ['f:commander -e:clb', 'f:commander -e:clb'],
+    ['set:cmm or set:clb', 'set:cmm or set:clb'],
+    ['(set:cmm OR set:clb) t:creature', '(set:cmm OR set:clb) t:creature'],
+  ])('%s -> %s', (q, expected) => {
+    expect(stripRequiredSetTerm(q)).toBe(expected);
+  });
+});
+
+// E1004: '-set:cmm' used to read as "restrict to cmm", pinning lands and pools
+// to the very set the user excluded; an OR took only its first set.
+describe('parseSetFromQuery', () => {
+  it.each([
+    ['set:cmm', 'cmm'],
+    ['t:creature s:CLB', 'clb'],
+    ['e:"mh2" r:rare', 'mh2'],
+    ['edition:ltr c:g', 'ltr'],
+    ['(set:cmm) t:creature', 'cmm'],
+    ['-set:cmm set:clb', 'clb'],
+    ['set:cmm set:cmm', 'cmm'],
+    ['set:cmm (t:creature or t:artifact)', 'cmm'],
+  ])('%s restricts to one set: %s', (q, expected) => {
+    expect(parseSetFromQuery(q)).toBe(expected);
+  });
+
+  it.each([
+    '',
+    't:creature r:rare',
+    '-set:cmm',
+    'f:commander -set:cmm -e:clb',
+    'not set:cmm',
+    '-(set:cmm or set:clb)',
+    'set:cmm or set:clb',
+    '(set:cmm OR set:clb) t:creature',
+    'set:cmm set:clb',
+    't:creature or set:cmm',
+  ])('%s names no single required set', (q) => {
+    expect(parseSetFromQuery(q)).toBeUndefined();
   });
 });
