@@ -7,6 +7,7 @@ import { getPool } from '../db';
 import { ORIGIN, type ShareLandingMeta, type ShareLandingResult } from '../shares/og';
 import { projectDeck, type PublicDeck } from '../shares/projections';
 import { projectWithSignals } from '../shares/project-with-signals';
+import { buildDeckLandingBody, buildProfileLandingBody } from '../shares/landing-body';
 import { areFriends } from '../friends/relations';
 import { sendGzippedJson } from '../gzip-json';
 import { loadProfileExtras } from '../brewers/profile-stats';
@@ -470,11 +471,11 @@ publicRouter.get(
 /**
  * Cheap OG/Twitter metadata lookup for the `/d/:slug` server-rendered
  * landing page (w1-public-routes-linkability) — used by
- * `createShareLandingHandler`, not by the JSON API above. Deliberately a
- * standalone query rather than a reuse of `loadPublicDeckPage`/its cache:
- * a crawler/unfurl-bot hit is exactly the traffic this makes newly
- * possible at scale, so this stays a small constant-time read decoupled
- * from the heavier deck-detail cache. `og_art_crop` is read directly — it
+ * `createShareLandingHandler`, not by the JSON API above. The head tags come
+ * from a small standalone query, so a miss costs one row read; only the
+ * crawlable decklist body goes through `loadPublicDeckPage` and its cache
+ * (the SPA requests that same page right after this HTML anyway).
+ * `og_art_crop` is read directly — it
  * was already resolved via `cardArtUrl` at publish time
  * (publications/listing-fields.ts) — so there is no `/normal/`→`/art_crop/`
  * derivation here.
@@ -493,7 +494,13 @@ export async function lookupPublicDeckLandingMeta(slug: string): Promise<ShareLa
   );
   const row = rows[0];
   if (!row) return null; // unknown or unpublished slug — same stealth as GET /decks/:slug's 404
+  // Best effort: a body failure still serves the head tags.
+  const page = await loadPublicDeckPage(slug).catch((err: unknown) => {
+    logger.warn('[public] deck landing body failed', err);
+    return null;
+  });
   return {
+    body: page ? buildDeckLandingBody(page) : undefined,
     title: `${row.deck_name} — ${row.format} deck`,
     description: `${row.card_count} card${row.card_count === 1 ? '' : 's'}${
       row.commander_name ? `, led by ${row.commander_name}` : ''
@@ -542,7 +549,12 @@ export async function lookupPublicUserLandingMeta(
     return current ? { redirectTo: `/u/${current}` } : null;
   }
   if (row.profile_hidden_at !== null || !row.has_live) return null;
+  const profile = await loadPublicUserProfile(handle).catch((err: unknown) => {
+    logger.warn('[public] profile landing body failed', err);
+    return null;
+  });
   return {
+    body: profile ? buildProfileLandingBody(profile) : undefined,
     title: `${row.display_name ?? handle} on SpellControl`,
     description: `View ${row.display_name ?? handle}'s public decks on SpellControl.`,
     url: `${ORIGIN}/u/${handle}`,

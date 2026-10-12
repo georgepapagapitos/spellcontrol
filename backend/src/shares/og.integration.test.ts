@@ -670,6 +670,10 @@ describe('lookupPublicDeckLandingMeta', () => {
     expect(meta!.description).toContain('2 cards');
     expect(meta!.description).toContain('led by Atraxa');
     expect(meta!.url).toBe(`https://spellcontrol.com/d/${slug}`);
+    // The crawlable body carries the real decklist, read from the live deck.
+    expect(meta!.body).toContain('<h1>Lands Matter</h1>');
+    expect(meta!.body).toContain('<li>Atraxa, Praetors&#39; Voice</li>');
+    expect(meta!.body).toContain('<li>1 Sol Ring</li>');
   });
 
   it('omits the image field (falls back to the static OG image downstream) for a commander-less deck with no art', async () => {
@@ -695,11 +699,13 @@ describe('lookupPublicDeckLandingMeta', () => {
 
 describe('lookupPublicUserLandingMeta', () => {
   it('is indexable for a user with at least one live publication', async () => {
-    await publishLandingDeck('land-user-live', 'lu-live');
+    const { slug } = await publishLandingDeck('land-user-live', 'lu-live');
     const meta = asMeta(await lookupPublicUserLandingMeta('land-user-live'));
     expect(meta.indexable).toBe(true);
     expect(meta.title).toBe('land-user-live display on SpellControl');
     expect(meta.url).toBe('https://spellcontrol.com/u/land-user-live');
+    // Links every public deck, so a crawler reaching the profile finds them.
+    expect(meta.body).toContain(`<a href="/d/${slug}">`);
   });
 
   it('returns null (Folded blocking fix #2) for a user with zero live publications', async () => {

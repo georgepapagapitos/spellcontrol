@@ -286,13 +286,25 @@ describe('injectShareHead', () => {
       expect(out).not.toContain('content="Homepage card."');
     });
 
-    it('rewrites the document title and keeps the non-social description', () => {
+    it('rewrites the document title and the meta description', () => {
       const out = injectShareHead(richShell, deck);
       expect(out).toContain(`<title>${deck.title}</title>`);
       expect(count(out, '<title>')).toBe(1);
-      // Only og:/twitter:/canonical are shell-owned; a plain meta description
-      // is not ours to remove.
-      expect(out).toContain('content="Site description stays."');
+      // Left in, every deck page carried the homepage's description and read
+      // to Google as a near-duplicate of one page (Search Console 2026-10-08).
+      expect(count(out, 'name="description"')).toBe(1);
+      expect(out).toContain(`<meta name="description" content="${deck.description}" />`);
+      expect(out).not.toContain('Site description stays.');
+    });
+
+    it('serves the body inside the root, and leaves the root empty without one', () => {
+      const shellWithRoot = richShell.replace(
+        '<body></body>',
+        '<body><div id="root"></div></body>'
+      );
+      const withBody = injectShareHead(shellWithRoot, { ...deck, body: '<main>list</main>' });
+      expect(withBody).toContain('<div id="root"><main>list</main></div>');
+      expect(injectShareHead(shellWithRoot, deck)).toContain('<div id="root"></div>');
     });
 
     it('strips for a non-indexable share too — a preview is not a ranking surface', () => {
@@ -315,6 +327,14 @@ describe('injectShareHead', () => {
       expect(count(out, 'property="og:title"')).toBe(1);
       expect(count(out, 'name="twitter:title"')).toBe(1);
       expect(out).toContain(`<title>${deck.title}</title>`);
+      // The shell's description is a multi-line tag, the case a line-based
+      // strip would miss.
+      expect(count(html, 'name="description"')).toBe(1);
+      expect(count(out, 'name="description"')).toBe(1);
+      expect(out).toContain(`<meta name="description" content="${deck.description}" />`);
+      // The body splice keys on the shell's literal empty root.
+      const withBody = injectShareHead(html, { ...deck, body: '<main>list</main>' });
+      expect(withBody).toContain('<div id="root"><main>list</main></div>');
     });
   });
 

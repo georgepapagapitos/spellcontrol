@@ -49,6 +49,12 @@ export interface ShareLandingMeta {
    * pages (w1-public-routes-linkability) opt in.
    */
   indexable?: boolean;
+  /**
+   * Pre-escaped HTML served inside `<div id="root">` (shares/landing-body.ts),
+   * so the fetched HTML carries the page's text and not an empty root. Built
+   * by the server from escaped values only; never pass user text through raw.
+   */
+  body?: string;
 }
 
 export function escapeHtmlAttr(s: string): string {
@@ -79,6 +85,7 @@ export function buildShareHeadTags(meta: ShareLandingMeta | null): string {
     const url = escapeHtmlAttr(meta.url);
     const image = escapeHtmlAttr(meta.image ?? OG_IMAGE_URL);
     lines.push(
+      `<meta name="description" content="${description}" />`,
       `<meta property="og:type" content="website" />`,
       `<meta property="og:site_name" content="${SITE_NAME}" />`,
       `<meta property="og:title" content="${title}" />`,
@@ -118,9 +125,13 @@ export function buildShareHeadTags(meta: ShareLandingMeta | null): string {
  *    the homepage card first, so previews were at best non-deterministic and
  *    at worst generic. That is the app's main organic loop previewing as a
  *    stranger.
+ *
+ * The plain meta description goes too. Left in, every deck and profile page
+ * served the homepage's description over an empty root, and Search Console
+ * (2026-10-08) held 93 of the sitemap's 221 deck URLs out of the index.
  */
 const SHELL_HOMEPAGE_TAGS =
-  /[ \t]*<(?:link\s[^>]*rel="canonical"|meta\s[^>]*(?:property="og:|name="twitter:))[^>]*>\s*\n?/gi;
+  /[ \t]*<(?:link\s[^>]*rel="canonical"|meta\s[^>]*(?:property="og:|name="twitter:|name="description"))[^>]*>\s*\n?/gi;
 
 /**
  * Splice the OG/robots block in just before `</head>`. Returns the
@@ -150,7 +161,9 @@ export function injectShareHead(html: string, meta: ShareLandingMeta | null): st
     );
   }
   const block = buildShareHeadTags(meta);
-  return `${head}    ${block}\n  ${html.slice(idx)}`;
+  let rest = html.slice(idx);
+  if (meta?.body) rest = rest.replace('<div id="root"></div>', `<div id="root">${meta.body}</div>`);
+  return `${head}    ${block}\n  ${rest}`;
 }
 
 /**
