@@ -8,6 +8,7 @@ import * as schema from './db/schema';
 import { setDbForTesting, closeDb } from './db';
 import { authRouter } from './routes/auth';
 import { cardImagesRouter } from './routes/card-images';
+import { cardLookupRouter } from './routes/card-lookup';
 import { adminRouter } from './routes/admin';
 import { syncRouter } from './routes/sync';
 import { gamesRouter } from './routes/games';
@@ -710,6 +711,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/ai', aiRouter);
   app.use('/api/events', eventsRouter);
   app.use('/api/cards', cardImagesRouter);
+  app.use('/api/cards', cardLookupRouter);
 
   /**
    * Hand tests a **listening server**, never the bare Express app.

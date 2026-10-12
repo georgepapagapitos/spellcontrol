@@ -1390,7 +1390,9 @@ describe('getCardsByNames / getCardsByIds bulk-first resolve', () => {
     prices: { usd: null },
   });
 
-  function stubFetch(lookup: (body: { names?: string[]; ids?: string[] }) => unknown) {
+  function stubFetch(
+    lookup: (body: { names?: string[]; ids?: string[]; currency?: string }) => unknown
+  ) {
     const seen = { lookups: 0, collections: 0, searches: 0 };
     vi.stubGlobal(
       'fetch',
@@ -1449,6 +1451,51 @@ describe('getCardsByNames / getCardsByIds bulk-first resolve', () => {
     expect(seen).toEqual({ lookups: 1, collections: 0, searches: 0 });
     // The caller's progress bar still reaches its total with Scryfall never asked.
     expect(progress.at(-1)).toEqual([1, 1]);
+  });
+
+  // E522: the dump picks each name's cheapest printing IN the requested
+  // currency, so the request must carry it and the cache must keep USD and EUR
+  // answers for one name apart.
+  it('sends the currency and caches USD and EUR answers under different keys', async () => {
+    const usdCard = makeCard({
+      id: 'cur-usd',
+      name: 'Currency Probe',
+      layout: 'normal',
+      prices: { usd: '1.00' },
+    });
+    const eurCard = makeCard({
+      id: 'cur-eur',
+      name: 'Currency Probe',
+      layout: 'normal',
+      prices: { usd: '3.00' },
+    });
+    const sent: Array<string | undefined> = [];
+    const seen = stubFetch((body) => {
+      const currency = (body as { currency?: string }).currency;
+      sent.push(currency);
+      return { byName: { 'Currency Probe': currency === 'eur' ? eurCard : usdCard }, byId: {} };
+    });
+
+    const eur = await getCardsByNames(['Currency Probe'], undefined, undefined, {
+      currency: 'eur',
+    });
+    const usd = await getCardsByNames(['Currency Probe'], undefined, undefined, {
+      currency: 'usd',
+    });
+    expect(sent).toEqual(['eur', 'usd']);
+    expect(eur.get('Currency Probe')?.id).toBe('cur-eur');
+    expect(usd.get('Currency Probe')?.id).toBe('cur-usd');
+
+    // Both are now cached: asking again reaches neither the dump nor Scryfall.
+    const eurAgain = await getCardsByNames(['Currency Probe'], undefined, undefined, {
+      currency: 'eur',
+    });
+    const usdAgain = await getCardsByNames(['Currency Probe'], undefined, undefined, {
+      currency: 'usd',
+    });
+    expect(eurAgain.get('Currency Probe')?.id).toBe('cur-eur');
+    expect(usdAgain.get('Currency Probe')?.id).toBe('cur-usd');
+    expect(seen.lookups).toBe(2);
   });
 
   it('sends only the names the bulk lookup lacked to Scryfall', async () => {

@@ -27,9 +27,11 @@ vi.mock('@/lib/sync', () => ({
 const byName = new Map<string, ScryfallCard>();
 const byId = new Map<string, ScryfallCard>();
 const forceLive = vi.fn();
+const lookupCalls = vi.fn();
+const lookupArgs = (rest: unknown[]) => void lookupCalls(...rest);
 vi.mock('@/deck-builder/services/scryfall/client', () => ({
-  getCardsByNames: async (names: string[]) =>
-    new Map(names.filter((n) => byName.has(n)).map((n) => [n, byName.get(n)!])),
+  getCardsByNames: async (names: string[], ...rest: unknown[]) =>
+    lookupArgs(rest) ?? new Map(names.filter((n) => byName.has(n)).map((n) => [n, byName.get(n)!])),
   getCardsByIds: async (ids: string[]) =>
     new Map(ids.filter((i) => byId.has(i)).map((i) => [i, byId.get(i)!])),
   setForceLiveSearch: (v: boolean) => forceLive(v),
@@ -258,6 +260,7 @@ describe('applyCheapestPrintings / applyMatchMyCopies', () => {
     byName.clear();
     byId.clear();
     forceLive.mockClear();
+    lookupCalls.mockClear();
     useCollectionStore.setState({ cards: [copy('c1', 'sol-owned', 'Sol Ring')], hydrating: false });
     useDeckHistoryStore.getState().clear();
     setDeck(makeDeck({ cards: [slot('a', solRing, 'c1'), slot('b', bolt), slot('c', bolt)] }));
@@ -289,6 +292,16 @@ describe('applyCheapestPrintings / applyMatchMyCopies', () => {
       'sol-pricey',
       'bolt-pricey',
       'bolt-pricey',
+    ]);
+  });
+
+  it("asks the lookup for the viewer's currency (E522)", async () => {
+    byName.set('Lightning Bolt', boltCheap);
+    await applyCheapestPrintings('d1', 'EUR');
+    await applyCheapestPrintings('d1', 'USD');
+    expect(lookupCalls.mock.calls.map((c) => (c[2] as { currency: string }).currency)).toEqual([
+      'eur',
+      'usd',
     ]);
   });
 

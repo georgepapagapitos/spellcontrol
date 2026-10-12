@@ -571,13 +571,14 @@ export class ScryfallCache {
   lookupCards(
     names: string[],
     ids: string[],
-    maxAgeMs: number = TTL_MS
+    maxAgeMs: number = TTL_MS,
+    currency: 'usd' | 'eur' = 'usd'
   ): { byName: Record<string, ScryfallCard>; byId: Record<string, ScryfallCard> } {
     const byName: Record<string, ScryfallCard> = {};
     for (const name of names) {
       // A name from the browser is a list line or a search pick: the card,
       // never a renamed crossover printing it didn't ask for.
-      const card = this.getCheapestByName(name, maxAgeMs, 'usd', { avoidRenamed: true });
+      const card = this.getCheapestByName(name, maxAgeMs, currency, { avoidRenamed: true });
       if (card) byName[name] = card;
     }
     return { byName, byId: Object.fromEntries(this.getMany(ids, false, maxAgeMs)) };
