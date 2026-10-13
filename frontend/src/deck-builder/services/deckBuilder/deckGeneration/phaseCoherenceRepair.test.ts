@@ -797,4 +797,97 @@ describe('applyCoherenceRepair', () => {
     expect(repairs.every((r) => r.cut.startsWith('Junk'))).toBe(true);
     expect(deckNames(state)).not.toContain('Grip');
   });
+
+  // E1011: Muldrotha (BUG) at 4 nonbasics seated Otawara and Takenuma ahead of the
+  // on-color duals and shipped green two sources short. Real Scryfall oracle text.
+  describe('channel lands while a color is short (E1011)', () => {
+    const muldrothaLands = () => {
+      const fx = JSON.parse(
+        readFileSync(
+          resolve(
+            dirname(fileURLToPath(import.meta.url)),
+            '..',
+            '__fixtures__',
+            'muldrotha-lands.fixture.json'
+          ),
+          'utf8'
+        )
+      ) as { cards: ScryfallCard[] };
+      return (n: string) => structuredClone(fx.cards.find((c) => c.name === n)!);
+    };
+    const greenHeavy = () => {
+      const state = makeState();
+      state.context.colorIdentity = ['U', 'B', 'G'];
+      for (let i = 0; i < 8; i++) {
+        const name = `Green Spell ${i}`;
+        state.categories.synergy.push(
+          scryfallCard(name, { mana_cost: '{1}{G}{G}', color_identity: ['G'] })
+        );
+        state.usedNames.add(name);
+        state.edhrecData!.cardlists.allNonLand.push(edhrecCard(name, 25));
+      }
+      return state;
+    };
+
+    it('swaps a channel land of a covered color for a fixer that makes the short color', async () => {
+      const real = muldrothaLands();
+      const state = greenHeavy();
+      state.categories.lands = [real('Otawara, Soaring City'), real('Takenuma, Abandoned Mire')];
+      const { repairs } = await applyCoherenceRepair(
+        state,
+        makeCtx(state, { landSpares: [real('Overgrown Tomb'), real('Breeding Pool')] })
+      );
+      expect(repairs.map((r) => [r.cut, r.added])).toEqual([
+        ['Otawara, Soaring City', 'Overgrown Tomb'],
+        ['Takenuma, Abandoned Mire', 'Breeding Pool'],
+      ]);
+      expect(state.categories.lands.map((l) => l.name)).toEqual([
+        'Overgrown Tomb',
+        'Breeding Pool',
+      ]);
+    });
+
+    it('keeps the channel land of the short color, and a 40%+ staple', async () => {
+      const real = muldrothaLands();
+      const state = greenHeavy();
+      state.categories.lands = [real('Boseiju, Who Endures'), real('Otawara, Soaring City')];
+      state.edhrecData!.cardlists.lands = [
+        { ...edhrecCard('Otawara, Soaring City', 45), primary_type: 'Land' },
+      ];
+      const { repairs } = await applyCoherenceRepair(
+        state,
+        makeCtx(state, { landSpares: [real('Overgrown Tomb')] })
+      );
+      expect(repairs).toEqual([]);
+      expect(state.categories.lands.map((l) => l.name)).toEqual([
+        'Boseiju, Who Endures',
+        'Otawara, Soaring City',
+      ]);
+    });
+
+    it('never trades the channel land for a basic when no fixer is left', async () => {
+      const real = muldrothaLands();
+      const state = greenHeavy();
+      state.categories.lands = [real('Takenuma, Abandoned Mire')];
+      const { repairs } = await applyCoherenceRepair(state, makeCtx(state, { landSpares: [] }));
+      expect(repairs).toEqual([]);
+      expect(state.categories.lands.map((l) => l.name)).toEqual(['Takenuma, Abandoned Mire']);
+    });
+
+    it('does not spend the spell-swap budget', async () => {
+      const real = muldrothaLands();
+      const state = greenHeavy();
+      for (let i = 0; i < MAX_COHERENCE_SWAPS; i++) {
+        addToDeck(state, scryfallCard(`Junk ${i}`));
+        state.edhrecData!.cardlists.allNonLand.push(edhrecCard(`Fresh Filler ${i}`, 90));
+      }
+      state.categories.lands = [real('Takenuma, Abandoned Mire')];
+      const { repairs } = await applyCoherenceRepair(
+        state,
+        makeCtx(state, { landSpares: [real('Overgrown Tomb')] })
+      );
+      expect(repairs.map((r) => r.cut)).toContain('Takenuma, Abandoned Mire');
+      expect(repairs.filter((r) => r.cut.startsWith('Junk'))).toHaveLength(MAX_COHERENCE_SWAPS);
+    });
+  });
 });

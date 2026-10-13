@@ -491,6 +491,9 @@ export interface CoherenceFinding {
   /** For land-sanity findings the repair pass can execute: the WUBRG color
    *  whose basic land should replace the flagged land. Absent = report-only. */
   basicFixColor?: string;
+  /** With basicFixColor: the repair swaps only for a fixing nonbasic that makes
+   *  the color, never a basic (the flagged land is worth more than a basic). */
+  fixerOnly?: boolean;
   /** For zero-coverage answer-coverage warns the repair pass can execute: the
    *  threat class missing an answer. Absent = report-only. */
   answerClass?: 'creature' | 'artifact' | 'enchantment' | 'planeswalker';

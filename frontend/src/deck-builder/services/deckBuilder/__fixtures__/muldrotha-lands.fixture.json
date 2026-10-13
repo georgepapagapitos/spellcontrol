@@ -1,0 +1,438 @@
+{
+  "_source": "Scryfall /cards/collection 2026-10-13: the nonbasic picks and the dual fixers of the Muldrotha nb4 (t:instant) panel deck (E1011)",
+  "cards": [
+    {
+      "cmc": 0.0,
+      "color_identity": [
+        "U"
+      ],
+      "colors": [],
+      "game_changer": false,
+      "games": [
+        "paper",
+        "mtgo",
+        "arena"
+      ],
+      "id": "486d7edc-d983-41f0-8b78-c99aecd72996",
+      "keywords": [
+        "Channel"
+      ],
+      "layout": "normal",
+      "legalities": {
+        "standard": "not_legal",
+        "future": "not_legal",
+        "historic": "legal",
+        "timeless": "legal",
+        "gladiator": "legal",
+        "pioneer": "legal",
+        "modern": "legal",
+        "legacy": "legal",
+        "pauper": "not_legal",
+        "vintage": "legal",
+        "penny": "not_legal",
+        "commander": "legal",
+        "oathbreaker": "legal",
+        "standardbrawl": "not_legal",
+        "brawl": "legal",
+        "competitivebrawl": "legal",
+        "alchemy": "not_legal",
+        "paupercommander": "not_legal",
+        "duel": "legal",
+        "oldschool": "not_legal",
+        "premodern": "not_legal",
+        "predh": "not_legal",
+        "tlr": "legal"
+      },
+      "mana_cost": "",
+      "name": "Otawara, Soaring City",
+      "oracle_id": "e9b6a394-691c-425a-9307-76d8edc7375e",
+      "oracle_text": "{T}: Add {U}.\nChannel — {3}{U}, Discard this card: Return target artifact, creature, enchantment, or planeswalker to its owner's hand. This ability costs {1} less to activate for each legendary creature you control.",
+      "prices": {
+        "usd": "26.89",
+        "usd_foil": "30.56",
+        "usd_etched": null,
+        "eur": "23.30",
+        "eur_foil": "25.69",
+        "tix": "2.50"
+      },
+      "produced_mana": [
+        "U"
+      ],
+      "rarity": "rare",
+      "set": "neo",
+      "set_name": "Kamigawa: Neon Dynasty",
+      "type_line": "Legendary Land"
+    },
+    {
+      "cmc": 0.0,
+      "color_identity": [
+        "G"
+      ],
+      "colors": [],
+      "game_changer": false,
+      "games": [
+        "paper",
+        "mtgo",
+        "arena"
+      ],
+      "id": "2135ac5a-187b-4dc9-8f82-34e8d1603416",
+      "keywords": [
+        "Channel"
+      ],
+      "layout": "normal",
+      "legalities": {
+        "standard": "not_legal",
+        "future": "not_legal",
+        "historic": "legal",
+        "timeless": "legal",
+        "gladiator": "legal",
+        "pioneer": "legal",
+        "modern": "legal",
+        "legacy": "legal",
+        "pauper": "not_legal",
+        "vintage": "legal",
+        "penny": "not_legal",
+        "commander": "legal",
+        "oathbreaker": "legal",
+        "standardbrawl": "not_legal",
+        "brawl": "legal",
+        "competitivebrawl": "legal",
+        "alchemy": "not_legal",
+        "paupercommander": "not_legal",
+        "duel": "legal",
+        "oldschool": "not_legal",
+        "premodern": "not_legal",
+        "predh": "not_legal",
+        "tlr": "legal"
+      },
+      "mana_cost": "",
+      "name": "Boseiju, Who Endures",
+      "oracle_id": "bf1341dd-41a3-49f6-87ec-63170dde4324",
+      "oracle_text": "{T}: Add {G}.\nChannel — {1}{G}, Discard this card: Destroy target artifact, enchantment, or nonbasic land an opponent controls. That player may search their library for a land card with a basic land type, put it onto the battlefield, then shuffle. This ability costs {1} less to activate for each legendary creature you control.",
+      "prices": {
+        "usd": "50.19",
+        "usd_foil": "55.19",
+        "usd_etched": null,
+        "eur": "40.21",
+        "eur_foil": "51.39",
+        "tix": "11.98"
+      },
+      "produced_mana": [
+        "G"
+      ],
+      "rarity": "rare",
+      "set": "neo",
+      "set_name": "Kamigawa: Neon Dynasty",
+      "type_line": "Legendary Land"
+    },
+    {
+      "cmc": 0.0,
+      "color_identity": [
+        "B"
+      ],
+      "colors": [],
+      "game_changer": false,
+      "games": [
+        "paper",
+        "mtgo",
+        "arena"
+      ],
+      "id": "499037cc-a577-41cb-8ca2-5e117945634f",
+      "keywords": [
+        "Mill",
+        "Channel"
+      ],
+      "layout": "normal",
+      "legalities": {
+        "standard": "not_legal",
+        "future": "not_legal",
+        "historic": "legal",
+        "timeless": "legal",
+        "gladiator": "legal",
+        "pioneer": "legal",
+        "modern": "legal",
+        "legacy": "legal",
+        "pauper": "not_legal",
+        "vintage": "legal",
+        "penny": "not_legal",
+        "commander": "legal",
+        "oathbreaker": "legal",
+        "standardbrawl": "not_legal",
+        "brawl": "legal",
+        "competitivebrawl": "legal",
+        "alchemy": "not_legal",
+        "paupercommander": "not_legal",
+        "duel": "legal",
+        "oldschool": "not_legal",
+        "premodern": "not_legal",
+        "predh": "not_legal",
+        "tlr": "legal"
+      },
+      "mana_cost": "",
+      "name": "Takenuma, Abandoned Mire",
+      "oracle_id": "ac2dd694-d2f1-4025-8400-12332bdc882a",
+      "oracle_text": "{T}: Add {B}.\nChannel — {3}{B}, Discard this card: Mill three cards, then return a creature or planeswalker card from your graveyard to your hand. This ability costs {1} less to activate for each legendary creature you control.",
+      "prices": {
+        "usd": "10.86",
+        "usd_foil": "12.54",
+        "usd_etched": null,
+        "eur": "9.76",
+        "eur_foil": "12.06",
+        "tix": "0.14"
+      },
+      "produced_mana": [
+        "B"
+      ],
+      "rarity": "rare",
+      "set": "neo",
+      "set_name": "Kamigawa: Neon Dynasty",
+      "type_line": "Legendary Land"
+    },
+    {
+      "cmc": 0.0,
+      "color_identity": [
+        "B",
+        "G"
+      ],
+      "colors": [],
+      "game_changer": false,
+      "games": [
+        "paper",
+        "mtgo",
+        "arena"
+      ],
+      "id": "ad7e18e2-c033-4b6c-86e8-d0e5cc824cfd",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "standard": "legal",
+        "future": "legal",
+        "historic": "legal",
+        "timeless": "legal",
+        "gladiator": "legal",
+        "pioneer": "legal",
+        "modern": "legal",
+        "legacy": "legal",
+        "pauper": "not_legal",
+        "vintage": "legal",
+        "penny": "legal",
+        "commander": "legal",
+        "oathbreaker": "legal",
+        "standardbrawl": "legal",
+        "brawl": "legal",
+        "competitivebrawl": "legal",
+        "alchemy": "legal",
+        "paupercommander": "not_legal",
+        "duel": "legal",
+        "oldschool": "not_legal",
+        "premodern": "not_legal",
+        "predh": "legal",
+        "tlr": "legal"
+      },
+      "mana_cost": "",
+      "name": "Overgrown Tomb",
+      "oracle_id": "975ec9a3-6f20-4177-8211-82526e092538",
+      "oracle_text": "({T}: Add {B} or {G}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+      "prices": {
+        "usd": null,
+        "usd_foil": null,
+        "usd_etched": null,
+        "eur": null,
+        "eur_foil": null,
+        "tix": null
+      },
+      "produced_mana": [
+        "B",
+        "G"
+      ],
+      "rarity": "rare",
+      "set": "trk",
+      "set_name": "Star Trek",
+      "type_line": "Land — Swamp Forest"
+    },
+    {
+      "cmc": 0.0,
+      "color_identity": [
+        "G",
+        "U"
+      ],
+      "colors": [],
+      "game_changer": false,
+      "games": [
+        "paper",
+        "mtgo",
+        "arena"
+      ],
+      "id": "63e4dc07-c742-41bd-8301-861637908fd1",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "standard": "legal",
+        "future": "legal",
+        "historic": "legal",
+        "timeless": "legal",
+        "gladiator": "legal",
+        "pioneer": "legal",
+        "modern": "legal",
+        "legacy": "legal",
+        "pauper": "not_legal",
+        "vintage": "legal",
+        "penny": "legal",
+        "commander": "legal",
+        "oathbreaker": "legal",
+        "standardbrawl": "legal",
+        "brawl": "legal",
+        "competitivebrawl": "legal",
+        "alchemy": "legal",
+        "paupercommander": "not_legal",
+        "duel": "legal",
+        "oldschool": "not_legal",
+        "premodern": "not_legal",
+        "predh": "legal",
+        "tlr": "legal"
+      },
+      "mana_cost": "",
+      "name": "Breeding Pool",
+      "oracle_id": "20283c4a-f1f0-42f0-bc08-6da87474426b",
+      "oracle_text": "({T}: Add {G} or {U}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+      "prices": {
+        "usd": null,
+        "usd_foil": null,
+        "usd_etched": null,
+        "eur": null,
+        "eur_foil": null,
+        "tix": null
+      },
+      "produced_mana": [
+        "G",
+        "U"
+      ],
+      "rarity": "rare",
+      "set": "trk",
+      "set_name": "Star Trek",
+      "type_line": "Land — Forest Island"
+    },
+    {
+      "cmc": 0.0,
+      "color_identity": [],
+      "colors": [],
+      "game_changer": false,
+      "games": [
+        "paper",
+        "mtgo",
+        "arena"
+      ],
+      "id": "1ac6cb62-45da-4e9a-84c6-09e6eacf0664",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "standard": "not_legal",
+        "future": "not_legal",
+        "historic": "legal",
+        "timeless": "legal",
+        "gladiator": "legal",
+        "pioneer": "legal",
+        "modern": "legal",
+        "legacy": "legal",
+        "pauper": "legal",
+        "vintage": "legal",
+        "penny": "not_legal",
+        "commander": "legal",
+        "oathbreaker": "legal",
+        "standardbrawl": "legal",
+        "brawl": "legal",
+        "competitivebrawl": "legal",
+        "alchemy": "legal",
+        "paupercommander": "legal",
+        "duel": "legal",
+        "oldschool": "not_legal",
+        "premodern": "not_legal",
+        "predh": "not_legal",
+        "tlr": "legal"
+      },
+      "mana_cost": "",
+      "name": "Command Tower",
+      "oracle_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "prices": {
+        "usd": "0.24",
+        "usd_foil": null,
+        "usd_etched": null,
+        "eur": "0.19",
+        "eur_foil": null,
+        "tix": "0.02"
+      },
+      "produced_mana": [
+        "B",
+        "G",
+        "R",
+        "U",
+        "W"
+      ],
+      "rarity": "common",
+      "set": "frc",
+      "set_name": "Reality Fracture Commander",
+      "type_line": "Land"
+    },
+    {
+      "cmc": 0.0,
+      "color_identity": [],
+      "colors": [],
+      "game_changer": false,
+      "games": [
+        "paper"
+      ],
+      "id": "d11c5fe0-1528-4c94-a8cc-42bcab9d7487",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "standard": "not_legal",
+        "future": "not_legal",
+        "historic": "not_legal",
+        "timeless": "not_legal",
+        "gladiator": "legal",
+        "pioneer": "not_legal",
+        "modern": "legal",
+        "legacy": "legal",
+        "pauper": "not_legal",
+        "vintage": "legal",
+        "penny": "legal",
+        "commander": "legal",
+        "oathbreaker": "legal",
+        "standardbrawl": "not_legal",
+        "brawl": "not_legal",
+        "competitivebrawl": "not_legal",
+        "alchemy": "not_legal",
+        "paupercommander": "not_legal",
+        "duel": "legal",
+        "oldschool": "not_legal",
+        "premodern": "not_legal",
+        "predh": "legal",
+        "tlr": "legal"
+      },
+      "mana_cost": "",
+      "name": "Exotic Orchard",
+      "oracle_id": "27b047e3-0d41-45e2-98e9-9391d7923a1e",
+      "oracle_text": "{T}: Add one mana of any color that a land an opponent controls could produce.",
+      "prices": {
+        "usd": null,
+        "usd_foil": null,
+        "usd_etched": null,
+        "eur": null,
+        "eur_foil": null,
+        "tix": null
+      },
+      "produced_mana": [
+        "B",
+        "G",
+        "R",
+        "U",
+        "W"
+      ],
+      "rarity": "rare",
+      "set": "mbc",
+      "set_name": "Mystery Booster Commander Edition",
+      "type_line": "Land"
+    }
+  ]
+}

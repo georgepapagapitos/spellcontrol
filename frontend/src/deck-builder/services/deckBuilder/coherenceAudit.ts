@@ -23,6 +23,8 @@ import { detectWinConditions } from '@/deck-builder/services/winConditions/detec
 import { unsupportedPayoffAxes } from './synergyDependency';
 import { answerCoverageFindings } from './answerCoverage';
 import { nonboFindings, qualifiedTriggerFindings } from './nonbo';
+import { isChannelLand } from '@/deck-builder/services/scryfall/client';
+import { COMMANDER_STAPLE_INCLUSION } from './premiumCards';
 import { BASIC_TYPE_COLORS, fetchedBasicRequirement, WUBRG, type ManaColor } from './manabaseMath';
 import type { CoherenceFinding } from '@/deck-builder/types';
 
@@ -239,6 +241,39 @@ function landSanityFindings(input: CoherenceAuditInput): CoherenceFinding[] {
           basicFixColor: shortColor,
         });
       }
+    }
+  }
+
+  // 4. Channel lands taking a fixer's slot: a Kamigawa channel land taps for one
+  //    color, and the land ranker seats it ahead of an on-color dual. While a
+  //    color runs short, one that does not make the short color is the slot a
+  //    dual for it needs (Muldrotha, 4 nonbasics: Otawara and Takenuma seated,
+  //    green two sources short). One finding per missing source, the least
+  //    played first; a 40%+ staple of the commander's page keeps its slot, and
+  //    the repair only swaps in a fixer, never a basic.
+  const fixColor = manabase?.lines.some((l) => l.short) ? bestBasicFixColor(manabase) : undefined;
+  const fixLine = manabase?.lines.find((l) => l.color === fixColor);
+  if (fixColor && fixLine) {
+    const inclusionOf = (name: string) => input.cardInclusionMap?.[name] ?? 0;
+    const squatters = lands
+      .filter(
+        (land) =>
+          !land.isMustInclude &&
+          isChannelLand(land) &&
+          !producedManaColors(land, FULL_IDENTITY).includes(fixColor) &&
+          inclusionOf(land.name) < COMMANDER_STAPLE_INCLUSION
+      )
+      .sort((a, b) => inclusionOf(a.name) - inclusionOf(b.name))
+      .slice(0, Math.max(1, fixLine.target - fixLine.sources));
+    for (const land of squatters) {
+      findings.push({
+        kind: 'land-sanity',
+        severity: 'info',
+        card: land.name,
+        message: `A one-color utility land while ${COLOR_WORDS[fixColor]} sources run short. A land that makes ${COLOR_WORDS[fixColor]} fits better.`,
+        basicFixColor: fixColor,
+        fixerOnly: true,
+      });
     }
   }
 
