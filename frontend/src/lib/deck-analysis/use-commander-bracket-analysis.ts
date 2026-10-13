@@ -12,6 +12,7 @@ import { setApplyingAnalysis } from '@/lib/sync/applying-analysis';
 import { COMBOS_UNCHECKED, signatureMissesCombos } from './bracket-signature';
 import { readCachedAnalysis, writeCachedAnalysis } from './deck-analysis-cache';
 import { dismissedNames } from '@/lib/coach/dismissed-suggestions';
+import { coachTargetBracket } from '@/lib/coach/deck-settings-fit';
 
 interface Args {
   deck: Deck | null;
@@ -310,9 +311,18 @@ export function useCommanderBracketAnalysis(args: Args): {
 
   const enabled = Boolean(deck && hasCommander && deck.commander && mainboardSize != null);
 
+  // The bracket the plan aims at: the user's override, else the one the deck
+  // was built for (the same rule Coach uses), so a deck built for bracket 2
+  // is read against 2 and not against no target.
+  const generationContext = deck?.generationContext ?? null;
+  const targetBracketKey = useMemo(() => {
+    const t = coachTargetBracket({ generationContext, bracketOverride });
+    return t === 'all' ? null : t;
+  }, [generationContext, bracketOverride]);
+
   const signature = useMemo(
-    () => (deck && enabled ? buildSignature(deck, comboData, bracketOverride) : ''),
-    [deck, comboData, enabled, bracketOverride]
+    () => (deck && enabled ? buildSignature(deck, comboData, targetBracketKey) : ''),
+    [deck, comboData, enabled, targetBracketKey]
   );
 
   const persistedSignature = deck?.gradeBracketSignature;
@@ -404,7 +414,7 @@ export function useCommanderBracketAnalysis(args: Args): {
     const cards = deck.cards.map((c) => c.card);
     // The user's target bracket + the live oneAway combos feed the Bracket Fit
     // plan (target-pool fetch + upshift combo-completion adds happen inside).
-    const targetBracket = bracketOverride ?? undefined;
+    const targetBracket = targetBracketKey ?? undefined;
     const oneAwayCombos = comboData?.oneAway ?? [];
     // E221: cards generation injected from a theme's EDHREC tag page. Without
     // this the misfit pass flags every one of them (absent from the commander's

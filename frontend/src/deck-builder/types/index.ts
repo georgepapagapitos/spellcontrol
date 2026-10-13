@@ -1062,6 +1062,13 @@ export interface Customization {
   mtgFormat?: DeckFormat;
   landCount: number;
   nonBasicLandCount: number; // How many non-basic lands to include (rest will be basics)
+  /**
+   * The player typed a land total or nonbasic count themselves. Set by the
+   * customizer's inputs, cleared by its reset buttons and a format change; the
+   * EDHREC auto-apply never sets it. A typed value is never auto-tuned, even
+   * when it equals the default (37 lands / 15 nonbasic).
+   */
+  landsExplicit?: boolean;
   bannedCards: string[]; // Card names to exclude from deck generation
   banLists: BanList[]; // Named ban lists (preset + custom)
   mustIncludeCards: string[]; // Card names to force-include in deck generation (first priority)

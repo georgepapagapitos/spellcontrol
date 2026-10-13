@@ -56,8 +56,6 @@ export interface ManaBaseAnalysis {
   adjustedSuggestion: number; // EDHREC avg nudged up, or down if ramp is strong
   currentBasic: number;
   currentNonbasic: number;
-  suggestedBasic: number;
-  suggestedNonbasic: number;
   rampCount: number; // total ramp-role cards in deck
   manaProducerCount: number; // mana dorks + mana rocks specifically
   verdict: LandVerdict;
@@ -2109,7 +2107,6 @@ export function analyzeDeck(
   const rawEdhrecLands = edhrecData.stats.landDistribution.total || 37;
   const edhrecLands =
     deckSize >= 99 ? rawEdhrecLands : Math.round(rawEdhrecLands * (deckSize / 99));
-  const landScale = deckSize >= 99 ? 1 : deckSize / 99;
   const currentBasic = landCards.filter((c) => {
     const tl = getFrontFaceTypeLine(c).toLowerCase();
     return /\bbasic\b/.test(tl);
@@ -2208,8 +2205,6 @@ export function analyzeDeck(
     adjustedSuggestion,
     currentBasic,
     currentNonbasic,
-    suggestedBasic: Math.round((edhrecData.stats.landDistribution.basic || 0) * landScale),
-    suggestedNonbasic: Math.round((edhrecData.stats.landDistribution.nonbasic || 0) * landScale),
     rampCount,
     manaProducerCount,
     verdict,

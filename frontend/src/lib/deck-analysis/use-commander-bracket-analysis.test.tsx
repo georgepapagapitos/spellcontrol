@@ -152,6 +152,28 @@ describe('useCommanderBracketAnalysis — active', () => {
     );
   });
 
+  it.each([
+    ['the built-for bracket when there is no override', { targetBracket: 2 }, undefined, 2],
+    ['the override over the built-for bracket', { targetBracket: 2 }, 4, 4],
+    ['no target when built for "all"', { targetBracket: 'all' }, undefined, undefined],
+  ])('aims the plan at %s', async (_label, gc, override, expected) => {
+    vi.mocked(analyzeCommanderDeck).mockResolvedValue(RESULT as never);
+    const deck = makeDeck({ source: 'generated', generationContext: gc as never });
+    const a = args({ deck, bracketOverride: override as never });
+    renderHook(() => useCommanderBracketAnalysis(a));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(analyzeCommanderDeck).toHaveBeenCalledWith(
+      expect.objectContaining({ targetBracket: expected })
+    );
+    expect(a.updateDeck).toHaveBeenCalledWith(
+      'd1',
+      expect.objectContaining({ gradeBracketSignature: sig(deck, null, expected as never) }),
+      true
+    );
+  });
+
   it('skips when the signature already matches what was persisted', async () => {
     const deck = makeDeck();
     (deck as Deck).gradeBracketSignature = sig(deck);

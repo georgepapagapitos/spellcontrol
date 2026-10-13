@@ -1323,6 +1323,22 @@ describe('generateDeck — land-squeeze reconciliation (E88, iter-7 Slice B)', (
     }
   });
 
+  it('E1006: a typed 37 lands / 15 nonbasic is an ask, so the auto-tune never runs', async () => {
+    vi.mocked(computeAutoLandCount).mockClear();
+    const ctx = baseContext();
+    ctx.customization = customization({
+      landCount: 37,
+      nonBasicLandCount: 15,
+      landsExplicit: true,
+    });
+    try {
+      await generateDeck(ctx);
+      expect(computeAutoLandCount).not.toHaveBeenCalled();
+    } finally {
+      clearGenerationCache();
+    }
+  });
+
   it('E94: a Karsten resolve BELOW the legacy sizing anchor (both inside the 32-40 band) still routes the delta through the disclosed/protected squeeze reconcile, not a silent pass-size shrink', async () => {
     // The regression the differ gate caught: Karsten resolving to 35 while
     // the legacy per-archetype/ramp/curve anchor would have sized passes for

@@ -197,6 +197,15 @@ describe('DeckCustomizer — collection controls', () => {
     expect(update).toHaveBeenCalledWith({ collectionStrategy: 'partial' });
   });
 
+  it('marks a typed land total and nonbasic count as explicit', () => {
+    const update = vi.fn();
+    render(<DeckCustomizer customization={baseCustomization()} update={update} />);
+    fireEvent.change(screen.getByLabelText('Total lands'), { target: { value: '36' } });
+    expect(update).toHaveBeenCalledWith({ landCount: 36, landsExplicit: true });
+    fireEvent.change(screen.getByLabelText('Non-basic lands'), { target: { value: '12' } });
+    expect(update).toHaveBeenCalledWith({ nonBasicLandCount: 12, landsExplicit: true });
+  });
+
   it('patches collectionOwnedPercent when the slider changes', () => {
     const update = vi.fn();
     render(
