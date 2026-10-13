@@ -9,7 +9,7 @@ import type {
 } from '@/deck-builder/types';
 import { type GenerationState, markBanned } from './state';
 import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
-import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
+import { CHANNEL_LANDS, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import {
   getCardRole,
   readsAsProtection,
@@ -76,6 +76,11 @@ import { evictionKeeper } from './evictionKeeper';
 // (≥2 seeds — the #968 rule), game changers, and load-bearing engine cards.
 
 export const MAX_COHERENCE_SWAPS = 3;
+
+// A channel land flagged while a color is short is swapped only for a fixer, never a
+// basic, and the swap moves no spell, so it is not rationed with the spell swaps.
+const isChannelFinding = (f: { kind: string; card?: string }): boolean =>
+  f.kind === 'land-sanity' && !!f.card && f.card in CHANNEL_LANDS;
 
 export interface CoherenceRepairContext {
   /** name → ScryfallCard map built during generation (for swap-in lookups). */
@@ -379,7 +384,7 @@ export async function applyCoherenceRepair(
 
   for (const f of actionable) {
     // A fixer-for-utility land swap moves no spell, so it is not rationed with them.
-    if (swaps >= MAX_COHERENCE_SWAPS && !f.fixerOnly) continue;
+    if (swaps >= MAX_COHERENCE_SWAPS && !isChannelFinding(f)) continue;
 
     if (f.kind === 'land-sanity') {
       if (!f.basicFixColor) continue; // typal findings are report-only
@@ -390,7 +395,7 @@ export async function applyCoherenceRepair(
       // The finding is from before this pass's earlier swaps: swap a utility land
       // for a fixer only while the color is still short on the deck as it stands.
       if (
-        f.fixerOnly &&
+        isChannelFinding(f) &&
         !buildManabaseSummary(
           state.categories.lands,
           nonLands(),
@@ -415,10 +420,10 @@ export async function applyCoherenceRepair(
           ctx.budgetTracker?.deductCard(spare);
         }
         repairs.push({ cut: cut.name, added: spare.name, reason: f.message });
-        if (!f.fixerOnly) swaps++;
+        if (!isChannelFinding(f)) swaps++;
         continue;
       }
-      if (f.fixerOnly) continue;
+      if (isChannelFinding(f)) continue;
       const basic = await ctx.getBasicLand(basicName);
       if (!basic) continue;
       state.categories.lands[idx] = { ...basic };

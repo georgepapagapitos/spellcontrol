@@ -272,7 +272,6 @@ function landSanityFindings(input: CoherenceAuditInput): CoherenceFinding[] {
         card: land.name,
         message: `A one-color utility land while ${COLOR_WORDS[fixColor]} sources run short. A land that makes ${COLOR_WORDS[fixColor]} fits better.`,
         basicFixColor: fixColor,
-        fixerOnly: true,
       });
     }
   }
