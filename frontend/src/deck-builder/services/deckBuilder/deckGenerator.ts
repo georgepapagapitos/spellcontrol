@@ -2089,6 +2089,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     deckCardsSoFar: () => Object.values(categories).flat(),
     qualifiedGateOverflowCount,
     ownedPool: context.collectionPool,
+    boardCentricTargets: () => (preferAsymmetricWipes ? typeTargets : undefined),
   };
   // Aggregate, generation-wide count of role-cap escape-hatch admissions —
   // every gated path (pick loop, Scryfall fallback, shortage backfill, owned
@@ -2110,11 +2111,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // shared `fillGates` object) since `roleTargets` isn't resolved until
   // later, and NOT applied to the no-EDHREC-data / direct-role-bucket fills,
   // which fill a role bucket to its OWN target by construction.
-  const fillGatesWithRoleCap = (): FillHardGates =>
+  const fillGatesWithRoleCap = (capOnly?: readonly RoleKey[]): FillHardGates =>
     roleTargets
       ? {
           ...fillGates,
           roleCap: { roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts },
+          capOnly,
         }
       : fillGates;
 
@@ -3848,7 +3850,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           ignoreOwnedRarity,
           isCardAllowedBySynergyDependencies,
           liftScoreOf,
-          fillGates,
+          fillGatesWithRoleCap(['boardwipe']),
           state.cfg.mtgFormat
         );
         for (const c of ownedFill) addOwnedCard(c);
@@ -3881,7 +3883,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           ignoreOwnedRarity,
           isCardAllowedBySynergyDependencies,
           liftScoreOf,
-          fillGates,
+          fillGatesWithRoleCap(['boardwipe']),
           state.cfg.mtgFormat
         );
         for (const c of relaxedCards) {

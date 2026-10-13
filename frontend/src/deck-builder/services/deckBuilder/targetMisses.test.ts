@@ -96,6 +96,49 @@ describe('computeTargetMisses', () => {
     expect(miss(typed, 'lands')).toMatchObject({ asked: 40, got: 64 });
   });
 
+  // The generator planned 70 lands and the fixture deck holds 64.
+  const planned70 = (extra: object = {}) => {
+    const base = assemble(cleanCategories());
+    return { ...base, composition: { ...base.composition!, lands: 70 }, ...extra };
+  };
+
+  it('names the collection when an owned-only deck lands short of the lands it asked for (E1009)', () => {
+    const short = (strategy: 'full' | 'available' | 'prefer', owned?: Set<string>) =>
+      miss(
+        computeTargetMisses(
+          planned70(),
+          context({
+            customization: customization({ landCount: 70, collectionStrategy: strategy }),
+            collectionNames: owned,
+          })
+        ),
+        'lands'
+      );
+    const owned = new Set(['Brainstorm']);
+    for (const strategy of ['full', 'available'] as const) {
+      expect(short(strategy, owned)).toMatchObject({
+        asked: 70,
+        got: 64,
+        cause: 'your collection has too few lands that fit this deck',
+      });
+    }
+    // Not owned-only: the collection did not limit it, so it is not blamed.
+    expect(short('prefer', owned)?.cause).toBeNull();
+    expect(short('full')?.cause).toBeNull();
+  });
+
+  it('does not add a land cause when the generator already explained the land count', () => {
+    const deck = planned70({ landCountNote: 'Cut to 62 lands for the curve.' });
+    const m = computeTargetMisses(
+      deck,
+      context({
+        customization: customization({ landCount: 70, collectionStrategy: 'full' }),
+        collectionNames: new Set(['Brainstorm']),
+      })
+    );
+    expect(miss(m, 'lands')?.cause).toBeNull();
+  });
+
   it('holds an untouched land count to the generator plan, not the store default', () => {
     const base = assemble(cleanCategories());
     const deck = { ...base, composition: { ...base.composition!, lands: 62 } };

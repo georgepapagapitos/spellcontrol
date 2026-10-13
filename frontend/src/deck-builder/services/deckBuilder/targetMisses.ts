@@ -148,6 +148,12 @@ export function computeTargetMisses(
           collectionConstrains: ownedOnly,
           hasScryfallQuery: !!cz.scryfallQuery,
         })} left too few spells to fill the deck`;
+      } else if (got < asked && ownedOnly && !deck.landCountNote) {
+        // E1009: Sythis, owned-only, 8 free Forest and 8 free Plains, shipped 32
+        // of 34 lands with no cause. The free basics and the owned nonbasics
+        // that fit ran out, and the rest of the deck became spells. A land
+        // count the generator explained itself (landCountNote) needs no second one.
+        cause = 'your collection has too few lands that fit this deck';
       }
       misses.push({ key: 'lands', asked, got, cause });
     }

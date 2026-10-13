@@ -21,7 +21,13 @@ import {
 import { frontFaceName } from '@/lib/cards/card-text';
 import { buildSynergyFingerprint, synergyScore } from './synergyFingerprint';
 import type { BracketGuard } from './bracketGuard';
-import { validateCardRole, type RoleKey } from '@/deck-builder/services/tagger/client';
+import {
+  validateCardRole,
+  isOneSidedWipe,
+  getWipeScope,
+  type RoleKey,
+} from '@/deck-builder/services/tagger/client';
+import { wipeQualityPenalty } from './wipeTieBreaks';
 import { roleCapTolerance, ROLE_CAP_HATCH_MAX_PER_PASS } from './categorize';
 import { qualifiedPayoffMismatch } from './nonbo';
 import type { SubstituteCandidate } from './substituteFinder';
@@ -117,6 +123,15 @@ export interface RoleCapGate {
   overflowCounts?: Partial<Record<RoleKey, number>>;
 }
 
+/** A fill is the backstop behind the EDHREC pick loop, which already chose the
+ *  deck-appropriate wipes. Past that, a wipe costs the deck's own board, so its
+ *  cap sits at target + 1 (target for a board-centric plan), the band the
+ *  post-fill rebalance trims to, not the generic max(2, 20%). */
+function fillRoleCap(role: RoleKey, target: number, boardCentric: boolean): number {
+  if (role === 'boardwipe') return target + (boardCentric ? 0 : 1);
+  return target + roleCapTolerance(target);
+}
+
 // Hard gates the EDHREC-pool picker (cardPicking.ts) enforces but a raw
 // Scryfall search can't express in its query string. Threaded here so the
 // fallback fill can never admit a card the primary path would have rejected
@@ -147,6 +162,23 @@ export interface FillHardGates {
   /** The collection's own cards (E1003): an owned-only fill draws its candidates
    *  from these instead of the global edhrec page. */
   ownedPool?: readonly SubstituteCandidate[];
+  /** The deck's planned type mix when the plan is board-centric (tokens, tribal,
+   *  go-wide, attack-trigger), else undefined; read lazily, since the plan
+   *  resolves after the gates exist. A wipe torches such a deck's own board, so a
+   *  fill caps wipes at target, sorts them behind every other candidate by
+   *  wipeQualityPenalty (one-sided first), and its escape hatch refuses a
+   *  symmetric one. */
+  boardCentricTargets?: () => Record<string, number> | undefined;
+  /** Cap only these roles. A last-resort backfill sets it to the roles that cost
+   *  the deck something past target, so a cap cannot leave it short. */
+  capOnly?: readonly RoleKey[];
+}
+
+/** Own-board cost of seating `card` as a wipe: 0 for anything else, or when the plan is not board-centric. */
+function wipeCost(card: ScryfallCard, gates?: FillHardGates): number {
+  const targets = gates?.boardCentricTargets?.();
+  if (!targets || validateCardRole(card) !== 'boardwipe') return 0;
+  return wipeQualityPenalty(card, isOneSidedWipe, getWipeScope, targets);
 }
 
 /**
@@ -305,6 +337,13 @@ export async function fillWithScryfall(
       }
     }
 
+    if (gates?.boardCentricTargets?.()) {
+      const keyed = passing.map((card, i) => ({ card, i, w: wipeCost(card, gates) }));
+      keyed.sort((a, b) => a.w - b.w || a.i - b.i);
+      passing.length = 0;
+      for (const { card } of keyed) passing.push(card);
+    }
+
     // Pass 2: take up to `count`, applying the dynamic budget/price gate in order.
     const result: ScryfallCard[] = [];
     // Candidates skipped ONLY for being over their role's cap — replayed as an
@@ -347,11 +386,12 @@ export async function fillWithScryfall(
         return false;
       if (!allowCapOverflow && gates?.roleCap) {
         const role = validateCardRole(card);
-        if (role) {
+        if (role && (!gates.capOnly || gates.capOnly.includes(role))) {
           const target = gates.roleCap.roleTargets[role] ?? 0;
           if (
             target > 0 &&
-            (gates.roleCap.currentRoleCounts[role] ?? 0) >= target + roleCapTolerance(target)
+            (gates.roleCap.currentRoleCounts[role] ?? 0) >=
+              fillRoleCap(role, target, !!gates.boardCentricTargets?.())
           ) {
             capSkipped.push(card);
             return false;
@@ -399,12 +439,18 @@ export async function fillWithScryfall(
         const overB = roleB
           ? (roleCap.currentRoleCounts[roleB] ?? 0) - (roleCap.roleTargets[roleB] ?? 0)
           : 0;
-        return overA - overB;
+        return overA - overB || wipeCost(a, gates) - wipeCost(b, gates);
       });
       let admitted = 0;
       for (const card of capSkipped) {
         if (result.length >= count) break;
         if (admitted >= ROLE_CAP_HATCH_MAX_PER_PASS) break;
+        // The hatch exists so a pass never ships short over a soft target. A
+        // symmetric wipe in a board-centric plan is not worth that: it torches
+        // the deck's own board, and a later fill closes the gap with a spell
+        // that costs nothing (E1009: Krenko's typed instant fill ran out of
+        // owned instants and the hatch seated two wipes).
+        if (wipeCost(card, gates) > 0) continue;
         if (tryAcceptCard(card, true)) admitted++;
       }
     }
