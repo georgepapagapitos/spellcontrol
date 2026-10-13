@@ -1760,6 +1760,42 @@
   flex: 1;
 }
 
+/* The pocket a "where is my copy" link opened the viewer for. The ring locks
+   on once the sheet has risen, then stays while the viewer is open. White
+   reads on the page's fixed dark ground in every theme. The rings spill past
+   the gap between pockets, so the pocket rises over its neighbors to keep
+   them whole on every side. */
+.binder-pages-cell-wrap.is-located {
+  z-index: 1;
+}
+
+.binder-pages-cell-wrap.is-located::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+  box-shadow:
+    0 0 0 2px rgb(255 255 255 / 0.95),
+    0 0 0 4px var(--accent),
+    0 0 0 7px rgb(255 255 255 / 0.22);
+  pointer-events: none;
+  animation: binder-pocket-locate var(--motion-gentle) var(--ease-out-soft) var(--motion-drawer)
+    backwards;
+}
+
+@keyframes binder-pocket-locate {
+  from {
+    opacity: 0;
+    transform: scale(1.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .binder-pages-cell-wrap.is-located::after {
+    animation: none;
+  }
+}
+
 .binder-pages-cell {
   position: relative;
   background: rgba(255, 255, 255, 0.04);

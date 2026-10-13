@@ -16,6 +16,7 @@ import {
   type MarkKind,
 } from '@/lib/collection/copy-locations';
 import { formatLocation, formatLocationSpan, type CardLocation } from '@/lib/binder/card-locations';
+import { binderCopyHref } from '@/lib/binder/locate-copy';
 import { useAnchoredPanel } from '@/lib/overlays/use-anchored-panel';
 import { useMediaQuery } from '@/lib/util/use-media-query';
 import { printedName } from '@spellcontrol/binder-routing';
@@ -111,6 +112,23 @@ function placeDetail(place: CopyPlace, locations: ReadonlyMap<string, CardLocati
   return `${what} · its pockets are ${spots[0].binderName} · ${formatLocationSpan(spots)}`;
 }
 
+/** A binder row opens the page viewer at its first copy's pocket. */
+function placeHref(place: CopyPlace, locations: ReadonlyMap<string, CardLocation>): string {
+  if (place.kind !== 'binder') return place.href;
+  let first: { copyId: string; at: CardLocation } | null = null;
+  for (const copyId of place.copyIds) {
+    const at = locations.get(copyId);
+    if (!at) continue;
+    if (
+      !first ||
+      at.pageNum < first.at.pageNum ||
+      (at.pageNum === first.at.pageNum && at.slot < first.at.slot)
+    )
+      first = { copyId, at };
+  }
+  return first ? binderCopyHref(place.id, first.copyId) : place.href;
+}
+
 function PlaceRow({
   place,
   locations,
@@ -124,7 +142,7 @@ function PlaceRow({
   return (
     <li>
       <Link
-        to={place.href}
+        to={placeHref(place, locations)}
         className="toolbar-popover-item copy-places-link"
         onClick={onNavigate}
         aria-label={`${place.name}, ${placeDetail(place, locations)}, ${copiesWord(place.copyIds.length)}`}

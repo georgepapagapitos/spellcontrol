@@ -1,13 +1,12 @@
 import { ListChecks, Plus } from 'lucide-react';
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import { getSyncState, hasSyncError, onSyncedChange } from '@/lib/sync';
 import { useDocumentTitle } from '@/lib/util/use-document-title';
 import { AddCardSheet } from '@/components/binder/AddCardSheet';
 import { PageHeader } from '@/components/app-shell/PageHeader';
 import { BackLink } from '@/components/app-shell/BackLink';
-import { EmptyState } from '../components/shared/EmptyState';
 import { Chip } from '../components/shared/Chip';
 
 const BinderCardEditor = lazy(() =>
@@ -21,6 +20,7 @@ import { buildQtyByPrintingKey } from '@spellcontrol/binder-routing';
 import { useDebouncedValue } from '@/lib/util/use-debounced-value';
 import { BinderTabs } from '@/components/binder/BinderTabs';
 import { BinderDriftBanner } from '@/components/binder/BinderDriftBanner';
+import { BinderEmptyState } from '@/components/binder/BinderEmptyState';
 import { BinderView } from '@/components/binder/BinderView';
 import { BinderListView } from '@/components/binder/BinderListView';
 import { BinderVolumesSheet } from '@/components/binder/BinderVolumesSheet';
@@ -29,6 +29,7 @@ import { SearchPill } from '@/components/search/SearchPill';
 import { FilterChipsRow } from '../components/shared/FilterChipsRow';
 import { type BinderViewControls, type BinderViewMode } from '@/components/binder/BinderSummaryBar';
 import { useStoredView } from '@/lib/util/use-stored-view';
+import { LOCATE_COPY_PARAM, findCopyPage } from '@/lib/binder/locate-copy';
 import { ShareDialog } from '@/components/share/ShareDialog';
 import { useBinderActions } from '@/components/binder/use-binder-actions';
 import { CardName } from '@/components/shared/CardName';
@@ -84,11 +85,23 @@ export function BinderPage() {
   const [shareOpen, setShareOpen] = useState(false);
   const [volumesSheetOpen, setVolumesSheetOpen] = useState(false);
   const { actionsFor } = useBinderActions();
-  const [view, setView] = useStoredView<BinderViewMode>(
+  const [storedView, setStoredView] = useStoredView<BinderViewMode>(
     'mtg-binder-view-mode',
     ['pages', 'list', 'compact'],
     'pages'
   );
+  // A "where is my copy" link (`?copy=`, from the collection's copy list)
+  // opens the page viewer at that copy's pocket. It lands on the page grid,
+  // the one view with pockets, without changing the view the binder keeps.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const locateCopyId = searchParams.get(LOCATE_COPY_PARAM);
+  const [pagesForLocate, setPagesForLocate] = useState(false);
+  if (locateCopyId && !pagesForLocate && storedView !== 'pages') setPagesForLocate(true);
+  const view: BinderViewMode = pagesForLocate ? 'pages' : storedView;
+  const setView = (next: BinderViewMode) => {
+    setPagesForLocate(false);
+    setStoredView(next);
+  };
   const [showImages, setShowImagesRaw] = useState(() => {
     try {
       // On by default — only an explicit persisted opt-out turns it off.
@@ -197,6 +210,59 @@ export function BinderPage() {
     () => (activeUnfiltered ? volumesFor(activeUnfiltered) : null),
     [activeUnfiltered]
   );
+
+  // Where a "where is my copy" link's copy is: on a page this view shows, in
+  // the binder but hidden by the search, or no longer in the binder at all.
+  const locateStatus = useMemo(() => {
+    if (!locateCopyId || !active || active.def.id !== routeId) return null;
+    const asked = cards.find((c) => c.copyId === locateCopyId);
+    const holds = (b: typeof active) =>
+      !!findCopyPage(
+        b.sections.flatMap((sec) => sec.pages),
+        locateCopyId,
+        asked
+      );
+    if (holds(active)) return 'shown';
+    if (activeUnfiltered && holds(activeUnfiltered)) return 'hidden';
+    return 'gone';
+  }, [locateCopyId, active, activeUnfiltered, routeId, cards]);
+
+  // The link is spent once it opens the copy's page, or once the copy is
+  // gone from the binder. A search that hides it keeps the link, so clearing
+  // the search opens the page.
+  const clearLocate = useCallback(
+    () =>
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete(LOCATE_COPY_PARAM);
+          return next;
+        },
+        { replace: true }
+      ),
+    [setSearchParams]
+  );
+  const toldLocate = useRef<string | null>(null);
+  useEffect(() => {
+    if (locateStatus !== 'hidden' && locateStatus !== 'gone') return;
+    const told = `${locateStatus}:${locateCopyId}`;
+    if (toldLocate.current === told) return;
+    toldLocate.current = told;
+    if (locateStatus === 'hidden') {
+      toast.show({
+        message: 'Your search hides that copy.',
+        tone: 'info',
+        actionLabel: 'Clear search',
+        onAction: () => setSearch(''),
+      });
+      return;
+    }
+    clearLocate();
+    toast.show({
+      message: `That copy isn't in ${active?.def.name ?? 'this binder'} anymore.`,
+      tone: 'info',
+    });
+  }, [locateStatus, locateCopyId, active?.def.name, setSearch, clearLocate]);
 
   // Printable checklist source: same section grouping as BinderListView,
   // duplicate copies rolled into a Quantity like its qty pills do.
@@ -473,6 +539,12 @@ export function BinderPage() {
           controls={controls}
           qtyByCopyId={qtyByCopyId}
           showImages={showImages}
+          locate={
+            routeId && locateCopyId && locateStatus === 'shown'
+              ? { binderId: routeId, copyId: locateCopyId }
+              : null
+          }
+          onLocated={clearLocate}
         />
       ) : (
         (() => {
@@ -482,14 +554,9 @@ export function BinderPage() {
           // the toolbar with no content and no explanation below it.
           if (active.totalCards === 0) {
             return (
-              <EmptyState
-                tagline="No cards match this binder's rules."
-                hint="Loosen a rule to catch more cards."
-                actions={
-                  <Button variant="primary" onClick={() => setEditingBinder(active.def.id)}>
-                    Binder rules
-                  </Button>
-                }
+              <BinderEmptyState
+                binderId={active.def.id}
+                holdsCards={(activeUnfiltered?.totalCards ?? 0) > 0}
               />
             );
           }

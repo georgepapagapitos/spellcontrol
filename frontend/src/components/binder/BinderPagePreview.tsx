@@ -51,6 +51,11 @@ interface Props {
   renderCardMeta?: (card: EnrichedCard | undefined) => ReactNode;
   /** Group-printings qty by copyId — forwarded to inner CardPreview's ×N tag. */
   qtyByCopyId?: Map<string, number>;
+  /**
+   * The copy a "where is my copy" link opened the viewer for. Its pocket is
+   * marked for as long as the viewer is open.
+   */
+  locatedCopyId?: string;
 }
 
 // Pages within this many slides of the focus mount their full pocket grid;
@@ -83,6 +88,7 @@ export function BinderPagePreview({
   getCardActions,
   renderCardMeta,
   qtyByCopyId,
+  locatedCopyId,
 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -179,6 +185,14 @@ export function BinderPagePreview({
   const currentVolume = volumeLabels?.[selected];
   const where = currentVolume ? `${currentVolume} · ${pagePos}` : pagePos;
   const currentLabel = pageLabels[selected] ?? '';
+  // Said in the live region while the marked pocket's page is showing.
+  const locatedSlot = locatedCopyId
+    ? (current?.slots.findIndex((c) => c?.copyId === locatedCopyId) ?? -1)
+    : -1;
+  const locatedCard = locatedSlot >= 0 ? current?.slots[locatedSlot] : null;
+  const located = locatedCard ? `${locatedCard.name} in pocket ${locatedSlot + 1}` : '';
+  const context = [currentLabel, located].filter(Boolean).join(' · ');
+  const announced = [where, currentLabel, located].filter(Boolean).join(', ');
 
   return createPortal(
     <>
@@ -240,6 +254,7 @@ export function BinderPagePreview({
                   rows={rows}
                   aspect={slideAspect}
                   allocations={allocations}
+                  locatedCopyId={locatedCopyId}
                   onTapCard={handleCardTap}
                 />
               )}
@@ -251,7 +266,7 @@ export function BinderPagePreview({
               whole sheet and pushed the page off-screen). */}
           <div className="binder-pages-panel">
             <div className="binder-pages-name">{binderName}</div>
-            <div className="binder-pages-context">{currentLabel}</div>
+            <div className="binder-pages-context">{context}</div>
             {pages.length > 2 && (
               // Jump anywhere in a long binder without swiping page by page.
               // Its own touches never reach the sheet's swipe-down dismiss.
@@ -269,7 +284,7 @@ export function BinderPagePreview({
             )}
           </div>
           <div className="sr-only" aria-live="polite">
-            {currentLabel ? `${where}, ${currentLabel}` : where}
+            {announced}
           </div>
         </div>
       </div>
@@ -317,6 +332,7 @@ function SlideGrid({
   rows,
   aspect,
   allocations,
+  locatedCopyId,
   onTapCard,
 }: {
   slots: (EnrichedCard | null)[];
@@ -324,6 +340,7 @@ function SlideGrid({
   rows: number;
   aspect: string;
   allocations: Map<string, AllocationInfo>;
+  locatedCopyId?: string;
   onTapCard: (card: EnrichedCard) => void;
 }) {
   return (
@@ -340,6 +357,7 @@ function SlideGrid({
           key={i}
           card={card}
           allocation={card ? (allocations.get(card.copyId) ?? null) : null}
+          located={!!card && card.copyId === locatedCopyId}
           onTap={onTapCard}
         />
       ))}
@@ -350,10 +368,12 @@ function SlideGrid({
 function Cell({
   card,
   allocation,
+  located,
   onTap,
 }: {
   card: EnrichedCard | null;
   allocation: AllocationInfo | null;
+  located: boolean;
   onTap: (card: EnrichedCard) => void;
 }) {
   if (!card) return <div className="binder-pages-cell empty" />;
@@ -361,9 +381,10 @@ function Cell({
   // The deck link is the pocket button's sibling, not its child: a link inside
   // a button fails axe nested-interactive. The wrapper is the grid item.
   return (
-    <div className="binder-pages-cell-wrap">
+    <div className={`binder-pages-cell-wrap${located ? ' is-located' : ''}`}>
       <button
         type="button"
+        aria-current={located || undefined}
         className={`binder-pages-cell${card.foil ? ` is-foil foil-${foilStyle}` : ''}${
           allocation ? ' is-allocated' : ''
         }`}

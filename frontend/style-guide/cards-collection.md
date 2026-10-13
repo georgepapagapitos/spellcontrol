@@ -577,7 +577,8 @@ part of a stack of more than one. The marks are one button that opens **Where
 your copies are**: one row per place with its count and its page and pocket
 (a deck row says where the copy goes back), the copies in no place as a plain
 row with no link, and cubes that only list the card under their own overline.
-An anchored popover on desktop, a `Modal` bottom sheet on a phone (the
+A binder row opens that binder's flipbook at its earliest copy's pocket
+(below). An anchored popover on desktop, a `Modal` bottom sheet on a phone (the
 `SortPopover` split). In select mode the marks are a picture, not a button.
 The card preview's pills read the same breakdown and carry the same counts.
 Other surfaces (deck editor, shares, trades, the binder page) keep
@@ -1036,6 +1037,33 @@ it no longer changes how the flipbook lays pages out.
 Don't rebuild spreads or the edge tabs. Section context stays in the panel's
 context line (`<label> · page N`), and the grid view's page headings carry the
 labels untruncated.
+
+**Opening at one copy (2026-10-13).** `/collection/binders/<id>?copy=<copyId>`
+(`binderCopyHref`, `lib/binder/locate-copy.ts`) opens the flipbook at that
+copy's page with its pocket marked. Under "Group printings" it falls back to
+the pocket of the same printing and finish. The link's whole job is "show me
+where it is":
+
+- **The pocket is marked three ways:** a white ring with an accent band (white
+  reads on the page's fixed dark ground in every theme) that locks on once the
+  sheet has risen, `aria-current` on the pocket, and `<name> in pocket N`
+  added to the panel's context line and the live region. The mark lasts as
+  long as the viewer is open.
+- **It lands on the page grid,** the one view with pockets, even when the
+  binder's remembered view is a list. It doesn't change the remembered view:
+  a reload, or a later visit, opens the list again.
+- **The link is spent** (removed from the URL with `replace`) once the page is
+  open, so a reload or Back doesn't reopen the viewer.
+- **A copy the search hides** keeps the link and says "Your search hides that
+  copy." with Clear search, which then opens the page. **A copy no longer in
+  the binder** spends the link and says "That copy isn't in <binder>
+  anymore." `BinderPage` decides between the three from its unsearched pass,
+  because a search that hides every card leaves the view nothing to look in.
+
+**A search that empties a binder blames the search** (`BinderEmptyState`). It
+says "No cards match your search." with Clear search. "No cards match this
+binder's rules" and Binder rules are only for a binder that holds nothing
+before the search.
 
 ## Checklist grids — owned vs missing (E131)
 
