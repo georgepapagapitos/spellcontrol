@@ -22,6 +22,9 @@ export interface Row {
   // grouping is off this is at most one entry; when grouping is on the
   // badge surfaces every binder the stacked copies are in.
   binders: BinderInfo[];
+  // Every physical copy this row stands for (one when grouping is off): where
+  // they are is counted per copy, so the count always matches qty.
+  copyIds: string[];
 }
 
 export type ViewMode = 'grid' | 'list' | 'compact';

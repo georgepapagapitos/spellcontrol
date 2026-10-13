@@ -2,6 +2,7 @@ import {
   cloneElement,
   type ComponentProps,
   type KeyboardEvent,
+  type MouseEvent,
   type ReactElement,
   type ReactNode,
 } from 'react';
@@ -12,6 +13,7 @@ import type { CubeListing } from '@/lib/cube/cube-listings';
 import { FoilBadge } from './FoilBadge';
 import { DeckBadge } from './DeckBadge';
 import { BinderBadge } from './BinderBadge';
+import { CopyPlaces, type CopyPlacesProps } from './CopyPlaces';
 import { ProxyBadge } from './ProxyBadge';
 import { PriceOverrideBadge } from './PriceOverrideBadge';
 import { RarityBadge } from './RarityBadge';
@@ -59,8 +61,9 @@ interface CardRowProps {
   card: EnrichedCard;
   /** Copies this row stands for; `×qty` shows only when >1. */
   qty: number;
-  /** Deck allocations for the DeckBadge (caller resolves grouped vs single). */
-  allocations: AllocationInfo[];
+  /** Deck allocations for the DeckBadge (caller resolves grouped vs single).
+   *  Ignored when `copyPlaces` is given. */
+  allocations?: AllocationInfo[];
   /** Cubes that list this card without holding a copy (the dashed cube badge). */
   cubeListings?: CubeListing[];
   /** The per-row action menu (`CardRowMenu`) — props differ per surface. */
@@ -75,6 +78,12 @@ interface CardRowProps {
    * nothing (no badge clutter outside that filter state).
    */
   surplusCount?: number;
+  /**
+   * Where this row's copies are, counted (the collection). Replaces the
+   * deck, cube and binder badges with CopyPlaces marks that open the list;
+   * `allocations`, `cubeListings` and `binders` are then unused.
+   */
+  copyPlaces?: Omit<CopyPlacesProps, 'placement' | 'kinds'>;
   /** Where this row sits in a binder, already worded by `formatLocationSpan`
    *  ("p. 3 · slot 5"). Binder list and pull list only. */
   location?: string;
@@ -158,6 +167,7 @@ export function CardRow({
   hidePrice = false,
   hideQty = false,
   columns,
+  copyPlaces,
 }: CardRowProps) {
   const colorKey = getColorKey(card);
   // Name-keyed CDN thumb is only a fallback, exactly as in `CardGridCell`: a
@@ -172,12 +182,20 @@ export function CardRow({
   const rowClass = `collection-list-row${isLastRow ? ' is-last-row' : ''}${
     selectMode ? ' is-selectable' : ''
   }${selected ? ' is-selected' : ''}`;
+  // React events bubble out of a portal to the component that rendered it, so
+  // a tap inside a popover a mark in this row opened would also open the
+  // card. Only events from the row's own DOM activate it.
+  const fromRow = (e: { currentTarget: HTMLElement; target: EventTarget }) =>
+    e.currentTarget.contains(e.target as Node);
   const rowInteraction = {
     role: 'button' as const,
     tabIndex: 0,
     'aria-pressed': selectMode ? selected : undefined,
-    onClick: onActivate,
+    onClick: (e: MouseEvent<HTMLDivElement>) => {
+      if (fromRow(e)) onActivate();
+    },
     onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+      if (!fromRow(e)) return;
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         onActivate();
@@ -218,7 +236,11 @@ export function CardRow({
             </span>
             {card.foil && <FoilBadge card={card} />}
             <ProxyBadge card={card} />
-            <DeckBadge allocations={allocations} listedIn={cubeListings} />
+            {copyPlaces ? (
+              <CopyPlaces {...copyPlaces} placement="row" kinds={['deck', 'cube', 'listed']} />
+            ) : (
+              <DeckBadge allocations={allocations ?? []} listedIn={cubeListings} />
+            )}
             {ownedBadge}
           </span>
         </div>
@@ -241,7 +263,11 @@ export function CardRow({
       ),
       binder: (
         <div className="collection-table-binder">
-          <BinderBadge binders={binders ?? []} />
+          {copyPlaces ? (
+            <CopyPlaces {...copyPlaces} placement="row" kinds={['binder']} />
+          ) : (
+            <BinderBadge binders={binders ?? []} />
+          )}
           {!!surplusCount && (
             <span
               className="collection-list-surplus"
@@ -322,8 +348,14 @@ export function CardRow({
           </span>
           {card.foil && <FoilBadge card={card} />}
           <ProxyBadge card={card} />
-          <DeckBadge allocations={allocations} listedIn={cubeListings} />
-          <BinderBadge binders={binders ?? []} />
+          {copyPlaces ? (
+            <CopyPlaces {...copyPlaces} placement="row" />
+          ) : (
+            <>
+              <DeckBadge allocations={allocations ?? []} listedIn={cubeListings} />
+              <BinderBadge binders={binders ?? []} />
+            </>
+          )}
           {ownedBadge}
         </div>
         <div className="collection-list-meta">

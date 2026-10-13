@@ -67,6 +67,7 @@ export function buildRows(
         binderName: assignment?.name ?? null,
         binderColor: assignment?.color ?? null,
         binders: assignment ? [assignment] : [],
+        copyIds: [card.copyId],
       };
     });
   }
@@ -81,6 +82,7 @@ export function buildRows(
     const existing = grouped.get(key);
     if (existing) {
       existing.qty += 1;
+      existing.copyIds.push(card.copyId);
       if (assignment && !existing.binderIds.has(assignment.id)) {
         existing.binderIds.add(assignment.id);
         existing.binders.push(assignment);
@@ -101,6 +103,7 @@ export function buildRows(
         binderName: assignment?.name ?? null,
         binderColor: assignment?.color ?? null,
         binders: assignment ? [assignment] : [],
+        copyIds: [card.copyId],
         binderIds,
       });
     }

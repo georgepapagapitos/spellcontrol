@@ -30,7 +30,16 @@ function card(copyId: string, scryfallId: string, name: string, rarity = 'rare')
 }
 
 function row(key: string, c: EnrichedCard, qty = 1): Row {
-  return { key, card: c, qty, binderId: null, binderName: null, binderColor: null, binders: [] };
+  return {
+    key,
+    card: c,
+    qty,
+    binderId: null,
+    binderName: null,
+    binderColor: null,
+    binders: [],
+    copyIds: [c.copyId],
+  };
 }
 
 afterEach(cleanup);

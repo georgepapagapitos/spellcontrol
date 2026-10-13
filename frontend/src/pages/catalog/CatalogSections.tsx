@@ -43,6 +43,8 @@ import { CardGridCell } from '@/components/shared/CardGridCell';
 import { SwipeRow } from '@/components/shared/SwipeRow';
 import { BinderBadge } from '@/components/shared/BinderBadge';
 import { DeckBadge } from '@/components/shared/DeckBadge';
+import { CopyPlaces } from '@/components/shared/CopyPlaces';
+import { breakdownCopies } from '@/lib/collection/copy-locations';
 import { FoilBadge } from '@/components/shared/FoilBadge';
 import { Legend, LegendContent } from '@/components/shared/Legend';
 import { ManaCost } from '@/components/shared/ManaCost';
@@ -635,6 +637,25 @@ function DisplayPiecesSpecimen() {
           allocations={[deck('d1', 'Atraxa', '#2f6f9f'), deck('d2', 'Korvold', '#9f2f4a')]}
         />
         <DeckBadge nonInteractive placement="art" allocations={[deck('d1', 'Atraxa', '#2f6f9f')]} />
+      </Row>
+      <Row label="CopyPlaces">
+        {(['row', 'art'] as const).map((placement) => (
+          <CopyPlaces
+            key={placement}
+            card={fixtureCard()}
+            breakdown={breakdownCopies(
+              ['c1', 'c2', 'c3', 'c4', 'c5'],
+              new Map([['c1', deck('d1', 'Atraxa', '#2f6f9f')]]),
+              new Map([
+                ['c2', binder('b1', 'Trade binder', '#4a7c59')],
+                ['c3', binder('b1', 'Trade binder', '#4a7c59')],
+                ['c4', binder('b2', 'Staples', '#7c4a6b')],
+              ])
+            )}
+            locations={new Map()}
+            placement={placement}
+          />
+        ))}
       </Row>
       <Row label="SortDirArrow">
         <SortDirArrow dir="asc" />

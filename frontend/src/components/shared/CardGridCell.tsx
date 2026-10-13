@@ -237,6 +237,7 @@ export function CardGridCell({
   // name-bearing placeholder shows behind it.
   const [loadedArt, setLoadedArt] = useState<string | undefined>(undefined);
   const artReady = !!art && loadedArt === art;
+  const corner = (qty > 1 && !hideQty) || !!cornerExtras;
 
   return (
     <div
@@ -308,20 +309,28 @@ export function CardGridCell({
             )}
           </div>
         )}
-        {((qty > 1 && !hideQty) || cornerExtras) && (
-          <div className="collection-grid-corner">
-            {qty > 1 && !hideQty && (
-              <ArtBadge className="collection-grid-qty">
-                <span className="collection-grid-qty-x" aria-hidden="true">
-                  ×
-                </span>
-                {qty}
-              </ArtBadge>
+        {/* The ×qty corner and the badge cluster share the bottom edge as one
+            row, so neither is drawn over the other: the cluster sits beside
+            the corner where it fits and wraps to the line above where it
+            doesn't (collection.css .collection-grid-foot). */}
+        {(corner || badges) && (
+          <div className="collection-grid-foot">
+            {corner && (
+              <div className="collection-grid-corner">
+                {qty > 1 && !hideQty && (
+                  <ArtBadge className="collection-grid-qty">
+                    <span className="collection-grid-qty-x" aria-hidden="true">
+                      ×
+                    </span>
+                    {qty}
+                  </ArtBadge>
+                )}
+                {cornerExtras}
+              </div>
             )}
-            {cornerExtras}
+            {badges && <div className="collection-grid-badges">{badges}</div>}
           </div>
         )}
-        {badges && <div className="collection-grid-badges">{badges}</div>}
       </div>
       {/* Select mode turns a tap into a toggle, so the ⋮ steps aside (CSS,
           no `has-menu`) rather than sitting under a pointer that can no longer

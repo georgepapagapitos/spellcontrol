@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
 import type { SetMap } from '@/lib/api';
-import type { AllocationInfo } from '@/lib/collection/allocations';
+import type { CopyBreakdown } from '@/lib/collection/copy-locations';
+import type { CardLocation } from '@/lib/binder/card-locations';
 import { setSymbolTitle } from '@/lib/cards/set-symbols';
 import type { CubeListing } from '@/lib/cube/cube-listings';
-import { DeckBadge } from '@/components/shared/DeckBadge';
-import { BinderBadge } from '@/components/shared/BinderBadge';
+import { CopyPlaces } from '@/components/shared/CopyPlaces';
 import { ArtBadge } from '@/components/shared/ArtBadge';
 import {
   CardGridCell,
@@ -26,14 +26,17 @@ interface Props {
   setMap?: SetMap;
   surplusOnly: boolean;
   surplusByName: Map<string, number>;
-  allocations: AllocationInfo[];
+  /** Where this tile's copies are (breakdownCopies over row.copyIds). */
+  places: CopyBreakdown;
   cubeListings: CubeListing[];
+  /** Pages and pockets by copyId, for the where-your-copies list. */
+  locations: ReadonlyMap<string, CardLocation>;
   onActivate: () => void;
   menu: ReactNode;
 }
 
 /** One collection grid tile: the shared `CardGridCell` plus the two
- *  collection-only corner chips and the deck/binder badges. Split out of
+ *  collection-only corner chips and the marks for where its copies are. Split out of
  *  CardListTable's grid render (T176); it holds no state of its own. */
 export function CardListGridCell({
   row: r,
@@ -46,8 +49,9 @@ export function CardListGridCell({
   setMap,
   surplusOnly,
   surplusByName,
-  allocations,
+  places,
   cubeListings,
+  locations,
   onActivate,
   menu,
 }: Props) {
@@ -99,10 +103,16 @@ export function CardListGridCell({
         ) : null
       }
       badges={
-        <>
-          <DeckBadge allocations={allocations} listedIn={cubeListings} placement="art" />
-          <BinderBadge binders={r.binders} placement="art" />
-        </>
+        places.places.length > 0 || cubeListings.length > 0 ? (
+          <CopyPlaces
+            card={r.card}
+            breakdown={places}
+            listedIn={cubeListings}
+            locations={locations}
+            placement="art"
+            interactive={!selectMode}
+          />
+        ) : null
       }
     />
   );

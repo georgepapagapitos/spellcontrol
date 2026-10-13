@@ -12,6 +12,8 @@ import { BulkMoveToBinderSheet } from '@/components/binder/BulkMoveToBinderSheet
 import { useCollectionStore } from '@/store/collection';
 import { useAllocations, computeSurplusByName } from '@/lib/collection/allocations';
 import { useCubeListings } from '@/lib/cube/cube-listings';
+import { breakdownCopies } from '@/lib/collection/copy-locations';
+import { indexCardLocations } from '@/lib/binder/card-locations';
 import type { CollectionFilterJump } from '@/lib/collection/collection-insights';
 import { GRID_GAP_PX, clampZoom, readStoredZoom, zoomBucket } from '@/lib/util/grid-zoom';
 import { SearchPill } from '@/components/search/SearchPill';
@@ -201,6 +203,15 @@ export function CardListTable({
   const surplusByName = useMemo(
     () => computeSurplusByName(allCards, allocations),
     [allCards, allocations]
+  );
+
+  // Where each row's copies are, one place per copy, and each filed copy's
+  // page and pocket. `binders` is the unsearched materialization, the one
+  // indexCardLocations needs, so the pages match the binder view.
+  const copyLocations = useMemo(() => indexCardLocations(binders).byCopyId, [binders]);
+  const placesFor = useCallback(
+    (r: Row) => breakdownCopies(r.copyIds, allocations, cardToBinder),
+    [allocations, cardToBinder]
   );
 
   const rows = useMemo<Row[]>(
@@ -519,6 +530,7 @@ export function CardListTable({
             displayRows[i] ? cubeListingsFor(displayRows[i].card.name) : []
           }
           getStackQty={(i) => displayRows[i]?.qty ?? 1}
+          getStackPlaces={(i) => (displayRows[i] ? placesFor(displayRows[i]) : undefined)}
           renderPanelExtra={(i) => renderFriendOwners(displayRows[i]?.card)}
           onIndexChange={setPreviewIndex}
           onClose={() => setPreviewIndex(null)}
@@ -592,8 +604,9 @@ export function CardListTable({
                   setMap={setMap}
                   surplusOnly={surplusOnly}
                   surplusByName={surplusByName}
-                  allocations={allocationsFor(r.card)}
+                  places={placesFor(r)}
                   cubeListings={cubeListingsFor(r.card.name)}
+                  locations={copyLocations}
                   onActivate={() => (selectMode ? toggleRow(r.key) : setPreviewIndex(idx))}
                   menu={cardMenu(r, 'tile')}
                 />
@@ -637,9 +650,13 @@ export function CardListTable({
                   <CardRow
                     card={r.card}
                     qty={r.qty}
-                    allocations={allocationsFor(r.card)}
-                    cubeListings={cubeListingsFor(r.card.name)}
-                    binders={r.binders}
+                    copyPlaces={{
+                      card: r.card,
+                      breakdown: placesFor(r),
+                      listedIn: cubeListingsFor(r.card.name),
+                      locations: copyLocations,
+                      interactive: !selectMode,
+                    }}
                     surplusCount={surplusOnly ? surplusByName.get(r.card.name) : undefined}
                     setName={r.card.setName || setMap?.[r.card.setCode.toUpperCase()]?.name}
                     isLastRow={index === displayRows.length - 1}

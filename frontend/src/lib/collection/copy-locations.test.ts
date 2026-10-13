@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { makeDeckAllocationInfo, type AllocationInfo } from './allocations-core';
-import { breakdownCopies, copiesIn, type BinderRef } from './copy-locations';
+import {
+  breakdownCopies,
+  copiesIn,
+  describeCopyPlaces,
+  listedNotHeld,
+  markGroups,
+  type BinderRef,
+} from './copy-locations';
 
 const burn = makeDeckAllocationInfo('d1', 'Mono-Red Burn', '#b3392f', 'Lightning Bolt');
 const red: BinderRef = { id: 'b1', name: 'Red Spells', color: '#a8452a' };
@@ -59,5 +66,99 @@ describe('breakdownCopies', () => {
       places: [],
       unplaced: 2,
     });
+  });
+});
+
+// The screenshot's stack again, as a fixture: 1 in a deck (its pocket in Red
+// Spells), 2 more in Red Spells, 1 in Modern Staples, 1 in nothing.
+const split = () =>
+  breakdownCopies(
+    ['c1', 'c2', 'c3', 'c4', 'c5'],
+    new Map([['c1', burn]]),
+    new Map([
+      ['c1', red],
+      ['c2', red],
+      ['c3', red],
+      ['c4', modern],
+    ])
+  );
+
+describe('markGroups', () => {
+  it('counts a mark that holds part of the stack, in copies', () => {
+    expect(markGroups(split(), [])).toEqual([
+      { kind: 'deck', color: '#b3392f', copies: 1, counted: true },
+      // Two binders have no one color: the neutral mark.
+      { kind: 'binder', color: undefined, copies: 3, counted: true },
+    ]);
+  });
+
+  it('leaves a mark bare when it holds the whole stack', () => {
+    const all = breakdownCopies(
+      ['c1', 'c2', 'c3', 'c4'],
+      new Map(),
+      new Map([
+        ['c1', red],
+        ['c2', red],
+        ['c3', red],
+        ['c4', red],
+      ])
+    );
+    expect(markGroups(all, [])).toEqual([
+      { kind: 'binder', color: '#a8452a', copies: 4, counted: false },
+    ]);
+  });
+
+  it('never counts a single copy', () => {
+    const one = breakdownCopies(['c1'], new Map([['c1', burn]]), new Map());
+    expect(markGroups(one, [])[0].counted).toBe(false);
+  });
+
+  it('counts two decks as copies, not as decks', () => {
+    const korvold = makeDeckAllocationInfo('d2', 'Korvold', '#2f6f9f', 'Lightning Bolt');
+    const b = breakdownCopies(
+      ['c1', 'c2', 'c3', 'c4'],
+      new Map([
+        ['c1', burn],
+        ['c2', burn],
+        ['c3', korvold],
+      ]),
+      new Map()
+    );
+    expect(markGroups(b, [])).toEqual([
+      { kind: 'deck', color: undefined, copies: 3, counted: true },
+    ]);
+  });
+
+  it('draws only the kinds asked for', () => {
+    expect(markGroups(split(), [], ['binder']).map((g) => g.kind)).toEqual(['binder']);
+  });
+
+  it('adds a listing only for a cube that holds no copy', () => {
+    const cube: AllocationInfo = { ...burn, ownerKind: 'cube', ownerId: 'q1', ownerName: 'Pauper' };
+    const held = breakdownCopies(['c1', 'c2'], new Map([['c1', cube]]), new Map());
+    const listings = [
+      { cubeId: 'q1', cubeName: 'Pauper' },
+      { cubeId: 'q2', cubeName: 'Draft night' },
+    ];
+    expect(listedNotHeld(held, listings)).toEqual([{ cubeId: 'q2', cubeName: 'Draft night' }]);
+    expect(markGroups(held, listings).map((g) => [g.kind, g.counted])).toEqual([
+      ['cube', true],
+      ['listed', false],
+    ]);
+  });
+});
+
+describe('describeCopyPlaces', () => {
+  it('says every place and the copies in none, in one sentence', () => {
+    expect(describeCopyPlaces(split(), [])).toBe(
+      'Where your copies are: 1 in Mono-Red Burn, 2 in Red Spells, 1 in Modern Staples, 1 not in a deck or binder'
+    );
+  });
+
+  it('names a listing and speaks of one copy in the singular', () => {
+    const one = breakdownCopies(['c1'], new Map(), new Map([['c1', red]]));
+    expect(describeCopyPlaces(one, [{ cubeId: 'q2', cubeName: 'Draft night' }])).toBe(
+      'Where your copy is: 1 in Red Spells, listed in Draft night'
+    );
   });
 });

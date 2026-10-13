@@ -1553,14 +1553,41 @@ i.ss.set-symbol--mythic {
   font-weight: 600;
 }
 
-.collection-grid-badges {
+/* A tile's bottom edge: the corner cluster and the badge cluster as one row
+   at the plate inset. Two absolute clusters drew over each other once a
+   counted mark ("1 in a deck, 3 in binders") met a corner with a set chip on
+   a narrow tile; in one row the badges take what the corner leaves, and
+   where even one mark doesn't fit they wrap to the line above (wrap-reverse
+   keeps the corner on the bottom line). */
+.collection-grid-foot {
   position: absolute;
-  bottom: 5px;
-  right: 5px;
+  right: var(--space-1-5);
+  bottom: var(--space-1-5);
+  left: var(--space-1-5);
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap-reverse;
+  align-items: flex-end;
+  gap: var(--space-1);
+  pointer-events: none;
+}
+
+.collection-grid-foot > .collection-grid-corner {
+  position: static;
+}
+
+.collection-grid-badges {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  z-index: 2;
+  min-width: 0;
+  margin-left: auto;
+}
+
+/* The marks are live (links, the copy list) except in select mode, where a
+   tap anywhere on the tile selects it. */
+.collection-grid-item:not(.is-selectable) .collection-grid-badges {
+  pointer-events: auto;
 }
 
 /* An identity mark on art: which deck, cube or binder holds the copy
@@ -1625,12 +1652,6 @@ i.ss.set-symbol--mythic {
   height: 13px;
 }
 
-.collection-grid-item.grid-2x .collection-grid-badges {
-  bottom: 6px;
-  right: 6px;
-  gap: var(--space-1);
-}
-
 .collection-grid-item.grid-2x .collection-grid-badges .identity-mark {
   padding: var(--space-1);
 }
@@ -1641,8 +1662,6 @@ i.ss.set-symbol--mythic {
 }
 
 .collection-grid-item.grid-3x .collection-grid-badges {
-  bottom: var(--space-2);
-  right: var(--space-2);
   gap: var(--space-1-5);
 }
 
@@ -1659,12 +1678,6 @@ i.ss.set-symbol--mythic {
    comfortably. Bump size + tap target; the grid-2x/3x rules above are
    higher-specificity and already large, so they're unaffected. */
 @media (max-width: 640px) {
-  .collection-grid-badges {
-    bottom: 6px;
-    right: 6px;
-    gap: var(--space-1);
-  }
-
   .collection-grid-badges .identity-mark {
     padding: var(--space-1-5);
   }
@@ -2198,6 +2211,7 @@ i.ss.set-symbol--mythic {
    2–3 characters. */
 .collection-list.is-compact .card-list-deck-badge,
 .collection-list.is-compact .card-list-binder-badge,
+.collection-list.is-compact .copy-places-trigger--row,
 .collection-list.is-compact .card-list-cn,
 .collection-list.is-compact .card-list-condition,
 .collection-list.is-compact .card-list-language,
@@ -2216,7 +2230,8 @@ i.ss.set-symbol--mythic {
 
 @media (min-width: 1024px) {
   .collection-list.is-compact .card-list-deck-badge,
-  .collection-list.is-compact .card-list-binder-badge {
+  .collection-list.is-compact .card-list-binder-badge,
+  .collection-list.is-compact .copy-places-trigger--row {
     display: inline-flex;
   }
 }

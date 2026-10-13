@@ -565,6 +565,25 @@ carries the same three as pills, and the Key has an entry for each. The binder
 page grid (`CardSlot`) shows only real claims, since it answers "is this copy
 in its pocket" and a listing never moves a copy.
 
+**Where your copies are: counted on the collection (2026-10-13).** A stack of
+five whose marks say only "a deck" and "a binder" reads as five in the deck
+and five in the binder. So on the collection grid, list and table the deck,
+cube and binder marks are `CopyPlaces`, built from one breakdown
+(`lib/collection/copy-locations.ts`, `breakdownCopies`) that puts each copy
+in exactly one place, **where it is now**: a deck or cube claim wins over the
+binder pocket the copy keeps, so the places plus "not in a deck or binder"
+always add up to the stack. A mark carries a copy count only when it holds
+part of a stack of more than one. The marks are one button that opens **Where
+your copies are**: one row per place with its count and its page and pocket
+(a deck row says where the copy goes back), the copies in no place as a plain
+row with no link, and cubes that only list the card under their own overline.
+An anchored popover on desktop, a `Modal` bottom sheet on a phone (the
+`SortPopover` split). In select mode the marks are a picture, not a button.
+The card preview's pills read the same breakdown and carry the same counts.
+Other surfaces (deck editor, shares, trades, the binder page) keep
+`DeckBadge` / `BinderBadge`: there a mark is about one copy or one owner,
+and a count would have nothing to add up to.
+
 **Table density (compact view, ≥768px) — the Moxfield-style collection table.**
 Compact is not a fourth view mode: from tablet width up the same `compact`
 setting renders `CardRow` in `table` mode — one grid cell per column on the
