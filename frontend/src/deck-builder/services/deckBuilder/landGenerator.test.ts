@@ -904,3 +904,101 @@ describe('a build with no EDHREC land list', () => {
     }
   });
 });
+
+// E1003: the candidate cut ran before the price cap. A tight cap that failed the
+// top of the page left the pool empty while cheap lands sat just past the cut.
+describe('E1003: the caps run before the 2x candidate cut (partial / prefer)', () => {
+  const FIXTURE = JSON.parse(
+    readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), '__fixtures__', 'land-budget.fixture.json'),
+      'utf8'
+    )
+  ) as {
+    lands: {
+      name: string;
+      type_line: string;
+      color_identity: string[];
+      rarity: string;
+      set: string;
+      oracle_text: string;
+      price_usd: string;
+      edhrec_inclusion: number;
+    }[];
+  };
+  const byName = new Map(FIXTURE.lands.map((l) => [l.name, l]));
+  const asCard = (name: string): ScryfallCard => {
+    const l = byName.get(name)!;
+    return sc({
+      id: `id-${name}`,
+      oracle_id: `o-${name}`,
+      name,
+      cmc: 0,
+      type_line: l.type_line,
+      oracle_text: l.oracle_text,
+      color_identity: l.color_identity,
+      rarity: l.rarity as ScryfallCard['rarity'],
+      set: l.set,
+      prices: { usd: l.price_usd },
+    });
+  };
+  // Recorded EDHREC order, priciest first: the 2x cut of a 2-nonbasic target is
+  // the first four rows, all over the $0.50 cap.
+  const PAGE = [
+    'Breeding Pool',
+    'Overgrown Tomb',
+    'Eiganjo, Seat of the Empire',
+    'Den of the Bugbear',
+    'Castle Embereth',
+    'Forgotten Cave',
+    'Smoldering Crater',
+    'Looming Spires',
+  ];
+  const row = (name: string): EDHRECCard => ({
+    name,
+    sanitized: name,
+    primary_type: 'Land',
+    inclusion: byName.get(name)!.edhrec_inclusion,
+    num_decks: 100,
+  });
+
+  it('seats the cheap lands that sit past the old cut', async () => {
+    vi.mocked(getCardPrice).mockImplementation(
+      (c: ScryfallCard, currency?: 'USD' | 'EUR') =>
+        (currency === 'EUR' ? c.prices?.eur : c.prices?.usd) ?? null
+    );
+    vi.mocked(getCardsByNames).mockImplementation(
+      async (names: string[]) =>
+        new Map(names.filter((n) => byName.has(n)).map((n) => [n, asCard(n)]))
+    );
+    try {
+      const lands = await generateLands(
+        PAGE.map(row),
+        ['R', 'G'],
+        6,
+        new Set(),
+        4,
+        99,
+        [],
+        undefined,
+        new Set(),
+        0.5,
+        null,
+        null,
+        null,
+        new Set(),
+        undefined,
+        'USD',
+        false,
+        '',
+        undefined,
+        'prefer'
+      );
+      const nonbasic = lands.filter((c) => !c.type_line.includes('Basic')).map((c) => c.name);
+      expect(nonbasic).toHaveLength(2);
+      for (const n of nonbasic) expect(Number(byName.get(n)!.price_usd)).toBeLessThanOrEqual(0.5);
+    } finally {
+      vi.mocked(getCardPrice).mockImplementation(() => null);
+      vi.mocked(getCardsByNames).mockImplementation(async () => new Map());
+    }
+  });
+});

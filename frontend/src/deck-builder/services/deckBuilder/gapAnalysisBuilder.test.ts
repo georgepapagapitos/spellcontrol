@@ -180,3 +180,73 @@ describe('buildGapAnalysis', () => {
     });
   });
 });
+
+// E1003: the top-N cut ran before the deck's settings, so an owned-only or budget
+// deck was handed the 30 most-included cards, none of which fit, and then shown
+// "no gaps" while fitting cards ranked 31 and below.
+describe('buildGapAnalysis: the deck settings fit before the top-N cut', () => {
+  // Real EDHREC staples, most-included first. The owned ones sit at ranks 31-40.
+  const RANKED = [
+    'Sol Ring',
+    'Arcane Signet',
+    'Command Tower',
+    'Swords to Plowshares',
+    'Counterspell',
+    'Cyclonic Rift',
+    'Lightning Greaves',
+    'Swiftfoot Boots',
+    'Mana Crypt',
+    'Smothering Tithe',
+    'Rhystic Study',
+    'Mystic Remora',
+    'Esper Sentinel',
+    'Dockside Extortionist',
+    'Jeweled Lotus',
+    'Mana Vault',
+    'Chrome Mox',
+    'Mox Diamond',
+    "Lion's Eye Diamond",
+    'Grim Monolith',
+    'Demonic Tutor',
+    'Vampiric Tutor',
+    'Enlightened Tutor',
+    'Mystical Tutor',
+    'Worldly Tutor',
+    'Imperial Seal',
+    'Gamble',
+    'Fierce Guardianship',
+    'Deflecting Swat',
+    'Force of Will',
+    'Talisman of Dominance',
+    'Fellwar Stone',
+    'Mind Stone',
+    'Thought Vessel',
+    "Wayfarer's Bauble",
+    "Commander's Sphere",
+    'Hedron Archive',
+    'Pillar of Origins',
+    'Sky Diamond',
+    'Marble Diamond',
+  ];
+  const OWNED = new Set(RANKED.slice(30));
+  const data = edhrec(RANKED.map((n, i) => card(n, 90 - i)));
+
+  it('without a fit the top 30 hold none of the owned cards (the old outcome)', () => {
+    const gaps = buildGapAnalysis(data, [], { collectionNames: OWNED });
+    expect(gaps).toHaveLength(30);
+    expect(gaps.some((g) => g.isOwned)).toBe(false);
+  });
+
+  it('with an owned-only fit it returns the owned cards ranked past the cut', () => {
+    const gaps = buildGapAnalysis(data, [], {
+      collectionNames: OWNED,
+      fit: (g) => g.isOwned === true,
+    });
+    expect(gaps.map((g) => g.name)).toEqual(RANKED.slice(30));
+  });
+
+  it('a fit that rejects everything returns no gaps, and the limit still caps a loose one', () => {
+    expect(buildGapAnalysis(data, [], { fit: () => false })).toEqual([]);
+    expect(buildGapAnalysis(data, [], { fit: () => true, limit: 5 })).toHaveLength(5);
+  });
+});

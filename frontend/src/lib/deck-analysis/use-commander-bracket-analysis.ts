@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Deck } from '@/store/decks';
+import type { GapAnalysisCard } from '@/deck-builder/types';
 import type { ComboMatchResponse } from '@/types/combos';
 import { deckBuildOf } from '@/deck-builder/services/deckBuilder/analysisTargets';
 import { deckEdhrecSource } from '@/deck-builder/services/deckBuilder/deckEdhrecSource';
@@ -41,6 +42,13 @@ interface Args {
    * only when cards change. Absent/null → no target, bracketFit recorded as null.
    */
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
+  /**
+   * The deck's settings as a keep-or-drop test on a "cards to consider" row. The
+   * analysis applies it before its top-N cut, so a budget or owned-only deck gets
+   * 30 suggestions that fit rather than the 30 most-included, none of which do.
+   * Read through a ref: it never enters the signature or re-runs the analysis.
+   */
+  gapFit?: (gap: GapAnalysisCard) => boolean;
 }
 
 const DEBOUNCE_MS = 500;
@@ -193,8 +201,10 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        (28 of 59 read B where generation said A). A spell-land MDFC such as
  *        Fell the Profane // Fell Mire counts as the spell it is in the role
  *        counts however it was seated, the way the deck page counts it.
+ *   v25 — "cards to consider" fits the deck's settings (budget, owned-only,
+ *        bracket ceilings) before its top-30 cut, not after (E1003).
  */
-const ANALYSIS_ENGINE_VERSION = 'v24-build-plan';
+const ANALYSIS_ENGINE_VERSION = 'v25-gap-fit';
 
 /** Suffix marking a persisted `gradeBracketSignature` as a PARTIAL result
  *  (EDHREC was unreachable). Distinguishes it from a full result computed for
@@ -291,7 +301,12 @@ export function useCommanderBracketAnalysis(args: Args): {
     colorIdentity,
     updateDeck,
     bracketOverride,
+    gapFit,
   } = args;
+  const gapFitRef = useRef(gapFit);
+  useEffect(() => {
+    gapFitRef.current = gapFit;
+  });
 
   const enabled = Boolean(deck && hasCommander && deck.commander && mainboardSize != null);
 
@@ -424,6 +439,7 @@ export function useCommanderBracketAnalysis(args: Args): {
             build: deckBuildOf(deck),
             buildRemovals: deck.buildReport,
             dismissedNames: dismissedNames(deck.dismissedSuggestions),
+            gapFit: gapFitRef.current,
           })
         ),
         STALL_TIMEOUT_MS
