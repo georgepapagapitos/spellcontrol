@@ -41,11 +41,24 @@ describe('a slot holding a proxy copy from the collection', () => {
     expect(allocationSummary(row)).toBe('From your collection');
   });
 
-  it('offers Mark as proxy, never Not a proxy: the flag lives on the copy', () => {
+  // Neither proxy action: it is a proxy already, and that flag lives on the copy.
+  it('offers neither Mark as proxy nor Not a proxy', () => {
     const keys = deckCardActions({
       row: rowFor([{ slotId: 's1', card, allocatedCopyId: 'fake' }]),
       onSetProxy: vi.fn(),
     }).map((a) => a.key);
+    expect(keys).not.toContain('mark-proxy');
     expect(keys).not.toContain('unmark-proxy');
+  });
+
+  it('a stack with a real copy beside it still offers Mark one as proxy', () => {
+    const keys = deckCardActions({
+      row: rowFor([
+        { slotId: 's1', card, allocatedCopyId: 'fake' },
+        { slotId: 's2', card, allocatedCopyId: 'real' },
+      ]),
+      onSetProxy: vi.fn(),
+    }).map((a) => a.key);
+    expect(keys).toContain('mark-proxy');
   });
 });

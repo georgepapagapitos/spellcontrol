@@ -47,6 +47,15 @@ describe('planProxyToggle', () => {
     expect(proxyToastMessage(none!)).toBe(`${DRYAD} is no longer a proxy.`);
   });
 
+  it('marks the slot holding a real copy, never the one holding a proxy copy', () => {
+    const fake = { ...copy, copyId: 'c2', proxy: true } as EnrichedCard;
+    const self = deck('self', [slot('f', 'c2'), slot('r', 'c1')]);
+    const plan = planProxyToggle(self, ['f', 'r'], true, [copy, fake], [self], []);
+    expect(plan).toMatchObject({ kind: 'mark', slot: { slotId: 'r' }, freed: true });
+    const onlyFake = deck('self', [slot('f', 'c2')]);
+    expect(planProxyToggle(onlyFake, ['f'], true, [fake], [onlyFake], [])).toBeNull();
+  });
+
   it('returns null when the row has nothing to flip', () => {
     const self = deck('self', [slot('p', null, true)]);
     expect(planProxyToggle(self, ['p'], true, [], [self], [])).toBeNull();

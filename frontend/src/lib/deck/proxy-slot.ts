@@ -45,7 +45,12 @@ export function planProxyToggle(
     );
     return { kind: 'unmark', slot, copyId: claim?.copyId ?? null };
   }
-  const slot = slots.find((c) => !c.proxy && c.allocatedCopyId) ?? slots.find((c) => !c.proxy);
+  // A slot holding a proxy copy from the collection is a proxy already, so
+  // marking skips it: freeing that copy would leave a real one in its place.
+  const proxyCopy = (c: DeckCard) =>
+    !!c.allocatedCopyId && !!collection.find((x) => x.copyId === c.allocatedCopyId)?.proxy;
+  const markable = slots.filter((c) => !c.proxy && !proxyCopy(c));
+  const slot = markable.find((c) => c.allocatedCopyId) ?? markable[0];
   if (!slot) return null;
   const copy = slot.allocatedCopyId
     ? collection.find((c) => c.copyId === slot.allocatedCopyId)

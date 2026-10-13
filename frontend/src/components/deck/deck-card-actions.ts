@@ -11,6 +11,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { getMaxCopies } from '@/lib/deck/deck-validation';
 import { withTagAdded, withTagRemoved } from '@/lib/deck/deck-tags';
 import type { Row } from './deck-display-rows';
+import { proxyMarkQty } from './deck-row-allocation';
 
 /** Clusters, in render order. The menu runs past a dozen rows, and the style
  *  guide asks for labeled sections rather than one flat list once it does. */
@@ -233,7 +234,8 @@ export function deckCardActions(ctx: DeckCardActionCtx): DeckCardAction[] {
       run: () => onReleaseCopy(row.card),
     });
   }
-  if (onSetProxy && hasSlots && row.proxyQty < row.qty) {
+  // A slot holding a proxy copy from the collection is a proxy already.
+  if (onSetProxy && hasSlots && proxyMarkQty(row) < row.qty) {
     out.push({
       key: 'mark-proxy',
       label: row.qty > 1 ? 'Mark one as proxy' : 'Mark as proxy',
