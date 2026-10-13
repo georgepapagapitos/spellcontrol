@@ -1436,6 +1436,32 @@ rule that only held on the seat or the orientation it was tuned on.
   commander's name on its own line over a smaller value (and drops "N to
   lethal"); a phone-narrow clock strip gives its button padding to the name.
 
+## Play board: desktop is one device-sized table (2026-10-13, E301)
+
+The board is a phone and tablet surface. Above 1024px with a mouse
+(`DESKTOP_TABLE_QUERY` in `lib/play/desktop-table.ts`, `(min-width: 1025px) and
+(pointer: fine)`) it renders as one centered, `48rem` wide table (an iPad mini
+in portrait) on the black canvas, clock strip and hub included, with every
+seat upright. We do not maintain a separate desktop layout.
+
+- **Why.** Production data on 2026-10-13: 5 `play_started` events in 30 days
+  (all local), `game_results` empty, no viewport on any event. A 1300px-wide
+  board with the top seats rotated 180 degrees served a seat arrangement
+  nobody has used: nobody sits across a laptop.
+- **Reuse, don't branch.** The table is the tablet board at tablet width: the
+  same preset grids and panel CSS, capped by `max-width` on
+  `.game-board-rotator`. Seats stop rotating through the path an online table
+  already takes (`faces = isShared && !deskTable` in `GameBoard.tsx`), so
+  gestures, the keypad and the seam undo need no desktop branch.
+- **Touch is the other axis.** A tablet is `pointer: coarse` at any width
+  (an iPad Pro is 1366px) and keeps its rotated seats, because a tablet lying
+  flat between players is the real use. Never widen the query to width alone.
+- **Keep the two in step.** The CSS query and the TS constant are pinned equal
+  by `styles/play-board-desktop-table.test.ts`.
+- **Not promised.** No keyboard-driven desktop board, no per-seat desktop
+  density tuning. If desktop play shows up in the data, revisit with a real
+  desktop board (all seats upright, keyboard) rather than growing this one.
+
 ## Daily card puzzle (E558, 2026-09-30)
 
 `/daily`: one card a day, the same for everyone (the UTC day), six guesses.
