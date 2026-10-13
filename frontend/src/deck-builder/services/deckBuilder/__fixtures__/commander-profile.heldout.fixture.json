@@ -34,32 +34,29 @@
     "tribal"
   ],
   "knownMisses": [
-    "FN artifact-matters: Sophina, Spearsage Deserter",
-    "FN counters-generic: Danny Pink",
-    "FN counters-generic: Shalai and Hallar",
-    "FN counters-generic: Toph, the First Metalbender",
-    "FN draw: Quintorius, History Chaser",
-    "FN draw: Sokrates, Athenian Teacher",
-    "FN enchantment-matters: Heliod, God of the Sun",
-    "FN graveyard-recursion: Athreos, Shroud-Veiled",
-    "FN graveyard-recursion: Kastral, the Windcrested",
-    "FN group-hug: Sokrates, Athenian Teacher",
-    "FN plus-one-counters: Danny Pink",
-    "FN plus-one-counters: Toph, the First Metalbender",
-    "FN ramp: Bohn, Beguiling Balladeer",
-    "FN spellcast: Hikari, Twilight Guardian",
-    "FN untap-engine: Tadeas, Juniper Ascendant",
-    "FN voltron: Squall, SeeD Mercenary",
-    "FP attack-trigger: Commander Mustard",
     "FP etb: Aragorn, King of Gondor",
-    "FP etb: Hikari, Twilight Guardian",
-    "FP mill: Vohar, Vodalian Desecrator",
-    "FP ramp: Zidane, Tantalus Thief",
+    "FN graveyard-recursion: Athreos, Shroud-Veiled",
+    "FN ramp: Bohn, Beguiling Balladeer",
+    "FP attack-trigger: Commander Mustard",
+    "FN plus-one-counters: Danny Pink",
+    "FN counters-generic: Danny Pink",
     "FP sacrifice: Fandaniel, Telophoroi Ascian",
-    "FP spellcast: Vohar, Vodalian Desecrator",
     "FP tokens: Firion, Wild Rose Warrior",
+    "FP etb: Hikari, Twilight Guardian",
+    "FN spellcast: Hikari, Twilight Guardian",
+    "FN graveyard-recursion: Kastral, the Windcrested",
+    "FP voltron: Leonardo, Worldly Warrior",
+    "FN draw: Quintorius, History Chaser",
+    "FN counters-generic: Shalai and Hallar",
+    "FN draw: Sokrates, Athenian Teacher",
+    "FN artifact-matters: Sophina, Spearsage Deserter",
+    "FN voltron: Squall, SeeD Mercenary",
+    "FN plus-one-counters: Toph, the First Metalbender",
+    "FN counters-generic: Toph, the First Metalbender",
     "FP tribal: Ultron, Artificial Malevolence",
-    "FP voltron: Leonardo, Worldly Warrior"
+    "FP mill: Vohar, Vodalian Desecrator",
+    "FP spellcast: Vohar, Vodalian Desecrator",
+    "FP ramp: Zidane, Tantalus Thief"
   ],
   "cards": {
     "Akroma, Angel of Wrath": {
@@ -811,7 +808,7 @@
     {
       "name": "Bill Ferny, Bree Swindler",
       "stratum": "sample",
-      "truth": ["artifact-matters", "ramp"]
+      "truth": ["artifact-matters", "group-hug", "ramp"]
     },
     {
       "name": "Black Widow, Agile Avenger",
@@ -886,7 +883,7 @@
     {
       "name": "Go-Shintai of Ancient Wars",
       "stratum": "sample",
-      "truth": ["tribal"]
+      "truth": ["enchantment-matters", "tribal"]
     },
     {
       "name": "God-Eternal Oketra",
@@ -946,7 +943,14 @@
     {
       "name": "Kenrith, the Returned King",
       "stratum": "top",
-      "truth": ["plus-one-counters", "counters-generic", "lifegain", "draw", "graveyard-recursion"]
+      "truth": [
+        "plus-one-counters",
+        "counters-generic",
+        "lifegain",
+        "draw",
+        "graveyard-recursion",
+        "group-hug"
+      ]
     },
     {
       "name": "Kozilek, the Broken Reality",
@@ -1213,7 +1217,7 @@
     {
       "name": "Zidane, Tantalus Thief",
       "stratum": "sample",
-      "truth": ["etb", "artifact-matters"]
+      "truth": ["etb", "artifact-matters", "untap-engine"]
     },
     {
       "name": "Zodiark, Umbral God",
