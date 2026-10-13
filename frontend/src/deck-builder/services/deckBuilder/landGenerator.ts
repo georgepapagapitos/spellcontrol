@@ -534,8 +534,17 @@ export async function generateLands(
       for (const c of [...capsFilteredLands].sort((a, b) => rank(b) - rank(a))) {
         const sc = landCardMap.get(c.name);
         if (!sc || picked.has(sc.name) || usedNames.has(sc.name) || isMdfcLand(sc)) continue;
-        if (!fitsColorIdentity(sc, colorIdentity) || isColorlessOnlyLand(sc, { typalFixing: tribal })) continue;
-        if (producedManaColors(sc, identitySet, { typalFixing: tribal }).every((p) => !identitySet.has(p))) continue;
+        if (
+          !fitsColorIdentity(sc, colorIdentity) ||
+          isColorlessOnlyLand(sc, { typalFixing: tribal })
+        )
+          continue;
+        if (
+          producedManaColors(sc, identitySet, { typalFixing: tribal }).every(
+            (p) => !identitySet.has(p)
+          )
+        )
+          continue;
         spares.push(sc);
       }
     }

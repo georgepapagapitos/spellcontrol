@@ -139,7 +139,7 @@ export async function applyCoherenceRepair(
   const { commander, partnerCommander } = state.context;
   const commanders = [commander, partnerCommander].filter((c): c is ScryfallCard => c != null);
   const colorIdentity = state.context.colorIdentity;
-  const tribal = isTribalProfile(buildCommanderProfile(commander, partnerCommander));
+  const tribal = isTribalProfile(buildCommanderProfile(commander, partnerCommander), colorIdentity);
   const ownedOnly = constrainsToCollection(state.cfg.collectionStrategy);
   const collectionNames = state.context.collectionNames;
 
@@ -209,12 +209,7 @@ export async function applyCoherenceRepair(
     detectedCombos: ctx.detectedCombos,
     roleOf: getCardRole,
     lands: state.categories.lands,
-    manabase: buildManabaseSummary(
-      state.categories.lands,
-      current,
-      new Set(colorIdentity),
-      tribal
-    ),
+    manabase: buildManabaseSummary(state.categories.lands, current, new Set(colorIdentity), tribal),
     tribal,
     format: 'commander', // the deck builder only generates Commander-family decks
     colorIdentity, // enables the answer-coverage check (E79)

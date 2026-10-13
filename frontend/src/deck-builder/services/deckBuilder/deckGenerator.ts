@@ -2056,7 +2056,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       state.cfg.mtgFormat,
       landAllowed,
       landSpares,
-      isTribalProfile(commanderProfile)
+      isTribalProfile(commanderProfile, colorIdentity)
     );
   const dependencySupportCards = () => [
     commander,
@@ -4801,7 +4801,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     categories.lands,
     nonLandCards,
     new Set(colorIdentity),
-    isTribalProfile(commanderProfile)
+    isTribalProfile(commanderProfile, colorIdentity)
   );
 
   // Role-cap escape-hatch disclosure (E77 iter-4 round 2) — aggregated across
@@ -4938,7 +4938,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     roleOf: getCardRole,
     lands: categories.lands,
     manabase,
-    tribal: isTribalProfile(commanderProfile),
+    tribal: isTribalProfile(commanderProfile, colorIdentity),
     format: 'commander', // the deck builder only generates Commander-family decks
     colorIdentity, // enables the answer-coverage matrix (E79)
   });

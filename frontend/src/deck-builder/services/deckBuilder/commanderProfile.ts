@@ -608,9 +608,23 @@ export const VOLTRON_KEYWORDS = new Set([
 
 const ARCHETYPE_FALLBACK = Archetype.GOODSTUFF;
 
-/** The commander builds around one creature type (the profile's tribal ability). */
-export function isTribalProfile(profile: Pick<CommanderProfile, 'abilities'>): boolean {
-  return profile.abilities.some((a) => a.keyword === 'tribal');
+/** Past this many colors a deck needs its fixing unrestricted: the 5-color Ur-Dragon lost
+ *  three shocklands to creature-only lands and its noncreature spells ran short (E1011 gate). */
+const TYPAL_FIXING_MAX_COLORS = 3;
+
+/**
+ * The commander builds around one creature type, in few enough colors that a land
+ * making any color for its creatures (Unclaimed Territory, Cavern of Souls) can stand
+ * in for fixing: its creature spells are most of the deck.
+ */
+export function isTribalProfile(
+  profile: Pick<CommanderProfile, 'abilities'>,
+  colorIdentity: readonly string[]
+): boolean {
+  return (
+    colorIdentity.length <= TYPAL_FIXING_MAX_COLORS &&
+    profile.abilities.some((a) => a.keyword === 'tribal')
+  );
 }
 
 export function buildCommanderProfile(

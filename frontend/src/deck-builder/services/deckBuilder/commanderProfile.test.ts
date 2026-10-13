@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildCommanderProfile,
   getCombinedOracleText,
+  isTribalProfile,
   type CommanderKeyword,
 } from './commanderProfile';
 import { whyCardMatches } from './whyCardMatches';
@@ -442,5 +443,22 @@ describe('whyCardMatches', () => {
       2
     );
     expect(reasons.length).toBeLessThanOrEqual(2);
+  });
+});
+
+describe('isTribalProfile', () => {
+  const tribal = { abilities: [{ keyword: 'tribal' }] } as Parameters<typeof isTribalProfile>[0];
+  const plain = { abilities: [] } as Parameters<typeof isTribalProfile>[0];
+
+  it('is true for a tribal commander in up to three colors', () => {
+    expect(isTribalProfile(tribal, ['W', 'B', 'R'])).toBe(true);
+  });
+
+  it('is false past three colors, where the deck needs unrestricted fixing', () => {
+    expect(isTribalProfile(tribal, ['W', 'U', 'B', 'R', 'G'])).toBe(false);
+  });
+
+  it('is false for a commander that is not tribal', () => {
+    expect(isTribalProfile(plain, ['W'])).toBe(false);
   });
 });
