@@ -431,7 +431,11 @@ describe('acquireCardPoolPhase', () => {
       usingCache: true,
       scryfallQuery: 'f:commander',
     });
-    expect(result).toEqual({ altPool: null, scryfallQuery: 'f:commander' });
+    expect(result).toEqual({
+      altPool: null,
+      scryfallQuery: 'f:commander',
+      landScryfallQuery: 'f:commander',
+    });
     expect(fetchCommanderDataMock).not.toHaveBeenCalled();
     expect(buildAlternatePoolMock).not.toHaveBeenCalled();
   });
@@ -450,6 +454,30 @@ describe('acquireCardPoolPhase', () => {
     expect(buildAlternatePoolMock).toHaveBeenCalledTimes(1);
     expect(state.edhrecData).not.toBeNull();
     expect(result.scryfallQuery).toBe('year<=2010');
+    // An era constraint is promised on every card ("cards printed through ..."), lands included.
+    expect(result.landScryfallQuery).toBe('year<=2010');
+  });
+
+  // E1004: permanentsOnly's 'is:permanent -t:land' rode into the land fallback
+  // and matched zero lands, so oracle-role + permanentsOnly built with no nonbasics.
+  it('keeps the nonland-only permanents constraint out of the land query', async () => {
+    buildAlternatePoolMock.mockResolvedValue({
+      data: edhrecData(),
+      dataSource: 'oracle-role',
+      poolSize: 10,
+      effectiveConstraint: 'is:permanent -t:land f:paupercommander',
+      landConstraint: 'f:paupercommander',
+    });
+    const state = makeState();
+    (state.context.customization as unknown as { generationMode: string }).generationMode =
+      'oracle-role';
+    const result = await acquireCardPoolPhase(state, {
+      usingCache: false,
+      scryfallQuery: 'r:common',
+    });
+    expect(result.scryfallQuery).toBe('r:common is:permanent -t:land f:paupercommander');
+    expect(result.landScryfallQuery).toBe('r:common f:paupercommander');
+    expect(result.landScryfallQuery).not.toContain('-t:land');
   });
 
   // LIVE (stress sweep 2026-09-24): a motif no card matched said "Built by

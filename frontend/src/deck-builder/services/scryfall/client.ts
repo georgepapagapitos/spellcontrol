@@ -115,13 +115,41 @@ const searchCache = new Map<string, { data: ScryfallSearchResponse; timestamp: n
 const SEARCH_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 /**
- * Extract a set code from a scryfallQuery string.
+ * Extract the ONE set a scryfallQuery restricts the deck to.
  * Recognizes: set:xxx, s:xxx, e:xxx, edition:xxx (with or without quotes).
+ * Returns undefined when the query has no single required set: a negated term
+ * (`-set:cmm`, `not set:cmm`, `-(set:a or set:b)`) excludes rather than
+ * restricts, and an OR'd or repeated set (`set:cmm or set:clb`) names no single
+ * set. Read as a restriction those used to pin lands and pools to the very set
+ * the user excluded.
  */
 export function parseSetFromQuery(scryfallQuery: string): string | undefined {
   if (!scryfallQuery) return undefined;
-  const match = scryfallQuery.match(/\b(?:set|s|e|edition):["']?([a-zA-Z0-9_]+)["']?/i);
-  return match ? match[1].toLowerCase() : undefined;
+  const term = String.raw`(?:set|s|e|edition):["']?[a-zA-Z0-9_]+["']?`;
+  const positive = scryfallQuery
+    // negated parenthesised groups, innermost first (no nested-paren support needed)
+    .replace(/(?:^|\s)(?:-|not\s+)\([^()]*\)/gi, ' ')
+    .replace(new RegExp(String.raw`(?:^|\s)(?:-|not\s+)${term}`, 'gi'), ' ');
+  const found = [...positive.matchAll(new RegExp(String.raw`(?:^|[\s(])(${term})`, 'gi'))].map(
+    (m) => m[1].split(':')[1].replace(/["']/g, '').toLowerCase()
+  );
+  if (new Set(found).size !== 1) return undefined;
+  // An OR next to the set term makes it optional, not required.
+  if (new RegExp(String.raw`${term}\s+or\s|\sor\s+\(?${term}`, 'i').test(positive)) {
+    return undefined;
+  }
+  return found[0];
+}
+
+/**
+ * The query without its required-set term (the one `parseSetFromQuery` returns),
+ * unchanged when it names no single required set.
+ */
+export function stripRequiredSetTerm(scryfallQuery: string): string {
+  if (!parseSetFromQuery(scryfallQuery)) return scryfallQuery.trim();
+  return scryfallQuery
+    .replace(/(?<![-\w])(?:set|s|e|edition):["']?[a-zA-Z0-9_]+["']?/gi, '')
+    .trim();
 }
 
 /**
@@ -1199,6 +1227,7 @@ export async function getCardsByNames(
   return getCardRepository().getCardsByNames(names, onProgress, preferredSet, opts);
 }
 
+const UPGRADE_MAX_PAGES = 4; // Extra search pages read for one upgrade batch
 const UPGRADE_BATCH_SIZE = 15; // Card names per search query for printing upgrades
 
 /**
@@ -1291,10 +1320,10 @@ async function liveUpgradeCardPrintings(
 ): Promise<void> {
   if (!scryfallQuery) return;
 
-  // Strip set filters — already handled by getCardsByNames' preferredSet
-  const filters = scryfallQuery
-    .replace(/\b(?:set|s|e|edition):["']?[a-zA-Z0-9_]+["']?/gi, '')
-    .trim();
+  // Strip only the one required set (getCardsByNames' preferredSet already
+  // handled it). Negated or OR'd set terms have no preferredSet, so they go to
+  // Scryfall as written and it applies them.
+  const filters = stripRequiredSetTerm(scryfallQuery);
   if (!filters) return;
 
   // Collect card names, using front-face name for DFCs in search queries
@@ -1366,13 +1395,37 @@ async function liveUpgradeCardPrintings(
         // Skip art-series and other non-playable layouts — `unique=prints` includes them,
         // and they often match treatment filters like is:full-art / frame:extendedart.
         const matchMap = new Map<string, ScryfallCard>();
-        // E527: an art filter often matches a reversible SLD printing; seat the card it prints.
-        for (const card of data.data.map(resolveReversiblePrinting)) {
-          if (!isPlayableCard(card)) continue;
-          const frontName = frontFaceName(card.name);
-          if (!matchMap.has(card.name) && !matchMap.has(frontName)) {
-            matchMap.set(card.name, card);
-            if (frontName !== card.name) matchMap.set(frontName, card);
+        const addMatches = (list: ScryfallCard[]) => {
+          // E527: an art filter often matches a reversible SLD printing; seat the card it prints.
+          for (const card of list.map(resolveReversiblePrinting)) {
+            if (!isPlayableCard(card)) continue;
+            const frontName = frontFaceName(card.name);
+            if (!matchMap.has(card.name) && !matchMap.has(frontName)) {
+              matchMap.set(card.name, card);
+              if (frontName !== card.name) matchMap.set(frontName, card);
+            }
+          }
+        };
+        addMatches(data.data);
+        // A wide filter (-set:cmm, f:commander) matches every printing of every name,
+        // so one 175-card page can end before the batch's later cards appear, and
+        // strict mode would then drop them. Read on while a name is still unmatched.
+        const unmatched = () =>
+          uncached.some(
+            (e) => !matchMap.has(e.searchName) && !matchMap.has(cards.get(e.mapKey)?.name ?? '')
+          );
+        let more = data.has_more === true;
+        for (let page = 2; more && page <= UPGRADE_MAX_PAGES && unmatched(); page++) {
+          try {
+            const next = await scryfallRequest(
+              `/cards/search?q=${encodedQuery}&unique=prints&order=released&dir=desc&page=${page}`
+            );
+            if (!next.ok) break;
+            const nextData = (await next.json()) as ScryfallSearchResponse;
+            addMatches(nextData.data);
+            more = nextData.has_more === true;
+          } catch {
+            break;
           }
         }
 

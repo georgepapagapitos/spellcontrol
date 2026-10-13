@@ -69,7 +69,9 @@ import {
   getCardByName,
   getCardPrice,
   searchCards,
+  isMdfcLand,
 } from '@/deck-builder/services/scryfall/client';
+import { isTapland } from '@/deck-builder/services/tagger/client';
 
 const REAL = new Map<string, ScryfallCard>(
   (
@@ -793,6 +795,101 @@ describe('a nonbasic target the first pass can not fill', () => {
       expect(lands).toHaveLength(6);
     } finally {
       vi.mocked(searchCards).mockImplementation(async () => page([]));
+    }
+  });
+});
+
+// E1004: oracle-role has no EDHREC land list, so every nonbasic came from the
+// raw Scryfall fallback in Scryfall's own order.
+describe('a build with no EDHREC land list', () => {
+  const page = (data: ScryfallCard[]) => ({
+    object: 'list' as const,
+    total_cards: data.length,
+    has_more: false,
+    data,
+  });
+  const land = (name: string, oracle: string, produced: string[]) =>
+    sc({
+      id: `id-${name}`,
+      oracle_id: `o-${name}`,
+      name,
+      cmc: 0,
+      type_line: 'Land',
+      oracle_text: oracle,
+      produced_mana: produced,
+      color_identity: produced.filter((c) => c !== 'C'),
+    });
+  const BARREN_MOOR = land(
+    'Barren Moor',
+    'Barren Moor enters tapped.\n{T}: Add {B}.\nCycling {B} ({B}, Discard this card: Draw a card.)',
+    ['B']
+  );
+  const LLANOWAR_WASTES = land(
+    'Llanowar Wastes',
+    '{T}: Add {C}.\n{T}: Add {B} or {G}. Llanowar Wastes deals 1 damage to you.',
+    ['B', 'C', 'G']
+  );
+
+  const build = (landAllowed?: (c: ScryfallCard) => boolean) =>
+    generateLands(
+      [],
+      ['U', 'B', 'G'],
+      4,
+      new Set(),
+      3,
+      99,
+      [],
+      undefined,
+      new Set(),
+      null,
+      null,
+      null,
+      null,
+      undefined,
+      undefined,
+      'USD',
+      false,
+      '',
+      undefined,
+      'full',
+      100,
+      false,
+      false,
+      'balanced',
+      undefined,
+      undefined,
+      undefined,
+      null,
+      undefined,
+      landAllowed
+    );
+
+  it('ranks the Scryfall candidates like the EDHREC path: the untapped fixer beats the tapped cycler listed first', async () => {
+    vi.mocked(searchCards).mockImplementation(async () => page([BARREN_MOOR, LLANOWAR_WASTES]));
+    vi.mocked(isTapland).mockImplementation((name: string) => name === 'Barren Moor');
+    try {
+      const names = (await build()).map((c) => c.name);
+      expect(names).toContain('Llanowar Wastes');
+      expect(names).not.toContain('Barren Moor');
+    } finally {
+      vi.mocked(searchCards).mockImplementation(async () => page([]));
+      vi.mocked(isTapland).mockImplementation(() => false);
+    }
+  });
+
+  it('permanents-only: a sorcery // land MDFC does not take a land slot', async () => {
+    const emeria = real('Sink into Stupor // Soporific Springs');
+    vi.mocked(searchCards).mockImplementation(async () => page([emeria]));
+    vi.mocked(isMdfcLand).mockImplementation((c: ScryfallCard) => c.name === emeria.name);
+    const permanentFront = (c: ScryfallCard) =>
+      !/(Instant|Sorcery)/.test(c.type_line.split(' // ')[0]);
+    try {
+      expect((await build()).map((c) => c.name)).toContain(emeria.name);
+      const names = (await build(permanentFront)).map((c) => c.name);
+      expect(names).not.toContain(emeria.name);
+    } finally {
+      vi.mocked(searchCards).mockImplementation(async () => page([]));
+      vi.mocked(isMdfcLand).mockImplementation(() => false);
     }
   });
 });
