@@ -1823,9 +1823,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
   // Commander profile (mechanically detected archetype/tribes/abilities from
   // oracle text) — the fallback for theme-inference, and the input to the
-  // archetype-aware land count below. Computed once, unconditionally (not
-  // gated behind balancedRoles): a tribal/spellslinger/enchantress commander
-  // should get its real archetype and land count regardless of that toggle.
+  // archetype-aware land count below. Computed once, unconditionally (not gated
+  // behind balancedRoles), so every commander gets its real archetype and land count.
   const commanderProfile = buildCommanderProfile(commander, partnerCommander, {
     edhrecThemes: state.edhrecData?.themes,
   });
