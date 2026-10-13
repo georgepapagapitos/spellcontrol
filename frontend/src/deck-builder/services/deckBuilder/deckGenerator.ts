@@ -2016,6 +2016,45 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   let scryfallCardMap: Map<string, ScryfallCard> = new Map();
   // Unpicked fixing nonbasics from the land pass, for the coherence repair's refill.
   const landSpares: ScryfallCard[] = [];
+  const landsFor = (
+    edhrecLands: EDHRECCard[],
+    count: number,
+    basicCount: number,
+    nonLandCards: ScryfallCard[]
+  ) =>
+    generateLands(
+      edhrecLands,
+      colorIdentity,
+      count,
+      usedNames,
+      basicCount,
+      format,
+      nonLandCards,
+      onProgress,
+      bannedCards,
+      maxCardPrice,
+      maxRarity,
+      maxCmc,
+      budgetTracker,
+      context.collectionNames,
+      context.collectionAvailableCounts,
+      currency,
+      arenaOnly,
+      landScryfallQuery,
+      preferredSet,
+      collectionStrategy,
+      collectionOwnedPercent,
+      ignoreOwnedBudget,
+      ignoreOwnedRarity,
+      resolvedPacing,
+      undefined,
+      context.collectionBasicPrintings,
+      fillGates,
+      manaPhilosophy,
+      state.cfg.mtgFormat,
+      landAllowed,
+      landSpares
+    );
   const dependencySupportCards = () => [
     commander,
     ...(partnerCommander ? [partnerCommander] : []),
@@ -2862,39 +2901,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
     categories.lands = [
       ...mustIncludeLands,
-      ...(await generateLands(
-        cardlists.lands,
-        colorIdentity,
-        adjustedLandTarget,
-        usedNames,
-        basicCount,
-        format,
-        allNonLandCards,
-        onProgress,
-        bannedCards,
-        maxCardPrice,
-        maxRarity,
-        maxCmc,
-        budgetTracker,
-        context.collectionNames,
-        context.collectionAvailableCounts,
-        currency,
-        arenaOnly,
-        landScryfallQuery,
-        preferredSet,
-        collectionStrategy,
-        collectionOwnedPercent,
-        ignoreOwnedBudget,
-        ignoreOwnedRarity,
-        resolvedPacing,
-        undefined,
-        context.collectionBasicPrintings,
-        fillGates,
-        manaPhilosophy,
-        state.cfg.mtgFormat,
-        landAllowed,
-        landSpares
-      )),
+      ...(await landsFor(cardlists.lands, adjustedLandTarget, basicCount, allNonLandCards)),
     ];
 
     // Log category counts after EDHREC selection
@@ -3163,39 +3170,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     ];
     categories.lands = [
       ...fallbackMustIncludeLands,
-      ...(await generateLands(
-        [],
-        colorIdentity,
-        fallbackAdjustedLandTarget,
-        usedNames,
-        fallbackBasicCount,
-        format,
-        fallbackNonLandCards,
-        onProgress,
-        bannedCards,
-        maxCardPrice,
-        maxRarity,
-        maxCmc,
-        budgetTracker,
-        context.collectionNames,
-        context.collectionAvailableCounts,
-        currency,
-        arenaOnly,
-        landScryfallQuery,
-        preferredSet,
-        collectionStrategy,
-        collectionOwnedPercent,
-        ignoreOwnedBudget,
-        ignoreOwnedRarity,
-        resolvedPacing,
-        undefined,
-        context.collectionBasicPrintings,
-        fillGates,
-        manaPhilosophy,
-        state.cfg.mtgFormat,
-        landAllowed,
-        landSpares
-      )),
+      ...(await landsFor([], fallbackAdjustedLandTarget, fallbackBasicCount, fallbackNonLandCards)),
     ];
   }
 

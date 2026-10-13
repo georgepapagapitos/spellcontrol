@@ -982,7 +982,7 @@ describe('E1004: a multicolor deck seats fixers before colorless tribal lands', 
     );
     try {
       return (
-        await generateLands(
+        await (generateLands as (...args: unknown[]) => Promise<ScryfallCard[]>)(
           PAGE.map(([name, inclusion]) => ({
             name,
             sanitized: name.toLowerCase(),
