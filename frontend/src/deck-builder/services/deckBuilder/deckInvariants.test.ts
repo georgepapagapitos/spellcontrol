@@ -310,6 +310,33 @@ describe('must-includes', () => {
     ]);
   });
 
+  // E1005: include lists and build-from-deck picks are must-includes too; the
+  // check read only the typed list, so an evicted one was invisible.
+  it('HARD when an include-list or build-from-deck pick is missing undisclosed, SOFT once named', () => {
+    const ctx = context({
+      customization: customization({}),
+      askedForNames: ['Rhystic Study', 'Mystic Remora'],
+    });
+    const silent = checkDeckInvariants(assemble(cleanCategories()), ctx);
+    expect(
+      silent.filter((x) => x.check === 'must-include').map((x) => [x.level, x.detail])
+    ).toEqual([
+      ['HARD', 'Rhystic Study missing (undisclosed)'],
+      ['HARD', 'Mystic Remora missing (undisclosed)'],
+    ]);
+    const told = checkDeckInvariants(
+      assemble(cleanCategories(), {
+        mustIncludeSkippedNote:
+          "Couldn't include 2 of your must-include cards. Rhystic Study: over your max card price. Mystic Remora: not legal.",
+      }),
+      ctx
+    );
+    expect(told.filter((x) => x.check === 'must-include').map((x) => x.level)).toEqual([
+      'SOFT',
+      'SOFT',
+    ]);
+  });
+
   it('matches a stored name that differs by case, and lets a ban win', () => {
     const v = checkDeckInvariants(
       assemble(cleanCategories()),

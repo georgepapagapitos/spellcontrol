@@ -7,7 +7,7 @@ import type {
   DeckCategory,
 } from '@/deck-builder/types';
 import type { GenerationState } from './state';
-import { markBanned } from './state';
+import { markBanned, protectedMustIncludeNames } from './state';
 import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { readsAsProtection, isFreeInteraction } from '@/deck-builder/services/tagger/client';
@@ -33,6 +33,9 @@ export interface ComboAuditContext {
   scryfallCardMap: Map<string, ScryfallCard>;
   budgetTracker: BudgetTracker | null;
   bracketGuard: BracketGuard | undefined;
+  /** Salt-tolerance gate (E1005): a combo piece over the user's salt cap is
+   *  refused like on every other add path. Undefined when no cap is active. */
+  isSaltBlocked?: (name: string) => boolean;
 }
 
 export interface ComboAuditResult {
@@ -59,7 +62,7 @@ export function comboIntegrityAuditPhase(
   state: GenerationState,
   ctx: ComboAuditContext
 ): ComboAuditResult {
-  const { scryfallCardMap, budgetTracker, bracketGuard } = ctx;
+  const { scryfallCardMap, budgetTracker, bracketGuard, isSaltBlocked } = ctx;
   let detectedCombos = ctx.detectedCombos;
   const repairs: CoherenceRepair[] = [];
   let budgetSkipped = 0;
@@ -70,8 +73,7 @@ export function comboIntegrityAuditPhase(
   }
 
   const { categories, usedNames, bannedCards } = state;
-  const { commander, partnerCommander, colorIdentity, customization, collectionNames } =
-    state.context;
+  const { commander, partnerCommander, colorIdentity, collectionNames } = state.context;
   const { ignoreOwnedBudget, maxCardPrice, currency, collectionStrategy } = state.cfg;
 
   const ORPHAN_INCLUSION_THRESHOLD = 25; // below this %, the card is considered combo-dependent
@@ -83,10 +85,7 @@ export function comboIntegrityAuditPhase(
   for (const c of state.edhrecData.cardlists.allNonLand) auditInclusion.set(c.name, c.inclusion);
 
   // Build must-include protection set
-  const auditMustInclude = new Set([
-    ...customization.mustIncludeCards.map((n) => n.toLowerCase()),
-    ...customization.tempMustIncludeCards.map((n) => n.toLowerCase()),
-  ]);
+  const auditMustInclude = protectedMustIncludeNames(state);
 
   // Track cards that are part of a COMPLETE combo — never evict them
   const completeComboCards = new Set<string>();
@@ -183,6 +182,7 @@ export function comboIntegrityAuditPhase(
       bracketBlocked++;
       return false;
     }
+    if (isSaltBlocked?.(card.name)) return false; // E1005
     // Defense-in-depth: every call site below pre-filters candidates for
     // color identity before evicting a card to make room (a candidate
     // fetch batch pulls in EVERY combo's cards, on- or off-color, purely
@@ -246,6 +246,7 @@ export function comboIntegrityAuditPhase(
       // E101: pre-filter mirrors auditCanAdd's bracket-ceiling gate — same
       // stranding concern as the caps gate above.
       if (bracketGuard?.exceedsCeiling(name)) continue;
+      if (isSaltBlocked?.(name)) continue; // E1005
       enablerScore.set(name, (enablerScore.get(name) ?? 0) + 1);
       const ids = enablerCombos.get(name) ?? [];
       ids.push(dc.comboId);
@@ -341,6 +342,7 @@ export function comboIntegrityAuditPhase(
       // E101: pre-filter mirrors auditCanAdd's bracket-ceiling gate — same
       // stranding concern as the caps gate above.
       .filter((c) => !bracketGuard?.exceedsCeiling(c.name))
+      .filter((c) => !isSaltBlocked?.(c.name)) // E1005
       .filter((c) => {
         if (auditPassesBudget(c)) return true;
         budgetSkipped++;

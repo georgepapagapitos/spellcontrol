@@ -243,6 +243,76 @@ describe('comboIntegrityAuditPhase', () => {
     expect(result.bracketBlocked).toBe(0);
   });
 
+  // E1005: the audit protected only the typed must-include list, so a card the
+  // player put on an include list (or a build-from-deck pick) was the weakest
+  // card it could cut, and nothing in the report said so.
+  it('never cuts an include-list or build-from-deck card for an enabler', () => {
+    const state = makeState();
+    const pieceA = scryfallCard('Dockside Extortionist');
+    const pieceB = scryfallCard('Pili-Pala');
+    const listed = scryfallCard("Sensei's Divining Top", { isMustInclude: true });
+    const enabler = scryfallCard('Grand Architect');
+    state.categories.creatures = [pieceA, pieceB];
+    state.categories.utility = [listed];
+    state.usedNames = new Set([pieceA.name, pieceB.name, listed.name]);
+    state.mustIncludeSources.set(listed.name, 'user');
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard(listed.name, 1),
+          edhrecCard(pieceA.name, 50),
+          edhrecCard(pieceB.name, 50),
+          edhrecCard('Grand Architect', 80),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const detectedCombos = [
+      combo('c1', [pieceA.name, 'Grand Architect'], ['Grand Architect']),
+      combo('c2', [pieceB.name, 'Grand Architect'], ['Grand Architect']),
+    ];
+
+    const result = comboIntegrityAuditPhase(state, {
+      detectedCombos,
+      scryfallCardMap: new Map([['Grand Architect', enabler]]),
+      budgetTracker: null,
+      bracketGuard: undefined,
+    });
+
+    // The only evictable weakest card is the listed one: it stays, no swap.
+    expect(state.usedNames.has(listed.name)).toBe(true);
+    expect(result.repairs).toEqual([]);
+  });
+
+  it('refuses a combo piece over the salt cap like every other add path', () => {
+    const state = makeState();
+    const pieceA = scryfallCard('Dockside Extortionist');
+    const pieceB = scryfallCard('Pili-Pala');
+    const filler = scryfallCard('Filler');
+    state.categories.creatures = [pieceA, pieceB, filler];
+    state.usedNames = new Set([pieceA.name, pieceB.name, filler.name]);
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Filler', 1),
+          edhrecCard(pieceA.name, 50),
+          edhrecCard(pieceB.name, 50),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const result = comboIntegrityAuditPhase(state, {
+      detectedCombos: [
+        combo('c1', [pieceA.name, 'Grand Architect'], ['Grand Architect']),
+        combo('c2', [pieceB.name, 'Grand Architect'], ['Grand Architect']),
+      ],
+      scryfallCardMap: new Map([['Grand Architect', scryfallCard('Grand Architect')]]),
+      budgetTracker: null,
+      bracketGuard: undefined,
+      isSaltBlocked: (name) => name === 'Grand Architect',
+    });
+    expect(state.usedNames.has('Grand Architect')).toBe(false);
+    expect(result.repairs).toEqual([]);
+  });
+
   it('skips an enabler that exceeds the budget cap and applies no swap', () => {
     const state = makeState();
     const filler = scryfallCard('Filler');

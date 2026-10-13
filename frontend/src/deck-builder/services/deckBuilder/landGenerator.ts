@@ -514,6 +514,8 @@ export async function generateLands(
   if (
     format === 99 &&
     colorIdentity.length >= 2 &&
+    // E1005: 'No nonbasics' (nonBasicTarget 0) is the user's call, a Tower included.
+    nonBasicTarget > 0 &&
     !usedNames.has('Command Tower') &&
     !bannedCards.has('Command Tower') &&
     !(

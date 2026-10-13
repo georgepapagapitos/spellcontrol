@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createState, addMustInclude } from './state';
+import { createState, addMustInclude, protectedMustIncludeNames } from './state';
 import type { GenerationContext } from './state';
 import type { Customization, ScryfallCard } from '@/deck-builder/types';
 
@@ -98,5 +98,35 @@ describe('createState — Game Changer headroom', () => {
   it('is reached immediately at "none"', () => {
     const state = createState(makeContext({ gameChangerLimit: 'none' }));
     expect(state.cfg.gameChangerLimitReached?.()).toBe(true);
+  });
+});
+
+// E1005: eviction phases protect every card the player asked for, not only the
+// typed and temporary lists.
+describe('protectedMustIncludeNames', () => {
+  const seated = (name: string, source: 'user' | 'deck' | 'combo' | 'dial') =>
+    ({ name, isMustInclude: true, mustIncludeSource: source }) as unknown as ScryfallCard;
+
+  it('covers typed, temporary, include-list and build-from-deck picks, lower-cased', () => {
+    const state = createState(
+      makeContext({
+        mustIncludeCards: ['Sol Ring'],
+        tempMustIncludeCards: ["Thassa's Oracle"],
+      })
+    );
+    addMustInclude(state, 'Rhystic Study', 'user'); // an include list
+    addMustInclude(state, 'Cyclonic Rift', 'deck'); // build-from-deck
+    const names = protectedMustIncludeNames(state);
+    for (const n of ['sol ring', "thassa's oracle", 'rhystic study', 'cyclonic rift']) {
+      expect(names.has(n)).toBe(true);
+    }
+  });
+
+  it('covers a seated forced card by its flag, and leaves a Staples/Synergy dial seed evictable', () => {
+    const state = createState(makeContext());
+    state.categories.utility.push(seated('Mystic Remora', 'user'), seated('Arcane Signet', 'dial'));
+    const names = protectedMustIncludeNames(state);
+    expect(names.has('mystic remora')).toBe(true);
+    expect(names.has('arcane signet')).toBe(false);
   });
 });

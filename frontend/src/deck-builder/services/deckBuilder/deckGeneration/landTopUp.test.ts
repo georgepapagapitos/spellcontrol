@@ -90,6 +90,41 @@ describe('runLandDeficitTopUp', () => {
   });
 });
 
+// E1005: in 'Available only' mode the top-up padded with basics the player does
+// not have free, past the copies generateLands itself had capped at.
+describe("the top-up respects the 'available' basic counts", () => {
+  const counts = new Map([
+    ['Island', 3],
+    ['Swamp', 1],
+  ]);
+  const availableBasicCount = (name: string) => counts.get(name) ?? 0;
+
+  it('stops at the free copies and counts the ones already seated', async () => {
+    const categories = emptyCategories();
+    categories.lands = [basic('Island'), basic('Island')];
+    const ctx: LandTopUpContext = { colorIdentity: ['U', 'B'], categories, availableBasicCount };
+    await runLandDeficitTopUp(ctx, 12);
+    const n = (name: string) => categories.lands.filter((c) => c.name === name).length;
+    expect(n('Island')).toBe(3);
+    expect(n('Swamp')).toBe(1);
+    expect(categories.lands).toHaveLength(4);
+  });
+
+  it('the last-resort pad still reaches the deck size: size beats availability', async () => {
+    const categories = emptyCategories();
+    const ctx: LandTopUpContext = { colorIdentity: ['U', 'B'], categories, availableBasicCount };
+    expect(await runLastResortLandFill(ctx, 99, 90)).toBe(9);
+    expect(categories.lands).toHaveLength(9);
+  });
+
+  it('without the limit it pads the whole deficit', async () => {
+    const categories = emptyCategories();
+    const ctx: LandTopUpContext = { colorIdentity: ['U', 'B'], categories };
+    await runLandDeficitTopUp(ctx, 12);
+    expect(categories.lands).toHaveLength(12);
+  });
+});
+
 describe('runLastResortLandFill', () => {
   it('never adds to a deck already at target size', async () => {
     const ctx: LandTopUpContext = { colorIdentity: ['G'], categories: emptyCategories() };

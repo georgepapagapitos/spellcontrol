@@ -38,9 +38,11 @@ import type { BudgetTracker } from '../budgetTracker';
 // are preserved (1-for-1 swap).  If no eligible combo can be seeded without
 // violating constraints, the deck is left unchanged.
 //
-// This fires only when comboCountSetting is 0 (user didn't ask for combos).
-// When the user explicitly requests combos, the upstream combo-boost +
-// Combo Integrity Audit already handle seeding.
+// This fires only when comboCountSetting is 0 AND the customization never set
+// it (E1005): an explicit 'None' is the user declining combos (the summary
+// chip reads "No combos"), so the floor must not seed one. When the user
+// requests combos, the upstream combo-boost + Combo Integrity Audit already
+// handle seeding.
 
 export interface ComboFloorContext {
   /** Result of detectCombosPhase — may be undefined if no combos were detected. */
@@ -57,6 +59,8 @@ export interface ComboFloorContext {
   maxCardPrice?: number | null;
   currency?: 'USD' | 'EUR';
   ignoreOwnedBudget?: boolean;
+  /** Salt-tolerance gate (E1005); undefined when no cap is active. */
+  isSaltBlocked?: (name: string) => boolean;
 }
 
 export interface ComboFloorResult {
@@ -94,11 +98,17 @@ export function applyComboFloor(state: GenerationState, ctx: ComboFloorContext):
     maxCardPrice = null,
     currency = 'USD',
     ignoreOwnedBudget = false,
+    isSaltBlocked,
   } = ctx;
 
   // Don't fire when the user has explicitly requested combos (the Combo
   // Integrity Audit already runs in that path).
   if (state.cfg.comboCountSetting > 0) {
+    return { detectedCombos, seeded: false, budgetSkipped: 0, repair: null };
+  }
+
+  // E1005: 'None' is an explicit choice, not an absent one.
+  if (state.context.customization.comboCount === 0) {
     return { detectedCombos, seeded: false, budgetSkipped: 0, repair: null };
   }
 
@@ -180,6 +190,8 @@ export function applyComboFloor(state: GenerationState, ctx: ComboFloorContext):
     ) {
       continue;
     }
+
+    if (isSaltBlocked?.(missingName)) continue; // E1005
 
     // Same budget gate cardPicking/scryfallFill/coherenceRepair enforce —
     // owned copies are exempt, everything else checks the live effective cap.

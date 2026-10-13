@@ -179,6 +179,45 @@ describe('applyComboFloor', () => {
     expect(result.seeded).toBe(false);
   });
 
+  it("seeds no combo when the player picked 'None' (comboCount 0), however empty the deck is of them", () => {
+    const state = makeState({
+      combos: [edhrec2CardCombo('c1', ["Thassa's Oracle", 'Demonic Consultation'], 900)],
+    });
+    state.usedNames.add('Demonic Consultation');
+    state.categories.creatures.push(scryfallCard('Demonic Consultation'));
+    const run = () =>
+      applyComboFloor(state, {
+        detectedCombos: undefined,
+        scryfallCardMap: new Map([["Thassa's Oracle", scryfallCard("Thassa's Oracle")]]),
+        mustIncludeNames: new Set(),
+        targetBracket: undefined,
+      });
+
+    state.context.customization = { comboCount: 0 } as typeof state.context.customization;
+    expect(run().seeded).toBe(false);
+    expect(state.usedNames.has("Thassa's Oracle")).toBe(false);
+
+    // The same deck with the setting never set still seeds (the floor's own contract).
+    state.context.customization = {} as typeof state.context.customization;
+    expect(run().seeded).toBe(true);
+  });
+
+  it('seeds no combo whose missing piece is over the salt cap', () => {
+    const state = makeState({
+      combos: [edhrec2CardCombo('c1', ["Thassa's Oracle", 'Demonic Consultation'], 900)],
+    });
+    state.usedNames.add('Demonic Consultation');
+    state.categories.creatures.push(scryfallCard('Demonic Consultation'));
+    const result = applyComboFloor(state, {
+      detectedCombos: undefined,
+      scryfallCardMap: new Map([["Thassa's Oracle", scryfallCard("Thassa's Oracle")]]),
+      mustIncludeNames: new Set(),
+      targetBracket: undefined,
+      isSaltBlocked: (name) => name === "Thassa's Oracle",
+    });
+    expect(result.seeded).toBe(false);
+  });
+
   it('does nothing when target bracket is 1 or 2', () => {
     const state = makeState({
       combos: [edhrec2CardCombo('c1', ['Gravecrawler', 'Phyrexian Altar'])],
