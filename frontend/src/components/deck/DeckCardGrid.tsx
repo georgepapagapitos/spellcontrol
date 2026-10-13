@@ -30,7 +30,7 @@ import {
   type Row,
   type TypedGroup,
 } from './deck-display-rows';
-import { allocationSummary } from './deck-row-allocation';
+import { allocationSummary, proxyMarkQty } from './deck-row-allocation';
 import { SectionIcon } from './deck-display-icons';
 import { FoilShimmer } from '../shared/FoilShimmer';
 import { PartnerHeaderButton, LegalityBadge, RoleBadge } from './deck-display-icons';
@@ -451,7 +451,7 @@ export function DeckCardGrid({
                         ×{row.qty}
                       </ArtBadge>
                     )}
-                    {row.status === 'allocated' && row.proxyQty > 0 && (
+                    {row.status === 'allocated' && proxyMarkQty(row) > 0 && (
                       <ArtBadge
                         corner="top-end"
                         className="deck-card-grid-alloc"

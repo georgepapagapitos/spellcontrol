@@ -21,6 +21,8 @@ const row = (over: Partial<Row>): Row =>
     orphanQty: 0,
     claimedElsewhereQty: 0,
     proxyQty: 1,
+    releasedQty: 0,
+    ownedProxyQty: 0,
     card: { id: 'sf-dryad', name: 'Dryad of the Ilysian Grove' } as ScryfallCard,
     ...over,
   }) as Row;

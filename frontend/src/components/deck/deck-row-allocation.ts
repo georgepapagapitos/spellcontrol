@@ -6,12 +6,22 @@ import type { Row } from './deck-display-rows';
 export function allocationSummary(row: Row): string {
   const missing = row.unownedQty + row.orphanQty + row.claimedElsewhereQty;
   const proxies = row.proxyQty === 1 ? '1 proxy' : `${row.proxyQty} proxies`;
+  const proxyCopies =
+    row.ownedProxyQty === 1 ? 'one is a proxy copy' : `${row.ownedProxyQty} are proxy copies`;
   if (missing === 0) {
     if (row.proxyQty === row.qty)
       return row.qty === 1 ? 'Played as a proxy' : `All ${row.qty} played as proxies`;
-    if (row.proxyQty > 0)
-      return `${row.allocatedQty} of ${row.qty} from your collection, ${proxies}`;
-    return row.qty === 1 ? 'From your collection' : `All ${row.qty} copies from your collection`;
+    if (row.ownedProxyQty === row.qty)
+      return row.qty === 1
+        ? 'Proxy copy from your collection'
+        : `All ${row.qty} are proxy copies from your collection`;
+    const base =
+      row.proxyQty > 0
+        ? `${row.allocatedQty} of ${row.qty} from your collection, ${proxies}`
+        : row.qty === 1
+          ? 'From your collection'
+          : `All ${row.qty} copies from your collection`;
+    return row.ownedProxyQty > 0 ? `${base}, ${proxyCopies}` : base;
   }
   if (row.allocatedQty === 0 && row.proxyQty === 0) {
     if (row.orphanQty > 0)
@@ -32,6 +42,7 @@ export function allocationSummary(row: Row): string {
   const notOwned = row.unownedQty - row.releasedQty;
   if (notOwned > 0) parts.push(`${notOwned} not in collection`);
   if (row.proxyQty > 0) parts.push(proxies);
+  if (row.ownedProxyQty > 0) parts.push(proxyCopies);
   const note = parts.length > 0 ? ` (${parts.join('; ')})` : '';
   return `${row.allocatedQty} of ${row.qty} from your collection${note}`;
 }
@@ -47,4 +58,10 @@ export function allocationTitle(row: Row, opts: { editable: boolean }): string {
   const detail = allocationSummary(row);
   if (!opts.editable) return detail;
   return `${detail}, click to change quantity`;
+}
+
+/** Slots to mark "proxy": ones played as a proxy plus ones holding a
+ *  collection copy flagged as one. The deck reads both kinds the same way. */
+export function proxyMarkQty(row: Row): number {
+  return row.proxyQty + row.ownedProxyQty;
 }

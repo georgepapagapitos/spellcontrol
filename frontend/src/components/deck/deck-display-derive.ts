@@ -38,6 +38,7 @@ import {
   type CrossDeckCtx,
   type TypedGroup,
 } from './deck-display-rows';
+import { proxyMarkQty } from './deck-row-allocation';
 
 /** The collapsed-section keys under one prefix, with the prefix stripped. */
 export function titlesUnder(keys: Set<string>, prefix: string): Set<string> {
@@ -125,6 +126,7 @@ export function buildCommanderRows(args: {
       claimedElsewhereQty: status === 'claimed-elsewhere' ? 1 : 0,
       proxyQty: 0,
       releasedQty: isReleasedOwned(released, status, c.name, crossDeck) ? 1 : 0,
+      ownedProxyQty: status === 'allocated' && owned?.proxy ? 1 : 0,
       claimedBy: status === 'claimed-elsewhere' ? claimedByForName(c.name) : undefined,
       imageNormal: owned?.imageNormal ?? frontFaceImage(c),
       imageNormalBack: owned?.imageNormalBack ?? backFaceImage(c),
@@ -287,7 +289,7 @@ export function buildFlatIndex(
         });
         // The preview's "This copy · Marked Proxy" line, the one a proxy in the
         // collection gets. Only when every copy in the row is one.
-        if (row.proxyQty > 0 && row.proxyQty === row.qty) enriched.proxy = true;
+        if (proxyMarkQty(row) === row.qty) enriched.proxy = true;
         enrichedCards.push(enriched);
         labels.push(g.title);
       }
