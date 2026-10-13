@@ -737,10 +737,8 @@ export async function analyzeCommanderDeck(
         params.edhrecSource
       );
     } catch (err) {
-      // EDHREC unreachable / commander not indexed. estimateBracket, the
-      // combo/curve/role signals it reads, and detectWinConditions are all
-      // local — nothing here actually needs EDHREC — so compute a real
-      // bracket instead of discarding everything the deck already tells us.
+      // EDHREC unreachable / commander not indexed. The bracket, its signals and
+      // detectWinConditions are all local, so compute a real bracket from the deck.
       logger.warn(
         '[CommanderDeckAnalysis] EDHREC unreachable — computing a local-only bracket:',
         err
@@ -773,7 +771,9 @@ export async function analyzeCommanderDeck(
     }
 
     const { roleCounts } = computeRoleCounts(params.cards);
-    const commanderProfile = buildCommanderProfile(params.commander, params.partnerCommander);
+    const commanderProfile = buildCommanderProfile(params.commander, params.partnerCommander, {
+      edhrecThemes: edhrecData.themes,
+    });
     const commanders = [params.commander, params.partnerCommander ?? []].flat();
     const { roleTargets, overridePacing, overrideLandTarget } = deriveAnalysisTargets({
       commanders,

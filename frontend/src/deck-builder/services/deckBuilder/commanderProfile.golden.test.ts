@@ -21,12 +21,28 @@ type Fixture = {
   knownMisses: string[];
   cards: Record<string, Omit<ScryfallCard, 'name'>>;
   items: Item[];
+  /** "Theme:decks | Theme:decks" per commander, from the commander's EDHREC page. */
+  edhrecThemes: Record<string, string>;
 };
+
+/** The commander's EDHREC page themes, as buildCommanderProfile takes them (none when the page is missing). */
+function themesOf(fx: Fixture, name: string) {
+  const raw = fx.edhrecThemes[name];
+  if (!raw) return undefined;
+  return raw.split(' | ').map((pair) => {
+    const at = pair.lastIndexOf(':');
+    return { name: pair.slice(0, at), count: Number(pair.slice(at + 1)) };
+  });
+}
 const fixture = golden as unknown as Fixture;
 
 const results = fixture.items.map((item) => {
   const card = { name: item.name, ...fixture.cards[item.name] } as ScryfallCard;
-  const fired = new Set<string>(buildCommanderProfile(card).abilities.map((a) => a.keyword));
+  const fired = new Set<string>(
+    buildCommanderProfile(card, null, { edhrecThemes: themesOf(fixture, item.name) }).abilities.map(
+      (a) => a.keyword
+    )
+  );
   return { ...item, fired };
 });
 
@@ -88,10 +104,13 @@ describe('commander profile against the golden set', () => {
       return tp / rs.filter((r) => r.truth.includes(k)).length;
     };
     expect(precision('tribal')).toBeGreaterThanOrEqual(0.85);
-    // 0.7 before R11 was settled (2026-10-13): the stricter definition relabelled 28
-    // commanders and the detector, untouched, measures 0.625 against it. Ratchet it
-    // back up when the detector is retuned against the new labels.
-    expect(precision('voltron')).toBeGreaterThanOrEqual(0.6);
+    // R11 (2026-10-13) made voltron a text rule AND an EDHREC theme-share veto. Text
+    // alone measured P 0.59 / R 0.52 against the re-rated labels; with the page's
+    // themes passed in and the text half reading self-growth and written-out evasion,
+    // 0.84 / 0.78 on top + sample (4 false positives, 6 misses), so these floors sit
+    // a commander or two under that.
+    expect(precision('voltron')).toBeGreaterThanOrEqual(0.8);
+    expect(recall('voltron')).toBeGreaterThanOrEqual(0.68);
     expect(precision('spellcast')).toBeGreaterThanOrEqual(0.85);
     expect(recall('proliferate')).toBeGreaterThanOrEqual(0.9);
     expect(recall('landfall')).toBeGreaterThanOrEqual(0.9);
@@ -106,9 +125,9 @@ describe('commander profile against the golden set', () => {
 const heldOut = heldOutGolden as unknown as Fixture;
 const heldOutFired = (name: string) =>
   new Set<string>(
-    buildCommanderProfile({ name, ...heldOut.cards[name] } as ScryfallCard).abilities.map(
-      (a) => a.keyword
-    )
+    buildCommanderProfile({ name, ...heldOut.cards[name] } as ScryfallCard, null, {
+      edhrecThemes: themesOf(heldOut, name),
+    }).abilities.map((a) => a.keyword)
   );
 
 describe('commander profile against the held-out set', () => {
@@ -133,6 +152,27 @@ describe('commander profile against the held-out set', () => {
     ["Lozhan, Dragons' Legacy", 'spellcast'], // "cast an Adventure or Dragon spell"
   ])('%s is profiled %s', (name, keyword) => {
     expect(heldOutFired(name).has(keyword)).toBe(true);
+  });
+
+  it.each([
+    ['Questing Beast', 'several evasion and protection abilities, written out and keyword'],
+    [
+      "Savanti Romero, Time's Exile",
+      'puts a counter on itself every combat (25 themed decks, text decides)',
+    ],
+    [
+      'Viv Vision, Teen Synthezoid',
+      'counters on itself by a mana-paid activation (21 themed decks)',
+    ],
+  ])('%s is voltron: %s', (name) => {
+    expect(heldOutFired(name).has('voltron')).toBe(true);
+  });
+
+  it.each([
+    ['Firion, Wild Rose Warrior', 'gear for many creatures, not itself'],
+    ['God-Eternal Oketra', 'a token engine with incidental double strike (0.4% Voltron share)'],
+  ])('%s is not voltron: %s', (name) => {
+    expect(heldOutFired(name).has('voltron')).toBe(false);
   });
 
   it('does not read an Equipment entering as a creature-enters trigger (Firion)', () => {
