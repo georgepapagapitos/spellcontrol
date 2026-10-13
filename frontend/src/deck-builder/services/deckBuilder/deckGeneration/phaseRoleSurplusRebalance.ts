@@ -491,10 +491,7 @@ export function applyRoleSurplusRebalance(
     const priority = ec
       ? calculateCardPriority(ec, state.cfg.brewLevel)
       : (roleAverageInclusion.get(role) ?? 0);
-    const quality =
-      role === 'boardwipe'
-        ? wipeKeepPenalty(card, ec?.inclusion, wipeKeep)
-        : 0;
+    const quality = role === 'boardwipe' ? wipeKeepPenalty(card, ec?.inclusion, wipeKeep) : 0;
     const ownedBoost = ownedBoostFor(card.name, !!ec && isHighSynergyCard(ec));
     return priority + (liftBoosts.get(card.name) ?? 0) - quality + ownedBoost;
   };
@@ -565,9 +562,7 @@ export function applyRoleSurplusRebalance(
       .map((ec) => {
         const role = poolRoleOf(ec.name);
         const scryfallCard = role === 'boardwipe' ? ctx.scryfallCardMap.get(ec.name) : undefined;
-        const quality = scryfallCard
-          ? wipeKeepPenalty(scryfallCard, ec.inclusion, wipeKeep)
-          : 0;
+        const quality = scryfallCard ? wipeKeepPenalty(scryfallCard, ec.inclusion, wipeKeep) : 0;
         const ownedBoost = ownedBoostFor(ec.name, isHighSynergyCard(ec));
         return {
           ec,

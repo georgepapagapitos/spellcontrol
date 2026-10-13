@@ -1464,10 +1464,7 @@ describe('applyRoleSurplusRebalance', () => {
     const CALAMITY = 'Calamity of the Titans';
     const UGIN = 'Ugin, the Spirit Dragon';
 
-    function seatWipes(
-      state: GenerationState,
-      specs: Array<{ name: string; type: string }>
-    ): void {
+    function seatWipes(state: GenerationState, specs: Array<{ name: string; type: string }>): void {
       for (const spec of specs) {
         const card = scryfallCard(spec.name, { type_line: spec.type });
         ROLE_OF.set(spec.name, 'boardwipe');
