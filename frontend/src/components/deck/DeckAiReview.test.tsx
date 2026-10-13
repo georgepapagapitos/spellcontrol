@@ -9,6 +9,7 @@ import { MemoryRouter } from 'react-router-dom';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { DeckAiReview } from './DeckAiReview';
 import { __resetAiStatus } from '@/lib/ai/use-ai-status';
+import { formatAvailableAt, formatReadOn, REREAD_WINDOW_MS } from '@/lib/ai/ai-review';
 
 // The carousel pulls in the Scryfall client + CardPreview; the panel only needs
 // to prove it hands the tapped name over.
@@ -243,7 +244,7 @@ describe('review history', () => {
 
     // The newest reading is displayed with its as-of date, nothing was spent.
     await waitFor(() => expect(container.querySelector('.deck-ai-section--weakness')).toBeTruthy());
-    expect(container.textContent).toContain('Written 1 hour ago');
+    expect(container.textContent).toContain(`Read on ${formatReadOn(READINGS[0].createdAt)}.`);
     expect(calls).not.toContain('/api/ai/deck-review');
 
     // Both readings are on the rail; the displayed one is marked current.
@@ -254,7 +255,7 @@ describe('review history', () => {
 
     // Reopening the older one swaps the prose locally.
     fireEvent.click(items[1]);
-    expect(container.textContent).toContain('Written 3 days ago');
+    expect(container.textContent).toContain(`Read on ${formatReadOn(READINGS[1].createdAt)}.`);
     // The older reading predates the section labels — plain-prose fallback.
     expect(container.querySelector('.deck-ai-section--weakness')).toBeNull();
     expect(container.textContent).toContain('Your mana cannot support it.');
@@ -510,5 +511,107 @@ describe('the reading', () => {
     await screen.findByRole('alert');
     expect(container.textContent).toContain('ended early');
     expect(container.querySelector('.deck-ai-section--weakness')).toBeNull();
+  });
+});
+
+// E254: "Read again" on an unchanged deck is a real second reading, once a day.
+describe('reading a deck again', () => {
+  const NEW_REVIEW = REVIEW.replace('Your mana cannot support it', 'Your curve is too high');
+  const hourAgo = Date.now() - 3600 * 1000;
+  const READING = [{ id: 'r1', content: REVIEW, model: 'm', createdAt: hourAgo }];
+
+  /** deck-review answers per `respond`; every request body is recorded. */
+  function stubReread(respond: () => Response) {
+    const bodies: Record<string, unknown>[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url === '/api/ai/deck-review') {
+          bodies.push(JSON.parse(init?.body as string));
+          return respond();
+        }
+        const body = url.startsWith('/api/ai/history')
+          ? { readings: READING }
+          : { optIn: true, used: 0, limit: 10 };
+        return new Response(JSON.stringify(body), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      })
+    );
+    return bodies;
+  }
+  const ndjson = (content: string, createdAt: number) =>
+    new Response(
+      `${JSON.stringify({ delta: content })}
+${JSON.stringify({
+  done: { content, cached: false, model: 'm', usage: {}, createdAt },
+})}
+`,
+      { status: 200, headers: { 'Content-Type': 'application/x-ndjson' } }
+    );
+
+  it('asks for a refresh, keeps the old reading when the server says wait, and says when it frees up', async () => {
+    const availableAt = hourAgo + REREAD_WINDOW_MS;
+    const bodies = stubReread(
+      () =>
+        new Response(JSON.stringify({ error: 'This deck was read recently.', availableAt }), {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+        })
+    );
+    const { container } = renderPanel();
+    await expandStrip();
+    await waitFor(() => expect(container.querySelector('.deck-ai-section--weakness')).toBeTruthy());
+    const button = screen.getByRole('button', { name: 'Read again' });
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.click(button);
+    await screen.findByText(`Available again ${formatAvailableAt(availableAt)}.`);
+    expect(bodies[0].refresh).toBe(true);
+    expect((screen.getByRole('button', { name: 'Read again' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
+    // Nothing was lost and nothing is shown as a failure.
+    expect(container.textContent).toContain('Your mana cannot support it');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('keeps the earlier reading on screen until the new one arrives, then dates the new one', async () => {
+    const now = Date.now();
+    stubReread(() => ndjson(NEW_REVIEW, now));
+    const { container } = renderPanel();
+    await expandStrip();
+    await waitFor(() => expect(container.querySelector('.deck-ai-section--weakness')).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Read again' }));
+    await waitFor(() => expect(container.textContent).toContain('Your curve is too high'));
+    expect(container.textContent).not.toContain('Your mana cannot support it');
+    expect(container.textContent).toContain(`Read on ${formatReadOn(now)}.`);
+    // Fresh and known to be this deck: disabled with the reason in view.
+    expect((screen.getByRole('button', { name: 'Read again' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
+    expect(container.textContent).toContain(
+      `Available again ${formatAvailableAt(now + REREAD_WINDOW_MS)}.`
+    );
+  });
+
+  it('keeps the old reading and shows an error when the model call fails', async () => {
+    stubReread(
+      () =>
+        new Response(JSON.stringify({ error: 'The review could not be generated. Try again.' }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json' },
+        })
+    );
+    const { container } = renderPanel();
+    await expandStrip();
+    await waitFor(() => expect(container.querySelector('.deck-ai-section--weakness')).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Read again' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('The review could not be generated.');
+    expect(container.textContent).toContain('Your mana cannot support it');
   });
 });
