@@ -36,6 +36,7 @@ import { PriceOverrideBadge } from '@/components/shared/PriceOverrideBadge';
 import { ThinDataNote } from '@/components/shared/ThinDataNote';
 import { FilterChipsRow } from '@/components/shared/FilterChipsRow';
 import { CopyButton, CopyIconButton } from '@/components/shared/CopyButton';
+import { BrandMark } from '@/components/shared/BrandMark';
 import { DiscordMark } from '@/components/shared/DiscordMark';
 import { CardName } from '@/components/shared/CardName';
 import { CardRow, ConditionChip } from '@/components/shared/CardRow';
@@ -183,6 +184,10 @@ function ButtonSpecimen() {
           className="icon-btn"
           icon={<Copy width={14} height={14} strokeWidth={1.8} />}
         />
+      </Row>
+      <Row label="BrandMark">
+        <BrandMark size={32} />
+        <BrandMark size={16} />
       </Row>
       <Row label="DiscordMark">
         <Button icon={<DiscordMark />} onClick={noop}>

@@ -8,6 +8,7 @@ import { markEverVisited } from '@/lib/home/first-run';
 import { track } from '@/lib/util/analytics';
 import { pickWelcomeHeroCard } from '@/lib/home/welcome-hero';
 import { Button, IconButton } from '@/components/shared/Button';
+import { BrandMark } from '@/components/shared/BrandMark';
 
 interface WelcomeHeroProps {
   /** Door 4 — Try sample cards (E343, moved up from the tightened row below
@@ -69,6 +70,7 @@ export function WelcomeHero({ onTrySamples, samplesLoading }: WelcomeHeroProps) 
 
       <div className="welcome-hero-content">
         <div className="welcome-hero-brand">
+          <BrandMark size={22} className="welcome-hero-mark" />
           <span className="welcome-hero-wordmark">SpellControl</span>
         </div>
 

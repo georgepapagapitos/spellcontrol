@@ -240,8 +240,7 @@ describe('Header — the wordmark', () => {
     expect(brand.getAttribute('aria-current')).toBeNull();
   });
 
-  // The app ships without a logo for now: the name is the whole brand.
-  it('is the name as text, with no logo image', () => {
+  it('is the name as text beside the decorative mark, with no image file', () => {
     render(
       <MemoryRouter initialEntries={['/home']}>
         <Header />
@@ -249,6 +248,7 @@ describe('Header — the wordmark', () => {
     );
     const brand = screen.getByRole('link', { name: 'SpellControl' });
     expect(brand.textContent).toBe('SpellControl');
-    expect(brand.querySelector('svg, img')).toBeNull();
+    expect(brand.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+    expect(brand.querySelector('img')).toBeNull();
   });
 });

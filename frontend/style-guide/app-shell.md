@@ -310,30 +310,35 @@ Rulings:
 
 ## Brand mark
 
-**The app ships without a logo for now** (board T167, 2026-09-28). The old
-clasped-grimoire `BrandMark` was an early prototype that no longer fit the
-app, and no replacement has been chosen. Until one is, the name is the whole
-brand in the UI:
+**The mark is the first-pocket page** (chosen 2026-10-13, memory
+`project_brand_mark_exploration`): a binder page of two by two card-proportion
+pockets, the first one filled, with three ring dots on the spine edge. Flat,
+one colour (`currentColor`; the seven empty pockets are the same colour at
+38% opacity), no letters, no serif, no old-world texture. It is the binder,
+the app's core idea, and it is not a Wizards symbol.
 
-- **Header and share bar:** the wordmark "SpellControl" as text, in
-  `--font-display`. No image beside it.
-- **Loading is never branded.** The boot screen (`App.tsx`'s `BootSplash`),
-  the share-link `LoadingView` and the collection's "pulling from the server"
-  state use the page spinner (`.page-loader` + `.spinner`), the same one
-  Layout shows while a hub's chunk loads. Pages with content load with
-  skeletons (STYLE_GUIDE § Verbs, "Loading, empty, error"). Never a logo loop:
-  when a mark returns, it does not come back as a loader.
+- **Component:** `components/shared/BrandMark.tsx`, decorative (`aria-hidden`),
+  sized by prop, coloured by the surface it sits on. Used in the header, the
+  share bar (`SharedShell`) and the welcome hero, always beside the wordmark.
+  Never alone as a link: the wordmark names it.
+- **Wordmark:** "SpellControl" in `--font-label` (Archivo Narrow), 700, sentence
+  case. Sans on purpose: no serif for the brand, whatever type set is active.
+- **Favicon and app icons:** `public/favicon.svg` (follows the OS color
+  scheme), `favicon.ico`/`favicon-32.png` (accent tile, white mark),
+  `icon-192/512.png`, `icon-maskable-512.png`, `apple-touch-icon.png`, and
+  the logo block of `og-image.png`. All draw the same shapes; a geometry
+  change edits `BrandMark.tsx` and `favicon.svg` together (a test pins them)
+  and regenerates the PNGs. The tile color is `--accent` (#35568e).
+- **2x2, not 3x3, on purpose:** a 3x3 page is the right picture but turns to
+  a waffle at 16px and reads as a generic grid icon. Two by two keeps a pocket
+  five pixels wide in a tab; the rings keep it from reading as a dashboard.
+- **Loading is never branded.** The boot screen, the share-link `LoadingView`
+  and the collection's "pulling from the server" state use the page spinner
+  (`.page-loader` + `.spinner`). Pages with content load with skeletons
+  (STYLE_GUIDE § Verbs, "Loading, empty, error"). Never a logo loop.
 - **Empty states are words and a door**, no decorative mark above them
-  ([§ Empty states](components.md#empty-states-e182)).
-- **Auth and error pages** open on their title, with no logo above it.
-- **The favicon and app icons still use the old book** (`public/sc-icon*.svg`,
-  `icon-*.png`, `apple-touch-icon.png`). A browser tab and a home-screen
-  shortcut need an image, and nobody sees them in the page itself. They get
-  replaced together with any new mark.
-- **Anti-pattern:** don't add an interim logo, an icon beside the wordmark, or
-  a brand-flavored loading animation. A new mark is a design decision with
-  its own brief (memory `project_brand_mark_exploration`), not a component
-  tweak.
+  ([§ Empty states](components.md#empty-states-e182)). Auth and error pages
+  open on their title, with no logo above it.
 
 ## Completion moments (the seal)
 

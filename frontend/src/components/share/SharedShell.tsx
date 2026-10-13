@@ -2,6 +2,7 @@ import '@/styles/shared.css';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useDocumentTitle } from '@/lib/util/use-document-title';
+import { BrandMark } from '@/components/shared/BrandMark';
 import { Button } from '@/components/shared/Button';
 
 interface Props {
@@ -28,6 +29,7 @@ export function SharedShell({ children, action, ctaLabel }: Props) {
     <div className="shared-shell">
       <header className="shared-brandbar">
         <Link className="shared-brand" to="/">
+          <BrandMark size={24} />
           <span className="shared-brand-text">SpellControl</span>
         </Link>
         {action && <div className="shared-brandbar-action">{action}</div>}

@@ -20,10 +20,6 @@ const srcRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 // file (relative to src, forward slashes) -> selector -> why caps is right.
 const ALLOWED: Record<string, Record<string, string>> = {
-  'components/welcome/WelcomeHero.css': {
-    '.welcome-hero-wordmark':
-      'STYLE_GUIDE § Display wordmark exempts this micro render: an oldstyle display face dies in tiny tracked caps',
-  },
   // Identifiers whose canonical form is uppercase but whose data arrives
   // lowercase (Scryfall set codes) or free-form (hex, a join code typed by hand).
   // They are data, not labels.

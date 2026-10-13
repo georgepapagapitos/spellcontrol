@@ -126,8 +126,8 @@ const GameNightInviteView = lazyPage(
  * the Suspense fallback for lazy routes that render OUTSIDE <Layout/> (share
  * links, public profiles, game night) — for those the chunk fetch happens
  * before any app chrome exists. It is the same spinner as Layout's in-chrome
- * fallback, so boot and a hub's chunk load read as one loading state. No logo:
- * the app ships without a brand mark for now (board T167).
+ * fallback, so boot and a hub's chunk load read as one loading state. Never a
+ * logo loop: the brand mark is not a loader (style-guide/app-shell § Brand mark).
  */
 function BootSplash() {
   return (

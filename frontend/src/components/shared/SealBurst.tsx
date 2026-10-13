@@ -6,8 +6,8 @@ import './SealBurst.css';
  * (`--brand-seal-gold`) sheds mana sparks in the deck's own color identity.
  * NOT confetti — the material is brass + WUBRG mana, so the celebration knows
  * what you built. Purely decorative (`aria-hidden`); the surrounding surface
- * carries the real announcement. There is no logo at the center: the app
- * currently ships without a brand mark (board T167).
+ * carries the real announcement. There is no logo at the center: the brand
+ * mark is never a completion or loading effect.
  *
  * Reduced-motion safe two ways: renders nothing when the user prefers reduced
  * motion, and every keyframe in SealBurst.css is also `reduce`-gated.

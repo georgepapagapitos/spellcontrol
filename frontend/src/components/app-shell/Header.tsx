@@ -8,6 +8,7 @@ import { HeaderSyncIndicator } from '@/components/account/SyncIndicator';
 import { useAuth } from '@/store/auth';
 import { useActivity } from '@/lib/social/use-activity';
 import { formatCount } from '@/lib/util/format-count';
+import { BrandMark } from '@/components/shared/BrandMark';
 import { Count } from '@/components/shared/Count';
 import { OverflowMenu } from '@/components/overlays/OverflowMenu';
 import { UserAvatar } from '@/components/profile/UserAvatar';
@@ -35,8 +36,9 @@ export function Header() {
       <div className="site-header-inner">
         {/* The wordmark goes where the first nav item goes, Home. A plain Link:
             a NavLink here marked itself aria-current beside the real Home link.
-            No logo beside it: the app ships without a brand mark for now. */}
+            The mark is decorative; the wordmark names the link. */}
         <Link viewTransition className="site-brand" to="/home">
+          <BrandMark size={26} />
           SpellControl
         </Link>
         <nav className="site-nav-links" aria-label="Primary">
