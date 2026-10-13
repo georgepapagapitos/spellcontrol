@@ -93,6 +93,8 @@ const SIGNET = card(
 const TYPE_TARGETS = { creature: 30, artifact: 8, enchantment: 6, instant: 5, sorcery: 6 };
 const penalty = (c: ScryfallCard) =>
   wipeQualityPenalty(c, isOneSidedWipe, getWipeScope, TYPE_TARGETS);
+// A board-centric plan, as deckGenerator wires it.
+const PLAN: FillHardGates = { boardCentricTargets: () => TYPE_TARGETS };
 
 beforeEach(() => {
   searchCards.mockReset();
@@ -136,15 +138,13 @@ describe('fillWithScryfall and board wipes (E1009)', () => {
   });
 
   it('seats the one-sided wipe before a symmetric one, and the costly symmetric one last', async () => {
-    const out = await fill([FAREWELL, WRATH, BLASPHEMOUS, PLAGUE_WIND], 4, {
-      wipePenalty: penalty,
-    });
+    const out = await fill([FAREWELL, WRATH, BLASPHEMOUS, PLAGUE_WIND], 4, PLAN);
     expect(names(out)[0]).toBe('Plague Wind');
     expect(names(out).at(-1)).toBe('Farewell');
   });
 
   it('puts a wipe behind the spells that cost the deck nothing', async () => {
-    const out = await fill([WRATH, CHIEFTAIN, SIGNET], 3, { wipePenalty: penalty });
+    const out = await fill([WRATH, CHIEFTAIN, SIGNET], 3, PLAN);
     expect(names(out)).toEqual(['Goblin Chieftain', 'Arcane Signet', 'Wrath of God']);
   });
 
@@ -153,8 +153,14 @@ describe('fillWithScryfall and board wipes (E1009)', () => {
     expect(names(out)).toEqual(['Wrath of God', 'Goblin Chieftain', 'Plague Wind']);
   });
 
-  const cap = (over: Partial<NonNullable<FillHardGates['roleCap']>>): FillHardGates => ({
-    wipePenalty: penalty,
+  // A wipe target of 1 with one wipe already seated.
+  const cap = (
+    boardCentric: boolean,
+    over: Partial<NonNullable<FillHardGates['roleCap']>> = {},
+    capOnly?: FillHardGates['capOnly']
+  ): FillHardGates => ({
+    boardCentricTargets: () => (boardCentric ? TYPE_TARGETS : undefined),
+    capOnly,
     roleCap: {
       roleTargets: { ramp: 8, removal: 8, boardwipe: 1, cardDraw: 8 },
       currentRoleCounts: { ramp: 0, removal: 0, boardwipe: 1, cardDraw: 0 },
@@ -163,23 +169,22 @@ describe('fillWithScryfall and board wipes (E1009)', () => {
   });
 
   it('a board-centric plan at its wipe target seats no more wipes while other spells fit', async () => {
-    const out = await fill([WRATH, PLAGUE_WIND, CHIEFTAIN, SIGNET], 2, cap({ boardCentric: true }));
+    const out = await fill([WRATH, PLAGUE_WIND, CHIEFTAIN, SIGNET], 2, cap(true));
     expect(names(out)).toEqual(['Goblin Chieftain', 'Arcane Signet']);
   });
 
   it('any other plan gets one wipe past its target, not the generic two', async () => {
-    const out = await fill([FAREWELL, WRATH, PLAGUE_WIND], 2, cap({ boardCentric: false }));
-    // target 1 + 1 seats Plague Wind (best); the hatch then admits the least costly of the rest
-    expect(names(out)).toEqual(['Plague Wind', 'Wrath of God']);
+    const out = await fill([WRATH, FAREWELL, CHIEFTAIN], 2, cap(false));
+    expect(names(out)).toEqual(['Wrath of God', 'Goblin Chieftain']);
   });
 
   it('still ships the deck whole: the escape hatch admits a wipe when nothing else is left', async () => {
-    const out = await fill([WRATH, PLAGUE_WIND], 1, cap({ boardCentric: true }));
+    const out = await fill([WRATH, PLAGUE_WIND], 1, cap(true));
     expect(names(out)).toEqual(['Plague Wind']);
   });
 
   it('the escape hatch refuses a symmetric wipe in a board-centric plan and ships the pass short', async () => {
-    const out = await fill([WRATH, FAREWELL, CHIEFTAIN], 3, cap({ boardCentric: true }));
+    const out = await fill([WRATH, FAREWELL, CHIEFTAIN], 3, cap(true));
     expect(names(out)).toEqual(['Goblin Chieftain']);
   });
 
@@ -187,21 +192,20 @@ describe('fillWithScryfall and board wipes (E1009)', () => {
     const out = await fill(
       [WRATH, CHIEFTAIN],
       2,
-      cap({
-        boardCentric: false,
-        currentRoleCounts: { ramp: 0, removal: 0, boardwipe: 2, cardDraw: 0 },
-      })
+      cap(false, { currentRoleCounts: { ramp: 0, removal: 0, boardwipe: 2, cardDraw: 0 } })
     );
     expect(names(out)).toEqual(['Goblin Chieftain', 'Wrath of God']);
   });
 
-  it('onlyRoles leaves the other roles uncapped', async () => {
-    const gates = cap({
-      boardCentric: true,
-      onlyRoles: ['boardwipe'],
-      roleTargets: { ramp: 1, removal: 8, boardwipe: 1, cardDraw: 8 },
-      currentRoleCounts: { ramp: 5, removal: 0, boardwipe: 1, cardDraw: 0 },
-    });
+  it('capOnly leaves the other roles uncapped', async () => {
+    const gates = cap(
+      true,
+      {
+        roleTargets: { ramp: 1, removal: 8, boardwipe: 1, cardDraw: 8 },
+        currentRoleCounts: { ramp: 5, removal: 0, boardwipe: 1, cardDraw: 0 },
+      },
+      ['boardwipe']
+    );
     const out = await fill([WRATH, SIGNET, CHIEFTAIN], 2, gates);
     expect(names(out)).toEqual(['Arcane Signet', 'Goblin Chieftain']);
   });
