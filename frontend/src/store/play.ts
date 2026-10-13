@@ -53,6 +53,7 @@ import {
 } from '@/lib/play/game-results-client';
 import { useAuth } from './auth';
 import { toast } from './toasts';
+import { announceHostChange } from './play-host-notice';
 
 import { userMessage } from '@/lib/util/user-error';
 const POLL_INTERVAL_MS = 2500;
@@ -525,20 +526,7 @@ function applyServerGameState(fresh: GameState, set: PlaySet): void {
     const before = usePlayStore.getState().online;
     set({ online: fresh, onlineError: null });
     recordIfFinished(fresh, set);
-    announceHandover(before, fresh);
-  }
-}
-
-/**
- * The table was handed to this account (E430: the host left, or passed it
- * on). Mid-game nothing else on screen changes, so say it once: the host's
- * powers (Rematch, kick, settings) are now this seat's.
- */
-function announceHandover(before: GameState | null, fresh: GameState): void {
-  const me = useAuth.getState().user?.id;
-  if (!me || !before || before.code !== fresh.code) return;
-  if (before.hostUserId !== me && fresh.hostUserId === me) {
-    toast.show({ message: "You're the host now.", tone: 'info' });
+    announceHostChange(fresh, before);
   }
 }
 
@@ -773,6 +761,7 @@ async function recoverFromServerState(
     if (fresh) {
       serverVersion = fresh.version;
       set({ online: fresh, onlineError: successError });
+      announceHostChange(fresh);
     } else if (fallbackError !== null) {
       set({ onlineError: fallbackError });
     }
@@ -1070,6 +1059,7 @@ export const usePlayStore = create<PlayState>()(
         const game = await apiCreateGame(input);
         serverVersion = game.version;
         serverCode = game.code;
+        announceHostChange(game);
         tickerSeen.clear();
         signalSeen.clear();
         set({
@@ -1090,6 +1080,7 @@ export const usePlayStore = create<PlayState>()(
         const game = await apiJoinGame(code.toUpperCase(), input);
         serverVersion = game.version;
         serverCode = game.code;
+        announceHostChange(game);
         tickerSeen.clear();
         signalSeen.clear();
         set({
@@ -1116,6 +1107,7 @@ export const usePlayStore = create<PlayState>()(
         if (!game) throw new Error('Game not found.');
         serverVersion = game.version;
         serverCode = game.code;
+        announceHostChange(game);
         tickerSeen.clear();
         signalSeen.clear();
         set({

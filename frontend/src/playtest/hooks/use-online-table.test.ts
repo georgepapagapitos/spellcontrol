@@ -122,6 +122,19 @@ describe('useOnlineTable', () => {
     expect(result.current?.mySeat).toBe(0);
   });
 
+  // E451: the horde Rematch and every other host-only control read this flag,
+  // so it has to follow hostUserId when the table changes hands.
+  it('isHost follows hostUserId when the table is taken over', () => {
+    signIn('me-id');
+    usePlayStore.setState({ online: onlineGame() });
+    const { result } = renderHook(() => useOnlineTable(state()));
+    expect(result.current?.isHost).toBe(true);
+    act(() => usePlayStore.setState({ online: onlineGame({ hostUserId: 'u1' }) }));
+    expect(result.current?.isHost).toBe(false);
+    act(() => usePlayStore.setState({ online: onlineGame({ hostUserId: 'me-id' }) }));
+    expect(result.current?.isHost).toBe(true);
+  });
+
   // Regression: the table was WRITE-ONLY on the playtest route. `publishBoard`
   // posts directly, so this device's board reached everyone — but the only
   // callers of `startPolling` were PlayPage's mount effect and

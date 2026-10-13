@@ -91,13 +91,14 @@ function makeTestGame(
     commanderDamageEnabled?: boolean;
     poisonEnabled?: boolean;
     phase?: GamePhase;
+    hostUserId?: string;
   } = {}
 ): GameState {
   const state = createGameState({
     id: 'game-test',
     code: 'ABCD',
     mode: 'online',
-    hostUserId: 'user_1',
+    hostUserId: opts.hostUserId ?? 'user_1',
     format: 'commander',
     startingLife: 40,
     commanderDamageEnabled: opts.commanderDamageEnabled ?? true,
@@ -423,6 +424,27 @@ describe('Presence + status render states', () => {
 
     expect(screen.getByText('Waiting for Alice to start')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Start game' })).toBeNull();
+  });
+});
+
+describe('host-only controls follow hostUserId (E451)', () => {
+  const seats = () => [
+    makeTestPlayer({ id: 'p0', userId: 'user_1', seat: 0, name: 'Alice' }),
+    makeTestPlayer({ id: 'p1', userId: 'user_2', seat: 1, name: 'Bob' }),
+  ];
+
+  it('gives Start to the new host and takes it from the old one', () => {
+    const lobby = (hostUserId: string) => makeTestGame(seats(), { status: 'lobby', hostUserId });
+    mockAuthUserId.current = 'user_1';
+    const { unmount } = render(<OnlineGameView game={lobby('user_2')} />);
+    expect(screen.queryByRole('button', { name: 'Start game' })).toBeNull();
+    expect(screen.getByText('Waiting for Bob to start')).toBeTruthy();
+    unmount();
+
+    mockAuthUserId.current = 'user_2';
+    render(<OnlineGameView game={lobby('user_2')} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
+    expect(dispatchOnline).toHaveBeenCalledWith({ type: 'start' });
   });
 });
 

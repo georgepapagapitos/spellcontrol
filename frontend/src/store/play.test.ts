@@ -846,6 +846,84 @@ describe('usePlayStore — online flow', () => {
     }
   });
 
+  describe('host change notice', () => {
+    const input = {
+      format: 'commander' as const,
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+    };
+    const as = (id: string) =>
+      useAuth.setState({ user: { id, username: id, role: 'user' } } as never);
+    let show: ReturnType<typeof vi.spyOn>;
+    beforeEach(() => {
+      localStorage.clear();
+      show = vi.spyOn(toast, 'show').mockImplementation(() => 'id');
+    });
+    afterEach(() => {
+      show.mockRestore();
+      useAuth.setState({ user: null } as never);
+    });
+
+    it('tells a returning old host who took over, once', async () => {
+      as('u1');
+      mockCreate.mockResolvedValue(makeOnlineGame(1));
+      await usePlayStore.getState().hostOnline(input);
+      mockGet.mockResolvedValue({ ...makeOnlineGame(2), hostUserId: 'u2' });
+      await usePlayStore.getState().refreshOnline();
+      expect(show).toHaveBeenCalledTimes(1);
+      expect(show).toHaveBeenCalledWith({ message: 'Guest took over as host.', tone: 'info' });
+      mockGet.mockResolvedValue({ ...makeOnlineGame(3), hostUserId: 'u2' });
+      await usePlayStore.getState().refreshOnline();
+      expect(show).toHaveBeenCalledTimes(1);
+    });
+
+    it('tells the old host on load from the remembered host, after a reload', async () => {
+      as('u1');
+      mockCreate.mockResolvedValue(makeOnlineGame(1));
+      await usePlayStore.getState().hostOnline(input);
+      resetStore(); // the in-memory game is gone; localStorage still knows u1 hosted ABCD
+      mockGet.mockResolvedValue({ ...makeOnlineGame(5), hostUserId: 'u2' });
+      await usePlayStore.getState().watchOnline('abcd');
+      expect(show).toHaveBeenCalledWith({ message: 'Guest took over as host.', tone: 'info' });
+    });
+
+    it('tells another seated player who the host is now', async () => {
+      as('u3');
+      const game = (v: number, host: string) => ({
+        ...makeOnlineGame(v),
+        hostUserId: host,
+        players: [
+          ...makeOnlineGame(v).players,
+          makePlayer({ id: 'p2', userId: 'u3', seat: 2, name: 'Third', startingLife: 40 }),
+        ],
+      });
+      mockGet.mockResolvedValue(game(1, 'u1'));
+      await usePlayStore.getState().watchOnline('ABCD');
+      mockGet.mockResolvedValue(game(2, 'u2'));
+      await usePlayStore.getState().refreshOnline();
+      expect(show).toHaveBeenCalledTimes(1);
+      expect(show).toHaveBeenCalledWith({ message: 'Guest is the host now.', tone: 'info' });
+    });
+
+    it('stays silent on the first load of a game this device never saw', async () => {
+      as('u2');
+      mockGet.mockResolvedValue({ ...makeOnlineGame(1), hostUserId: 'u1' });
+      await usePlayStore.getState().watchOnline('ABCD');
+      expect(show).not.toHaveBeenCalled();
+    });
+
+    it('gives the claimant only their own toast', async () => {
+      as('u2');
+      mockCreate.mockResolvedValue(makeOnlineGame(1));
+      await usePlayStore.getState().hostOnline(input);
+      mockGet.mockResolvedValue({ ...makeOnlineGame(2), hostUserId: 'u2' });
+      await usePlayStore.getState().refreshOnline();
+      expect(show).toHaveBeenCalledTimes(1);
+      expect(show).toHaveBeenCalledWith({ message: "You're the host now.", tone: 'info' });
+    });
+  });
+
   it('refreshOnline clears the game and stops polling on a 404', async () => {
     mockCreate.mockResolvedValue(makeOnlineGame(1));
     await usePlayStore.getState().hostOnline({
