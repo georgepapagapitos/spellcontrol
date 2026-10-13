@@ -69,6 +69,7 @@ import {
   type SuggestionFilter,
 } from '@/lib/coach/deck-suggestions';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
+import { SuggestionsHandoff, suggestionPreviewEntries } from './suggestions-results-parts';
 import type { CardPreviewAction } from '@/components/card/CardPreview';
 
 import { userMessage } from '@/lib/util/user-error';
@@ -1506,27 +1507,7 @@ function SuggestionsResults({
   const carousel = useAddPreviewCarousel(existingCardCounts, (entry) => addByName(entry.name));
   // Context line under the art: why this card surfaced (EDHREC % / role, or
   // the combo it completes).
-  const previewEntries = useMemo<CarouselEntry[]>(
-    () =>
-      rows.map((row) => {
-        if (row.kind === 'combo') {
-          return {
-            name: row.name,
-            label: row.produces ? `Completes: ${row.produces}` : 'Completes a combo',
-          };
-        }
-        if (row.kind === 'gem') {
-          return {
-            name: row.name,
-            label: row.signals?.length ? hiddenGemReason({ signals: row.signals }) : 'Hidden gem',
-          };
-        }
-        const info = classifyInclusion(row.inclusion);
-        const pct = info.kind === 'pct' ? `In ${info.pct}% of decks` : 'Off-meta';
-        return { name: row.name, label: row.roleLabel ? `${pct} · ${row.roleLabel}` : pct };
-      }),
-    [rows]
-  );
+  const previewEntries = useMemo(() => suggestionPreviewEntries(rows), [rows]);
 
   const previewFitAt = async (index: number) => {
     const row = rows[index];
@@ -1724,32 +1705,15 @@ function SuggestionsResults({
           the next step is one tap away. The query carries over (it is the
           panel's one input). Static, so the live region stays quiet. */}
       {showHandoff && (
-        <div className="card-search-handoff">
-          <SuggestionsHandoff
-            onSearchCollection={onSearchCollection}
-            onSearchScryfall={onSearchScryfall}
-          />
-        </div>
+        <SuggestionsHandoff
+          trailing
+          onSearchCollection={onSearchCollection}
+          onSearchScryfall={onSearchScryfall}
+        />
       )}
       <HiddenSuggestions />
       {carousel.preview}
     </>
-  );
-}
-
-/** The way out of the suggestion list into a real search of the typed text. */
-function SuggestionsHandoff({
-  onSearchCollection,
-  onSearchScryfall,
-}: {
-  onSearchCollection: () => void;
-  onSearchScryfall: () => void;
-}) {
-  return (
-    <div className="card-search-empty-actions" role="group" aria-label="Search further">
-      <Button onClick={onSearchCollection}>Search your collection</Button>
-      <Button onClick={onSearchScryfall}>Search all of Scryfall</Button>
-    </div>
   );
 }
 
