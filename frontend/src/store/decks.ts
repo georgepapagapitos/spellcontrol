@@ -38,6 +38,15 @@ import { withTagAdded, withTagRemoved } from '@/lib/deck/deck-tags';
 const decksIdbStorage = createIndexedDbStorage('spellcontrol-decks');
 import { pickRandomPresetColor } from '@/lib/util/preset-colors';
 import { migrateDecksState } from './decks-migrate';
+import { defaultDeckName, withCommander } from './deck-naming';
+import {
+  bindCopy,
+  bindSlotCopy,
+  releaseCopyIn,
+  setSlotProxy,
+  withoutReleased,
+  type ReleaseTarget,
+} from './deck-copy-claims';
 import type { EnrichedCard } from '../types';
 import type { SavedCube } from './cube';
 import { toast } from './toasts';
@@ -114,15 +123,17 @@ export interface DeckCard {
    * drifting back here. Binding a copy to the slot clears it.
    */
   proxy?: true;
+  /**
+   * The user released this slot's copy ("Release copy"), so it stays empty: a
+   * card the deck still needs, but no automatic matcher refills it, which is
+   * what used to hand the released copy straight back on the next boot. Only
+   * binding a copy (Use my copy, a printing pick) clears it.
+   */
+  released?: true;
 }
 
-/** A slot with `copyId` bound to it. Binding a real copy ends a proxy. */
-function bindCopy(c: DeckCard, copyId: string | null): DeckCard {
-  if (!copyId || !c.proxy) return { ...c, allocatedCopyId: copyId };
-  const { proxy: _proxy, ...rest } = c;
-  void _proxy;
-  return { ...rest, allocatedCopyId: copyId };
-}
+export type { ReleaseTarget } from './deck-copy-claims';
+export { UNTITLED_DECK_NAME, commanderShortName, deckNameForCommander } from './deck-naming';
 
 /** The three zones a `DeckCard` slot can live in — tags (and any other
  *  per-slot user edit) are scoped to whichever zone the slot is in. */
@@ -138,6 +149,10 @@ export interface Deck {
   /** Allocations for the commander(s), parallel to the commander fields. */
   commanderAllocatedCopyId: string | null;
   partnerCommanderAllocatedCopyId: string | null;
+  /** The commander seat's `DeckCard.released`: its copy was released, so no
+   *  matcher refills it. Seating a card or binding a copy clears it. */
+  commanderReleased?: true;
+  partnerCommanderReleased?: true;
   cards: DeckCard[];
   sideboard: DeckCard[];
   /**
@@ -469,6 +484,12 @@ interface DecksState {
   addCard(deckId: string, card: ScryfallCard, allocatedCopyId?: string | null): string;
   removeCard(deckId: string, slotId: string): void;
   setCardAllocation(deckId: string, slotId: string, allocatedCopyId: string | null): void;
+  /**
+   * Free the copy a slot or commander seat holds and keep it free: the card
+   * stays in the deck as one you still need, and no matcher (boot, sync,
+   * re-import, Repair) binds a copy there again until the user does.
+   */
+  releaseCopy(deckId: string, target: ReleaseTarget): void;
   /**
    * Mark (or unmark) one slot, in any zone, as a proxy. Marking releases the
    * slot's copy; unmarking binds `allocatedCopyId` when one is given.
@@ -855,39 +876,21 @@ export const useDecksStore = create<DecksState>()(
       setCardAllocation: (deckId, slotId, allocatedCopyId) =>
         set((s) => ({
           decks: s.decks.map((d) =>
-            d.id === deckId
-              ? touch({
-                  ...d,
-                  cards: d.cards.map((c) =>
-                    c.slotId === slotId ? bindCopy(c, allocatedCopyId) : c
-                  ),
-                })
-              : d
+            d.id === deckId ? touch(bindSlotCopy(d, slotId, allocatedCopyId)) : d
           ),
         })),
 
-      setCardProxy: (deckId, slotId, proxy, allocatedCopyId = null) => {
-        const apply = (list: DeckCard[] | undefined) =>
-          (list ?? []).map((c): DeckCard => {
-            if (c.slotId !== slotId) return c;
-            if (proxy) return { ...c, allocatedCopyId: null, proxy: true };
-            const { proxy: _proxy, ...rest } = c;
-            void _proxy;
-            return { ...rest, allocatedCopyId };
-          });
+      releaseCopy: (deckId, target) =>
+        set((s) => ({
+          decks: s.decks.map((d) => (d.id === deckId ? touch(releaseCopyIn(d, target)) : d)),
+        })),
+
+      setCardProxy: (deckId, slotId, proxy, allocatedCopyId = null) =>
         set((s) => ({
           decks: s.decks.map((d) =>
-            d.id === deckId
-              ? touch({
-                  ...d,
-                  cards: apply(d.cards),
-                  sideboard: apply(d.sideboard),
-                  considering: apply(d.considering),
-                })
-              : d
+            d.id === deckId ? touch(setSlotProxy(d, slotId, proxy, allocatedCopyId)) : d
           ),
-        }));
-      },
+        })),
 
       setCardTags: (deckId, zone, slotIds, tags) => {
         const ids = new Set(slotIds);
@@ -1148,7 +1151,11 @@ export const useDecksStore = create<DecksState>()(
               : d.sideboard;
             const previous =
               keepPrevious && d.commander
-                ? [newDeckCard(d.commander, d.commanderAllocatedCopyId ?? null)]
+                ? [
+                    d.commanderReleased
+                      ? { ...newDeckCard(d.commander, null), released: true as const }
+                      : newDeckCard(d.commander, d.commanderAllocatedCopyId ?? null),
+                  ]
                 : [];
             return touch(
               withCommander({ ...d, cards: [...cards, ...previous], sideboard }, card, allocated)
@@ -1161,7 +1168,7 @@ export const useDecksStore = create<DecksState>()(
           decks: s.decks.map((d) =>
             d.id === deckId
               ? touch({
-                  ...d,
+                  ...withoutReleased(d, 'partnerCommanderReleased'),
                   partnerCommander: card,
                   partnerCommanderAllocatedCopyId: allocated,
                 })
@@ -1240,29 +1247,33 @@ export const useDecksStore = create<DecksState>()(
           >();
           for (const deck of s.decks) {
             updates.set(deck.id, {
-              commanderAllocatedCopyId: deck.commanderAllocatedCopyId,
-              partnerCommanderAllocatedCopyId: deck.partnerCommanderAllocatedCopyId,
+              commanderAllocatedCopyId: deck.commanderReleased
+                ? null
+                : deck.commanderAllocatedCopyId,
+              partnerCommanderAllocatedCopyId: deck.partnerCommanderReleased
+                ? null
+                : deck.partnerCommanderAllocatedCopyId,
               // `?? []` guards a partial/malformed persisted deck row (this now
               // also runs from sync.ts's rehydrate, which reads back whatever
               // shape actually landed in IDB) — must not crash on a missing array.
               cards: (deck.cards ?? []).map((c) => ({
                 slotId: c.slotId,
-                allocatedCopyId: c.proxy ? null : c.allocatedCopyId,
+                allocatedCopyId: c.proxy || c.released ? null : c.allocatedCopyId,
               })),
               sideboard: (deck.sideboard ?? []).map((c) => ({
                 slotId: c.slotId,
-                allocatedCopyId: c.proxy ? null : c.allocatedCopyId,
+                allocatedCopyId: c.proxy || c.released ? null : c.allocatedCopyId,
               })),
               considering: (deck.considering ?? []).map((c) => ({
                 slotId: c.slotId,
-                allocatedCopyId: c.proxy ? null : c.allocatedCopyId,
+                allocatedCopyId: c.proxy || c.released ? null : c.allocatedCopyId,
               })),
             });
           }
 
           for (const deck of s.decks) {
             const u = updates.get(deck.id)!;
-            if (deck.commander) {
+            if (deck.commander && !deck.commanderReleased) {
               slots.push({
                 deckId: deck.id,
                 deckName: deck.name,
@@ -1275,7 +1286,7 @@ export const useDecksStore = create<DecksState>()(
                 },
               });
             }
-            if (deck.partnerCommander) {
+            if (deck.partnerCommander && !deck.partnerCommanderReleased) {
               slots.push({
                 deckId: deck.id,
                 deckName: deck.name,
@@ -1288,11 +1299,11 @@ export const useDecksStore = create<DecksState>()(
                 },
               });
             }
-            // A proxy slot never enters the matching: the user plays a stand-in
-            // there, so handing it a copy is what used to pull a released copy
-            // back out of the deck that should have it.
+            // A proxy or released slot never enters the matching: the user plays
+            // a stand-in there, or let its copy go, so handing it a copy is what
+            // used to pull a released copy straight back.
             for (const c of deck.cards ?? []) {
-              if (c.proxy) continue;
+              if (c.proxy || c.released) continue;
               const slotId = c.slotId;
               slots.push({
                 deckId: deck.id,
@@ -1308,7 +1319,7 @@ export const useDecksStore = create<DecksState>()(
               });
             }
             for (const c of deck.sideboard ?? []) {
-              if (c.proxy) continue;
+              if (c.proxy || c.released) continue;
               const slotId = c.slotId;
               slots.push({
                 deckId: deck.id,
@@ -1328,7 +1339,7 @@ export const useDecksStore = create<DecksState>()(
             // It is also a donor zone (lib/collection/allocations.ts DonorZone),
             // like every other claiming zone.
             for (const c of deck.considering ?? []) {
-              if (c.proxy) continue;
+              if (c.proxy || c.released) continue;
               const slotId = c.slotId;
               slots.push({
                 deckId: deck.id,
@@ -1557,57 +1568,6 @@ export const useDecksStore = create<DecksState>()(
 
 export function newDeckCard(card: ScryfallCard, allocatedCopyId: string | null = null): DeckCard {
   return { slotId: genId('slot'), card, allocatedCopyId, addedAt: Date.now() };
-}
-
-/** The name a deck gets when it's created with no name and no commander. */
-export const UNTITLED_DECK_NAME = 'Untitled deck';
-
-/**
- * A commander's short name: everything before the first comma for two-name
- * commanders ("Korvold, Fae-Cursed King" → "Korvold"). What a new deck is
- * named after, and what the editor calls the commander in a toast.
- */
-export function commanderShortName(commander: ScryfallCard): string {
-  return commander.name.split(',')[0].trim();
-}
-
-function defaultDeckName(commander: ScryfallCard | null): string {
-  return commander ? commanderShortName(commander) : UNTITLED_DECK_NAME;
-}
-
-/**
- * The deck with `card` in the command zone. A deck still carrying the
- * placeholder name takes the incoming commander's short name, the same rule
- * `createDeck` uses, so a deck started empty and given a commander later reads
- * the same as one created with it (E465). Only a CHANGE of commander renames:
- * re-seating the same card (releasing its copy claim, a cross-deck move) is
- * not a pick. Only the store's own mutators call this. A server pull or an
- * undo writes the whole row through `setState`/`replaceDeck` and never passes
- * here, so a commander arriving from another device can't rename anything.
- */
-function withCommander(d: Deck, card: ScryfallCard | null, allocated: string | null): Deck {
-  return {
-    ...d,
-    name: deckNameForCommander(d, card),
-    commander: card,
-    commanderAllocatedCopyId: allocated,
-  };
-}
-
-/**
- * The name `deck` should carry once `next` is its commander: the incoming
- * commander's short name when the deck still has the placeholder name and the
- * commander actually changes, else the name it already has. The rule behind
- * {@link withCommander}, exported for the dialogs that commit a whole deck
- * through `replaceDeck` (Paste cards, Bulk edit) so every way of picking a
- * commander names the deck the same way.
- */
-export function deckNameForCommander(
-  deck: Pick<Deck, 'name' | 'commander'>,
-  next: ScryfallCard | null
-): string {
-  const rename = !!next && deck.name === UNTITLED_DECK_NAME && deck.commander?.name !== next.name;
-  return rename ? defaultDeckName(next) : deck.name;
 }
 
 /** Look up a deck by id (selector helper). */

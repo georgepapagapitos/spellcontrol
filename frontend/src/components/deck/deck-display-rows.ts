@@ -302,6 +302,12 @@ export interface Row {
   claimedElsewhereQty: number;
   /** Number of slots in this row the user plays as a proxy. Counted as covered, never as missing. */
   proxyQty: number;
+  /**
+   * Of `unownedQty`, the slots whose copy the user released while still owning
+   * the card. Still missing, but worded "released", and the row offers
+   * "Use my copy" to take one back (no matcher refills a released slot).
+   */
+  releasedQty: number;
   /** First deck claiming a copy of this card (for the badge link/color). Only set when claimedElsewhereQty > 0. */
   claimedBy?: AllocationInfo;
   /**
@@ -431,6 +437,7 @@ export function buildRows(
     const existing = map.get(card.name);
     // A proxy slot reads as covered: it holds no copy on purpose.
     const status: AllocationStatus = dc.proxy ? 'allocated' : classify(dc);
+    const released = isReleasedOwned(dc.released, status, card.name, crossDeck) ? 1 : 0;
     const owned = dc.allocatedCopyId ? collectionById?.get(dc.allocatedCopyId) : undefined;
 
     // Per-printing bucket, keyed by the slot's *printing identity* (set +
@@ -491,6 +498,7 @@ export function buildRows(
       if (isTagsEdited(dc)) existing.tagsEdited = true;
       existing.stack ??= dc.stack;
       if (dc.allocatedCopyId) existing.allocatedCopyIds.push(dc.allocatedCopyId);
+      existing.releasedQty += released;
       if (dc.proxy) existing.proxyQty += 1;
       else if (status === 'allocated') existing.allocatedQty += 1;
       else if (status === 'orphan') existing.orphanQty += 1;
@@ -540,6 +548,7 @@ export function buildRows(
       orphanQty: status === 'orphan' ? 1 : 0,
       claimedElsewhereQty: status === 'claimed-elsewhere' ? 1 : 0,
       proxyQty: dc.proxy ? 1 : 0,
+      releasedQty: released,
       claimedBy: status === 'claimed-elsewhere' ? claimedByFor(card.name) : undefined,
       imageNormal: owned?.imageNormal ?? frontFaceImage(card),
       imageNormalBack: owned?.imageNormalBack ?? backFaceImage(card),
@@ -570,51 +579,20 @@ export function buildRows(
   return rows;
 }
 
+/** A released slot the user can take a copy back into: still missing (not in
+ *  another deck), and the card is still in the collection. */
+export function isReleasedOwned(
+  released: boolean | undefined,
+  status: AllocationStatus,
+  cardName: string,
+  crossDeck: CrossDeckCtx | undefined
+): boolean {
+  if (!released || status !== 'unowned') return false;
+  return (crossDeck?.copiesByName?.get(cardName.toLowerCase())?.length ?? 0) > 0;
+}
+
 export function statusSeverity(s: AllocationStatus): number {
   return s === 'orphan' ? 3 : s === 'unowned' ? 2 : s === 'claimed-elsewhere' ? 1 : 0;
-}
-
-// Plain-language description of how this row's slots map to owned copies.
-// Used as the screen-reader label and hover title for the qty pill, so the
-// allocation truth is conveyed even when no warning glyph is shown.
-export function allocationSummary(row: Row): string {
-  const missing = row.unownedQty + row.orphanQty + row.claimedElsewhereQty;
-  const proxies = row.proxyQty === 1 ? '1 proxy' : `${row.proxyQty} proxies`;
-  if (missing === 0) {
-    if (row.proxyQty === row.qty)
-      return row.qty === 1 ? 'Played as a proxy' : `All ${row.qty} played as proxies`;
-    if (row.proxyQty > 0)
-      return `${row.allocatedQty} of ${row.qty} from your collection, ${proxies}`;
-    return row.qty === 1 ? 'From your collection' : `All ${row.qty} copies from your collection`;
-  }
-  if (row.allocatedQty === 0 && row.proxyQty === 0) {
-    if (row.orphanQty > 0)
-      return 'The collection copy this slot was assigned to is no longer present';
-    if (row.unownedQty > 0) return 'Not in your collection';
-    return row.claimedBy
-      ? `Owned, but currently in ${row.claimedBy.ownerKind === 'cube' ? 'cube' : 'deck'}: ${row.claimedBy.ownerName}`
-      : 'Owned, but currently in another deck';
-  }
-  const parts: string[] = [];
-  if (row.claimedElsewhereQty > 0) parts.push(`${row.claimedElsewhereQty} in another deck`);
-  if (row.orphanQty > 0) parts.push(`${row.orphanQty} no longer in collection`);
-  if (row.unownedQty > 0) parts.push(`${row.unownedQty} not in collection`);
-  if (row.proxyQty > 0) parts.push(proxies);
-  const note = parts.length > 0 ? ` (${parts.join('; ')})` : '';
-  return `${row.allocatedQty} of ${row.qty} from your collection${note}`;
-}
-
-export function allocationAriaLabel(row: Row, opts: { editable: boolean }): string {
-  const base = `${row.qty} in deck`;
-  const detail = allocationSummary(row);
-  const tail = opts.editable ? ', click to change quantity' : '';
-  return `${base}: ${detail}${tail}`;
-}
-
-export function allocationTitle(row: Row, opts: { editable: boolean }): string {
-  const detail = allocationSummary(row);
-  if (!opts.editable) return detail;
-  return `${detail}, click to change quantity`;
 }
 
 export const SORT_DEFAULT_DIR: Record<SortMode, 'asc' | 'desc'> = {

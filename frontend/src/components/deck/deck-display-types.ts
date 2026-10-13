@@ -28,6 +28,8 @@ export interface DeckDisplayCard {
   allocatedCopyId?: string | null;
   /** Played as a proxy — see the doc on `DeckCard.proxy`. */
   proxy?: boolean;
+  /** Its copy was released — see the doc on `DeckCard.released`. */
+  released?: boolean;
   /** Unix ms when this slot was added. Absent on cards predating the field. */
   addedAt?: number;
   /** User tags (E171) — see the `tags` doc on `DeckCard` for the
@@ -51,6 +53,9 @@ export interface DeckDisplayProps {
   selectedThemes?: ThemeResult[];
   commanderAllocatedCopyId?: string | null;
   partnerCommanderAllocatedCopyId?: string | null;
+  /** `Deck.commanderReleased` / `partnerCommanderReleased`. */
+  commanderReleased?: boolean;
+  partnerCommanderReleased?: boolean;
   cards: DeckDisplayCard[];
   sideboard?: DeckDisplayCard[];
   /**

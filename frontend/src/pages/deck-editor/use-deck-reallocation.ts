@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { haptics } from '@/lib/util/haptics';
-import { useDecksStore, withAllocationHealDeferred, type Deck } from '@/store/decks';
+import {
+  useDecksStore,
+  withAllocationHealDeferred,
+  type Deck,
+  type DeckCard,
+  type ReleaseTarget,
+} from '@/store/decks';
 import { useCubeStore } from '@/store/cube';
 import { useDeckHistoryStore } from '@/store/deck-history';
 import {
@@ -35,6 +41,7 @@ export function useDeckReallocation({
   const swapCard = useDecksStore((s) => s.swapCard);
   const setCardAllocation = useDecksStore((s) => s.setCardAllocation);
   const setCardProxy = useDecksStore((s) => s.setCardProxy);
+  const releaseCopy = useDecksStore((s) => s.releaseCopy);
   const replaceDeck = useDecksStore((s) => s.replaceDeck);
   const pushToast = useToastsStore((s) => s.push);
   const recordEdit = useDeckHistoryStore((s) => s.record);
@@ -231,22 +238,16 @@ export function useDeckReallocation({
     if (!deck || !releaseCard) return;
     const card = releaseCard;
     setReleaseCard(null);
-    const slot = deck.cards.find((c) => c.card.name === card.name && c.allocatedCopyId);
-    if (slot) {
-      recordEdit(deck.id, `release ${card.name}`, () =>
-        setCardAllocation(deck.id, slot.slotId, null)
-      );
-    } else if (deck.commander?.name === card.name && deck.commanderAllocatedCopyId) {
-      recordEdit(deck.id, `release ${card.name}`, () =>
-        setCommander(deck.id, deck.commander, null)
-      );
-    } else if (deck.partnerCommander?.name === card.name && deck.partnerCommanderAllocatedCopyId) {
-      recordEdit(deck.id, `release ${card.name}`, () =>
-        setPartnerCommander(deck.id, deck.partnerCommander, null)
-      );
-    } else {
-      return;
-    }
+    const slot = listSlots(deck).find((c) => c.card.name === card.name && c.allocatedCopyId);
+    let target: ReleaseTarget | null = null;
+    if (slot) target = { slotId: slot.slotId };
+    else if (deck.commander?.name === card.name && deck.commanderAllocatedCopyId)
+      target = 'commander';
+    else if (deck.partnerCommander?.name === card.name && deck.partnerCommanderAllocatedCopyId)
+      target = 'partner';
+    if (!target) return;
+    const released = target;
+    recordEdit(deck.id, `release ${card.name}`, () => releaseCopy(deck.id, released));
     pushToast({
       message: `${card.name} released. The copy is now free.`,
       tone: 'success',
@@ -264,14 +265,20 @@ export function useDeckReallocation({
   // gap.) Keyed by slotId so duplicate-name rows are exact.
   const handleMoveSharedCopy = (slotId: string): void => {
     if (!deck) return;
-    const slot = deck.cards.find((c) => c.slotId === slotId);
+    const slot = listSlots(deck).find((c) => c.slotId === slotId);
     if (!slot) return;
+    claimCopyInto(slot.card, (copyId) => setCardAllocation(deck.id, slotId, copyId));
+  };
+
+  // Bind a copy of `card` to one seat of this deck: steal it from the deck or
+  // cube holding it (leave-gap, one atomic Undo), else take a free copy.
+  const claimCopyInto = (card: ScryfallCard, bind: (copyId: string) => void): void => {
     const stealable = findStealableCopy(
-      slot.card.name,
+      card.name,
       collectionCards,
       useDecksStore.getState().decks,
       deck.id,
-      slot.card.id,
+      card.id,
       useCubeStore.getState().saved
     );
     if (stealable) {
@@ -280,7 +287,7 @@ export function useDeckReallocation({
         donorDeckId: stealable.donorDeckId,
         donorCubeId: fromCube ? stealable.donorId : undefined,
         recipientDeckId: deck.id,
-        recipientApply: () => setCardAllocation(deck.id, slotId, stealable.copyId),
+        recipientApply: () => bind(stealable.copyId),
         donorApply: () =>
           fromCube
             ? useCubeStore.getState().releaseCubePick(stealable.donorId, stealable.copyId)
@@ -292,34 +299,42 @@ export function useDeckReallocation({
                 'leave-gap',
                 null
               ),
-        label: `Moved ${slot.card.name} here from ${stealable.donorDeckName}`,
+        label: `Moved ${card.name} here from ${stealable.donorDeckName}`,
       });
       return;
     }
     // A free copy is available — bind it directly (no cross-deck move).
     const claim = pickCollectionCopy(
-      slot.card.name,
+      card.name,
       collectionCards,
       buildAllocationMap(useDecksStore.getState().decks, useCubeStore.getState().saved),
-      slot.card.id
+      card.id
     );
-    if (claim) {
-      recordEdit(deck.id, `use my ${slot.card.name}`, () =>
-        setCardAllocation(deck.id, slotId, claim.copyId)
-      );
-      pushToast({ message: `Using your copy of ${slot.card.name}`, tone: 'success' });
-      haptics.tap();
+    if (!claim) {
+      pushToast({ message: `No free copy of ${card.name} to use.`, tone: 'info' });
+      return;
     }
+    recordEdit(deck.id, `use my ${card.name}`, () => bind(claim.copyId));
+    pushToast({ message: `Using your copy of ${card.name}`, tone: 'success' });
+    haptics.tap();
   };
 
-  // Per-row "Use my copy" (row ⋮): resolve the card to its first unowned slot and
-  // pull a copy in via the same conscious leave-gap move.
+  // Per-row "Use my copy" (row ⋮): resolve the card to its first empty slot in
+  // any zone, else an empty commander seat, and pull a copy in via the same
+  // conscious leave-gap move. This is also how a released slot takes a copy back.
   const handleUseOwnCopy = (card: ScryfallCard): void => {
     if (!deck) return;
-    const slot = deck.cards.find(
+    const slot = listSlots(deck).find(
       (c) => c.card.name === card.name && !c.allocatedCopyId && !c.proxy
     );
-    if (slot) handleMoveSharedCopy(slot.slotId);
+    if (slot) return handleMoveSharedCopy(slot.slotId);
+    const { commander, partnerCommander } = deck;
+    if (commander?.name === card.name && !deck.commanderAllocatedCopyId)
+      claimCopyInto(commander, (copyId) => setCommander(deck.id, commander, copyId));
+    else if (partnerCommander?.name === card.name && !deck.partnerCommanderAllocatedCopyId)
+      claimCopyInto(partnerCommander, (copyId) =>
+        setPartnerCommander(deck.id, partnerCommander, copyId)
+      );
   };
 
   // Row ⋮ "Mark as proxy" / "Not a proxy": a proxy slot never claims a copy, so
@@ -361,4 +376,9 @@ export function useDeckReallocation({
     handleReleaseConfirm,
     handleMoveSharedCopy,
   };
+}
+
+/** Every slot that claims a copy, mainboard first. */
+function listSlots(deck: Deck): DeckCard[] {
+  return [...deck.cards, ...deck.sideboard, ...(deck.considering ?? [])];
 }

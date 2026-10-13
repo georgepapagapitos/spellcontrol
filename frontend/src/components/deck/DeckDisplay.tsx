@@ -22,7 +22,7 @@ import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
 import { scrollToHeading } from '@/lib/util/scroll-to-heading';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { DeckExportDialog } from '../shared/DeckExportDialog';
-import { buildExport } from '@/lib/import-export/deck-export';
+import { useDeckExportText } from './use-deck-export-text';
 import type { DeckZone } from '../../store/decks';
 import { CardPreviewContext } from '@/components/binder/CardPreviewContext';
 import { BuyListDialog } from './BuyListDialog';
@@ -93,6 +93,8 @@ export function DeckDisplay(props: DeckDisplayProps) {
     selectedThemes,
     commanderAllocatedCopyId,
     partnerCommanderAllocatedCopyId,
+    commanderReleased,
+    partnerCommanderReleased,
     cards,
     sideboard = [],
     considering = [],
@@ -247,6 +249,8 @@ export function DeckDisplay(props: DeckDisplayProps) {
     partnerCommander,
     commanderAllocatedCopyId,
     partnerCommanderAllocatedCopyId,
+    commanderReleased,
+    partnerCommanderReleased,
     collectionByCopyId,
     ownershipFor,
     deckId,
@@ -340,32 +344,18 @@ export function DeckDisplay(props: DeckDisplayProps) {
     autoOpenArrivals,
   });
 
-  const exportText = useMemo(
-    () =>
-      buildExport(
-        {
-          commander,
-          partner: partnerCommander,
-          cards,
-          sideboard,
-          considering,
-          collectionByCopyId,
-          commanderAllocatedCopyId,
-          partnerAllocatedCopyId: partnerCommanderAllocatedCopyId,
-        },
-        exportFormat
-      ),
-    [
+  const exportText = useDeckExportText(
+    {
       commander,
-      partnerCommander,
+      partner: partnerCommander,
       cards,
-      exportFormat,
       sideboard,
       considering,
       collectionByCopyId,
       commanderAllocatedCopyId,
-      partnerCommanderAllocatedCopyId,
-    ]
+      partnerAllocatedCopyId: partnerCommanderAllocatedCopyId,
+    },
+    exportFormat
   );
   // If the parent passes both props, treat it as a controlled component
   // (their boolean wins). Otherwise fall back to internal state — keeps

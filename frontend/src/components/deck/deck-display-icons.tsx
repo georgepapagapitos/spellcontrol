@@ -17,7 +17,8 @@ import {
 import { Link } from 'react-router-dom';
 import type { DeckCategory } from '@/deck-builder/types';
 import { ManaSymbol } from '../shared/ManaSymbol';
-import { allocationSummary, type Row } from './deck-display-rows';
+import { type Row } from './deck-display-rows';
+import { allocationSummary } from './deck-row-allocation';
 import { CircleAlert } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { LegalityIssue } from '@/lib/deck/deck-validation';

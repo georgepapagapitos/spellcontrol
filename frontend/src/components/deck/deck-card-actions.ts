@@ -207,7 +207,9 @@ export function deckCardActions(ctx: DeckCardActionCtx): DeckCardAction[] {
     }
   }
 
-  if (onUseOwnCopy && row.claimedElsewhereQty > 0 && hasSlots) {
+  // A commander row has no slots but takes a copy into its seat, so this one
+  // is not gated on slots. A released slot takes its copy back the same way.
+  if (onUseOwnCopy && (row.claimedElsewhereQty > 0 || row.releasedQty > 0)) {
     out.push({
       key: 'use-own-copy',
       label: 'Use my copy',
