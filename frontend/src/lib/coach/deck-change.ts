@@ -136,6 +136,11 @@ export interface Change {
    * `reason`, and dropped the moment the tweak is dismissed or re-rolled.
    */
   aiWhy?: string;
+  /**
+   * "Lean into" (E260): which theme the player chose that this row serves.
+   * Display-only, set by the feed, never persisted or sent anywhere.
+   */
+  leanNote?: string;
   /** Collection lane only — other owned cards that fill the same missing staple,
    *  ranked, for the "N other owned options" expander. Each is a full add Change.
    *  Nested (not in the merged feed), so applying one is independent. */

@@ -289,6 +289,7 @@ export function DeckCardRow({
           {/* E274: the AI refine reading picked this same card. Its sentence is
               model-written, so it carries the provenance marker and stays apart
               from the engine's grounded reason/factors above and below it. */}
+          {change.leanNote && <span className="deck-card-row-lean">{change.leanNote}</span>}
           {change.aiWhy && (
             <span className="deck-card-row-ai">
               <AiMarker label="AI agrees" />

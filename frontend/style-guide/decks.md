@@ -1586,6 +1586,18 @@ that emptied the view. Renders nothing at zero count, same as any lane chip.
 A future cross-lane toggle (not a new lane) follows this precedent, not the
 lane-chip one.
 
+**"Lean into" is a free re-order, and says so (E260).** A second chip row under
+the filters (`CoachLeanStrip`) offers up to three themes the visible rows
+serve: the commander's abilities (labelled as the why-it-fits pills are,
+matched by the pill text or by tagger tag for thin rows) and the deck's own
+engine axes. Choosing one moves the rows that serve it to the top (stable,
+cuts untouched) and prints "Leans into ..." on each. It is a re-rank of rows
+the feed already holds, never a filter on the AI refine pool: pool names feed
+`hashRefineInput`, so narrowing it would spend a reading. The resting hint
+reads "Free. Re-orders this list and doesn't use an AI reading", and the row
+carries no AI marker, so it never reads as a spend. `CoachFeed.lean.test.tsx`
+pins that the refine request is byte-identical with the lever on.
+
 ### Cuts are separated
 
 Cut suggestions **never interleave** with add/swap rows. They live behind the
