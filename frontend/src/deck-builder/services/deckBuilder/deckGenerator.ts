@@ -5090,10 +5090,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   const targetMisses = computeTargetMisses(
     generated,
     { ...context, askedForNames },
-    {
-      effectiveNonBasicLandCount,
-      budgetResidualReason,
-    }
+    { effectiveNonBasicLandCount, budgetResidualReason }
   );
   if (targetMisses.length > 0) generated.targetMisses = targetMisses;
   return generated;
