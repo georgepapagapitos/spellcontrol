@@ -1380,11 +1380,6 @@
 /* Keyboard-driven active row (↑/↓ from a host's own search input, e.g.
    AddCardSearchPanel's SearchPill; Enter adds this row). */
 .inline-card-search-row.active {
-  background: var(--accent-light);
-  --text-muted: var(--text-muted-tint);
-  --text-secondary: var(--text-secondary-tint);
-  --accent: var(--accent-tint);
-  --accent-hover: var(--accent-hover-tint);
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }

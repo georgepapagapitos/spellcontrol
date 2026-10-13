@@ -170,11 +170,6 @@
 
 .settings-theme-option.is-active {
   border-color: var(--accent);
-  background: var(--accent-light);
-  --text-muted: var(--text-muted-tint);
-  --text-secondary: var(--text-secondary-tint);
-  --accent: var(--accent-tint);
-  --accent-hover: var(--accent-hover-tint);
 }
 
 .settings-theme-swatch {
@@ -402,11 +397,6 @@
 
 .you-layout .you-nav-row[aria-current='page'] {
   color: var(--accent);
-  background: var(--accent-light);
-  --text-muted: var(--text-muted-tint);
-  --text-secondary: var(--text-secondary-tint);
-  --accent: var(--accent-tint);
-  --accent-hover: var(--accent-hover-tint);
 }
 
 .you-layout .you-nav-row[aria-current='page'] > svg:first-child {

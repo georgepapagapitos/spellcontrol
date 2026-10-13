@@ -2099,6 +2099,41 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
   "A player" and every real seat name ran over the card name
   (`styles/stack-panel-seat-chip.test.ts`).
 
+### Selected state: three treatments, one per role (E598)
+
+A selected, active or pressed control paints one of three treatments. The
+role picks it; a surface does not invent a fourth.
+
+| Role                                                                               | Treatment                                                                                                                     | Where it is written                                                                                     |
+| ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| A segment in a track (`Segmented`, `fitted` Tabs)                                  | Lifts onto `--surface-raised` with the inset ring and weight 600                                                              | `.segmented-option.is-selected` ([components appendix](style-guide/components.md#tabs--view-switchers)) |
+| A standalone filter/toggle chip (`Chip` with `pressed`)                            | Accent fill, `--on-accent` text, on `[aria-pressed='true']`                                                                   | `.filter-chip` (§ Chips above)                                                                          |
+| An option tile, card, list row or highlighted option, and a one-off compact toggle | The **accent tint**: the `--accent-light` ground, a 1px `--accent` border where the control has one, and the on-tint ink pair | the shared rule in `styles/base-layout.css`                                                             |
+
+The tint was already the majority treatment (about 35 selectors across option
+cards, theme and layout pickers, list rows, command-palette options and compact
+toggles) and it is the one that fits the binder-materiality palette: a dye
+washed into paper, not a second filled button competing with the primary
+action. Text keeps its ink on a tile or row (`--text-primary`); a compact chip
+or toggle also turns its label `--accent`. Both come from the member's own sheet:
+only the ground is shared.
+
+**Add a selected control to the tint by adding its selector to the shared list
+in `styles/base-layout.css`.** Never re-declare the five-declaration block
+(`background: var(--accent-light)` plus the four `-tint` re-points) in a
+component sheet. The re-points are not optional: `--accent-light` lifts the
+ground so far that muted and accent ink fall under AA without them
+(`styles/text-contrast-grounds.test.ts`), and a copy of the block fails
+`styles/duplicate-block-ratchet.test.ts`. A member that has a `:hover` or
+`:focus-visible` rule of the **same specificity** setting a different ground
+stays in its own sheet, because moving it earlier in the cascade would let the
+hover win over the selected state.
+
+Not selection, so not on the list: a hover or `:focus-visible` tint, the
+momentary `:active` press on a button, a status badge (`.trade-offer-status.is-accepted`),
+and a drop target. They paint the same ground for their own reasons and are
+tracked as their own duplicate groups.
+
 ## Responsive
 
 ### Device tiers (what to build + test against)
