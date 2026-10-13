@@ -404,6 +404,13 @@
      content sits above the home gesture. Both are no-ops on web. Subtract
      the keyboard inset so the sheet shrinks rather than slide behind it. */
   max-height: calc(var(--vh-safe) * 0.85 - var(--keyboard-inset));
+  /* A sheet whose header, footer and a body that cannot shrink (an empty
+     state, a short list) outgrow a short window scrolls as a whole rather than
+     pushing its footer's buttons off the screen (a 568 x 320 landscape phone,
+     a 200% zoom, a 24px browser font). A body that scrolls itself shrinks
+     first, so this only engages when nothing inside can. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding-left: var(--safe-left);
   padding-right: var(--safe-right);
   padding-bottom: var(--safe-bottom);

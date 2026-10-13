@@ -2315,6 +2315,34 @@ gated, so the test is what holds the line — mirror of `radius-tokens.test.ts`)
 
 ## Accessibility
 
+- **Text resizes: 200% zoom, a 24px browser font, 320px reflow (E536 step 4).**
+  WCAG 1.4.4 and 1.4.10. The journey walks every route and overlay at four
+  sizes (`node scripts/journey.mjs --viewports zoom,reflow,text,phone-text`,
+  `scripts/journey-zoom.mjs`): `zoom` is a 1280px window at 200% (640 x 360 CSS
+  px, which is already the phone layout), `reflow` is 320px wide, `text` and
+  `phone-text` set Chrome's real default font size to 24px. Rulings it settled:
+  - **A box that holds text is rem or content-sized, never a px height.** A
+    fixed `height` or `line-height` in px clips the line the moment the root
+    grows (the grid caption, `height: 20px`, cut every price at 24px). Use
+    `min-height`, or rem for the box and the line together, and when JS mirrors
+    the number (a virtualizer's row estimate) scale it by `remScale()`
+    (`components/shared/CardGridCell.tsx`).
+  - **A row of controls wraps; it does not clip.** `.deck-editor-actions` had no
+    `flex-wrap`, so at 320px or 24px the third button left the screen. A
+    horizontal strip that is meant to scroll says so (`overflow-x: auto`).
+  - **Truncation needs the full text in a `title`.** An ellipsis or line clamp
+    on a line a person reads (deck detail, tag description, set label) carries
+    `title` with the whole string. The probe counts every truncation and lists
+    the ones with no `title` or `aria-label`.
+  - **Text that must not scale is a glyph in a fixed box**, and is
+    `aria-hidden` (the avatar initial). The probe doubles the root font size and
+    flags any other text whose computed size does not move.
+  - **A measure-and-flip effect needs hysteresis.** `CardPreview` re-fits its
+    action row on every render; a compact row is shorter, so the panel dropped
+    its scrollbar, `room` grew, and the row flipped back, forever (React error
+    #185 in a 360px-tall window). Leaving the compact state asks for a
+    scrollbar's width of slack (`ACTIONS_REFIT_SLACK`).
+
 - **Every interactive element with a `:hover` rule also needs a `:focus-visible`
   ring.** These are independent obligations: the hover-gate
   (`@media (hover: hover) and (pointer: fine)`) makes hover conditional on

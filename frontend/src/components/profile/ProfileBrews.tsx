@@ -91,7 +91,9 @@ export function ProfileBrews({ profile }: { profile: PublicProfile }) {
                     <span className="profile-brews-thumb" aria-hidden="true" />
                   )}
                   <span className="profile-brews-commander-text">
-                    <span className="profile-brews-commander-name">{c.name}</span>
+                    <span className="profile-brews-commander-name" title={c.name}>
+                      {c.name}
+                    </span>
                     <span className="profile-brews-commander-count">
                       {formatCount(c.deckCount)} decks
                     </span>

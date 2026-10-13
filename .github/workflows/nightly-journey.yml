@@ -33,8 +33,9 @@ jobs:
     name: Chrome + Firefox journey
     runs-on: ubuntu-latest
     # 50 before the card-cache ingest; the cold ingest streams ~450 MB / ~107k
-    # cards (budget 15 min on a cold cache, seconds when restored), so 65.
-    timeout-minutes: 65
+    # cards (budget 15 min on a cold cache, seconds when restored), so 65; 90 with
+    # the resize-text walk (four tiers, about 25 minutes).
+    timeout-minutes: 90
 
     services:
       postgres:
@@ -187,6 +188,15 @@ jobs:
       - name: Journey in Chrome (phone + desktop)
         run: node scripts/journey.mjs --base http://localhost:3737 --browser chrome --username journeyadmin --a11y --out journey-chrome
 
+      # Resize text (E536 step 4, scripts/journey-zoom.mjs): 200% page zoom, 320px
+      # reflow, and a 24px browser font on desktop and phone. A finding is clipped
+      # text, text or a control past the edge, overlapping lines, or px-sized text;
+      # it fails the run, and the per-check counts in the log show what each check
+      # inspected.
+      - name: Journey at 200% zoom and large text (Chrome)
+        if: always()
+        run: node scripts/journey.mjs --base http://localhost:3737 --browser chrome --viewports zoom,reflow,text,phone-text --username journeyadmin --out journey-zoom
+
       - name: Journey in Firefox (desktop)
         if: always()
         run: node scripts/journey.mjs --base http://localhost:3737 --browser firefox --viewports desktop --username journeyadmin --out journey-firefox
@@ -198,6 +208,7 @@ jobs:
           name: journey-${{ github.run_id }}
           path: |
             journey-chrome
+            journey-zoom
             journey-firefox
             backend.log
           retention-days: 14

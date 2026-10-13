@@ -25,6 +25,11 @@
 // card-preview panel's "Ramp" pill read 1.08:1 in the light guilds only).
 // A finding fails the screen, with the details in a11y.json; see axeSweep.
 //
+// --viewports zoom,reflow,text,phone-text swaps the two tiers for the resize-text
+// walk (E536 step 4, journey-zoom.mjs): routes and overlays at 200% page zoom,
+// 320 CSS px reflow and a 24px browser font size, failing on clipped text, text
+// or controls past the edge, overlapping lines and px-sized text.
+//
 // Any of the first six fails the run, and so does an a11y finding under --a11y. Screenshots + report.json land in
 // --out. Run by .github/workflows/nightly-journey.yml against a production
 // build served by the backend; locally:
@@ -35,12 +40,14 @@
 // Browser binaries: JOURNEY_CHROME / JOURNEY_FIREFOX override the defaults
 // (macOS app bundles, Linux /usr/bin). puppeteer-core drives Chrome over CDP
 // and Firefox over WebDriver BiDi; no browser download.
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import puppeteer from 'puppeteer-core';
 import { TIERS, executable } from './journey-browser.mjs';
 import { overlayWalk } from './journey-overlays.mjs';
+import { ZOOM_BY_DESIGN, ZOOM_TIERS, launchPrefs, zoomProbe } from './journey-zoom.mjs';
 
 // Expected sample-pack card count, read straight from the source constant
 // (not re-typed here) so it can't drift from lib/binder/samples.ts.
@@ -905,26 +912,73 @@ async function assertCardCache() {
   }
 }
 
+/**
+ * Resize-text probe tallies per tier: what each check inspected and how many
+ * findings it made, printed at the end so an empty check cannot pass quietly.
+ */
+const zoomTotals = {};
+function tallyZoom(tierName, screen, { counts, findings }) {
+  const t = (zoomTotals[tierName] ??= { screens: 0, counts: {}, findings: {}, groups: {} });
+  t.screens += 1;
+  for (const [k, n] of Object.entries(counts)) t.counts[k] = (t.counts[k] ?? 0) + n;
+  for (const f of findings) {
+    t.findings[f.kind] = (t.findings[f.kind] ?? 0) + 1;
+    const g = (t.groups[`${f.kind} ${f.sel}`] ??= new Set());
+    g.add(screen);
+  }
+}
+function printZoomTotals() {
+  for (const [tierName, t] of Object.entries(zoomTotals)) {
+    const fmt = (o) =>
+      Object.entries(o)
+        .map(([k, n]) => `${k} ${n}`)
+        .join(', ');
+    console.log(
+      `zoom checks run (${tierName}, ${t.screens} screens): ${fmt(t.counts)}; findings: ${fmt(t.findings) || 'none'}`
+    );
+    // One line per (check, element), however many screens it shows on: the unit of a fix.
+    for (const [k, screens] of Object.entries(t.groups).sort((a, b) => b[1].size - a[1].size))
+      console.log(`    ${String(screens.size).padStart(3)} screens  ${k}`);
+  }
+}
+
 async function main() {
   if (!argv.includes('--skip-card-cache-check')) await assertCardCache();
   await mkdir(OUT, { recursive: true });
-  const browser = await puppeteer.launch({
-    browser: BROWSER,
-    executablePath: executable(BROWSER),
-    headless: true,
-    protocolTimeout: 300_000,
-    args:
-      BROWSER === 'firefox'
-        ? []
-        : [
-            '--no-first-run',
-            '--no-default-browser-check',
-            '--disable-gpu',
-            // A synthetic camera, so the scanner screen opens in the a11y walk.
-            '--use-fake-device-for-media-stream',
-            '--use-fake-ui-for-media-stream',
-          ],
-  });
+  // One Chrome per large-text tier: the browser's font size is a profile setting.
+  const launched = [];
+  const launch = async (fontSize = null) => {
+    let userDataDir;
+    if (fontSize) {
+      userDataDir = await mkdtemp(path.join(tmpdir(), 'journey-text-'));
+      await mkdir(path.join(userDataDir, 'Default'), { recursive: true });
+      await writeFile(
+        path.join(userDataDir, 'Default', 'Preferences'),
+        JSON.stringify(launchPrefs(fontSize))
+      );
+    }
+    const b = await puppeteer.launch({
+      browser: BROWSER,
+      executablePath: executable(BROWSER),
+      headless: true,
+      protocolTimeout: 300_000,
+      userDataDir,
+      args:
+        BROWSER === 'firefox'
+          ? []
+          : [
+              '--no-first-run',
+              '--no-default-browser-check',
+              '--disable-gpu',
+              // A synthetic camera, so the scanner screen opens in the a11y walk.
+              '--use-fake-device-for-media-stream',
+              '--use-fake-ui-for-media-stream',
+            ],
+    });
+    launched.push({ b, userDataDir });
+    return b;
+  };
+  const browser = await launch();
   const results = [];
   let seeded = null;
   // The generated deck (100 cards), for the overlay walk: the blank one has no hand to play.
@@ -932,11 +986,13 @@ async function main() {
   let live = null;
   try {
     for (const tierName of VIEWPORTS) {
-      const tier = TIERS[tierName];
+      const tier = TIERS[tierName] ?? ZOOM_TIERS[tierName];
       if (!tier) throw new Error(`unknown viewport ${tierName}`);
-      const context = await browser.createBrowserContext();
+      const zoomTier = tierName in ZOOM_TIERS;
+      const { fontSize: rootFont, ...viewport } = tier;
+      const context = await (rootFont ? await launch(rootFont) : browser).createBrowserContext();
       const page = await context.newPage();
-      await page.setViewport(tier);
+      await page.setViewport(viewport);
       const consoleErrors = [];
       const thirdPartyFailures = [];
       live = { page, tierName, consoleErrors, thirdPartyFailures };
@@ -1021,6 +1077,16 @@ async function main() {
         // Overlapping targets DO fail — see overlappingTouchTargets.
         const overlapping =
           tierName === 'phone' ? await page.evaluate(overlappingTouchTargets) : [];
+        // Resize-text probes (zoom / reflow / large-text tiers): see journey-zoom.mjs.
+        const zoom = zoomTier
+          ? await page.evaluate(zoomProbe, { scalesWithRoot: Boolean(rootFont) })
+          : null;
+        if (zoom) {
+          const kept = zoom.findings.filter((f) => !ZOOM_BY_DESIGN.has(`${f.kind} ${f.sel}`));
+          zoom.counts.byDesign = zoom.findings.length - kept.length;
+          zoom.findings = kept;
+          tallyZoom(tierName, label, zoom);
+        }
         // Axe runs last among the probes: it swaps themes and restores them.
         // Axe's contrast rule scrolls each node into view and the Tab walk
         // scrolls to each stop, so put the page back where it loaded: the
@@ -1049,6 +1115,7 @@ async function main() {
           wrapped,
           smallTargets,
           overlapping,
+          zoom,
           a11y,
           file,
         };
@@ -1061,12 +1128,14 @@ async function main() {
           wrapped.length > 0 ||
           overlapping.length > 0 ||
           smallTargets.length > 0 ||
+          (zoom?.findings.length ?? 0) > 0 ||
           a11yNodeCount(a11y) > 0;
         results.push(rec);
         console.log(
           `${rec.fail ? 'FAIL' : ' ok '} ${BROWSER.padEnd(7)} ${tierName.padEnd(7)} ${label.padEnd(36)} ` +
             `overflow=${rec.overflow} empty=${rec.emptyBody} errors=${errs.length} touching=${touching.length} wrapped=${wrapped.length} small=${smallTargets.length} overlapping=${overlapping.length}` +
             (A11Y ? ` a11y=${a11yNodeCount(a11y)}` : '') +
+            (zoom ? ` zoom=${zoom.findings.length}` : '') +
             (rec.landed !== label.split('?')[0] && !label.includes('{')
               ? ` landed=${rec.landed}`
               : '')
@@ -1076,6 +1145,8 @@ async function main() {
         if (wrapped.length) for (const w of wrapped) console.log(`        ${w}`);
         if (overlapping.length)
           for (const o of overlapping) console.log(`        overlapping: ${o}`);
+        for (const f of zoom?.findings ?? [])
+          console.log(`        ${f.kind}: ${f.key} (${f.detail})`);
         return rec;
       };
 
@@ -1638,7 +1709,7 @@ async function main() {
       }
       // Menus, dialogs, sheets, the playtest table: the route walk never opens
       // them, so their own surfaces were never swept (E536).
-      if (A11Y) {
+      if (A11Y || zoomTier) {
         await overlayWalk({
           page,
           tierName,
@@ -1660,8 +1731,12 @@ async function main() {
     if (live) await saveFatal(live).catch(() => {});
     throw err;
   } finally {
-    await browser.close();
+    for (const { b, userDataDir } of launched) {
+      await b.close().catch(() => {});
+      if (userDataDir) await rm(userDataDir, { recursive: true, force: true }).catch(() => {});
+    }
   }
+  printZoomTotals();
   const failed = results.filter((r) => r.fail);
   if (A11Y) await writeA11yReport(results);
   await writeFile(
@@ -1671,7 +1746,7 @@ async function main() {
   console.log(
     `\n${BROWSER}: ${results.length} screens, ${failed.length} failed` +
       (failed.length
-        ? `\n${failed.map((r) => `  - ${r.viewport} ${r.label}: ${r.emptyBody ? 'empty body; ' : ''}${r.overflow ? `overflow ${r.overflow}px; ` : ''}${!r.title ? 'no title; ' : ''}${r.touching.length ? `touching ${r.touching.join(', ')}; ` : ''}${r.wrapped?.length ? `${r.wrapped.join(', ')}; ` : ''}${r.smallTargets?.length ? `under 44px: ${r.smallTargets.join(', ')}; ` : ''}${a11yNodeCount(r.a11y) ? `a11y ${a11yNodeCount(r.a11y)} (see a11y.json); ` : ''}${r.consoleErrors.join(' | ')}`).join('\n')}`
+        ? `\n${failed.map((r) => `  - ${r.viewport} ${r.label}: ${r.emptyBody ? 'empty body; ' : ''}${r.overflow ? `overflow ${r.overflow}px; ` : ''}${!r.title ? 'no title; ' : ''}${r.touching.length ? `touching ${r.touching.join(', ')}; ` : ''}${r.wrapped?.length ? `${r.wrapped.join(', ')}; ` : ''}${r.smallTargets?.length ? `under 44px: ${r.smallTargets.join(', ')}; ` : ''}${r.zoom?.findings.length ? `zoom ${r.zoom.findings.map((f) => `${f.kind} ${f.key}`).join(', ')}; ` : ''}${a11yNodeCount(r.a11y) ? `a11y ${a11yNodeCount(r.a11y)} (see a11y.json); ` : ''}${r.consoleErrors.join(' | ')}`).join('\n')}`
         : '')
   );
   process.exit(failed.length ? 1 : 0);

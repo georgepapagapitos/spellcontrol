@@ -37,14 +37,22 @@ const GRID_CAPTION_LABEL: Record<keyof GridCaptionPrefs, string> = {
 };
 
 /**
- * Rendered height (px) of ONE caption line, and the extra height the caption
- * footer plate adds below the last line — keep both in sync with
- * .collection-grid-captions / .collection-grid-caption in styles/collection.css.
+ * Rendered height (px at the default 16px root) of ONE caption line, and the
+ * extra height the caption footer plate adds below the last line — keep both in
+ * sync with .collection-grid-captions / .collection-grid-caption in
+ * styles/collection.css, where they are rem; scale them by `remScale()`.
  * Folded into the collection grid virtualizer's row-height estimate, which is
  * measureElement-free, so an estimate/CSS mismatch shows up as scroll drift.
  */
 export const GRID_CAPTION_H = 20;
 export const GRID_CAPTION_PLATE_PAD = 4;
+
+/** The browser's text size against the 16px default: what a rem-sized box measures in px. */
+export function remScale(): number {
+  if (typeof document === 'undefined') return 1;
+  const px = parseFloat(getComputedStyle(document.documentElement).fontSize);
+  return px > 0 ? px / 16 : 1;
+}
 
 function readStoredGridCaptionPrefs(): GridCaptionPrefs {
   try {
@@ -326,7 +334,9 @@ export function CardGridCell({
           {setLabel !== null && (
             <div className="collection-grid-caption collection-grid-caption--set">
               <SetSymbol setCode={card.setCode} rarity={card.rarity} />
-              <span className="collection-grid-caption-set-label">{setLabel}</span>
+              <span className="collection-grid-caption-set-label" title={setLabel}>
+                {setLabel}
+              </span>
             </div>
           )}
           {note && (

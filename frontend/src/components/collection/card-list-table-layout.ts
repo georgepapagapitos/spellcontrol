@@ -5,7 +5,7 @@ import type { SetMap } from '@/lib/api';
 import { getSectionMeta } from '@spellcontrol/binder-routing';
 import { useScrollContainer } from '@/lib/util/scroll-container';
 import { GRID_GAP_PX, zoomCols, zoomTier } from '@/lib/util/grid-zoom';
-import { GRID_CAPTION_H, GRID_CAPTION_PLATE_PAD } from '@/components/shared/CardGridCell';
+import { GRID_CAPTION_H, GRID_CAPTION_PLATE_PAD, remScale } from '@/components/shared/CardGridCell';
 import {
   groupRowsIntoSections,
   buildGridLayout,
@@ -221,6 +221,7 @@ export function useTableLayout({
   // Per-index height estimate: section headers are a fixed short row, card rows
   // derive from the live column width (exact aspect ratio), so the grid stays
   // measureElement-free — the estimate is the truth and offsets never drift.
+  const rem = useMemo(remScale, []);
   const estimateGridRowHeight = useCallback(
     (index: number) => {
       if (gridLayout[index]?.kind === 'header') return GRID_SECTION_HEADER_H;
@@ -229,12 +230,12 @@ export function useTableLayout({
       const colWidth = (w - GRID_GAP_PX * (gridCols - 1)) / gridCols;
       return (
         colWidth * (680 / 488) +
-        GRID_CAPTION_H * gridCaptionLines +
-        (gridCaptionLines > 0 ? GRID_CAPTION_PLATE_PAD : 0) +
+        (GRID_CAPTION_H * gridCaptionLines + (gridCaptionLines > 0 ? GRID_CAPTION_PLATE_PAD : 0)) *
+          rem +
         GRID_GAP_PX
       );
     },
-    [gridCols, gridLayout, gridCaptionLines]
+    [gridCols, gridLayout, gridCaptionLines, rem]
   );
 
   useLayoutEffect(() => {

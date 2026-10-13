@@ -23,6 +23,7 @@
 // "can't be fixed here" is a pattern to change, not a count to ratchet.
 
 import { TIERS } from './journey-browser.mjs';
+import { ZOOM_TIERS } from './journey-zoom.mjs';
 import { keyboardChecks, tally } from './journey-keyboard.mjs';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -110,7 +111,7 @@ function catalog({ deck, binder }) {
       }
     };
   /** A control that lives somewhere else on the phone: `phone` opens it there. */
-  const tiered = (desktop, phone) => (page, tier) => (tier === 'phone' ? phone : desktop)(page);
+  const tiered = (desktop, phone) => (page, layout) => (layout === 'phone' ? phone : desktop)(page);
   const deckActions = click('button', /^Deck actions/);
   const editList = click('button.toolbar-pill', /^Edit the list/);
   const cardMenu = then(
@@ -330,6 +331,7 @@ function catalog({ deck, binder }) {
     {
       route: '/collection',
       name: 'card scanner',
+      touch: true, // needs a coarse pointer, as the app gates it
       open: click('button.scan-fab-btn', /./),
       ready: '.scanner-root',
       phone: true,
@@ -496,20 +498,26 @@ export async function overlayWalk({
   );
   for (const it of items) {
     if (!it.route) continue;
-    if (it.phone && tierName !== 'phone') continue;
-    if (it.desktop && tierName !== 'desktop') continue;
+    // The app picks its layout by width (640 and under is the phone layout), so a
+    // 200% zoom of a 1280 window gets the phone's overlays with a mouse in hand.
+    const def = TIERS[tierName] ?? ZOOM_TIERS[tierName];
+    const layout = def.width <= 640 ? 'phone' : 'desktop';
+    const phoneLike = layout === 'phone';
+    if (it.phone && !phoneLike) continue;
+    if (it.desktop && phoneLike) continue;
+    if (it.touch && !def.hasTouch) continue;
     consoleErrors.length = 0;
     // The table is a landscape surface on a phone (portrait asks to "Turn your
     // phone sideways"), so a phone walks it in landscape.
-    const t = TIERS[tierName];
-    const landscape = tierName === 'phone' && it.route.endsWith('/playtest');
+    const { fontSize: _text, ...t } = TIERS[tierName] ?? ZOOM_TIERS[tierName];
+    const landscape = phoneLike && it.route.endsWith('/playtest');
     const load = async () => {
       await page.setViewport(landscape ? { ...t, width: t.height, height: t.width } : t);
       await page.goto(base + it.route, { waitUntil: 'domcontentloaded', timeout: 60_000 });
       await sleep(settleMs);
     };
     const openIt = async () => {
-      await it.open(page, tierName);
+      await it.open(page, layout);
       await page.waitForSelector(it.ready, { visible: true, timeout: it.timeout ?? 15_000 });
       await sleep(settleMs / 2);
     };
@@ -533,7 +541,7 @@ export async function overlayWalk({
     // The phone's touch floor is measured inside the overlay (`scope`, default:
     // what proves it open); the page behind is the route walk's.
     const rec = await record(label, {
-      keyboard: !it.menu,
+      keyboard: !it.menu && !(tierName in ZOOM_TIERS),
       scope: it.scope ?? it.ready,
     });
     await assertPage(rec, `${it.name} opens`, async () => ({
@@ -547,7 +555,7 @@ export async function overlayWalk({
     }
     // Keys beyond Tab, on a fresh load opened by keyboard. The table surface
     // itself (`scope: 'body'`) is not an overlay, so it has none.
-    if (!err && !it.scope) {
+    if (!err && !it.scope && !(tierName in ZOOM_TIERS)) {
       KEYBOARD_OPEN = true;
       try {
         const found = await keyboardChecks(page, it, async () => {

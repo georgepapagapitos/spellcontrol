@@ -757,6 +757,14 @@ export function DecksIndexPage() {
               {sorted.map((deck, cardIndex) => {
                 const totalCards =
                   (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0) + deck.cards.length;
+                // The line truncates in a narrow row; the title carries all of it.
+                const detail = `${
+                  deck.commander
+                    ? `${deck.commander.name}${
+                        deck.partnerCommander ? ` + ${deck.partnerCommander.name}` : ''
+                      } · `
+                    : ''
+                }${totalCards} cards · ${deck.source === 'generated' ? 'Generated' : 'Manual'}`;
                 const art = deckCoverArt(deck);
                 const colorIdentity = deckDisplayColors(deck);
                 const themes = deck.generationContext?.selectedThemes ?? [];
@@ -902,14 +910,8 @@ export function DecksIndexPage() {
                               pinned to its end instead of being cut off or
                               wrapping onto a line of its own. */}
                           <span className="decks-index-card-facts">
-                            <span className="decks-index-card-detail">
-                              {deck.commander
-                                ? `${deck.commander.name}${
-                                    deck.partnerCommander ? ` + ${deck.partnerCommander.name}` : ''
-                                  } · `
-                                : ''}
-                              {totalCards} cards ·{' '}
-                              {deck.source === 'generated' ? 'Generated' : 'Manual'}
+                            <span className="decks-index-card-detail" title={detail}>
+                              {detail}
                             </span>
                             {value > 0 && (
                               <span className="decks-index-card-value">
