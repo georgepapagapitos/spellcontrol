@@ -1,5 +1,5 @@
 import { useEffect, useState, type RefObject } from 'react';
-import { focusInto, restoreFocus, trapTab } from './overlay-layer';
+import { captureOpener, focusInto, restoreFocus, trapTab } from './overlay-layer';
 
 const DIALOG_SELECTOR = '[role="dialog"][aria-modal="true"]';
 
@@ -44,9 +44,7 @@ export function useFocusTrap(
   // React has already committed the children, and a child with `autoFocus`
   // (the rules sheet's search box on desktop) has taken focus — so the
   // "opener" recorded was that input, gone by the time the sheet closed.
-  const [opener] = useState(() =>
-    typeof document === 'undefined' ? null : (document.activeElement as HTMLElement | null)
-  );
+  const [opener] = useState(captureOpener);
   useEffect(() => {
     if (typeof document === 'undefined') return;
 

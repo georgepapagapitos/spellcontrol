@@ -2,7 +2,16 @@
 import { StrictMode } from 'react';
 import { renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { focusInto, getFocusable, trapTab, useOverlayLayer } from './overlay-layer';
+import {
+  captureOpener,
+  focusInto,
+  getFocusable,
+  registerReturnAnchor,
+  restoreFocus,
+  tabStops,
+  trapTab,
+  useOverlayLayer,
+} from './overlay-layer';
 
 function panelWith(html: string): HTMLElement {
   const el = document.createElement('div');
@@ -271,5 +280,120 @@ describe('useOverlayLayer: Back-button integration (E481)', () => {
     expect(window.location.href).toBe(hrefBefore);
 
     hook.unmount();
+  });
+});
+
+describe('captureOpener', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('is the focused element when it is not inside a menu', () => {
+    const el = panelWith('<button id="b">go</button>');
+    const b = el.querySelector<HTMLElement>('#b')!;
+    b.focus();
+    expect(captureOpener()).toBe(b);
+  });
+
+  it('is the control a menu hangs off when an item of that menu has focus', () => {
+    const trigger = panelWith('<button id="t">menu</button>').querySelector<HTMLElement>('#t')!;
+    const menu = panelWith('<button id="item">Export</button>');
+    const item = menu.querySelector<HTMLElement>('#item')!;
+    const release = registerReturnAnchor(menu, trigger);
+    item.focus();
+    expect(captureOpener()).toBe(trigger);
+
+    // Once the menu is gone the item is just an element again.
+    release();
+    expect(captureOpener()).toBe(item);
+  });
+
+  it('ignores an anchor that has left the document', () => {
+    const trigger = panelWith('<button id="t">menu</button>').querySelector<HTMLElement>('#t')!;
+    const menu = panelWith('<button id="item">Export</button>');
+    const item = menu.querySelector<HTMLElement>('#item')!;
+    registerReturnAnchor(menu, trigger);
+    trigger.remove();
+    item.focus();
+    expect(captureOpener()).toBe(item);
+  });
+});
+
+describe('restoreFocus: an opener that unmounted while the overlay was open', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+    vi.restoreAllMocks();
+  });
+
+  const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r(null)));
+
+  it('focuses the control that took its place (same label)', async () => {
+    const host = panelWith('<button aria-label="Scan cards">scan</button>');
+    const gone = host.querySelector<HTMLElement>('button')!;
+    gone.remove();
+    host.innerHTML = '<button aria-label="Scan cards">scan</button>';
+    restoreFocus(gone);
+    await nextFrame();
+    expect(document.activeElement).toBe(host.querySelector('button'));
+  });
+
+  it('does not take focus the person has already put somewhere', async () => {
+    const host = panelWith('<button aria-label="Scan cards">a</button><input aria-label="Name" />');
+    const gone = host.querySelector<HTMLElement>('button')!;
+    gone.remove();
+    host.insertAdjacentHTML('beforeend', '<button aria-label="Scan cards">b</button>');
+    host.querySelector('input')!.focus();
+    restoreFocus(gone);
+    await nextFrame();
+    expect(document.activeElement).toBe(host.querySelector('input'));
+  });
+
+  it('leaves focus alone when two controls could be the successor', async () => {
+    const host = panelWith('<button aria-label="Open">a</button>');
+    const gone = host.querySelector<HTMLElement>('button')!;
+    gone.remove();
+    host.insertAdjacentHTML(
+      'beforeend',
+      '<button aria-label="Open">b</button><button aria-label="Open">c</button>'
+    );
+    restoreFocus(gone);
+    await nextFrame();
+    expect(document.activeElement).toBe(document.body);
+  });
+});
+
+describe('tabStops and the Tab trap', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('counts one stop per radio group (the checked one) and skips tabindex -1', () => {
+    const el = panelWith(
+      '<button id="a">a</button>' +
+        '<input type="radio" name="f" id="r1" />' +
+        '<input type="radio" name="f" id="r2" checked />' +
+        '<input type="radio" name="f" id="r3" />' +
+        '<button id="skip" tabindex="-1">x</button>' +
+        '<input type="radio" name="g" id="g1" />' +
+        '<input type="radio" name="g" id="g2" />'
+    );
+    expect(tabStops(el).map((n) => n.id)).toEqual(['a', 'r2', 'g1']);
+  });
+
+  it('wraps from the checked radio when it is the last stop, instead of letting Tab leave', () => {
+    // A format list: Tab from the selected radio has nowhere to go inside the
+    // dialog, so the trap has to take it. Counting the unchecked radios as stops
+    // made the "last" one a place Tab never reaches.
+    const el = panelWith(
+      '<button id="close">close</button>' +
+        '<input type="radio" name="f" id="r1" />' +
+        '<input type="radio" name="f" id="r2" checked />' +
+        '<input type="radio" name="f" id="r3" />'
+    );
+    el.querySelector<HTMLElement>('#r2')!.focus();
+    const e = tab();
+    expect(trapTab(el, e)).toBe(true);
+    expect(e.defaultPrevented).toBe(true);
+    expect(document.activeElement?.id).toBe('close');
   });
 });

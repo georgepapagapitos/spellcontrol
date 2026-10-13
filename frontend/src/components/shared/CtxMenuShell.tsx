@@ -117,6 +117,7 @@ export function CtxMenuShell({
     // so Tab closing and handing focus back to the trigger is the right menu
     // behavior (matches OverflowMenu et al).
     dialog: variant === 'sheet',
+    modal: variant === 'sheet',
   });
 
   useEffect(() => {

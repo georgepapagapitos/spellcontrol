@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useOverlayLayer } from '@/lib/overlays/overlay-layer';
+import { useFocusTrap } from '@/lib/overlays/use-focus-trap';
 import type { PlaytestCard } from '@/lib/playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
@@ -175,6 +177,13 @@ export function OpeningHandSheet({
 
   const hidden = curtainDone || (phase === 'playing' && !waiting);
   useLockBodyScroll(!hidden);
+  // The sheet is aria-modal, so Tab stays inside it (and focus comes back to
+  // whatever opened the table when it goes). It stays unmounted-as-null while
+  // hidden, so the layer is registered only while it shows. Escape is not
+  // answered on purpose: keep or mulligan is the way out.
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const { isTopmost } = useOverlayLayer(!hidden);
+  useFocusTrap(isTopmost, sheetRef);
 
   // The fan shows the hand as the reducer dealt it. Arranging belongs to
   // the hand you play with, not to the one moment you are deciding
@@ -315,6 +324,7 @@ export function OpeningHandSheet({
         </button>
       )}
       <div
+        ref={sheetRef}
         className="card-picker-sheet playtest-opening-sheet"
         role="dialog"
         aria-modal="true"

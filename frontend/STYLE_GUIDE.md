@@ -211,6 +211,22 @@ screen.
   `useMenuKeyboard`; a hand-rolled menu fails `src/test` (menu keyboard guard).
   Back does NOT close a menu (deliberately, E481) — see § Overlays → "Back
   closes the topmost overlay first"; Escape is still how one closes.
+- **Keys beyond Tab, for every overlay (E536, enforced by the nightly overlay
+  walk in `scripts/journey-keyboard.mjs`).** Focus is inside an overlay once it
+  opens. Escape closes it, except a must-answer sheet (keep or mulligan). A
+  menu or listbox moves with Up/Down, jumps with Home/End, and Enter/Space
+  click the focused item (checkbox and radio items rove too, not only
+  `menuitem`). A modal dialog or sheet holds Tab; a popover or menu never does,
+  so Tab past its last control (Shift+Tab before the first) closes it and
+  hands focus to its trigger. A tab strip moves with the arrows and Home/End
+  and keeps one tab stop, including a strip whose tabs are routes (it remounts
+  on a change, and `Tabs` hands focus to the new strip).
+- **Focus returns to the opener when an overlay closes.** If the opener is gone,
+  because it was a menu item, it returns to the control that menu hung off (the
+  trigger, or the row a right-click landed on): never to the page body.
+  `useMenuKeyboard` registers each open menu with `registerReturnAnchor`, and
+  every dialog and sheet reads its opener with `captureOpener()`. A menu whose
+  action closes it by unmounting also hands its focus back to the trigger.
 - **Right-click opens the ⋮'s menu (T162, 2026-09-27).** On any item with a ⋮
   (a card, a deck, a binder, a rule), a right-click opens that same menu with
   the same items, at the pointer. It is never a second menu with its own

@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { focusInto, restoreFocus, trapTab, useOverlayLayer } from '@/lib/overlays/overlay-layer';
+import {
+  captureOpener,
+  focusInto,
+  restoreFocus,
+  trapTab,
+  useOverlayLayer,
+} from '@/lib/overlays/overlay-layer';
 
 interface Props {
   onClose: () => void;
@@ -117,9 +123,7 @@ export function Modal({
   // close had just unmounted, failing the isConnected check — and the user was
   // dropped on <body>. Measured on the binder editor, whose name field
   // autofocuses; it affects every autoFocus dialog on this primitive.
-  const prevFocusedRef = useRef<HTMLElement | null>(
-    typeof document === 'undefined' ? null : (document.activeElement as HTMLElement | null)
-  );
+  const prevFocusedRef = useRef<HTMLElement | null>(captureOpener());
 
   useEffect(() => {
     // Move focus into the dialog so Tab starts inside it. An autoFocus
