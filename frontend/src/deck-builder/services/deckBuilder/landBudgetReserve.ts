@@ -169,12 +169,10 @@ export async function reserveLandBudget(
     .map((c) => c.name);
   let pool: Map<string, ScryfallCard>;
   try {
-    pool = await getCardsByNames(names, undefined, cfg.preferredSet, { arenaOnly: cfg.arenaOnly });
+    // The player's set filter shapes spells, not this land pool (E1004).
+    pool = await getCardsByNames(names, undefined, undefined, { arenaOnly: cfg.arenaOnly });
   } catch {
     return 0;
-  }
-  if (cfg.preferredSet) {
-    for (const [name, card] of pool) if (card.set !== cfg.preferredSet) pool.delete(name);
   }
   for (const card of await fetchMeritLands(
     context.colorIdentity,

@@ -182,6 +182,25 @@ describe('E561 land budget', () => {
     expect(spent).toBeLessThanOrEqual(held + 0.94 + 0.01 + 13 * 0.05);
   });
 
+  // E1004: the player's set filter shapes spells, not the nonbasic land search.
+  it('sizes the reserve from the same lands whether or not the player filters to a set', async () => {
+    const edhrec = wire(ATRAXA);
+    const plain = await reserveLandBudget(
+      stateFor(edhrec, ATRAXA),
+      new BudgetTracker(75, 63 + NONBASIC_TARGET),
+      NONBASIC_TARGET
+    );
+    const pinned = stateFor(edhrec, ATRAXA);
+    pinned.cfg.preferredSet = 'zzz';
+    const held = await reserveLandBudget(
+      pinned,
+      new BudgetTracker(75, 63 + NONBASIC_TARGET),
+      NONBASIC_TARGET
+    );
+    expect(plain).toBeGreaterThan(0);
+    expect(held).toBe(plain);
+  });
+
   it('is what an out-of-money land phase was missing', async () => {
     const edhrec = wire(ATRAXA);
     // Same $0.94, no reserve: the land base cannot seat its target.

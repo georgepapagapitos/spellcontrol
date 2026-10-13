@@ -109,7 +109,7 @@ import {
   recordFillSeat,
   type FillHardGates,
 } from './scryfallFill';
-import { fetchPassingWindows, windowFetcher } from './fetchPassingWindows';
+import { fetchPassingWindows, holdSpellsToFilter, windowFetcher } from './fetchPassingWindows';
 import { isUnsupportedSynergyPayoff } from './synergyDependency';
 import {
   computePackageBoosts,
@@ -2041,7 +2041,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       currency,
       arenaOnly,
       landScryfallQuery,
-      preferredSet,
+      // The player's set filter is part of the filter the lands skip.
+      undefined,
       collectionStrategy,
       collectionOwnedPercent,
       ignoreOwnedBudget,
@@ -4409,6 +4410,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             unresolvedNames.length > 0
               ? await getCardsByNames(unresolvedNames, undefined, preferredSet, { arenaOnly })
               : new Map<string, ScryfallCard>();
+          // The player's filter holds here as it does for every other spell source.
+          await holdSpellsToFilter(resolved, preferredSet, scryfallQuery);
           return { pool: budgetPoolData.cardlists.allNonLand, scryfallMap: resolved };
         } catch {
           return null;

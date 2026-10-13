@@ -1307,6 +1307,11 @@ export async function validateScryfallFilter(
   if (total < MIN_FILTER_POOL) throw tooNarrow(total);
 }
 
+// How well a printing's USD price reads: 2 a regular price (what a cap and a budget read
+// first), 1 only a foil or etched price (often many times the card's real cost), 0 none.
+const usdPriceRank = (card: ScryfallCard): number =>
+  card.prices?.usd ? 2 : card.prices?.usd_foil || card.prices?.usd_etched ? 1 : 0;
+
 /**
  * Upgrade card printings in a map to match non-set Scryfall filters (e.g. is:full-art, frame:extendedart).
  * Searches for matching printings in batches and replaces entries in-place.
@@ -1400,10 +1405,14 @@ async function liveUpgradeCardPrintings(
           for (const card of list.map(resolveReversiblePrinting)) {
             if (!isPlayableCard(card)) continue;
             const frontName = frontFaceName(card.name);
-            if (!matchMap.has(card.name) && !matchMap.has(frontName)) {
-              matchMap.set(card.name, card);
-              if (frontName !== card.name) matchMap.set(frontName, card);
-            }
+            const held = matchMap.get(card.name) ?? matchMap.get(frontName);
+            // Newest printing wins, except that a better-priced one beats it: a wide
+            // filter (-set:cmm) reaches the newest promo and Secret Lair printings
+            // first, which carry no USD price, so the deck read as cheap and the cap
+            // check could not see what the card costs.
+            if (held && usdPriceRank(card) <= usdPriceRank(held)) continue;
+            matchMap.set(card.name, card);
+            if (frontName !== card.name) matchMap.set(frontName, card);
           }
         };
         addMatches(data.data);
