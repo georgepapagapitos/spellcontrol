@@ -49,6 +49,11 @@ export async function refreshDeckPublications(
     try {
       if (row.deletedAt !== null) {
         sawDelete = true;
+        // The owner's bracket feedback is about this deck; it goes with it.
+        await pool.query(`DELETE FROM bracket_votes WHERE user_id = $1 AND deck_id = $2`, [
+          userId,
+          row.id,
+        ]);
         // A deleted deck can never come back published under the same rev —
         // full deletion (not soft-unpublish) is correct.
         const deleted = await pool.query<{ slug: string }>(

@@ -3,6 +3,7 @@ import { isRateLimiter, testAwareLimiter } from '../route-utils';
 
 import { authRouter } from './auth';
 import { adminRouter } from './admin';
+import { adminBracketVotesRouter } from './admin-bracket-votes';
 import { syncRouter } from './sync';
 import { gamesRouter } from './games';
 import { gameResultsRouter } from './game-results';
@@ -26,6 +27,7 @@ import { reportsRouter } from './reports';
 import { discoverRouter } from './discover';
 import { activityRouter } from './activity';
 import { followsRouter } from './follows';
+import { bracketVotesRouter } from './bracket-votes';
 import { dailyRouter } from './daily';
 import { brewersRouter } from './brewers';
 import { aiRouter } from './ai';
@@ -70,6 +72,7 @@ type Layer = {
 const ROUTERS: Array<[string, unknown]> = [
   ['auth', authRouter],
   ['admin', adminRouter],
+  ['admin-bracket-votes', adminBracketVotesRouter],
   ['sync', syncRouter],
   ['games', gamesRouter],
   ['game-results', gameResultsRouter],
@@ -93,6 +96,7 @@ const ROUTERS: Array<[string, unknown]> = [
   ['discover', discoverRouter],
   ['activity', activityRouter],
   ['follows', followsRouter],
+  ['bracket-votes', bracketVotesRouter],
   ['daily', dailyRouter],
   ['brewers', brewersRouter],
   ['ai', aiRouter],

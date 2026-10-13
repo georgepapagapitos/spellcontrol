@@ -10,6 +10,7 @@ import { authRouter } from './routes/auth';
 import { cardImagesRouter } from './routes/card-images';
 import { cardLookupRouter } from './routes/card-lookup';
 import { adminRouter } from './routes/admin';
+import { adminBracketVotesRouter } from './routes/admin-bracket-votes';
 import { syncRouter } from './routes/sync';
 import { gamesRouter } from './routes/games';
 import { gameResultsRouter } from './routes/game-results';
@@ -27,12 +28,13 @@ import { podStatsRouter } from './routes/pod-stats';
 import { tonightTradesRouter } from './routes/tonight-trades';
 import { tradesRouter } from './routes/trades';
 import { publicationsRouter } from './routes/publications';
-import { RESOURCE_PUBLICATIONS_DDL } from './db/schema-resource-publications';
+import { FEATURE_TABLES_DDL } from './db/schema-feature-tables';
 import { publicRouter } from './routes/public';
 import { reportsRouter } from './routes/reports';
 import { discoverRouter } from './routes/discover';
 import { activityRouter } from './routes/activity';
 import { followsRouter } from './routes/follows';
+import { bracketVotesRouter } from './routes/bracket-votes';
 import { dailyRouter } from './routes/daily';
 import { brewersRouter } from './routes/brewers';
 import { aiRouter } from './routes/ai';
@@ -519,7 +521,7 @@ export async function createTestEnv(): Promise<TestEnv> {
       PRIMARY KEY (user_id, deck_id)
     );
     CREATE UNIQUE INDEX deck_publications_slug_idx ON deck_publications(slug);
-    ${RESOURCE_PUBLICATIONS_DDL}
+    ${FEATURE_TABLES_DDL}
     CREATE INDEX deck_publications_public_idx
       ON deck_publications(updated_at DESC) WHERE unpublished_at IS NULL;
     CREATE INDEX deck_publications_published_idx
@@ -682,6 +684,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use(cookieParser());
   app.use(express.json({ limit: '10mb' }));
   app.use('/api/auth', authRouter);
+  app.use('/api/admin/bracket-votes', adminBracketVotesRouter);
   app.use('/api/admin', adminRouter);
   app.use('/api/sync', syncRouter);
   app.use('/api/games', gamesRouter);
@@ -704,6 +707,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/public/brewers', brewersRouter);
   app.use('/api/public', publicRouter);
   app.use('/api/follows', followsRouter);
+  app.use('/api/bracket-votes', bracketVotesRouter);
   app.use('/api/daily', dailyRouter);
   app.use('/api/reports', reportsRouter);
   app.use('/api/discover', discoverRouter);
