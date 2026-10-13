@@ -10,7 +10,8 @@ const MAX_WINDOWS = 10;
  * to its first N names BEFORE the price / rarity / Arena / bracket gates sees a
  * tight cap eat the whole window and reports an empty pool while hundreds of
  * eligible cards sit past the cut. Gate first, then cut: the window grows until
- * enough survive. Returns every card fetched (passing or not); the caller's own
+ * enough survive. Callers that must stay byte-identical when no player cap is set pass
+ * `need` 0, which keeps the first window only (the old fetch). Returns every card fetched (passing or not); the caller's own
  * gates still decide the seats.
  */
 export async function fetchPassingWindows(

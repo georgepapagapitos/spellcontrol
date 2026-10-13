@@ -3385,11 +3385,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         `[DeckGen] Found ${remainingEdhrecCards.length} remaining EDHREC cards to fill shortage`
       );
 
-      // E1003: gate first, then cut. The first window (shortage x 3 rows) is the old fetch; more
-      // windows follow only while fewer than `shortage` fetched cards clear the gates below; a cap that fails the head no longer hides the rest.
+      const capped =
+        [maxCardPrice, maxRarity, maxCmc].some((c) => c !== null) || arenaOnly || ownedOnlyBuild;
       const fillCardMap = await fetchPassingWindows(
         remainingEdhrecCards.map((c) => c.name),
-        shortage,
+        capped ? shortage : 0,
         shortage * 3,
         windowFetcher(preferredSet, arenaOnly, scryfallQuery),
         (card) =>
