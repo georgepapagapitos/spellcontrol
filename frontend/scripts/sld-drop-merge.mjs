@@ -28,7 +28,7 @@ export function assertNoShrink(next, previous, maxRatio = MAX_SHRINK_RATIO) {
   if (lost.length > before.size * maxRatio) {
     const sample = lost
       .slice(0, 5)
-      .map((k) => k.replace('\t', ' #'))
+      .map((k) => k.replaceAll('\t', ' #'))
       .join(', ');
     throw new Error(
       `Secret Lair drop map lost ${lost.length} of ${before.size} number/drop pairs ` +

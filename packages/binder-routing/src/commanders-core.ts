@@ -39,7 +39,7 @@ export function canBeCommanderByType(
   if (/\bspacecraft\b/.test(front)) {
     return opts.power != null || /\bit's an artifact creature at \d+\+/.test(text);
   }
-  if (/isn't on the battlefield, it's an? [^.\n]*\bcreature\b/.test(text)) return true;
+  if (/isn't on the battlefield, it's an? [^.\n]{0,120}\bcreature\b/.test(text)) return true;
   return opts.format === 'brawl' && /\bplaneswalker\b/.test(front);
 }
 

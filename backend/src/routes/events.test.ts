@@ -5,7 +5,7 @@ import type { Pool } from 'pg';
 import { sql } from 'drizzle-orm';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { getDb } from '../db';
-import { recentErrorCount } from './events';
+import { recentErrorCount, scrubText } from './events';
 
 let app: Server;
 let pool: Pool;
@@ -228,5 +228,18 @@ describe('GET /api/admin/events', () => {
         expect.objectContaining({ path: '/play', metric: 'CLS', rating: 'good', count: 1 }),
       ])
     );
+  });
+});
+
+describe('scrubText', () => {
+  it('masks emails', () => {
+    expect(scrubText('failed for a.b+c@example.co.uk today', 200)).toBe('failed for [email] today');
+  });
+
+  it('finishes fast on a long run of email-class characters with no @', () => {
+    const t0 = performance.now();
+    scrubText('+'.repeat(100_000), 200);
+    scrubText('a@' + 'b'.repeat(100_000), 200);
+    expect(performance.now() - t0).toBeLessThan(500);
   });
 });
