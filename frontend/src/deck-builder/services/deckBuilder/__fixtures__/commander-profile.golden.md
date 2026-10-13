@@ -278,3 +278,10 @@ R15. Tribal and tokens: a single token of the commander's own type (Adeline's
 Human, Eomer's Human Soldier) is not a tribal reference, while a swarm of it made
 by one ability (Krenko, Elenda, Namora, Nadier) is. Exclusions ("non-Human",
 "protection from Humans") are not references either.
+R16. (held-out set) leaves-battlefield also covers "dies or is put into exile" and
+"entering or leaving the battlefield" (Athreos, God-Eternal Oketra, Gandalf the White).
+creature-etb covers "Satoru and/or one or more other creatures enter" and an
+Equipment, Aura or Vehicle entering is not a creature (Firion). spellcast covers
+"cast an Adventure spell" (Lozhan, Gorion). "Spirit or Arcane" casts stay unsettled:
+the two rating passes disagree (Bounteous Kirin no, Hikari yes), so the detector does
+not claim them.

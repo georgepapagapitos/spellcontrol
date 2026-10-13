@@ -335,7 +335,7 @@ const DETECTORS: Detector[] = [
     keyword: 'creature-etb',
     label: 'Creature-enters trigger',
     commander:
-      /\b(?:whenever|when) (?![^.,]*?\b(?:lands?|permanents?|artifacts?|enchantments?|(?<!creature )tokens?)\b[^.,]*?\benters?\b)(?:~ or )?(?:another|other|one or more|an?|each|every)\b[^.,]*?\benters?\b|\beach other [a-z ]*?you control enters\b/,
+      /\b(?:whenever|when) (?!(?:(?!\benters?\b)[^.,])*?(?<!\bor )\b(?:lands?|permanents?|artifacts?|enchantments?|equipment|auras?|vehicles?|sagas?|planeswalkers?|battles?|(?<!creature )tokens?)\b(?! or\b)[^.,]*?\benters?\b)(?:~ (?:or|and\/or) )?(?:another|other|one or more|an?|each|every)\b[^.,]*?\benters?\b|\beach other [a-z ]*?you control enters\b|\b(?:each|every|another|other)\b[^.,]*?\bcreatures?\b[^.,]*?\benters? with (?:an? |\d+ |x )?(?:additional|extra)\b/,
     wants: ['Token makers and creature reanimation', 'Blink effects that re-enter creatures'],
     themes: ['tokens', 'reanimator', 'blink'],
   },
@@ -413,7 +413,8 @@ const DETECTORS: Detector[] = [
   {
     keyword: 'leaves-battlefield',
     label: 'Leaves-the-battlefield trigger',
-    commander: /\bleaves the battlefield\b/,
+    commander:
+      /\bleaves the battlefield\b|\bor leaving the battlefield\b|\bdies or is put into exile\b|\bis put into exile from the battlefield\b/,
     wants: ['Blink, flicker and bounce to reuse it', 'Sacrifice outlets'],
     themes: ['blink', 'flicker'],
   },
@@ -487,7 +488,7 @@ const DETECTORS: Detector[] = [
     keyword: 'spellcast',
     label: 'Spellcast trigger',
     commander:
-      /^(?!.*\b(?:opponents? casts?|can't cast)\b).*(?:\bwhenever (?:you|a player) (?:cast|casts|copy)(?: or copy)? (?:an? |their |your )?(?:(?:first|second|third) (?:noncreature )?)?(?:noncreature|instant|sorcery|spell\b(?! (?:from|they don't own|that targets(?! only a single)))|white|blue|black|red|green|multicolored|colorless|historic|legendary|artifact, instant)|\bmagecraft\b|\bprowess\b|\binstants? (?:or|and) sorcer(?:y|ies)\b(?![^.]*?\b(?:cost[^.]*?less|from your graveyard|flashback)\b)|\binstants? and sorcery spells you cast with mana value\b|\bextort\b|\bstorm\b)/,
+      /^(?!.*\b(?:opponents? casts?|can't cast)\b).*(?:\bwhenever (?:you|a player) (?:cast|casts|copy)(?: or copy)? (?:an? |their |your )?(?:(?:first|second|third) (?:noncreature )?)?(?:adventure\b|noncreature|instant|sorcery|spell\b(?! (?:from|they don't own|that targets(?! only a single)))|white|blue|black|red|green|multicolored|colorless|historic|legendary|artifact, instant)|\bmagecraft\b|\bprowess\b|\binstants? (?:or|and) sorcer(?:y|ies)\b(?![^.]*?\b(?:cost[^.]*?less|from your graveyard|flashback)\b)|\binstants? and sorcery spells you cast with mana value\b|\bextort\b|\bstorm\b)/,
     wants: ['Cheap instants and sorceries', 'Cost reducers and rituals', 'Spell copy effects'],
     themes: ['spellslinger', 'storm'],
     archetypeHint: Archetype.SPELLSLINGER,

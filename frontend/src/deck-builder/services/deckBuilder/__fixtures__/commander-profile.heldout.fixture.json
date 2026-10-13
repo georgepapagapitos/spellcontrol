@@ -1,0 +1,1242 @@
+{
+  "source": "Scryfall oracle-cards bulk 2026-10-12T09:02:38.125+00:00; Commander-legal legendary creatures and 'can be your commander' cards",
+  "method": "Held-out: 90 commanders rated after the detectors were tuned (45 unrated EDHREC-ranked, 45 random, seeded). Two blind raters tagged every commander with every keyword in commander-profile.golden.md; the splits were settled by its rulings.",
+  "keywords": [
+    "etb",
+    "creature-etb",
+    "attack-trigger",
+    "sacrifice",
+    "dies-trigger",
+    "plus-one-counters",
+    "minus-counters",
+    "proliferate",
+    "counters-generic",
+    "leaves-battlefield",
+    "tokens",
+    "lifegain",
+    "lifeloss-drain",
+    "draw",
+    "wheel-discard",
+    "tutor",
+    "mill",
+    "graveyard-recursion",
+    "spellcast",
+    "artifact-matters",
+    "enchantment-matters",
+    "landfall",
+    "extra-combat",
+    "extra-turn",
+    "untap-engine",
+    "monarch",
+    "group-hug",
+    "ramp",
+    "voltron",
+    "tribal"
+  ],
+  "knownMisses": [
+    "FN artifact-matters: Sophina, Spearsage Deserter",
+    "FN counters-generic: Danny Pink",
+    "FN counters-generic: Shalai and Hallar",
+    "FN counters-generic: Toph, the First Metalbender",
+    "FN draw: Quintorius, History Chaser",
+    "FN draw: Sokrates, Athenian Teacher",
+    "FN enchantment-matters: Heliod, God of the Sun",
+    "FN graveyard-recursion: Athreos, Shroud-Veiled",
+    "FN graveyard-recursion: Kastral, the Windcrested",
+    "FN group-hug: Sokrates, Athenian Teacher",
+    "FN plus-one-counters: Danny Pink",
+    "FN plus-one-counters: Toph, the First Metalbender",
+    "FN ramp: Bohn, Beguiling Balladeer",
+    "FN spellcast: Hikari, Twilight Guardian",
+    "FN untap-engine: Tadeas, Juniper Ascendant",
+    "FN voltron: Questing Beast",
+    "FN voltron: Savanti Romero, Time's Exile",
+    "FN voltron: Viv Vision, Teen Synthezoid",
+    "FP attack-trigger: Commander Mustard",
+    "FP etb: Aragorn, King of Gondor",
+    "FP etb: Hikari, Twilight Guardian",
+    "FP mill: Vohar, Vodalian Desecrator",
+    "FP ramp: Zidane, Tantalus Thief",
+    "FP sacrifice: Fandaniel, Telophoroi Ascian",
+    "FP spellcast: Vohar, Vodalian Desecrator",
+    "FP tokens: Firion, Wild Rose Warrior",
+    "FP tribal: Ultron, Artificial Malevolence",
+    "FP voltron: Firion, Wild Rose Warrior",
+    "FP voltron: God-Eternal Oketra"
+  ],
+  "cards": {
+    "Akroma, Angel of Wrath": {
+      "type_line": "Legendary Creature — Angel",
+      "keywords": ["Flying", "Vigilance", "First strike", "Protection", "Haste", "Trample"],
+      "color_identity": ["W"],
+      "oracle_text": "Flying, first strike, vigilance, trample, haste, protection from black and from red",
+      "power": "6",
+      "toughness": "6"
+    },
+    "Aragorn, King of Gondor": {
+      "type_line": "Legendary Creature — Human Noble",
+      "keywords": ["Lifelink", "Vigilance"],
+      "color_identity": ["R", "U", "W"],
+      "oracle_text": "Vigilance, lifelink\nWhen Aragorn enters, you become the monarch.\nWhenever Aragorn attacks, up to one target creature can't block this turn. If you're the monarch, creatures can't block this turn.",
+      "power": "4",
+      "toughness": "4"
+    },
+    "Arni, Renowned Champion": {
+      "type_line": "Legendary Creature — Human Berserker",
+      "keywords": ["Trample"],
+      "color_identity": ["R"],
+      "oracle_text": "Trample\nWhenever another creature you control enters, Arni gets +X/+0 until end of turn, where X is that creature's power.",
+      "power": "1",
+      "toughness": "5"
+    },
+    "Astarion, the Decadent": {
+      "type_line": "Legendary Creature — Vampire Elf Rogue",
+      "keywords": ["Lifelink", "Feed", "Friends", "Deathtouch"],
+      "color_identity": ["B", "W"],
+      "oracle_text": "Deathtouch, lifelink\nAt the beginning of your end step, choose one —\n• Feed — Target opponent loses life equal to the amount of life they lost this turn.\n• Friends — You gain life equal to the amount of life you gained this turn.",
+      "power": "4",
+      "toughness": "4"
+    },
+    "Athreos, Shroud-Veiled": {
+      "type_line": "Legendary Enchantment Creature — God",
+      "keywords": ["Indestructible"],
+      "color_identity": ["B", "W"],
+      "oracle_text": "Indestructible\nAs long as your devotion to white and black is less than seven, Athreos isn't a creature.\nAt the beginning of your end step, put a coin counter on another target creature.\nWhenever a creature with a coin counter on it dies or is put into exile, return that card to the battlefield under your control.",
+      "power": "4",
+      "toughness": "7"
+    },
+    "Baxter, Fly in the Ointment": {
+      "type_line": "Legendary Creature — Insect Mutant Scientist",
+      "keywords": [],
+      "color_identity": ["U"],
+      "oracle_text": "Whenever Baxter enters or attacks, each creature you control with a counter on it gains flying until end of turn.\nWhenever you draw a card, put a +1/+1 counter on Baxter.",
+      "power": "2",
+      "toughness": "2"
+    },
+    "Bill Ferny, Bree Swindler": {
+      "type_line": "Legendary Creature — Human Rogue",
+      "keywords": ["Treasure"],
+      "color_identity": ["U"],
+      "oracle_text": "Whenever Bill Ferny becomes blocked, choose one —\n• Create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")\n• Target opponent gains control of target Horse you control. If they do, remove Bill Ferny from combat and create three Treasure tokens.",
+      "power": "2",
+      "toughness": "1"
+    },
+    "Black Widow, Agile Avenger": {
+      "type_line": "Legendary Creature — Human Spy Hero",
+      "keywords": ["Menace"],
+      "color_identity": ["R", "W"],
+      "oracle_text": "Menace\nWhenever an opponent draws their second card each turn, put a +1/+1 counter on Black Widow and you draw a card.",
+      "power": "2",
+      "toughness": "2"
+    },
+    "Bohn, Beguiling Balladeer": {
+      "type_line": "Legendary Creature — Human Bard",
+      "keywords": ["Goad"],
+      "color_identity": ["R", "U"],
+      "oracle_text": "Each nonland card in your hand without foretell has foretell. Its foretell cost is equal to its mana cost reduced by {2}. (During your turn, you may pay {2} and exile it from your hand face down. Cast it on a later turn for its foretell cost.)\nWhenever you cast your second spell each turn, goad target creature an opponent controls.",
+      "power": "3",
+      "toughness": "3"
+    },
+    "Commander Mustard": {
+      "type_line": "Legendary Creature — Human Soldier",
+      "keywords": ["Vigilance", "Trample"],
+      "color_identity": ["R", "W"],
+      "oracle_text": "Vigilance\nOther Soldiers you control have vigilance, trample, and haste.\n{2}{R}{W}: Until end of turn, Soldiers you control gain \"Whenever this creature attacks, it deals 1 damage to defending player.\"",
+      "power": "5",
+      "toughness": "5"
+    },
+    "Danny Pink": {
+      "type_line": "Legendary Creature — Human Soldier Advisor",
+      "keywords": ["Mentor"],
+      "color_identity": ["U"],
+      "oracle_text": "Mentor (Whenever this creature attacks, put a +1/+1 counter on target attacking creature with lesser power.)\nCreatures you control have \"Whenever one or more counters are put on this creature for the first time each turn, draw a card.\"",
+      "power": "4",
+      "toughness": "3"
+    },
+    "Deekah, Fractal Theorist": {
+      "type_line": "Legendary Creature — Human Wizard",
+      "keywords": ["Magecraft"],
+      "color_identity": ["U"],
+      "oracle_text": "Magecraft — Whenever you cast or copy an instant or sorcery spell, create a 0/0 green and blue Fractal creature token. Put X +1/+1 counters on it, where X is that spell's mana value.\n{3}{U}: Target creature token can't be blocked this turn.",
+      "power": "3",
+      "toughness": "3"
+    },
+    "Dina, Soul Steeper": {
+      "type_line": "Legendary Creature — Dryad Druid",
+      "keywords": [],
+      "color_identity": ["B", "G"],
+      "oracle_text": "Whenever you gain life, each opponent loses 1 life.\n{1}, Sacrifice another creature: Dina gets +X/+0 until end of turn, where X is the sacrificed creature's power.",
+      "power": "1",
+      "toughness": "3"
+    },
+    "Edgar, King of Figaro": {
+      "type_line": "Legendary Creature — Human Artificer Noble",
+      "keywords": ["Two-Headed Coin"],
+      "color_identity": ["U"],
+      "oracle_text": "When Edgar enters, draw a card for each artifact you control.\nTwo-Headed Coin — The first time you flip one or more coins each turn, those coins come up heads and you win those flips.",
+      "power": "4",
+      "toughness": "5"
+    },
+    "Erebos, Bleak-Hearted": {
+      "type_line": "Legendary Enchantment Creature — God",
+      "keywords": ["Indestructible"],
+      "color_identity": ["B"],
+      "oracle_text": "Indestructible\nAs long as your devotion to black is less than five, Erebos isn't a creature.\nWhenever another creature you control dies, you may pay 2 life. If you do, draw a card.\n{1}{B}, Sacrifice another creature: Target creature gets -2/-1 until end of turn.",
+      "power": "5",
+      "toughness": "6"
+    },
+    "Fandaniel, Telophoroi Ascian": {
+      "type_line": "Legendary Creature — Elder Wizard",
+      "keywords": ["Surveil"],
+      "color_identity": ["B"],
+      "oracle_text": "Whenever you cast an instant or sorcery spell, surveil 1.\nAt the beginning of your end step, each opponent may sacrifice a nontoken creature of their choice. Each opponent who doesn't loses 2 life for each instant and sorcery card in your graveyard.",
+      "power": "4",
+      "toughness": "5"
+    },
+    "Firion, Wild Rose Warrior": {
+      "type_line": "Legendary Creature — Human Rebel Warrior",
+      "keywords": [],
+      "color_identity": ["R"],
+      "oracle_text": "Equipped creatures you control have haste.\nWhenever a nontoken Equipment you control enters, create a token that's a copy of it, except it has \"This Equipment's equip abilities cost {2} less to activate.\" Sacrifice that token at the beginning of the next upkeep.",
+      "power": "3",
+      "toughness": "3"
+    },
+    "Galactus, Devourer of Worlds": {
+      "type_line": "Legendary Creature — Elder Alien",
+      "keywords": ["Flying", "Indestructible", "Insatiable Hunger", "Trample"],
+      "color_identity": [],
+      "oracle_text": "Flying, trample, indestructible\nWhen Galactus enters, exile target permanent.\nInsatiable Hunger — Galactus attacks an opponent with the most life among your opponents each combat if able unless you control a creature named Silver Surfer, Galactus's Herald.",
+      "power": "12",
+      "toughness": "12"
+    },
+    "Gandalf the White": {
+      "type_line": "Legendary Creature — Avatar Wizard",
+      "keywords": ["Flash"],
+      "color_identity": ["W"],
+      "oracle_text": "Flash\nYou may cast legendary spells and artifact spells as though they had flash.\nIf a legendary permanent or an artifact entering or leaving the battlefield causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.",
+      "power": "4",
+      "toughness": "5"
+    },
+    "General Ferrous Rokiric": {
+      "type_line": "Legendary Creature — Human Soldier",
+      "keywords": ["Hexproof from", "Hexproof"],
+      "color_identity": ["R", "W"],
+      "oracle_text": "Hexproof from monocolored\nWhenever you cast a multicolored spell, create a 4/4 red and white Golem artifact creature token.",
+      "power": "3",
+      "toughness": "1"
+    },
+    "Ghoulcaller Gisa": {
+      "type_line": "Legendary Creature — Human Wizard",
+      "keywords": [],
+      "color_identity": ["B"],
+      "oracle_text": "{B}, {T}, Sacrifice another creature: Create X 2/2 black Zombie creature tokens, where X is the sacrificed creature's power.",
+      "power": "3",
+      "toughness": "4"
+    },
+    "Go-Shintai of Ancient Wars": {
+      "type_line": "Legendary Enchantment Creature — Shrine",
+      "keywords": ["First strike"],
+      "color_identity": ["R"],
+      "oracle_text": "First strike\nAt the beginning of your end step, you may pay {1}. When you do, Go-Shintai of Ancient Wars deals X damage to target player or planeswalker, where X is the number of Shrines you control.",
+      "power": "2",
+      "toughness": "2"
+    },
+    "God-Eternal Oketra": {
+      "type_line": "Legendary Creature — Zombie God",
+      "keywords": ["Double strike"],
+      "color_identity": ["W"],
+      "oracle_text": "Double strike\nWhenever you cast a creature spell, create a 4/4 black Zombie Warrior creature token with vigilance.\nWhen God-Eternal Oketra dies or is put into exile from the battlefield, you may put it into its owner's library third from the top.",
+      "power": "3",
+      "toughness": "6"
+    },
+    "Graham O'Brien": {
+      "type_line": "Legendary Creature — Human Pilot",
+      "keywords": ["Food", "Paradox", "Doctor's companion"],
+      "color_identity": ["G"],
+      "oracle_text": "Paradox — Whenever you cast a spell from anywhere other than your hand, create a Food token. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")\nDoctor's companion (You can have two commanders if the other is the Doctor.)",
+      "power": "2",
+      "toughness": "2"
+    },
+    "Grumgully, the Generous": {
+      "type_line": "Legendary Creature — Goblin Shaman",
+      "keywords": [],
+      "color_identity": ["G", "R"],
+      "oracle_text": "Each other non-Human creature you control enters with an additional +1/+1 counter on it.",
+      "power": "3",
+      "toughness": "3"
+    },
+    "Haakon, Stromgald Scourge": {
+      "type_line": "Legendary Creature — Zombie Knight",
+      "keywords": [],
+      "color_identity": ["B"],
+      "oracle_text": "You may cast this card from your graveyard, but not from anywhere else.\nAs long as Haakon is on the battlefield, you may cast Knight spells from your graveyard.\nWhen Haakon dies, you lose 2 life.",
+      "power": "3",
+      "toughness": "3"
+    },
+    "Heliod, God of the Sun": {
+      "type_line": "Legendary Enchantment Creature — God",
+      "keywords": ["Indestructible"],
+      "color_identity": ["W"],
+      "oracle_text": "Indestructible\nAs long as your devotion to white is less than five, Heliod isn't a creature. (Each {W} in the mana costs of permanents you control counts toward your devotion to white.)\nOther creatures you control have vigilance.\n{2}{W}{W}: Create a 2/1 white Cleric enchantment creature token.",
+      "power": "5",
+      "toughness": "6"
+    },
+    "Hikari, Twilight Guardian": {
+      "type_line": "Legendary Creature — Spirit",
+      "keywords": ["Flying"],
+      "color_identity": ["W"],
+      "oracle_text": "Flying\nWhenever you cast a Spirit or Arcane spell, you may exile Hikari. If you do, return it to the battlefield under its owner's control at the beginning of the next end step.",
+      "power": "4",
+      "toughness": "4"
+    },
+    "Isperia the Inscrutable": {
+      "type_line": "Legendary Creature — Sphinx",
+      "keywords": ["Flying"],
+      "color_identity": ["U", "W"],
+      "oracle_text": "Flying\nWhenever Isperia deals combat damage to a player, choose a card name. That player reveals their hand. If a card with the chosen name is revealed this way, search your library for a creature card with flying, reveal it, put it into your hand, then shuffle.",
+      "power": "3",
+      "toughness": "6"
+    },
+    "Ixhel, Scion of Atraxa": {
+      "type_line": "Legendary Creature — Phyrexian Angel",
+      "keywords": ["Flying", "Toxic", "Vigilance", "Corrupted"],
+      "color_identity": ["B", "G", "W"],
+      "oracle_text": "Flying, vigilance, toxic 2\nCorrupted — At the beginning of your end step, each opponent who has three or more poison counters exiles the top card of their library face down. You may look at and play those cards for as long as they remain exiled, and you may spend mana as though it were mana of any color to cast those spells.",
+      "power": "2",
+      "toughness": "5"
+    },
+    "Kalitas, Traitor of Ghet": {
+      "type_line": "Legendary Creature — Vampire Warrior",
+      "keywords": ["Lifelink"],
+      "color_identity": ["B"],
+      "oracle_text": "Lifelink\nIf a nontoken creature an opponent controls would die, instead exile that card and create a 2/2 black Zombie creature token.\n{2}{B}, Sacrifice another Vampire or Zombie: Put two +1/+1 counters on Kalitas.",
+      "power": "3",
+      "toughness": "4"
+    },
+    "Kastral, the Windcrested": {
+      "type_line": "Legendary Creature — Bird Scout",
+      "keywords": ["Flying"],
+      "color_identity": ["U", "W"],
+      "oracle_text": "Flying\nWhenever one or more Birds you control deal combat damage to a player, choose one —\n• You may put a Bird creature card from your hand or graveyard onto the battlefield with a finality counter on it.\n• Put a +1/+1 counter on each Bird you control.\n• Draw a card.",
+      "power": "4",
+      "toughness": "5"
+    },
+    "Katara, the Fearless": {
+      "type_line": "Legendary Creature — Human Warrior Ally",
+      "keywords": [],
+      "color_identity": ["G", "U", "W"],
+      "oracle_text": "If a triggered ability of an Ally you control triggers, that ability triggers an additional time.",
+      "power": "3",
+      "toughness": "3"
+    },
+    "Kenrith, the Returned King": {
+      "type_line": "Legendary Creature — Human Noble",
+      "keywords": [],
+      "color_identity": ["B", "G", "R", "U", "W"],
+      "oracle_text": "{R}: All creatures gain trample and haste until end of turn.\n{1}{G}: Put a +1/+1 counter on target creature.\n{2}{W}: Target player gains 5 life.\n{3}{U}: Target player draws a card.\n{4}{B}: Put target creature card from a graveyard onto the battlefield under its owner's control.",
+      "power": "5",
+      "toughness": "5"
+    },
+    "Kozilek, the Broken Reality": {
+      "type_line": "Legendary Creature — Eldrazi",
+      "keywords": ["Manifest"],
+      "color_identity": [],
+      "oracle_text": "When you cast this spell, up to two target players each manifest two cards from their hands. For each card manifested this way, you draw a card. (To manifest a card, put it onto the battlefield face down as a 2/2 creature. Turn it face up any time for its mana cost if it's a creature card.)\nOther colorless creatures you control get +3/+2.",
+      "power": "9",
+      "toughness": "9"
+    },
+    "Krark, the Thumbless": {
+      "type_line": "Legendary Creature — Goblin Wizard",
+      "keywords": ["Partner"],
+      "color_identity": ["R"],
+      "oracle_text": "Whenever you cast an instant or sorcery spell, flip a coin. If you lose the flip, return that spell to its owner's hand. If you win the flip, copy that spell, and you may choose new targets for the copy.\nPartner (You can have two commanders if both have partner.)",
+      "power": "2",
+      "toughness": "2"
+    },
+    "Kraum, Violent Cacophony": {
+      "type_line": "Legendary Creature — Zombie Horror",
+      "keywords": ["Flying"],
+      "color_identity": ["R", "U"],
+      "oracle_text": "Flying\nWhenever you cast your second spell each turn, put a +1/+1 counter on Kraum and draw a card.",
+      "power": "2",
+      "toughness": "3"
+    },
+    "Lavinia, Azorius Renegade": {
+      "type_line": "Legendary Creature — Human Soldier",
+      "keywords": [],
+      "color_identity": ["U", "W"],
+      "oracle_text": "Each opponent can't cast noncreature spells with mana value greater than the number of lands that player controls.\nWhenever an opponent casts a spell, if no mana was spent to cast it, counter that spell.",
+      "power": "2",
+      "toughness": "2"
+    },
+    "Leonardo, Leader in Blue": {
+      "type_line": "Legendary Creature — Mutant Ninja Turtle",
+      "keywords": ["Sneak"],
+      "color_identity": ["W"],
+      "oracle_text": "Sneak {3}{W}{W} (You may cast this spell for {3}{W}{W} if you also return an unblocked attacker you control to hand during the declare blockers step. He enters tapped and attacking.)\nWhen Leonardo enters, if his sneak cost was paid, creatures you control get +2/+0 until end of turn.\n{1}{W}: Leonardo gains first strike until end of turn.",
+      "power": "2",
+      "toughness": "1"
+    },
+    "Leonardo, Worldly Warrior": {
+      "type_line": "Legendary Creature — Mutant Ninja Turtle",
+      "keywords": ["Affinity", "Double strike"],
+      "color_identity": ["W"],
+      "oracle_text": "Affinity for creatures (This spell costs {1} less to cast for each creature you control.)\nDouble strike (This creature deals both first-strike and regular combat damage.)",
+      "power": "5",
+      "toughness": "5"
+    },
+    "Linvala, Keeper of Silence": {
+      "type_line": "Legendary Creature — Angel",
+      "keywords": ["Flying"],
+      "color_identity": ["W"],
+      "oracle_text": "Flying\nActivated abilities of creatures your opponents control can't be activated.",
+      "power": "3",
+      "toughness": "4"
+    },
+    "Linvala, Shield of Sea Gate": {
+      "type_line": "Legendary Creature — Angel Wizard",
+      "keywords": ["Flying"],
+      "color_identity": ["U", "W"],
+      "oracle_text": "Flying\nAt the beginning of combat on your turn, if you have a full party, choose target nonland permanent an opponent controls. Until your next turn, it can't attack or block, and its activated abilities can't be activated.\nSacrifice Linvala: Choose hexproof or indestructible. Creatures you control gain that ability until end of turn.",
+      "power": "3",
+      "toughness": "3"
+    },
+    "Lozhan, Dragons' Legacy": {
+      "type_line": "Legendary Creature — Dragon Shaman",
+      "keywords": ["Flying"],
+      "color_identity": ["R", "U"],
+      "oracle_text": "Flying\nWhenever you cast an Adventure or Dragon spell, Lozhan deals damage equal to that spell's mana value to any target that isn't a commander.",
+      "power": "4",
+      "toughness": "2"
+    },
+    "Lurrus of the Dream-Den": {
+      "type_line": "Legendary Creature — Cat Nightmare",
+      "keywords": ["Lifelink", "Companion"],
+      "color_identity": ["B", "W"],
+      "oracle_text": "Companion — Each permanent card in your starting deck has mana value 2 or less. (If this card is your chosen companion, you may put it into your hand from outside the game for {3} as a sorcery.)\nLifelink\nOnce during each of your turns, you may cast a permanent spell with mana value 2 or less from your graveyard.",
+      "power": "3",
+      "toughness": "2"
+    },
+    "Lyse Hext": {
+      "type_line": "Legendary Creature — Human Rebel Monk",
+      "keywords": ["Prowess"],
+      "color_identity": ["U", "W"],
+      "oracle_text": "Prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)\nNoncreature spells you cast cost {1} less to cast.\nAs long as you've cast two or more noncreature spells this turn, Lyse Hext has double strike.",
+      "power": "2",
+      "toughness": "2"
+    },
+    "Minsc & Boo, Timeless Heroes": {
+      "type_line": "Legendary Planeswalker — Minsc",
+      "keywords": [],
+      "color_identity": ["G", "R"],
+      "oracle_text": "When Minsc & Boo enters and at the beginning of your upkeep, you may create Boo, a legendary 1/1 red Hamster creature token with trample and haste.\n+1: Put three +1/+1 counters on up to one target creature with trample or haste.\n−2: Sacrifice a creature. When you do, Minsc & Boo deals X damage to any target, where X is that creature's power. If the sacrificed creature was a Hamster, draw X cards.\nMinsc & Boo, Timeless Heroes can be your commander."
+    },
+    "Mogis, God of Slaughter": {
+      "type_line": "Legendary Enchantment Creature — God",
+      "keywords": ["Indestructible"],
+      "color_identity": ["B", "R"],
+      "oracle_text": "Indestructible\nAs long as your devotion to black and red is less than seven, Mogis isn't a creature.\nAt the beginning of each opponent's upkeep, Mogis deals 2 damage to that player unless they sacrifice a creature of their choice.",
+      "power": "7",
+      "toughness": "5"
+    },
+    "Munda, Ambush Leader": {
+      "type_line": "Legendary Creature — Kor Ally",
+      "keywords": ["Rally", "Haste"],
+      "color_identity": ["R", "W"],
+      "oracle_text": "Haste\nRally — Whenever Munda or another Ally you control enters, you may look at the top four cards of your library. If you do, reveal any number of Ally cards from among them, then put those cards on top of your library in any order and the rest on the bottom in any order.",
+      "power": "3",
+      "toughness": "4"
+    },
+    "Muzzio, Visionary Architect": {
+      "type_line": "Legendary Creature — Human Artificer",
+      "keywords": [],
+      "color_identity": ["U"],
+      "oracle_text": "{3}{U}, {T}: Look at the top X cards of your library, where X is the greatest mana value among artifacts you control. You may put an artifact card from among them onto the battlefield. Put the rest on the bottom of your library in any order.",
+      "power": "1",
+      "toughness": "3"
+    },
+    "O'aka, Traveling Merchant": {
+      "type_line": "Legendary Creature — Human Citizen",
+      "keywords": [],
+      "color_identity": ["U"],
+      "oracle_text": "{T}, Remove a counter from a nonland permanent you control: Draw a card.",
+      "power": "1",
+      "toughness": "2"
+    },
+    "Ob Nixilis of the Black Oath": {
+      "type_line": "Legendary Planeswalker — Nixilis",
+      "keywords": [],
+      "color_identity": ["B"],
+      "oracle_text": "+2: Each opponent loses 1 life. You gain life equal to the life lost this way.\n−2: Create a 5/5 black Demon creature token with flying. You lose 2 life.\n−8: You get an emblem with \"{1}{B}, Sacrifice a creature: You gain X life and draw X cards, where X is the sacrificed creature's power.\"\nOb Nixilis of the Black Oath can be your commander."
+    },
+    "Old Stickfingers": {
+      "type_line": "Legendary Creature — Horror",
+      "keywords": [],
+      "color_identity": ["B", "G"],
+      "oracle_text": "When you cast this spell, reveal cards from the top of your library until you reveal X creature cards. Put all creature cards revealed this way into your graveyard, then put the rest on the bottom of your library in a random order.\nOld Stickfingers's power and toughness are each equal to the number of creature cards in your graveyard.",
+      "power": "*",
+      "toughness": "*"
+    },
+    "Orthion, Hero of Lavabrink": {
+      "type_line": "Legendary Creature — Human Soldier",
+      "keywords": [],
+      "color_identity": ["R"],
+      "oracle_text": "{1}{R}, {T}: Create a token that's a copy of another target creature you control. It gains haste. Sacrifice it at the beginning of the next end step. Activate only as a sorcery.\n{6}{R}{R}{R}, {T}: Create five tokens that are copies of another target creature you control. They gain haste. Sacrifice them at the beginning of the next end step. Activate only as a sorcery.",
+      "power": "3",
+      "toughness": "3"
+    },
+    "Phenax, God of Deception": {
+      "type_line": "Legendary Enchantment Creature — God",
+      "keywords": ["Indestructible", "Mill"],
+      "color_identity": ["B", "U"],
+      "oracle_text": "Indestructible\nAs long as your devotion to blue and black is less than seven, Phenax isn't a creature.\nCreatures you control have \"{T}: Target player mills X cards, where X is this creature's toughness.\"",
+      "power": "4",
+      "toughness": "7"
+    },
+    "Pippin, Guard of the Citadel": {
+      "type_line": "Legendary Creature — Halfling Soldier",
+      "keywords": ["Vigilance", "Ward"],
+      "color_identity": ["U", "W"],
+      "oracle_text": "Vigilance, ward {1}\n{T}: Another target creature you control gains protection from the card type of your choice until end of turn. (It can't be blocked, targeted, dealt damage, enchanted, or equipped by anything of that type.)",
+      "power": "2",
+      "toughness": "2"
+    },
+    "Questing Beast": {
+      "type_line": "Legendary Creature — Beast",
+      "keywords": ["Vigilance", "Haste", "Deathtouch"],
+      "color_identity": ["G"],
+      "oracle_text": "Vigilance, deathtouch, haste\nQuesting Beast can't be blocked by creatures with power 2 or less.\nCombat damage that would be dealt by creatures you control can't be prevented.\nWhenever Questing Beast deals combat damage to an opponent, it deals that much damage to target planeswalker that player controls.",
+      "power": "4",
+      "toughness": "4"
+    },
+    "Quintorius, History Chaser": {
+      "type_line": "Legendary Planeswalker — Quintorius",
+      "keywords": ["Mill"],
+      "color_identity": ["R", "W"],
+      "oracle_text": "Whenever one or more cards leave your graveyard, create a 3/2 red and white Spirit creature token.\n+1: You may discard a card. If you do, draw two cards, then mill a card.\n−4: Spirits you control gain double strike and vigilance until end of turn.\nQuintorius, History Chaser can be your commander."
+    },
+    "Radagast, Wizard of Wilds": {
+      "type_line": "Legendary Creature — Avatar Wizard",
+      "keywords": ["Ward"],
+      "color_identity": ["G", "U"],
+      "oracle_text": "Ward {1}\nBeasts and Birds you control have ward {1}.\nWhenever you cast a spell with mana value 5 or greater, choose one —\n• Create a 3/3 green Beast creature token.\n• Create a 2/2 blue Bird creature token with flying.",
+      "power": "3",
+      "toughness": "5"
+    },
+    "Ramses, Assassin Lord": {
+      "type_line": "Legendary Creature — Human Assassin",
+      "keywords": ["Deathtouch"],
+      "color_identity": ["B", "U"],
+      "oracle_text": "Deathtouch\nOther Assassins you control get +1/+1.\nWhenever a player loses the game, if they were attacked this turn by an Assassin you controlled, you win the game.",
+      "power": "4",
+      "toughness": "4"
+    },
+    "Rasputin Dreamweaver": {
+      "type_line": "Legendary Creature — Human Wizard",
+      "keywords": [],
+      "color_identity": ["U", "W"],
+      "oracle_text": "Rasputin enters with seven dream counters on it.\nRemove a dream counter from Rasputin: Add {C}.\nRemove a dream counter from Rasputin: Prevent the next 1 damage that would be dealt to Rasputin this turn.\nAt the beginning of your upkeep, if Rasputin started the turn untapped, put a dream counter on it.\nRasputin can't have more than seven dream counters on it.",
+      "power": "4",
+      "toughness": "1"
+    },
+    "Rev, Tithe Extractor": {
+      "type_line": "Legendary Creature — Human Rogue",
+      "keywords": ["Treasure"],
+      "color_identity": ["B"],
+      "oracle_text": "Whenever you attack, target creature gains deathtouch until end of turn.\nWhenever one or more creatures you control deal combat damage to a player, create a Treasure token, then look at the top card of that player's library and exile it face down. You may cast that card for as long as it remains exiled. (A Treasure token is an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+      "power": "3",
+      "toughness": "3"
+    },
+    "Roalesk, Apex Hybrid": {
+      "type_line": "Legendary Creature — Human Mutant",
+      "keywords": ["Flying", "Trample", "Proliferate"],
+      "color_identity": ["G", "U"],
+      "oracle_text": "Flying, trample\nWhen Roalesk enters, put two +1/+1 counters on another target creature you control.\nWhen Roalesk dies, proliferate, then proliferate again. (Choose any number of permanents and/or players, then give each another counter of each kind already there. Then do it again.)",
+      "power": "4",
+      "toughness": "5"
+    },
+    "Rosa, Resolute White Mage": {
+      "type_line": "Legendary Creature — Human Noble Cleric",
+      "keywords": ["Reach"],
+      "color_identity": ["W"],
+      "oracle_text": "Reach (This creature can block creatures with flying.)\nAt the beginning of combat on your turn, put a +1/+1 counter on target creature you control. It gains lifelink until end of turn. (Damage dealt by the creature also causes you to gain that much life.)",
+      "power": "2",
+      "toughness": "3"
+    },
+    "Roxanne, Starfall Savant": {
+      "type_line": "Legendary Creature — Cat Druid",
+      "keywords": [],
+      "color_identity": ["G", "R"],
+      "oracle_text": "Whenever Roxanne enters or attacks, create a tapped colorless artifact token named Meteorite with \"When this token enters, it deals 2 damage to any target\" and \"{T}: Add one mana of any color.\"\nWhenever you tap an artifact token for mana, add one mana of any type that artifact token produced.",
+      "power": "4",
+      "toughness": "3"
+    },
+    "Samwise Gamgee": {
+      "type_line": "Legendary Creature — Halfling Peasant",
+      "keywords": ["Food"],
+      "color_identity": ["G", "W"],
+      "oracle_text": "Whenever another nontoken creature you control enters, create a Food token. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")\nSacrifice three Foods: Return target historic card from your graveyard to your hand. (Artifacts, legendaries, and Sagas are historic.)",
+      "power": "2",
+      "toughness": "2"
+    },
+    "Satoru, the Infiltrator": {
+      "type_line": "Legendary Creature — Human Ninja Rogue",
+      "keywords": ["Menace"],
+      "color_identity": ["B", "U"],
+      "oracle_text": "Menace\nWhenever Satoru and/or one or more other nontoken creatures you control enter, if none of them were cast or no mana was spent to cast them, draw a card.",
+      "power": "2",
+      "toughness": "3"
+    },
+    "Satsuki, the Living Lore": {
+      "type_line": "Legendary Creature — Human Druid",
+      "keywords": [],
+      "color_identity": ["G", "W"],
+      "oracle_text": "{T}: Put a lore counter on each Saga you control. Activate only as a sorcery.\nWhen Satsuki dies, choose up to one —\n• Return target Saga or enchantment creature you control to its owner's hand.\n• Return target Saga card from your graveyard to your hand.",
+      "power": "1",
+      "toughness": "3"
+    },
+    "Savanti Romero, Time's Exile": {
+      "type_line": "Legendary Creature — Demon Wizard",
+      "keywords": ["Trample"],
+      "color_identity": ["B"],
+      "oracle_text": "Trample\nAt the beginning of combat on your turn, put a +1/+1 counter on Savanti Romero. Then you draw X cards and lose X life, where X is the number of counters on Savanti Romero.",
+      "power": "4",
+      "toughness": "4"
+    },
+    "Shalai and Hallar": {
+      "type_line": "Legendary Creature — Angel Elf",
+      "keywords": ["Flying", "Vigilance"],
+      "color_identity": ["G", "R", "W"],
+      "oracle_text": "Flying, vigilance\nWhenever one or more +1/+1 counters are put on a creature you control, Shalai and Hallar deals that much damage to target opponent.",
+      "power": "3",
+      "toughness": "3"
+    },
+    "Sidisi, Brood Tyrant": {
+      "type_line": "Legendary Creature — Snake Shaman",
+      "keywords": ["Mill"],
+      "color_identity": ["B", "G", "U"],
+      "oracle_text": "Whenever Sidisi enters or attacks, mill three cards.\nWhenever one or more creature cards are put into your graveyard from your library, create a 2/2 black Zombie creature token.",
+      "power": "3",
+      "toughness": "3"
+    },
+    "Sokrates, Athenian Teacher": {
+      "type_line": "Legendary Creature — Human Advisor",
+      "keywords": ["Sokratic Dialogue", "Defender"],
+      "color_identity": ["U", "W"],
+      "oracle_text": "Defender\nSokrates has hexproof as long as it's untapped.\nSokratic Dialogue — {T}: Until end of turn, target creature gains \"If this creature would deal combat damage to a player, prevent that damage. This creature's controller and that player each draw half that many cards, rounded down.\"",
+      "power": "0",
+      "toughness": "4"
+    },
+    "Sophina, Spearsage Deserter": {
+      "type_line": "Legendary Creature — Human Soldier",
+      "keywords": ["Investigate", "Partner", "Menace"],
+      "color_identity": ["R", "W"],
+      "oracle_text": "Menace\nWhenever Sophina, Spearsage Deserter attacks, investigate once for each nontoken attacking creature. (To investigate, create a Clue token. It's an artifact with \"{2}, Sacrifice this artifact: Draw a card.\")\nPartner—Friends forever (You can have two commanders if both have this ability.)",
+      "power": "4",
+      "toughness": "4"
+    },
+    "Soramaro, First to Dream": {
+      "type_line": "Legendary Creature — Spirit",
+      "keywords": ["Flying"],
+      "color_identity": ["U"],
+      "oracle_text": "Flying\nSoramaro's power and toughness are each equal to the number of cards in your hand.\n{4}, Return a land you control to its owner's hand: Draw a card.",
+      "power": "*",
+      "toughness": "*"
+    },
+    "Sovereign Okinec Ahau": {
+      "type_line": "Legendary Creature — Cat Noble",
+      "keywords": ["Ward"],
+      "color_identity": ["G", "W"],
+      "oracle_text": "Ward {2}\nWhenever Sovereign Okinec Ahau attacks, for each creature you control with power greater than that creature's base power, put a number of +1/+1 counters on that creature equal to the difference.",
+      "power": "3",
+      "toughness": "4"
+    },
+    "Squall, SeeD Mercenary": {
+      "type_line": "Legendary Creature — Human Knight Mercenary",
+      "keywords": ["Rough Divide"],
+      "color_identity": ["B", "W"],
+      "oracle_text": "Rough Divide — Whenever a creature you control attacks alone, it gains double strike until end of turn.\nWhenever Squall deals combat damage to a player, return target permanent card with mana value 3 or less from your graveyard to the battlefield.",
+      "power": "3",
+      "toughness": "4"
+    },
+    "Tadeas, Juniper Ascendant": {
+      "type_line": "Legendary Creature — Human Monk",
+      "keywords": ["Reach"],
+      "color_identity": ["G", "W"],
+      "oracle_text": "Reach\nTadeas has hexproof unless it's attacking.\nWhenever a creature you control with reach attacks, untap it and it can't be blocked by creatures with greater power this combat.\nWhenever one or more creatures you control deal combat damage to a player, draw a card.",
+      "power": "1",
+      "toughness": "3"
+    },
+    "Teysa, Envoy of Ghosts": {
+      "type_line": "Legendary Creature — Human Advisor",
+      "keywords": ["Vigilance", "Protection"],
+      "color_identity": ["B", "W"],
+      "oracle_text": "Vigilance, protection from creatures\nWhenever a creature deals combat damage to you, destroy that creature. Create a 1/1 white and black Spirit creature token with flying.",
+      "power": "4",
+      "toughness": "4"
+    },
+    "Thrakkus the Butcher": {
+      "type_line": "Legendary Creature — Dragon Peasant",
+      "keywords": ["Trample", "Double"],
+      "color_identity": ["G", "R"],
+      "oracle_text": "Trample\nWhenever Thrakkus attacks, double the power of each Dragon you control until end of turn.",
+      "power": "3",
+      "toughness": "4"
+    },
+    "Toph, the First Metalbender": {
+      "type_line": "Legendary Creature — Human Warrior Ally",
+      "keywords": ["Earthbend"],
+      "color_identity": ["G", "R", "W"],
+      "oracle_text": "Nontoken artifacts you control are lands in addition to their other types. (They don't gain the ability to {T} for mana.)\nAt the beginning of your end step, earthbend 2. (Target land you control becomes a 0/0 creature with haste that's still a land. Put two +1/+1 counters on it. When it dies or is exiled, return it to the battlefield tapped.)",
+      "power": "3",
+      "toughness": "3"
+    },
+    "Treebeard, Gracious Host": {
+      "type_line": "Legendary Creature — Treefolk",
+      "keywords": ["Food", "Trample", "Ward"],
+      "color_identity": ["G", "W"],
+      "oracle_text": "Trample, ward {2}\nWhen Treebeard enters, create two Food tokens.\nWhenever you gain life, put that many +1/+1 counters on target Halfling or Treefolk.",
+      "power": "0",
+      "toughness": "5"
+    },
+    "Ultima, Origin of Oblivion": {
+      "type_line": "Legendary Creature — God",
+      "keywords": ["Flying"],
+      "color_identity": [],
+      "oracle_text": "Flying\nWhenever Ultima attacks, put a blight counter on target land. For as long as that land has a blight counter on it, it loses all land types and abilities and has \"{T}: Add {C}.\"\nWhenever you tap a land for {C}, add an additional {C}.",
+      "power": "4",
+      "toughness": "4"
+    },
+    "Ultron, Artificial Malevolence": {
+      "type_line": "Legendary Artifact Creature — Robot Villain",
+      "keywords": [],
+      "color_identity": [],
+      "oracle_text": "Whenever another nontoken artifact you control enters, you may pay {2}. If you do, create a token that's a copy of it. If the token isn't a creature, it becomes a 2/2 Robot Villain creature in addition to its other types.",
+      "power": "2",
+      "toughness": "4"
+    },
+    "Varis, Silverymoon Ranger": {
+      "type_line": "Legendary Creature — Human Elf Ranger",
+      "keywords": ["Reach", "Ward", "Venture into the dungeon"],
+      "color_identity": ["G"],
+      "oracle_text": "Reach, ward {1}\nWhenever you cast a creature or planeswalker spell, venture into the dungeon. This ability triggers only once each turn. (To venture into the dungeon, enter the first room or advance to the next room.)\nWhenever you complete a dungeon, create a 2/2 green Wolf creature token.",
+      "power": "3",
+      "toughness": "3"
+    },
+    "Viv Vision, Teen Synthezoid": {
+      "type_line": "Legendary Artifact Creature — Robot Hero",
+      "keywords": ["Flying", "Power-up", "Cybernetic Senses"],
+      "color_identity": [],
+      "oracle_text": "Flying\nCybernetic Senses — Whenever Viv Vision attacks, draw a card if her power is 4 or greater.\nPower-up — {7}: Put two +1/+1 counters on Viv Vision. (Activate each power-up ability only once. Reduce the cost by her mana cost if she entered this turn.)",
+      "power": "2",
+      "toughness": "2"
+    },
+    "Vohar, Vodalian Desecrator": {
+      "type_line": "Legendary Creature — Phyrexian Merfolk Wizard",
+      "keywords": [],
+      "color_identity": ["B", "U"],
+      "oracle_text": "{T}: Draw a card, then discard a card. If you discarded an instant or sorcery card this way, each opponent loses 1 life and you gain 1 life.\n{2}, Sacrifice Vohar: You may cast target instant or sorcery card from your graveyard this turn. If that spell would be put into your graveyard, exile it instead. Activate only as a sorcery.",
+      "power": "1",
+      "toughness": "2"
+    },
+    "Zidane, Tantalus Thief": {
+      "type_line": "Legendary Creature — Human Mutant Scout",
+      "keywords": ["Treasure"],
+      "color_identity": ["R", "W"],
+      "oracle_text": "When Zidane enters, gain control of target creature an opponent controls until end of turn. Untap it. It gains lifelink and haste until end of turn.\nWhenever an opponent gains control of a permanent from you, you create a Treasure token.",
+      "power": "3",
+      "toughness": "3"
+    },
+    "Zodiark, Umbral God": {
+      "type_line": "Legendary Creature — God",
+      "keywords": ["Indestructible"],
+      "color_identity": ["B"],
+      "oracle_text": "Indestructible\nWhen Zodiark enters, each player sacrifices half the non-God creatures they control of their choice, rounded down.\nWhenever a player sacrifices another creature, put a +1/+1 counter on Zodiark.",
+      "power": "5",
+      "toughness": "5"
+    },
+    "Zuko, Exiled Prince": {
+      "type_line": "Legendary Creature — Human Noble",
+      "keywords": ["Firebending"],
+      "color_identity": ["R"],
+      "oracle_text": "Firebending 3 (Whenever this creature attacks, add {R}{R}{R}. This mana lasts until end of combat.)\n{3}: Exile the top card of your library. You may play that card this turn.",
+      "power": "4",
+      "toughness": "3"
+    },
+    "Zul Ashur, Lich Lord": {
+      "type_line": "Legendary Creature — Zombie Warlock",
+      "keywords": ["Ward"],
+      "color_identity": ["B"],
+      "oracle_text": "Ward—Pay 2 life. (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays 2 life.)\n{T}: You may cast target Zombie creature card from your graveyard this turn.",
+      "power": "2",
+      "toughness": "2"
+    },
+    "Zurgo Stormrender": {
+      "type_line": "Legendary Creature — Orc Warrior",
+      "keywords": ["Mobilize"],
+      "color_identity": ["B", "R", "W"],
+      "oracle_text": "Mobilize 1 (Whenever this creature attacks, create a tapped and attacking 1/1 red Warrior creature token. Sacrifice it at the beginning of the next end step.)\nWhenever a creature token you control leaves the battlefield, draw a card if it was attacking. Otherwise, each opponent loses 1 life.",
+      "power": "3",
+      "toughness": "3"
+    }
+  },
+  "items": [
+    {
+      "name": "Akroma, Angel of Wrath",
+      "stratum": "top",
+      "truth": ["voltron"]
+    },
+    {
+      "name": "Aragorn, King of Gondor",
+      "stratum": "sample",
+      "truth": ["attack-trigger", "monarch"]
+    },
+    {
+      "name": "Arni, Renowned Champion",
+      "stratum": "sample",
+      "truth": ["creature-etb"]
+    },
+    {
+      "name": "Astarion, the Decadent",
+      "stratum": "top",
+      "truth": ["lifegain", "lifeloss-drain"]
+    },
+    {
+      "name": "Athreos, Shroud-Veiled",
+      "stratum": "top",
+      "truth": ["dies-trigger", "counters-generic", "leaves-battlefield", "graveyard-recursion"]
+    },
+    {
+      "name": "Baxter, Fly in the Ointment",
+      "stratum": "sample",
+      "truth": ["etb", "attack-trigger", "plus-one-counters", "counters-generic", "draw"]
+    },
+    {
+      "name": "Bill Ferny, Bree Swindler",
+      "stratum": "sample",
+      "truth": ["artifact-matters", "ramp"]
+    },
+    {
+      "name": "Black Widow, Agile Avenger",
+      "stratum": "sample",
+      "truth": ["plus-one-counters", "counters-generic", "draw"]
+    },
+    {
+      "name": "Bohn, Beguiling Balladeer",
+      "stratum": "sample",
+      "truth": ["spellcast", "ramp"]
+    },
+    {
+      "name": "Commander Mustard",
+      "stratum": "sample",
+      "truth": ["tribal"]
+    },
+    {
+      "name": "Danny Pink",
+      "stratum": "top",
+      "truth": ["plus-one-counters", "counters-generic", "draw"]
+    },
+    {
+      "name": "Deekah, Fractal Theorist",
+      "stratum": "top",
+      "truth": ["plus-one-counters", "counters-generic", "tokens", "spellcast"]
+    },
+    {
+      "name": "Dina, Soul Steeper",
+      "stratum": "top",
+      "truth": ["sacrifice", "lifegain", "lifeloss-drain"]
+    },
+    {
+      "name": "Edgar, King of Figaro",
+      "stratum": "sample",
+      "truth": ["etb", "draw", "artifact-matters"]
+    },
+    {
+      "name": "Erebos, Bleak-Hearted",
+      "stratum": "top",
+      "truth": ["sacrifice", "dies-trigger", "draw"]
+    },
+    {
+      "name": "Fandaniel, Telophoroi Ascian",
+      "stratum": "top",
+      "truth": ["lifeloss-drain", "spellcast"]
+    },
+    {
+      "name": "Firion, Wild Rose Warrior",
+      "stratum": "top",
+      "truth": ["sacrifice", "artifact-matters"]
+    },
+    {
+      "name": "Galactus, Devourer of Worlds",
+      "stratum": "sample",
+      "truth": ["etb", "voltron"]
+    },
+    {
+      "name": "Gandalf the White",
+      "stratum": "sample",
+      "truth": ["etb", "leaves-battlefield", "artifact-matters"]
+    },
+    {
+      "name": "General Ferrous Rokiric",
+      "stratum": "top",
+      "truth": ["tokens", "spellcast"]
+    },
+    {
+      "name": "Ghoulcaller Gisa",
+      "stratum": "top",
+      "truth": ["sacrifice", "tokens"]
+    },
+    {
+      "name": "Go-Shintai of Ancient Wars",
+      "stratum": "sample",
+      "truth": ["tribal"]
+    },
+    {
+      "name": "God-Eternal Oketra",
+      "stratum": "top",
+      "truth": ["dies-trigger", "leaves-battlefield", "tokens"]
+    },
+    {
+      "name": "Graham O'Brien",
+      "stratum": "sample",
+      "truth": ["artifact-matters"]
+    },
+    {
+      "name": "Grumgully, the Generous",
+      "stratum": "top",
+      "truth": ["creature-etb", "plus-one-counters", "counters-generic"]
+    },
+    {
+      "name": "Haakon, Stromgald Scourge",
+      "stratum": "sample",
+      "truth": ["dies-trigger", "graveyard-recursion", "tribal"]
+    },
+    {
+      "name": "Heliod, God of the Sun",
+      "stratum": "top",
+      "truth": ["tokens", "enchantment-matters"]
+    },
+    {
+      "name": "Hikari, Twilight Guardian",
+      "stratum": "sample",
+      "truth": ["spellcast", "tribal"]
+    },
+    {
+      "name": "Isperia the Inscrutable",
+      "stratum": "sample",
+      "truth": ["tutor"]
+    },
+    {
+      "name": "Ixhel, Scion of Atraxa",
+      "stratum": "sample",
+      "truth": []
+    },
+    {
+      "name": "Kalitas, Traitor of Ghet",
+      "stratum": "sample",
+      "truth": ["sacrifice", "plus-one-counters", "counters-generic", "tokens", "tribal"]
+    },
+    {
+      "name": "Kastral, the Windcrested",
+      "stratum": "top",
+      "truth": ["plus-one-counters", "counters-generic", "draw", "graveyard-recursion", "tribal"]
+    },
+    {
+      "name": "Katara, the Fearless",
+      "stratum": "top",
+      "truth": ["etb", "tribal"]
+    },
+    {
+      "name": "Kenrith, the Returned King",
+      "stratum": "top",
+      "truth": ["plus-one-counters", "counters-generic", "lifegain", "draw", "graveyard-recursion"]
+    },
+    {
+      "name": "Kozilek, the Broken Reality",
+      "stratum": "sample",
+      "truth": ["draw"]
+    },
+    {
+      "name": "Krark, the Thumbless",
+      "stratum": "top",
+      "truth": ["spellcast"]
+    },
+    {
+      "name": "Kraum, Violent Cacophony",
+      "stratum": "sample",
+      "truth": ["plus-one-counters", "counters-generic", "draw", "spellcast"]
+    },
+    {
+      "name": "Lavinia, Azorius Renegade",
+      "stratum": "top",
+      "truth": []
+    },
+    {
+      "name": "Leonardo, Leader in Blue",
+      "stratum": "sample",
+      "truth": ["etb"]
+    },
+    {
+      "name": "Leonardo, Worldly Warrior",
+      "stratum": "sample",
+      "truth": ["voltron"]
+    },
+    {
+      "name": "Linvala, Keeper of Silence",
+      "stratum": "top",
+      "truth": []
+    },
+    {
+      "name": "Linvala, Shield of Sea Gate",
+      "stratum": "sample",
+      "truth": []
+    },
+    {
+      "name": "Lozhan, Dragons' Legacy",
+      "stratum": "top",
+      "truth": ["spellcast", "tribal"]
+    },
+    {
+      "name": "Lurrus of the Dream-Den",
+      "stratum": "top",
+      "truth": ["graveyard-recursion"]
+    },
+    {
+      "name": "Lyse Hext",
+      "stratum": "top",
+      "truth": ["spellcast", "ramp"]
+    },
+    {
+      "name": "Minsc & Boo, Timeless Heroes",
+      "stratum": "top",
+      "truth": ["etb", "sacrifice", "plus-one-counters", "counters-generic", "tokens", "draw"]
+    },
+    {
+      "name": "Mogis, God of Slaughter",
+      "stratum": "top",
+      "truth": []
+    },
+    {
+      "name": "Munda, Ambush Leader",
+      "stratum": "sample",
+      "truth": ["etb", "creature-etb", "tribal"]
+    },
+    {
+      "name": "Muzzio, Visionary Architect",
+      "stratum": "sample",
+      "truth": ["artifact-matters"]
+    },
+    {
+      "name": "O'aka, Traveling Merchant",
+      "stratum": "top",
+      "truth": ["counters-generic", "draw"]
+    },
+    {
+      "name": "Ob Nixilis of the Black Oath",
+      "stratum": "sample",
+      "truth": ["sacrifice", "tokens", "lifegain", "lifeloss-drain", "draw"]
+    },
+    {
+      "name": "Old Stickfingers",
+      "stratum": "top",
+      "truth": ["mill"]
+    },
+    {
+      "name": "Orthion, Hero of Lavabrink",
+      "stratum": "top",
+      "truth": ["sacrifice", "tokens"]
+    },
+    {
+      "name": "Phenax, God of Deception",
+      "stratum": "sample",
+      "truth": ["mill"]
+    },
+    {
+      "name": "Pippin, Guard of the Citadel",
+      "stratum": "top",
+      "truth": []
+    },
+    {
+      "name": "Questing Beast",
+      "stratum": "top",
+      "truth": ["voltron"]
+    },
+    {
+      "name": "Quintorius, History Chaser",
+      "stratum": "sample",
+      "truth": ["tokens", "draw", "mill"]
+    },
+    {
+      "name": "Radagast, Wizard of Wilds",
+      "stratum": "sample",
+      "truth": ["tokens", "spellcast"]
+    },
+    {
+      "name": "Ramses, Assassin Lord",
+      "stratum": "sample",
+      "truth": ["tribal"]
+    },
+    {
+      "name": "Rasputin Dreamweaver",
+      "stratum": "sample",
+      "truth": ["counters-generic", "ramp"]
+    },
+    {
+      "name": "Rev, Tithe Extractor",
+      "stratum": "top",
+      "truth": ["attack-trigger", "artifact-matters", "ramp"]
+    },
+    {
+      "name": "Roalesk, Apex Hybrid",
+      "stratum": "sample",
+      "truth": ["etb", "dies-trigger", "plus-one-counters", "proliferate", "counters-generic"]
+    },
+    {
+      "name": "Rosa, Resolute White Mage",
+      "stratum": "sample",
+      "truth": ["plus-one-counters", "counters-generic"]
+    },
+    {
+      "name": "Roxanne, Starfall Savant",
+      "stratum": "top",
+      "truth": ["etb", "attack-trigger", "artifact-matters", "ramp"]
+    },
+    {
+      "name": "Samwise Gamgee",
+      "stratum": "top",
+      "truth": ["creature-etb", "sacrifice", "graveyard-recursion", "artifact-matters"]
+    },
+    {
+      "name": "Satoru, the Infiltrator",
+      "stratum": "top",
+      "truth": ["etb", "creature-etb", "draw"]
+    },
+    {
+      "name": "Satsuki, the Living Lore",
+      "stratum": "top",
+      "truth": ["dies-trigger", "counters-generic", "graveyard-recursion", "enchantment-matters"]
+    },
+    {
+      "name": "Savanti Romero, Time's Exile",
+      "stratum": "sample",
+      "truth": ["plus-one-counters", "counters-generic", "draw", "voltron"]
+    },
+    {
+      "name": "Shalai and Hallar",
+      "stratum": "top",
+      "truth": ["plus-one-counters", "counters-generic"]
+    },
+    {
+      "name": "Sidisi, Brood Tyrant",
+      "stratum": "sample",
+      "truth": ["etb", "attack-trigger", "tokens", "mill"]
+    },
+    {
+      "name": "Sokrates, Athenian Teacher",
+      "stratum": "top",
+      "truth": ["draw", "group-hug"]
+    },
+    {
+      "name": "Sophina, Spearsage Deserter",
+      "stratum": "sample",
+      "truth": ["attack-trigger", "artifact-matters"]
+    },
+    {
+      "name": "Soramaro, First to Dream",
+      "stratum": "sample",
+      "truth": ["draw"]
+    },
+    {
+      "name": "Sovereign Okinec Ahau",
+      "stratum": "top",
+      "truth": ["attack-trigger", "plus-one-counters", "counters-generic"]
+    },
+    {
+      "name": "Squall, SeeD Mercenary",
+      "stratum": "top",
+      "truth": ["attack-trigger", "graveyard-recursion"]
+    },
+    {
+      "name": "Tadeas, Juniper Ascendant",
+      "stratum": "sample",
+      "truth": ["attack-trigger", "draw", "untap-engine"]
+    },
+    {
+      "name": "Teysa, Envoy of Ghosts",
+      "stratum": "sample",
+      "truth": ["tokens"]
+    },
+    {
+      "name": "Thrakkus the Butcher",
+      "stratum": "sample",
+      "truth": ["attack-trigger", "tribal"]
+    },
+    {
+      "name": "Toph, the First Metalbender",
+      "stratum": "top",
+      "truth": ["plus-one-counters", "counters-generic", "artifact-matters"]
+    },
+    {
+      "name": "Treebeard, Gracious Host",
+      "stratum": "sample",
+      "truth": [
+        "etb",
+        "plus-one-counters",
+        "counters-generic",
+        "lifegain",
+        "artifact-matters",
+        "tribal"
+      ]
+    },
+    {
+      "name": "Ultima, Origin of Oblivion",
+      "stratum": "top",
+      "truth": ["attack-trigger", "counters-generic", "ramp"]
+    },
+    {
+      "name": "Ultron, Artificial Malevolence",
+      "stratum": "top",
+      "truth": ["tokens", "artifact-matters"]
+    },
+    {
+      "name": "Varis, Silverymoon Ranger",
+      "stratum": "sample",
+      "truth": ["tokens"]
+    },
+    {
+      "name": "Viv Vision, Teen Synthezoid",
+      "stratum": "sample",
+      "truth": ["attack-trigger", "plus-one-counters", "counters-generic", "draw", "voltron"]
+    },
+    {
+      "name": "Vohar, Vodalian Desecrator",
+      "stratum": "top",
+      "truth": ["lifegain", "lifeloss-drain", "draw", "graveyard-recursion"]
+    },
+    {
+      "name": "Zidane, Tantalus Thief",
+      "stratum": "sample",
+      "truth": ["etb", "artifact-matters"]
+    },
+    {
+      "name": "Zodiark, Umbral God",
+      "stratum": "top",
+      "truth": ["etb", "sacrifice", "plus-one-counters", "counters-generic"]
+    },
+    {
+      "name": "Zuko, Exiled Prince",
+      "stratum": "sample",
+      "truth": []
+    },
+    {
+      "name": "Zul Ashur, Lich Lord",
+      "stratum": "sample",
+      "truth": ["graveyard-recursion", "tribal"]
+    },
+    {
+      "name": "Zurgo Stormrender",
+      "stratum": "top",
+      "truth": ["leaves-battlefield", "tokens", "lifeloss-drain", "draw"]
+    }
+  ]
+}
