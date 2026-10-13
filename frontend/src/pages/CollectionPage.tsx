@@ -294,7 +294,7 @@ export function CollectionPage() {
               a separate import screen — adding/importing happens through the
               always-present "Add cards" sheet (search · list · scan). Stats and
               Share hide when there's nothing yet to break down or share. */}
-          {momentOpen && !isEmpty && <PostImportMoment cards={cards} />}
+          {momentOpen && !isEmpty && <PostImportMoment cards={cards} hidden={addCardsOpen} />}
           <CardListTable
             cards={cards}
             binders={materialized}

@@ -2,6 +2,10 @@
    import review card (.import-review, styles/import-upload.css) so the two read
    as one vocabulary; this file only adds what that card does not have. */
 
+.post-import-moment[hidden] {
+  display: none;
+}
+
 .post-import-facts {
   display: flex;
   flex-wrap: wrap;
@@ -34,12 +38,43 @@
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
 }
 
+/* The picks' box. Loading, empty, error and ready all fill the same grid, so
+   the card keeps one height from mount to the loaded state: it sits above the
+   collection table, and a change in height moves the whole table (CLS 0.15 on
+   desktop and 0.43 on a phone before this). */
+.post-import-reserve {
+  position: relative;
+}
+
+/* Matches a CommanderResultCard tile (8rem tall at every width). */
+.post-import-skeleton {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 8rem;
+  padding: var(--space-3);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.post-import-picks--placeholder.is-idle {
+  visibility: hidden;
+}
+
+/* Empty and error: the message fills the reserved box instead of shrinking it. */
 .post-import-state {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-wrap: wrap;
+  align-content: center;
+  justify-content: center;
   align-items: center;
   gap: var(--space-2) var(--space-3);
   margin: 0;
   font-size: var(--text-sm);
   color: var(--text-secondary);
+  text-align: center;
 }
