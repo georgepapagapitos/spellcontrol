@@ -10,7 +10,12 @@ import type {
 import type { SetMap } from '@/lib/api';
 import { formatMoney } from '@/lib/collection/format-money';
 import { LANGUAGE_OPTIONS } from '@/lib/collection/copy-options';
-import { printingKey, sortCards, type SortContext } from '@spellcontrol/binder-routing';
+import {
+  printingFinishKey,
+  printingKey,
+  sortCards,
+  type SortContext,
+} from '@spellcontrol/binder-routing';
 import { releaseDateOf } from '@spellcontrol/binder-routing';
 import { isExpressionEmpty } from '@spellcontrol/binder-routing';
 import { parseTypeLine, SUPERTYPES, TYPES } from '@spellcontrol/binder-routing';
@@ -62,6 +67,7 @@ export function buildRows(
         binderName: assignment?.name ?? null,
         binderColor: assignment?.color ?? null,
         binders: assignment ? [assignment] : [],
+        copyIds: [card.copyId],
       };
     });
   }
@@ -71,11 +77,12 @@ export function buildRows(
   // the badge can show all of them.
   const grouped = new Map<string, Row & { binderIds: Set<string> }>();
   for (const card of cardsForMatch) {
-    const key = `${card.scryfallId}:${card.finish ?? (card.foil ? 'foil' : 'nonfoil')}`;
+    const key = printingFinishKey(card);
     const assignment = cardToBinder.get(card.copyId) ?? null;
     const existing = grouped.get(key);
     if (existing) {
       existing.qty += 1;
+      existing.copyIds.push(card.copyId);
       if (assignment && !existing.binderIds.has(assignment.id)) {
         existing.binderIds.add(assignment.id);
         existing.binders.push(assignment);
@@ -96,6 +103,7 @@ export function buildRows(
         binderName: assignment?.name ?? null,
         binderColor: assignment?.color ?? null,
         binders: assignment ? [assignment] : [],
+        copyIds: [card.copyId],
         binderIds,
       });
     }

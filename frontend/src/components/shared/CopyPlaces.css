@@ -1,0 +1,251 @@
+/* Where a stack's copies are (CopyPlaces). Co-located so it ships with the
+   collection's chunk, not the render-blocking boot sheet, which sits at its
+   budget. The marks themselves are the existing plates: the identity disc
+   (.art-badge[data-identity], collection.css) on art and the deck / binder
+   row chips beside a name. This sheet only adds the trigger that holds them,
+   the count plate, and the list they open. */
+
+/* The trigger: one button around the marks, so the whole cluster is one
+   target and the marks inside are pictures, not controls. */
+.copy-places-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: inherit;
+  min-height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: transform var(--motion-fast);
+}
+
+/* On art the ring has to read on any artwork: the identity mark's own
+   double ring (dark, then light). */
+.copy-places-trigger--art:focus-visible {
+  outline: 2px solid var(--art-scrim-text);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.85);
+}
+
+.copy-places-trigger--row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.copy-places-trigger--art.open {
+  transform: scale(1.08);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .copy-places-trigger--art:hover {
+    transform: scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copy-places-trigger {
+    transition: none;
+  }
+}
+
+/* Inside the trigger the row chips are pictures: the trigger's pointer wins
+   over the multi chip's default cursor. */
+.copy-places-trigger--row > span {
+  cursor: inherit;
+}
+
+/* The count plate: the scrim, with the identity disc seated flush at its
+   start and the count after it. The disc keeps its own size rules
+   (.collection-grid-badges .identity-mark), so the plate is always exactly
+   one disc tall. */
+.copy-places-counted {
+  gap: var(--space-1);
+  padding: 0 var(--space-2) 0 0;
+}
+
+.collection-grid-item.grid-2x .copy-places-counted {
+  font-size: var(--text-base);
+  padding-right: var(--space-2-5);
+}
+
+.collection-grid-item.grid-3x .copy-places-counted {
+  font-size: var(--text-lg);
+  padding-right: var(--space-3);
+}
+
+/* The tile's bottom row (.collection-grid-foot) gives the cluster what the
+   ×qty corner leaves, or a line of its own above it. Where even that line is
+   too narrow for every mark (a phone's smallest tiles), the marks stack, the
+   first at the bottom. */
+.copy-places-trigger--art {
+  flex-wrap: wrap-reverse;
+  justify-content: flex-end;
+  border-radius: var(--radius);
+}
+
+/* The marks keep their 1x size on a phone. collection.css bumps an on-art
+   mark there because each mark used to be its own control; here the trigger
+   is the one control, and at the bumped size two counted marks no longer fit
+   one line of a three-column tile and stacked three rows up the card. The
+   2x / 3x tiers still scale the marks (their rules outrank this one). */
+.collection-grid-badges .copy-places-trigger--art .identity-mark {
+  padding: var(--space-1);
+}
+
+.collection-grid-badges .copy-places-trigger--art svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* On touch the trigger's target grows past the marks to 44px; the padding
+   is cancelled by the margin, so the marks don't move. */
+@media (pointer: coarse) {
+  .copy-places-trigger--art {
+    margin: calc(-1 * var(--space-3));
+    padding: var(--space-3);
+  }
+}
+
+/* The list. */
+.copy-places-panel {
+  z-index: var(--z-portal-popover);
+  width: min(22rem, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-2) 0;
+}
+
+.copy-places-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  padding: var(--space-1) var(--space-3) var(--space-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.copy-places-title {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* The section above a cube listing: a SectionHeader overline, so the type is
+   base-layout's; this keeps only its place in the panel. */
+.copy-places-section {
+  margin: 0;
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  border-top: 1px solid var(--border);
+}
+
+.copy-places-rows {
+  margin: 0;
+  padding: var(--space-1) var(--space-1-5);
+  list-style: none;
+}
+
+/* A place is a link on the shared popover row (.toolbar-popover-item: its
+   padding, hover and focus tint, and the 44px floor on touch); this only
+   drops the link underline. */
+.copy-places-link {
+  text-decoration: none;
+}
+
+/* The copies in no place: not a destination, so not a link, but laid out on
+   the same line as one so its count sits in the same column. */
+.copy-places-static {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2-5);
+  font-size: var(--text-sm);
+}
+
+@media (pointer: coarse) {
+  .copy-places-static {
+    min-height: 44px;
+  }
+}
+
+.copy-places-row-mark,
+.copy-places-row-count,
+.copy-places-row-chevron {
+  flex: none;
+}
+
+/* Holds the chevron's column on a row that has none. */
+.copy-places-row-spacer {
+  flex: none;
+  width: 14px;
+}
+
+.copy-places-row-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 999px;
+  background: var(--identity-color, var(--accent));
+  color: var(--on-accent);
+}
+
+/* No place: an empty dashed ring, the style guide's "no physical home". */
+.copy-places-row-mark--none {
+  border: 1.5px dashed var(--text-muted);
+  background: transparent;
+}
+
+/* A cube that only lists the card: the cube mark drawn hollow and dashed. */
+.copy-places-row-mark--listed {
+  border: 1.5px dashed var(--cube-color);
+  background: transparent;
+  color: var(--cube-color);
+}
+
+.copy-places-row-text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  text-align: left;
+}
+
+.copy-places-row-name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copy-places-sub,
+.copy-places-row-detail {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.copy-places-row-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.copy-places-row-chevron {
+  color: var(--text-muted);
+}
+
+/* The phone sheet: the dialog already pads, so the list sits flush. */
+.copy-places-sheet .copy-places-head {
+  padding: 0 0 var(--space-2);
+}
+
+.copy-places-sheet .copy-places-rows,
+.copy-places-sheet .copy-places-section {
+  padding-inline: 0;
+}
+
+.copy-places-sheet-foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-2);
+}

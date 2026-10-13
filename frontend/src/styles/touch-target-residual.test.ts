@@ -46,7 +46,8 @@ describe('E1000 residual touch targets', () => {
     const panel = src('../components/deck/CardSearchPanel.tsx');
     expect(panel).toContain("'card-search-fit text-link'");
     expect(panel).not.toMatch(/className="card-search-fit"/);
-    const preview = src('../components/card/CardPreview.tsx');
+    // The pills render in CardPreviewContext (split out of CardPreview).
+    const preview = src('../components/card/CardPreviewContext.tsx');
     const pills = preview.match(/className="card-preview-context-pill[^"]*"/g) ?? [];
     expect(pills.length).toBeGreaterThan(0);
     for (const c of pills) expect(c).toContain('text-link');

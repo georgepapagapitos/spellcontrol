@@ -1,9 +1,6 @@
 import {
-  Boxes,
   ChevronUp,
   ExternalLink,
-  Layers,
-  Notebook,
   Pencil,
   Loader2,
   RefreshCw,
@@ -23,7 +20,6 @@ import {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
 import { toast } from '@/store/toasts';
 import type { EnrichedCard } from '@/types/index';
 import { CardRulings } from './CardRulings';
@@ -50,7 +46,9 @@ import { nextStop, useSheetStops, type SheetStop } from '@/lib/overlays/use-shee
 import type { AllocationInfo } from '@/lib/collection/allocations';
 import type { CubeListing } from '@/lib/cube/cube-listings';
 import type { BinderInfo } from '@/lib/binder/binder-refs';
+import type { CopyBreakdown } from '@/lib/collection/copy-locations';
 import { CardName } from '@/components/shared/CardName';
+import { PreviewContextLine } from './CardPreviewContext';
 import { IconButton } from '@/components/shared/Button';
 
 // Lazy on purpose: the section opens a commander in a preview of its own, so
@@ -128,6 +126,13 @@ interface Props {
    * <= 1 suppresses the quantity tag.
    */
   getStackQty?: (i: number) => number;
+  /**
+   * Where each copy of the stack at index `i` is now (the collection). When
+   * given, the binder pills name only binders that hold a copy, and on a
+   * stack of more than one every pill carries its count, the same numbers as
+   * the tile's marks.
+   */
+  getStackPlaces?: (i: number) => CopyBreakdown | undefined;
   /**
    * Deck the preview is being opened from, if any. When the current card is
    * allocated to this same deck, we suppress the "In deck" chip — repeating
@@ -251,6 +256,7 @@ export function CardPreview({
   getStackAllocations,
   getStackCubeListings,
   getStackQty,
+  getStackPlaces,
   getActions,
   onIndexChange,
   onClose,
@@ -658,94 +664,21 @@ export function CardPreview({
   // Binder / deck / cube provenance — where this card lives. Aggregated
   // across every copy in the stack so a grouped row surfaces every container
   // it touches, not just whichever copy the row picked as its representative.
-  const contextLine = (() => {
-    const binderById = new Map<string, BinderInfo>();
-    for (const b of getStackBinders?.(selected) ?? []) binderById.set(b.id, b);
-    const deckById = new Map<string, AllocationInfo>();
-    const cubeById = new Map<string, AllocationInfo>();
-    for (const a of getStackAllocations?.(selected) ?? []) {
-      if (a.ownerKind === 'cube') cubeById.set(a.ownerId, a);
-      else if (a.deckId !== currentDeckId) deckById.set(a.deckId, a);
-    }
-    // A section named the same as its container adds nothing: a list passes
-    // its own name for both, and the footer read "My Wishlist · My Wishlist".
-    const section = sectionLabels[selected] ?? '';
-    const words = [binderName, section === binderName ? '' : section].filter(Boolean).join(' · ');
-    const pills: ReactNode[] = [
-      ...[...binderById.values()].map((b) => (
-        <Link
-          key={`b-${b.id}`}
-          to={`/collection/binders/${b.id}`}
-          className="card-preview-context-pill text-link card-preview-context-pill--binder"
-          style={{ '--pill-color': b.color || 'var(--accent)' } as React.CSSProperties}
-          onClick={onClose}
-          title={`Open binder ${b.name}`}
-        >
-          <Notebook width={12} height={12} strokeWidth={2} aria-hidden />
-          <span>{b.name}</span>
-        </Link>
-      )),
-      ...[...deckById.values()].map((d) => (
-        <Link
-          key={`d-${d.deckId}`}
-          to={`/decks/${d.ownerId}`}
-          className="card-preview-context-pill text-link card-preview-context-pill--deck"
-          style={{ '--pill-color': d.deckColor || 'var(--accent)' } as React.CSSProperties}
-          onClick={onClose}
-          title={`In deck: ${d.deckName}`}
-          aria-label={`In deck: ${d.deckName}`}
-        >
-          <Layers width={12} height={12} strokeWidth={2} aria-hidden />
-          <span>{d.deckName}</span>
-        </Link>
-      )),
-      ...[...cubeById.values()].map((c) => (
-        <Link
-          key={`c-${c.ownerId}`}
-          to={`/decks/cube/${c.ownerId}`}
-          className="card-preview-context-pill text-link card-preview-context-pill--cube"
-          style={{ '--pill-color': 'var(--cube-color)' } as React.CSSProperties}
-          onClick={onClose}
-          title={`In cube: ${c.ownerName}`}
-          aria-label={`In cube: ${c.ownerName}`}
-        >
-          <Boxes width={12} height={12} strokeWidth={2} aria-hidden />
-          <span>{c.ownerName}</span>
-        </Link>
-      )),
-      // A cube that only lists the card: same pill, hollow and dashed, since
-      // it holds no copy (DeckBadge's listed badge, the same ruling).
-      ...(getStackCubeListings?.(selected) ?? [])
-        .filter((l) => !cubeById.has(l.cubeId))
-        .map((l) => (
-          <Link
-            key={`cl-${l.cubeId}`}
-            to={`/decks/cube/${l.cubeId}`}
-            className="card-preview-context-pill text-link card-preview-context-pill--cube card-preview-context-pill--listed"
-            style={{ '--pill-color': 'var(--cube-color)' } as React.CSSProperties}
-            onClick={onClose}
-            title={`Listed in cube: ${l.cubeName}`}
-            aria-label={`Listed in cube: ${l.cubeName}`}
-          >
-            <Boxes width={12} height={12} strokeWidth={2} aria-hidden />
-            <span>{l.cubeName}</span>
-          </Link>
-        )),
-    ];
-    if (!words && pills.length === 0 && qty <= 1) return null;
-    return (
-      <div className="card-preview-context">
-        {words && <span className="card-preview-context-words">{words}</span>}
-        {pills}
-        {qty > 1 && (
-          <span className="card-preview-qty" aria-label={`${qty} copies`} role="img">
-            <span aria-hidden>×</span>
-            {qty}
-          </span>
-        )}
-      </div>
-    );
-  })();
+  // A section named the same as its container adds nothing: a list passes
+  // its own name for both, and the footer read "My Wishlist · My Wishlist".
+  const section = sectionLabels[selected] ?? '';
+  const contextLine = (
+    <PreviewContextLine
+      words={[binderName, section === binderName ? '' : section].filter(Boolean).join(' · ')}
+      binders={getStackBinders?.(selected) ?? []}
+      allocations={getStackAllocations?.(selected) ?? []}
+      listings={getStackCubeListings?.(selected) ?? []}
+      places={getStackPlaces?.(selected)}
+      qty={qty}
+      currentDeckId={currentDeckId}
+      onClose={onClose}
+    />
+  );
 
   // ── Panel sections ─────────────────────────────────────────────────────
   // The lead section follows where the preview was opened from; the rest keep

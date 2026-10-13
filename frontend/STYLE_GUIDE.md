@@ -1971,8 +1971,14 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
   says it at 12px, on the card's black frame and on a dimmed pocket. A
   colored glyph on the scrim was specimened and rejected: a purple deck
   vanished. Several owners have no one color, so they stay on the scrim
-  with its light glyph (`data-identity="many"`), and art never carries the
-  count (the tooltip and the accessible name do). A cube that only
+  with its light glyph (`data-identity="many"`), and art never carries an
+  **owner** count (the tooltip and the accessible name do). **A copy count is
+  the one exception (2026-10-13, user ruling):** on a collection tile whose
+  copies are split, a mark that holds part of the stack carries how many
+  copies it holds ("1" in a deck, "3" across binders, beside "× 5"), seated
+  on a scrim plate beside the disc so the number never sits on the owner's
+  color (`CopyPlaces`, `.copy-places-counted`). A mark that holds the whole
+  stack, or a stack of one, stays bare. A cube that only
   **lists** the card holds no copy, so its mark is hollow, not filled: the
   scrim and its light glyph with a dashed ring in the cube's violet
   (`data-identity="listed"`, E503). The glyph stays light, so it reads where a
