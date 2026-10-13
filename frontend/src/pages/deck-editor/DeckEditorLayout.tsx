@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { useDecksStore, effectiveBracket, type Deck } from '@/store/decks';
 import { DeckDisplay } from '@/components/deck/DeckDisplay';
 import { type DeckView } from '@/lib/deck-analysis/deck-view';
@@ -6,9 +5,9 @@ import {
   bracketReasons,
   bracketBorderline,
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import { buildCommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
 import { DeckCombosPanel } from '@/components/deck/DeckCombosPanel';
 import { DeckAnalysisPanel } from '@/components/deck/DeckAnalysisPanel';
+import { useCommanderProfile, useWarmCommanderPage } from '@/lib/deck/use-commander-profile';
 import { DeckAiReview } from '@/components/deck/DeckAiReview';
 import { DeckAiRefine } from '@/components/deck/DeckAiRefine';
 import { AiSourcesControl } from '@/components/deck/AiSourcesControl';
@@ -149,10 +148,8 @@ export function DeckEditorLayout({
   } = ownership;
   const { handleAddEngineCard, setShowFill, addingEngineNames } = addFlow;
   // E260: the Coach feed's free "Lean into" lever reads the commander's abilities.
-  const commanderProfile = useMemo(
-    () => (deck.commander ? buildCommanderProfile(deck.commander, deck.partnerCommander) : null),
-    [deck.commander, deck.partnerCommander]
-  );
+  useWarmCommanderPage(deck.commander, deck.partnerCommander);
+  const commanderProfile = useCommanderProfile(deck.commander, deck.partnerCommander);
   const {
     formatConfig,
     isCommander,

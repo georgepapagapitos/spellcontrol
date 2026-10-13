@@ -12,7 +12,18 @@ import type {
   LiftEntry,
 } from '@/deck-builder/types';
 import { offlineSearchCards } from '@/lib/offline';
-import { frontFaceName } from '@/lib/cards/card-text';
+import {
+  CACHE_TTL,
+  commanderCache,
+  formatCommanderNameForUrl,
+  getPartnerSlugs,
+  notifyCommanderPageCached,
+} from './commander-page-cache';
+export {
+  formatCommanderNameForUrl,
+  onCommanderPageCached,
+  peekCommanderThemes,
+} from './commander-page-cache';
 import { sortWUBRG } from '@/deck-builder/lib/edhrecUtils';
 import { fetchEdhrecTop } from '@/lib/discover/edhrec-top';
 
@@ -93,10 +104,7 @@ class RateLimiter {
 const rateLimiter = new RateLimiter();
 
 // Cache for commander data
-const commanderCache = new Map<string, { data: EDHRECCommanderData; timestamp: number }>();
 const partnerPopularityCache = new Map<string, { data: Map<string, number>; timestamp: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
 // Raw EDHREC response types
 // Note: EDHREC cardlist cards have limited fields - they're pre-categorized by tag
 interface RawEDHRECCard {
@@ -178,28 +186,6 @@ interface RawEDHRECResponse {
       card?: { name: string; num_decks?: number };
     };
   };
-}
-
-/**
- * Format commander name for EDHREC URL
- * "Atraxa, Praetors' Voice" -> "atraxa-praetors-voice"
- * "Venat, Heart of Hydaelyn // Hydaelyn, the Mothercrystal" -> "venat-heart-of-hydaelyn"
- * "Clavileño, First of the Blessed" -> "clavileno-first-of-the-blessed"
- *
- * For double-faced cards (containing "//"), EDHREC uses only the front face name.
- */
-export function formatCommanderNameForUrl(name: string): string {
-  // Handle double-faced cards - use only the front face name
-  const frontFace = frontFaceName(name);
-
-  return frontFace
-    .normalize('NFD') // Decompose accented chars (ñ -> n + combining tilde)
-    .replace(/[\u0300-\u036f]/g, '') // Strip combining diacritical marks
-    .toLowerCase()
-    .replace(/[',]/g, '') // Remove apostrophes and commas
-    .replace(/[^a-z0-9\s-]/g, '') // Remove other special characters (& etc.) before spacing
-    .replace(/\s+/g, '-') // Replace spaces with hyphens
-    .replace(/-+/g, '-'); // Collapse multiple hyphens
 }
 
 /**
@@ -414,13 +400,6 @@ function parseEdhrecStats(response: RawEDHRECResponse): EDHRECCommanderStats {
  * EDHREC doesn't always use alphabetical order (e.g. commander before background),
  * so we return both orderings to try.
  */
-function getPartnerSlugs(commander1: string, commander2: string): [string, string] {
-  const slug1 = formatCommanderNameForUrl(commander1);
-  const slug2 = formatCommanderNameForUrl(commander2);
-  // Primary: commander1 first, secondary: commander2 first
-  return [`${slug1}-${slug2}`, `${slug2}-${slug1}`];
-}
-
 /**
  * Parse a raw EDHREC response into structured commander data.
  * Shared by both single-commander and partner-commander fetches.
@@ -481,6 +460,7 @@ export function parseEdhrecResponse(
 
   // Cache the result
   commanderCache.set(cacheKey, { data, timestamp: Date.now() });
+  notifyCommanderPageCached();
 
   return data;
 }
@@ -781,6 +761,7 @@ export async function fetchPartnerCommanderData(
       similarCommanders: data1.similarCommanders,
     };
     commanderCache.set(slugA, { data: mergedData, timestamp: Date.now() });
+    notifyCommanderPageCached();
     return mergedData;
   }
 

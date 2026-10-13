@@ -40,7 +40,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import { ROLE_LABELS } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { MisfitSummary } from '@/deck-builder/services/deckBuilder/cardFit';
-import { buildCommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
+import { buildCommanderProfileFromCache } from '@/deck-builder/services/deckBuilder/commanderProfileCached';
 import { roleIsIncidental } from '@/deck-builder/services/deckBuilder/incidentalRole';
 import type { WinConditionAnalysis } from '@/deck-builder/services/winConditions/types';
 import { isUtilityLand, landSlotMerit } from '@/deck-builder/services/deckBuilder/landUpgrades';
@@ -244,7 +244,7 @@ export function rankReplacementCuts({
   // attack-trigger payoff tagged ramp for its Treasure).
   const addRoleMet = !!addCounted && targets?.[addCounted] !== undefined && !addFillsGap;
   const profile = analysis.commander
-    ? buildCommanderProfile(analysis.commander, analysis.partnerCommander)
+    ? buildCommanderProfileFromCache(analysis.commander, analysis.partnerCommander)
     : null;
   const inRole = (card: ScryfallCard): boolean =>
     countedRoleOf(card) === addCounted && !roleIsIncidental(card, addCounted, profile);

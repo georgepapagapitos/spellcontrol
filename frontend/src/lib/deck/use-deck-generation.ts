@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { haptics } from '@/lib/util/haptics';
 import { toast } from '@/store/toasts';
 import { defaultCustomization, useDeckBuilderStore } from '@/deck-builder/store';
-import { buildCommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
 import { generateDeck } from '@/deck-builder/services/deckBuilder/deckGenerator';
 import { skipsOwnedCards } from '@/deck-builder/services/deckBuilder/deckFilters';
 import {
@@ -35,6 +34,7 @@ import type {
 import type { ComboSeedContext } from '@/types/combos';
 
 import { userMessage } from '@/lib/util/user-error';
+import { useCommanderProfile } from './use-commander-profile';
 /**
  * Hard gate a freshly generated deck before it's ever saved (E128): illegal
  * cards, color-identity violations, over/under size, copy-limit violations,
@@ -192,10 +192,8 @@ export function useDeckGeneration({
     progressRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
   }, [showProgress]);
 
-  const commanderProfile = useMemo(
-    () => (commander ? buildCommanderProfile(commander) : null),
-    [commander]
-  );
+  // The pre-fetch effect below caches the commander's page; its themes feed the Voltron veto.
+  const commanderProfile = useCommanderProfile(commander);
 
   const selectedThemeSlugs = useMemo(
     () => new Set(selectedThemes.map((t) => t.slug)),
