@@ -965,17 +965,18 @@ describe('E1004: a multicolor deck seats fixers before colorless tribal lands', 
       ) as { cards: ScryfallCard[] }
     ).cards.map((c) => [c.name, c])
   );
-  // Inclusion order on Edgar Markov's page: the colorless tribal lands lead.
+  // Inclusion order on Edgar Markov's page, the colorless tribal lands leading and
+  // below the 40% staple bar (a staple keeps its slot, E585).
   const PAGE: [string, number][] = [
-    ['Voldaren Estate', 70],
-    ['Unclaimed Territory', 60],
-    ['Secluded Courtyard', 50],
-    ['Blood Crypt', 30],
-    ['Dragonskull Summit', 25],
-    ['Caves of Koilos', 20],
+    ['Voldaren Estate', 38],
+    ['Unclaimed Territory', 35],
+    ['Secluded Courtyard', 30],
+    ['Blood Crypt', 25],
+    ['Dragonskull Summit', 20],
+    ['Caves of Koilos', 15],
     ['Takenuma, Abandoned Mire', 10],
   ];
-  const run = async () => {
+  const run = async (count = 4, spares?: ScryfallCard[]) => {
     vi.mocked(getCardsByNames).mockImplementation(
       async () => new Map(PAGE.map(([n]) => [n, structuredClone(EDGAR.get(n)!)]))
     );
@@ -990,14 +991,16 @@ describe('E1004: a multicolor deck seats fixers before colorless tribal lands', 
             num_decks: inclusion * 100,
           })),
           ['W', 'B', 'R'],
-          4,
+          count,
           new Set(),
           0,
           99,
           [],
           undefined,
           new Set(),
-          null
+          null,
+          ...Array<undefined>(20),
+          spares
         )
       ).map((c) => c.name);
     } finally {
@@ -1014,6 +1017,15 @@ describe('E1004: a multicolor deck seats fixers before colorless tribal lands', 
     expect(names).toEqual(
       expect.arrayContaining(['Blood Crypt', 'Dragonskull Summit', 'Caves of Koilos'])
     );
+  });
+
+  it('hands the unpicked fixers on as spares, never a colorless land', async () => {
+    const spares: ScryfallCard[] = [];
+    await run(3, spares);
+    const names = spares.map((c) => c.name);
+    expect(names).toContain('Takenuma, Abandoned Mire');
+    expect(names).not.toContain('Unclaimed Territory');
+    expect(names).not.toContain('Secluded Courtyard');
   });
 });
 

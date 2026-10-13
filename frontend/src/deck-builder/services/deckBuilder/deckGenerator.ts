@@ -2014,6 +2014,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
   // Hoisted so fixup pass can access the Scryfall card map after generation
   let scryfallCardMap: Map<string, ScryfallCard> = new Map();
+  // Unpicked fixing nonbasics from the land pass, for the coherence repair's refill.
+  const landSpares: ScryfallCard[] = [];
   const dependencySupportCards = () => [
     commander,
     ...(partnerCommander ? [partnerCommander] : []),
@@ -2890,7 +2892,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         fillGates,
         manaPhilosophy,
         state.cfg.mtgFormat,
-        landAllowed
+        landAllowed,
+        landSpares
       )),
     ];
 
@@ -3190,7 +3193,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         fillGates,
         manaPhilosophy,
         state.cfg.mtgFormat,
-        landAllowed
+        landAllowed,
+        landSpares
       )),
     ];
   }
@@ -4281,6 +4285,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedRarity,
       getBasicLand: async (name) =>
         getCachedCard(name, arenaOnly) ?? (await getCardByName(name, arenaOnly).catch(() => null)),
+      landSpares,
     });
     coherenceRepairs = [...comboAuditRepairs, ...repairResult.repairs];
     // A repair add can complete a tracked combo — refresh completeness against

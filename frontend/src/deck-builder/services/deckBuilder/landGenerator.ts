@@ -32,6 +32,7 @@ import { fetchPassingWindows, windowFetcher } from './fetchPassingWindows';
 import { fillWithScryfall, type FillHardGates } from './scryfallFill';
 import {
   constrainsToCollection,
+  fitsColorIdentity,
   fitsLandSlot,
   isOwnedBudgetExempt,
   notInCollection,
@@ -168,7 +169,11 @@ export async function generateLands(
   mtgFormat?: string,
   // Extra seat gate for Scryfall-sourced lands: permanents-only builds pass one
   // that refuses a spell // land MDFC whose front face is an instant or sorcery.
-  landAllowed?: (card: ScryfallCard) => boolean
+  landAllowed?: (card: ScryfallCard) => boolean,
+  // Out-param: the fixing nonbasics that cleared every gate but were not picked,
+  // best first. The coherence repair draws on it when it must give up a picked
+  // colorless land, so the deck keeps its nonbasic count instead of a basic.
+  spares?: ScryfallCard[]
 ): Promise<ScryfallCard[]> {
   const lands: ScryfallCard[] = [];
   // E561: the nonbasic reserve held back from the spell picks comes back now.
@@ -390,11 +395,13 @@ export async function generateLands(
     if (colorIdentity.length >= 2) {
       let keeper: string | undefined;
       for (const [name, card] of landCardMap) {
-        if (!isColorlessOnlyLand(card) || isMdfcLand(card)) continue;
+        if (!isColorlessOnlyLand(card, readingFor(name)) || isMdfcLand(card)) continue;
         if (!keeper || (inclusionOf.get(name) ?? 0) > (inclusionOf.get(keeper) ?? 0)) keeper = name;
       }
       for (const [name, card] of landCardMap) {
-        if (name === keeper || !isColorlessOnlyLand(card) || isMdfcLand(card)) continue;
+        if (name === keeper || !isColorlessOnlyLand(card, readingFor(name)) || isMdfcLand(card)) {
+          continue;
+        }
         landPenalties.set(name, (landPenalties.get(name) ?? 0) - COLORLESS_FILLER_PENALTY);
       }
     }
@@ -517,6 +524,17 @@ export async function generateLands(
       mtgFormat
     );
     lands.push(...nonBasics);
+    if (spares) {
+      const rank = (c: EDHRECCard) => (c.inclusion ?? 0) + (landPenalties.get(c.name) ?? 0);
+      const picked = new Set(nonBasics.map((c) => c.name));
+      for (const c of [...capsFilteredLands].sort((a, b) => rank(b) - rank(a))) {
+        const sc = landCardMap.get(c.name);
+        if (!sc || picked.has(sc.name) || usedNames.has(sc.name) || isMdfcLand(sc)) continue;
+        if (!fitsColorIdentity(sc, colorIdentity) || isColorlessOnlyLand(sc)) continue;
+        if (producedManaColors(sc, identitySet).every((p) => !identitySet.has(p))) continue;
+        spares.push(sc);
+      }
+    }
     logger.debug(
       `[DeckGen] Got ${nonBasics.length} non-basic lands:`,
       nonBasics.map((l) => l.name)

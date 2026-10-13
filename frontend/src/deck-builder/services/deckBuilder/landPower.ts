@@ -149,12 +149,17 @@ const ALL_COLORS: ReadonlySet<string> = new Set(COLOR_KEYS);
 /**
  * A land that taps for {C} and nothing colored, read the way the coherence audit
  * reads it (unconditional abilities only, so Unclaimed Territory and Voldaren
- * Estate, whose colors are spend-restricted, are colorless here). Fetches make
+ * Estate, whose colors are spend-restricted, are colorless here). `allAbilities`
+ * is the staple reading (a 40%+ page staple keeps the slot its paid color earned,
+ * E585). Fetches make
  * no mana of their own and are not colorless.
  */
-export function isColorlessOnlyLand(card: ScryfallCard): boolean {
+export function isColorlessOnlyLand(
+  card: ScryfallCard,
+  opts: { allAbilities?: boolean } = {}
+): boolean {
   if (!isLandCard(card) || isBasicLand(card) || fetchedBasicRequirement(card)) return false;
-  const produced = producedManaColors(card, ALL_COLORS);
+  const produced = producedManaColors(card, ALL_COLORS, opts);
   return produced.includes('C') && !produced.some((c) => c !== 'C');
 }
 
