@@ -398,6 +398,28 @@ export function addMustInclude(
   }
 }
 
+/**
+ * E1005: every card an eviction phase must leave alone because the player asked
+ * for it, lower-cased. The persistent and temporary lists alone missed the
+ * include lists and build-from-deck picks, which are must-includes too.
+ * Staples/Synergy dial seeds are generator picks and stay evictable here.
+ */
+export function protectedMustIncludeNames(state: GenerationState): Set<string> {
+  const cz = state.context.customization;
+  const names = new Set<string>(
+    [
+      ...(cz.mustIncludeCards ?? []),
+      ...(cz.tempMustIncludeCards ?? []),
+      ...(state.mustIncludeSources?.keys() ?? []),
+      ...Object.values(state.categories)
+        .flat()
+        .filter((c) => c.isMustInclude && c.mustIncludeSource !== 'dial')
+        .map((c) => c.name),
+    ].map((n) => n.toLowerCase())
+  );
+  return names;
+}
+
 // Dynamic combo boosts: recalculated each phase to boost remaining pieces of
 // partially-assembled combos.
 export function getComboBoosts(state: GenerationState): Map<string, number> {

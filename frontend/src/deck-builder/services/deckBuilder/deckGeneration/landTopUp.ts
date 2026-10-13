@@ -41,6 +41,10 @@ export interface LandTopUpContext {
   categories: Record<DeckCategory, ScryfallCard[]>;
   // Prefer an Arena-legal basic printing over the cheapest paper one (E271).
   arenaOnly?: boolean;
+  /** Basics the user has free ('available' strategy only; undefined = no limit).
+   *  Mirrors generateLands' availableCount, so the top-up cannot pad past the
+   *  copies the player can actually pull (E1005). */
+  availableBasicCount?: (name: string) => number;
 }
 
 /**
@@ -53,6 +57,14 @@ export interface LandTopUpContext {
 export async function addBasicLands(ctx: LandTopUpContext, amount: number): Promise<void> {
   if (amount <= 0) return;
   const { colorIdentity, categories, arenaOnly = false } = ctx;
+  // Copies of `name` still free after the ones already seated.
+  const room = (name: string): number =>
+    ctx.availableBasicCount
+      ? Math.max(
+          0,
+          ctx.availableBasicCount(name) - categories.lands.filter((c) => c.name === name).length
+        )
+      : Infinity;
   const basicTypes: Record<string, string> = {
     W: 'Plains',
     U: 'Island',
@@ -97,7 +109,7 @@ export async function addBasicLands(ctx: LandTopUpContext, amount: number): Prom
 
     for (const color of colorsWithBasics) {
       const basicName = basicTypes[color];
-      const countForColor = landsPerColor[color];
+      const countForColor = Math.min(landsPerColor[color], room(basicName));
 
       let basicCard = getCachedCard(basicName, arenaOnly);
       if (!basicCard) {
@@ -125,7 +137,7 @@ export async function addBasicLands(ctx: LandTopUpContext, amount: number): Prom
       }
     }
     if (wastesCard) {
-      for (let j = 0; j < amount; j++) {
+      for (let j = 0; j < Math.min(amount, room('Wastes')); j++) {
         categories.lands.push({ ...wastesCard });
       }
     }

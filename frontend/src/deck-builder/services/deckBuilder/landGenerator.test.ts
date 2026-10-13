@@ -434,7 +434,8 @@ describe('generateLands', () => {
       sc({ name: 'Adanto Vanguard', mana_cost: '{W}{W}', cmc: 2 }),
       sc({ name: 'Late Blue', mana_cost: '{4}{U}', cmc: 5 }),
     ];
-    const lands = await generateLands([], ['W', 'U'], 6, new Set(), 6, 99, nonland);
+    // One nonbasic slot (basicCount 5 of 6) is what lets the Tower seat.
+    const lands = await generateLands([], ['W', 'U'], 6, new Set(), 5, 99, nonland);
     const names = lands.map((c) => c.name);
     // Command Tower auto-adds for 2+ colors, leaving 5 basic slots: W-heavy
     // early demand takes 3, but the U splash keeps its 2-source floor (the old
@@ -544,7 +545,7 @@ describe('generateLands', () => {
     try {
       // Command Tower auto-adds (2+ colors, format 99), leaving 3 basic
       // slots split W=2/U=1 with no pip demand (even split, W first).
-      const lands = await generateLands([], ['W', 'U'], 4, new Set(), 4, 99, []);
+      const lands = await generateLands([], ['W', 'U'], 4, new Set(), 3, 99, []);
 
       expect(lands).toHaveLength(4); // full count delivered despite Island failing both attempts
       expect(lands.filter((c) => c.name === 'Island')).toHaveLength(0);
@@ -579,6 +580,16 @@ describe('generateLands hard gates on real cards', () => {
       vi.mocked(getCardPrice).mockImplementation(() => null);
       vi.mocked(getCardByName).mockImplementation(async (name: string) => card(name));
     }
+  });
+
+  // E1005: 'nonBasicLandCount: 0' is the user's call. The Tower was a named
+  // pick outside the nonbasic target, so a zero still got one.
+  it('adds no Command Tower when the player asked for zero nonbasic lands', async () => {
+    const none = await landsFor([], ['W', 'U'], 4, 4, null);
+    expect(none.map((c) => c.name)).not.toContain('Command Tower');
+    expect(none.every((c) => c.name === 'Plains' || c.name === 'Island')).toBe(true);
+    const some = await landsFor([], ['W', 'U'], 4, 2, null);
+    expect(some.map((c) => c.name)).toContain('Command Tower');
   });
 
   // E525: the merit widen's `t:land (o:{W} ...)` query matches Legion's

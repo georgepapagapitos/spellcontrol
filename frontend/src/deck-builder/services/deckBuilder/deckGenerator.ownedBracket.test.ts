@@ -30,6 +30,8 @@ const REAL = new Map<string, ScryfallCard>(
 );
 const TALRAND = REAL.get('Talrand, Sky Summoner')!;
 const GAME_CHANGERS = new Set(['Mana Vault', 'Mox Diamond']);
+// EDHREC salt scores; vi.mock factories are hoisted, so this is read lazily.
+const SALT = new Map<string, number>();
 
 function mkSC(name: string, typeLine: string, cmc: number): ScryfallCard {
   return {
@@ -136,7 +138,7 @@ vi.mock('@/deck-builder/services/edhrec/client', async (orig) => ({
   fetchPartnerThemeData: vi.fn(async () => page()),
   fetchCommanderCombos: vi.fn(async () => []),
   fetchCommanderCombosRaw: vi.fn(async () => []),
-  fetchSaltIndex: vi.fn(async () => new Map()),
+  fetchSaltIndex: vi.fn(async () => SALT),
   fetchAverageDeckMultiCopies: vi.fn(async () => null),
   fetchCardLiftPool: vi.fn(async () => []),
 }));
@@ -181,7 +183,11 @@ vi.mock('@/deck-builder/services/tagger/client', async (orig) => ({
 
 import { generateDeck, clearGenerationCache } from './deckGenerator';
 
-function context(owned: string[], targetBracket: Customization['targetBracket']) {
+function context(
+  owned: string[],
+  targetBracket: Customization['targetBracket'],
+  overrides: Partial<Customization> = {}
+) {
   const customization = {
     deckFormat: 99,
     landCount: 37,
@@ -218,6 +224,7 @@ function context(owned: string[], targetBracket: Customization['targetBracket'])
     historicalYear: 2005,
     permanentsOnly: false,
     brewLevel: 0.5,
+    ...overrides,
   } as unknown as Customization;
   const pool: SubstituteCandidate[] = owned.map((name) => {
     const c = REAL.get(name)!;
@@ -239,7 +246,10 @@ const names = (deck: Awaited<ReturnType<typeof generateDeck>>) =>
     .flat()
     .map((c) => c.name);
 
-beforeEach(() => clearGenerationCache());
+beforeEach(() => {
+  clearGenerationCache();
+  SALT.clear();
+});
 
 describe('generateDeck: owned-only fills honor the target bracket', () => {
   it('bracket 2 never seats an owned Mana Vault or Mox Diamond as a substitute', async () => {
@@ -255,5 +265,46 @@ describe('generateDeck: owned-only fills honor the target bracket', () => {
     const all = names(deck);
     expect(all).toContain('Mana Vault');
     expect(all).toContain('Mox Diamond');
+  });
+});
+
+// E1005: the owned-substitute tier (Tier 1) and the partial-mode owned reconcile
+// both seat cards without going through the pick-time gates.
+describe('generateDeck: owned seats honor the player caps', () => {
+  it('a $5 price cap keeps the $119.62 Mana Vault out of the substitute tier', async () => {
+    const deck = await generateDeck(
+      context(['Mana Vault', 'Mox Diamond'], 'all', { maxCardPrice: 5 })
+    );
+    expect(names(deck)).not.toContain('Mana Vault');
+    expect(names(deck)).toHaveLength(99);
+  });
+
+  it('a rare rarity cap keeps the mythic Mana Vault and Mox Diamond out of it', async () => {
+    const deck = await generateDeck(
+      context(['Mana Vault', 'Mox Diamond'], 'all', { maxRarity: 'rare' })
+    );
+    expect(names(deck)).not.toContain('Mana Vault');
+    expect(names(deck)).not.toContain('Mox Diamond');
+  });
+
+  const partial = { collectionStrategy: 'partial', collectionOwnedPercent: 100 } as const;
+
+  it('partial mode still seats an owned Mana Vault when nothing forbids it', async () => {
+    const deck = await generateDeck(context(['Mana Vault'], 'all', partial));
+    expect(names(deck)).toContain('Mana Vault');
+  });
+
+  it('partial mode keeps an owned Game Changer out of a bracket-2 deck', async () => {
+    const deck = await generateDeck(context(['Mana Vault', 'Mox Diamond'], 2, partial));
+    expect(names(deck)).not.toContain('Mana Vault');
+    expect(names(deck)).not.toContain('Mox Diamond');
+  });
+
+  it('partial mode honors the salt cap on the card it swaps in', async () => {
+    SALT.set('Mana Vault', 3.1);
+    const deck = await generateDeck(
+      context(['Mana Vault'], 'all', { ...partial, saltTolerance: 0 })
+    );
+    expect(names(deck)).not.toContain('Mana Vault');
   });
 });

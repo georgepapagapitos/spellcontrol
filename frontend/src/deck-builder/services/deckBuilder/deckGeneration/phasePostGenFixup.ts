@@ -8,7 +8,7 @@ import {
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
-import type { GenerationState } from './state';
+import { type GenerationState, protectedMustIncludeNames } from './state';
 import { stampRoleSubtypes, routeCardByType } from '../categorize';
 import {
   constrainsToCollection,
@@ -73,10 +73,7 @@ export function postGenFixupPhase(
 
   const MAX_FIXUP_SWAPS = 5;
 
-  const fixupMustIncludeSet = new Set([
-    ...customization.mustIncludeCards.map((n) => n.toLowerCase()),
-    ...customization.tempMustIncludeCards.map((n) => n.toLowerCase()),
-  ]);
+  const fixupMustIncludeSet = protectedMustIncludeNames(state);
 
   const keeps = evictionKeeper(state);
   const share = ownedShareGuard(state);

@@ -141,7 +141,12 @@ import {
   survivingSubstitutionRows,
 } from './finalDeckDisclosure';
 import { resolveMultiCopyCards } from './multiCopy';
-import { generateLands, CHANNEL_LAND_BOOST, MDFC_LAND_BOOST } from './landGenerator';
+import {
+  generateLands,
+  CHANNEL_LAND_BOOST,
+  MDFC_LAND_BOOST,
+  BASIC_LAND_NAMES,
+} from './landGenerator';
 import { resolveManaPhilosophy } from './manaPhilosophy';
 import { assertCommandersEligible, commanderPreviewNote } from './commanderEligibility';
 import {
@@ -162,6 +167,7 @@ import {
   addMustInclude as stAddMustInclude,
   getComboBoosts as stGetComboBoosts,
   countAllCards as stCountAllCards,
+  protectedMustIncludeNames,
 } from './deckGeneration/state';
 import { detectCombosPhase, refreshComboCompleteness } from './deckGeneration/phaseDetectCombos';
 import { gapAnalysisPhase } from './deckGeneration/phaseGapAnalysis';
@@ -3271,7 +3277,21 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // over the Commander limit"). Topping up first lets the trim reconcile the
   // surplus — its land budget (max(0, lands - landTarget)) still protects the
   // freshly added basics.
-  const landTopUpCtx: LandTopUpContext = { colorIdentity, categories, arenaOnly };
+  const landTopUpCtx: LandTopUpContext = {
+    colorIdentity,
+    categories,
+    arenaOnly,
+    // E1005: 'available' pads only with the basics the player has free, when
+    // the collection lists any basic at all. ponytail: a collection with no
+    // basics reads as "basics not tracked", not "owns none", because capping it
+    // at zero ships a 43-card deck; tell the two apart when the import keeps a
+    // basics flag.
+    availableBasicCount:
+      collectionStrategy === 'available' &&
+      [...BASIC_LAND_NAMES].some((n) => (context.collectionAvailableCounts?.get(n) ?? 0) > 0)
+        ? (name) => context.collectionAvailableCounts?.get(name) ?? 0
+        : undefined,
+  };
   await runLandDeficitTopUp(landTopUpCtx, targets.lands);
 
   // ── Smart Trim: priority-aware, role-aware, combo-aware ──
@@ -3571,6 +3591,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       if (!fitsSpellSlot(card)) return false; // E525: these fill spell slots
       const ungated = ungatedSubs.has(card.name);
       if (ungated && exceedsFillCeilings(card, fillGates)) return false;
+      // E1005: a Tier 1 substitute never went through fillWithScryfall's price,
+      // rarity, Arena and CMC checks. The static caps, as trySeatOwned uses.
+      if (ungated && violatesUserCaps(card, state.cfg, context.collectionNames)) return false;
       if (!allowCapOverflow && isOverRoleCap(card, roleTargets, currentRoleCounts)) {
         ownedCapSkipped.push(card);
         return false;
@@ -3968,6 +3991,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       if (!isCardAllowedBySynergyDependencies(card)) return false;
       // Static caps, not the shortage block's relaxed ones (a composition swap).
       if (violatesUserCaps(card, state.cfg, collectionNames)) return false;
+      // E1005: the bracket ceiling / Game Changer limit and the salt cap bind a
+      // swap too: this path bypasses cardPicking and fillWithScryfall.
+      if (exceedsFillCeilings(card, fillGates) || isSaltBlocked?.(card.name)) return false;
       if (seatsAsNonbo(card, state)) return false;
 
       const swappable = nonLandNow().filter((c) => !collectionNames.has(c.name) && !keeps(c, card));
@@ -4012,6 +4038,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       if (currentCurveCounts[evictedCmc] > 0) currentCurveCounts[evictedCmc]--;
 
       // Seat the owned card in its place.
+      recordFillSeat(card, fillGates);
       stampRoleSubtypes(card);
       routeCardByType(card, categories);
       usedNames.add(card.name);
@@ -4143,6 +4170,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     scryfallCardMap,
     budgetTracker,
     bracketGuard,
+    isSaltBlocked,
   });
   detectedCombos = comboAuditResult.detectedCombos;
   comboAuditRepairs.push(...comboAuditResult.repairs);
@@ -4153,10 +4181,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // If the deck has zero complete 2-card combos and bracket allows it,
   // seed the single best available 2-card combo (1-card-missing).
   {
-    const mustIncludeSet = new Set([
-      ...customization.mustIncludeCards.map((n) => n.toLowerCase()),
-      ...customization.tempMustIncludeCards.map((n) => n.toLowerCase()),
-    ]);
+    const mustIncludeSet = protectedMustIncludeNames(state);
     const floorResult = applyComboFloor(state, {
       detectedCombos,
       scryfallCardMap,
@@ -4166,6 +4191,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       maxCardPrice,
       currency,
       ignoreOwnedBudget,
+      isSaltBlocked,
     });
     detectedCombos = floorResult.detectedCombos;
     comboBudgetSkipCount += floorResult.budgetSkipped;
@@ -4218,10 +4244,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // the repaired list and the report shows only what repair couldn't fix.
   let coherenceRepairs: CoherenceRepair[] = [];
   {
-    const repairMustInclude = new Set([
-      ...customization.mustIncludeCards.map((n) => n.toLowerCase()),
-      ...customization.tempMustIncludeCards.map((n) => n.toLowerCase()),
-    ]);
+    const repairMustInclude = protectedMustIncludeNames(state);
     const repairLiftIndex = getLiftIndex(state);
     const repairResult = await applyCoherenceRepair(state, {
       scryfallCardMap,
@@ -4310,10 +4333,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // swap soft-signal cards for neutral filler until the deck lands in-band.
   // Runs before scoring/relevancy/grade so they all see the converged deck.
   {
-    const convergeMustInclude = new Set([
-      ...customization.mustIncludeCards.map((n) => n.toLowerCase()),
-      ...customization.tempMustIncludeCards.map((n) => n.toLowerCase()),
-    ]);
+    const convergeMustInclude = protectedMustIncludeNames(state);
     const converge = applyBracketConvergence(state, {
       scryfallCardMap,
       detectedCombos,
@@ -4359,10 +4379,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   let budgetConvergedSwaps = 0;
   let budgetResidualReason: string | undefined;
   if (deckBudget !== null) {
-    const budgetMustInclude = new Set([
-      ...customization.mustIncludeCards.map((n) => n.toLowerCase()),
-      ...customization.tempMustIncludeCards.map((n) => n.toLowerCase()),
-    ]);
+    const budgetMustInclude = protectedMustIncludeNames(state);
     const budgetLiftIndex = getLiftIndex(state);
     const budgetResult = await applyBudgetConvergence(state, {
       scryfallCardMap,
@@ -4443,10 +4460,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     scryfallCardMap,
     roleTargets,
     detectedCombos,
-    mustIncludeNames: new Set([
-      ...customization.mustIncludeCards.map((n) => n.toLowerCase()),
-      ...customization.tempMustIncludeCards.map((n) => n.toLowerCase()),
-    ]),
+    mustIncludeNames: protectedMustIncludeNames(state),
     cardAllowed: isCardAllowedBySynergyDependencies,
     liftScoreOf,
     isSaltBlocked,
@@ -4502,10 +4516,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // this point mutates deck contents (liftPicksPhase below only suggests), so
   // this is the true last word on combo membership feeding the disclosure
   // below and the final bracket estimate/grade.
-  const postRefreshMustInclude = new Set([
-    ...customization.mustIncludeCards.map((n) => n.toLowerCase()),
-    ...customization.tempMustIncludeCards.map((n) => n.toLowerCase()),
-  ]);
+  const postRefreshMustInclude = protectedMustIncludeNames(state);
   reconvergeUntilStable(
     () =>
       applyBracketConvergence(state, {
@@ -5055,7 +5066,21 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   };
 
   // E1006: late and read-only. Nothing above changes for it.
-  const targetMisses = computeTargetMisses(generated, context, { effectiveNonBasicLandCount });
+  // E1005: include-list and build-from-deck picks are must-includes the
+  // invariants must see, not only the typed list.
+  const askedForNames = [
+    ...(context.optimizeDeckCards ?? []),
+    ...(customization.appliedIncludeLists ?? [])
+      .filter((ref) => ref.enabled)
+      .flatMap((ref) => userLists.find((l) => l.id === ref.listId)?.cards ?? []),
+  ];
+  const targetMisses = computeTargetMisses(
+    generated,
+    { ...context, askedForNames },
+    {
+      effectiveNonBasicLandCount,
+    }
+  );
   if (targetMisses.length > 0) generated.targetMisses = targetMisses;
   return generated;
 }

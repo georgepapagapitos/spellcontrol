@@ -362,6 +362,10 @@ interface RunSpec {
    *  then stamps it onto the card (withChosenColor), so the harness does the
    *  same and refuses a chooser row without one. */
   chosenColor?: string;
+  /** E1005: build-from-deck picks (must-includes the app seeds from an existing
+   *  deck). The harness has no user lists, so this is how a row asks for a
+   *  must-include that is not in `overrides.mustIncludeCards`. */
+  optimizeDeckCards?: string[];
 }
 
 /** A row's themes in pick order: `themes`, else the single themeName/themeSlug. */
@@ -866,6 +870,7 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
           })),
           collectionNames,
           collectionPool: fixture ? fixture.pool : collectionNames ? COLLECTION_POOL : undefined,
+          optimizeDeckCards: spec.optimizeDeckCards,
           // E638: the search ends on its evaluation cap, not the machine's clock,
           // so two runs of one commit build the same deck (liveGenSearch.ts).
           searchTimeBudgetMs: liveSearchBudgetMs(process.env),
@@ -924,6 +929,7 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
         deckViolations = checkDeckInvariants(deck, {
           ...ctx,
           themePages,
+          askedForNames: ctx.optimizeDeckCards,
           nameResolutions: [...NAME_RESOLUTIONS.values()],
           requestedNames: await requestedPoolNames(spec, commander, partnerCommander, custom),
         });

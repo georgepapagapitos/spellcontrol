@@ -128,6 +128,12 @@ export interface InvariantContext {
    * harness reads them.
    */
   themePages?: readonly ThemePage[];
+  /**
+   * Cards the player asked for outside `customization.mustIncludeCards`: the
+   * applied include lists and the build-from-deck picks (E1005). They are
+   * must-includes too, so a missing one is graded like a typed must-include.
+   */
+  askedForNames?: Iterable<string>;
   /** "Today", for the previewed-commander check. Defaults to now; tests pin
    *  it so a card's release date can't flip their answer. */
   now?: Date;
@@ -501,6 +507,7 @@ export function checkDeckInvariants(
   const checkedMust = new Set<string>();
   const mustSources: Array<[string, 'user' | 'combo']> = [
     ...(cz.mustIncludeCards ?? []).map((n): [string, 'user'] => [n, 'user']),
+    ...[...(ctx.askedForNames ?? [])].map((n): [string, 'user'] => [n, 'user']),
     ...(cz.tempMustIncludeCards ?? []).map((n): [string, 'combo'] => [n, 'combo']),
   ];
   for (const [name, source] of mustSources) {
