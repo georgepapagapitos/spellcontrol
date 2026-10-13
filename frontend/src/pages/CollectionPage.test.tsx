@@ -28,6 +28,9 @@ vi.mock('@/components/collection/CardListTable', () => ({
 vi.mock('@/components/collection/StatsBar', () => ({
   StatsBar: ({ open }: { open: boolean }) => (open ? <div data-testid="stats-drawer" /> : null),
 }));
+vi.mock('@/components/collection/PostImportMoment', () => ({
+  PostImportMoment: () => <div data-testid="post-import-moment" />,
+}));
 vi.mock('@/components/share/ShareDialog', () => ({ ShareDialog: () => null }));
 // Controllable sync state so we can exercise the fresh-device "loading your
 // collection" branch without standing up the real sync engine.
@@ -61,6 +64,7 @@ vi.mock('@/components/import/AddCardsSheet', () => ({
 import { CollectionPage } from './CollectionPage';
 import { useCollectionStore } from '../store/collection';
 import { useAuth } from '../store/auth';
+import { usePostImportMoment } from '../store/post-import-moment';
 
 function renderPage(initialEntry = '/collection') {
   return render(
@@ -336,5 +340,32 @@ describe('CollectionPage – Delete collection from ⋮', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByRole('heading', { name: 'Delete your collection?' })).toBeNull();
     expect(clearCards).not.toHaveBeenCalled();
+  });
+});
+
+describe('CollectionPage – what we found (E307)', () => {
+  const oneCard = [{ copyId: 'c1', scryfallId: 'sf1', name: 'Sol Ring' }] as never;
+
+  it('shows the moment after an import announced it', () => {
+    useCollectionStore.setState({ cards: oneCard });
+    usePostImportMoment.setState({ importId: 'imp1', open: true });
+    renderPage();
+    expect(screen.getByTestId('post-import-moment')).toBeTruthy();
+  });
+
+  it('stays out of the way once dismissed, and comes back from the menu', () => {
+    useCollectionStore.setState({ cards: oneCard });
+    usePostImportMoment.setState({ importId: 'imp1', open: false });
+    renderPage();
+    expect(screen.queryByTestId('post-import-moment')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'More collection actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'What we found' }));
+    expect(screen.getByTestId('post-import-moment')).toBeTruthy();
+  });
+
+  it('does not show on an empty collection', () => {
+    usePostImportMoment.setState({ importId: 'imp1', open: true });
+    renderPage();
+    expect(screen.queryByTestId('post-import-moment')).toBeNull();
   });
 });

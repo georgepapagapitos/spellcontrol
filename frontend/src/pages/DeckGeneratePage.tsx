@@ -82,6 +82,9 @@ export interface GenerateRouteState {
   /** The Decks index's "New deck from my collection" door: open the picker on
    *  the collection. */
   commanderSource?: 'binder';
+  /** Set with `?commander=` by the post-import moment (E307): build from the
+   *  player's collection first, then fill from EDHREC. */
+  ownedFirst?: boolean;
 }
 
 const METHOD_LABEL: Record<Customization['generationMode'], string> = {
@@ -303,7 +306,12 @@ export function DeckGeneratePage() {
     void (async () => {
       try {
         const card = await getCardByName(commanderParam);
-        if (!cancelled) selectCommander(card);
+        if (!cancelled) {
+          if (routerState?.ownedFirst) {
+            updateCustomizationStore({ collectionMode: true, collectionStrategy: 'prefer' });
+          }
+          selectCommander(card);
+        }
       } catch {
         /* unresolved: the finder stays open */
       }
@@ -321,7 +329,15 @@ export function DeckGeneratePage() {
     return () => {
       cancelled = true;
     };
-  }, [commanderParam, prefill, selectCommander, setSearchParams, location.state]);
+  }, [
+    commanderParam,
+    prefill,
+    selectCommander,
+    updateCustomizationStore,
+    setSearchParams,
+    location.state,
+    routerState?.ownedFirst,
+  ]);
 
   // ── Start blank: this commander, no cards ──────────────────────────────
   const handleStartBlank = useCallback(async () => {

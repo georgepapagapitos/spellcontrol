@@ -1,4 +1,4 @@
-import { BarChart3, Download, History, Plus, Share2, Trash2 } from 'lucide-react';
+import { BarChart3, Download, History, Plus, Share2, Sparkles, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAnimatedNumber } from '@/lib/util/use-animated-number';
@@ -19,6 +19,8 @@ import { CollectionExportDialog } from '@/components/collection/CollectionExport
 import { ImportHistorySheet } from '@/components/import/ImportHistorySheet';
 import { DeleteCollectionDialog } from '@/components/collection/DeleteCollectionDialog';
 import { Button } from '@/components/shared/Button';
+import { PostImportMoment } from '@/components/collection/PostImportMoment';
+import { usePostImportMoment } from '@/store/post-import-moment';
 
 export function CollectionPage() {
   // BinderPage's inputs (decorated cards, allocations, set data), so the
@@ -102,6 +104,9 @@ export function CollectionPage() {
 
   const [deleteOpen, setDeleteOpen] = useState(false);
 
+  const momentOpen = usePostImportMoment((s) => s.open);
+  const reopenMoment = usePostImportMoment((s) => s.reopen);
+
   const collectionCardCount = cards.length;
   const collectionValue = useMemo(
     () => cards.reduce((sum, c) => sum + c.purchasePrice, 0),
@@ -178,6 +183,12 @@ export function CollectionPage() {
                 icon: Share2,
                 opensDialog: true,
                 onClick: () => setShareOpen(true),
+              },
+              {
+                label: 'What we found',
+                icon: Sparkles,
+                menuOnly: true,
+                onClick: reopenMoment,
               },
               {
                 label: 'Import history',
@@ -283,6 +294,7 @@ export function CollectionPage() {
               a separate import screen — adding/importing happens through the
               always-present "Add cards" sheet (search · list · scan). Stats and
               Share hide when there's nothing yet to break down or share. */}
+          {momentOpen && !isEmpty && <PostImportMoment cards={cards} />}
           <CardListTable
             cards={cards}
             binders={materialized}

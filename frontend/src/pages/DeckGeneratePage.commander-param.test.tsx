@@ -65,6 +65,9 @@ import { useDeckBuilderStore } from '@/deck-builder/store';
 
 afterEach(() => {
   useDeckBuilderStore.getState().reset();
+  useDeckBuilderStore
+    .getState()
+    .updateCustomization({ collectionMode: false, collectionStrategy: 'available' });
   getCardByName.mockClear();
 });
 
@@ -88,6 +91,28 @@ describe('DeckGeneratePage ?commander=', () => {
     );
     expect(getCardByName).toHaveBeenCalledWith('Krenko, Mob Boss');
     await waitFor(() => expect(screen.getByTestId('search').textContent).toBe('?format=commander'));
+  });
+
+  it('builds owned-first when the post-import moment sent it (ownedFirst)', async () => {
+    renderAt({
+      pathname: '/decks/new/generate',
+      search: '?commander=Krenko%2C%20Mob%20Boss',
+      state: { ownedFirst: true },
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId('commander-search').dataset.value).toBe('Krenko, Mob Boss')
+    );
+    const { customization } = useDeckBuilderStore.getState();
+    expect(customization.collectionMode).toBe(true);
+    expect(customization.collectionStrategy).toBe('prefer');
+  });
+
+  it('leaves collection mode alone for a plain ?commander= link', async () => {
+    renderAt('/decks/new/generate?commander=Krenko%2C%20Mob%20Boss');
+    await waitFor(() =>
+      expect(screen.getByTestId('commander-search').dataset.value).toBe('Krenko, Mob Boss')
+    );
+    expect(useDeckBuilderStore.getState().customization.collectionStrategy).not.toBe('prefer');
   });
 
   it('leaves the finder open when the name does not resolve', async () => {

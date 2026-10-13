@@ -59,6 +59,9 @@ export const EVENT_NAMES = new Set([
   'deck_stats_viewed',
   'test_hand_opened',
   'walkthrough_finished',
+  'import_completed',
+  'post_import_shown',
+  'post_import_tapped',
 ]);
 
 /**
