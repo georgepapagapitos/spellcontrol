@@ -576,7 +576,7 @@ const DETECTORS: Detector[] = [
 // buffs it hands to other creatures ("gains double strike") and "enchanted
 // creature" removal are the gear-matters or support decks the golden set rejects.
 const VOLTRON_TEXT =
-  /\battach(?:ed)?\b[^.]*\bto (?:~|it|him|her)\b|\b(?:~|it|he|she)(?: is|'s) (?:equipped|enchanted)\b|\b(?:aura|equipment)\b[^.]*\bspells?\b[^.]*\bcost\b|\bcast (?:an? )?(?:aura|equipment)\b[^.]*\bfrom\b|\bcommanders? you control\b|\bequipped creatures?\b/;
+  /\battach(?:ed)?\b[^.]*\bto (?:~|\b(?:it|him|her)\b)|(?:~|\b(?:it|he|she))(?: is|'s) (?:equipped|enchanted)\b|\b(?:aura|equipment)\b[^.]*\bspells?\b[^.]*\bcost\b|\bcast (?:an? )?(?:aura|equipment)\b[^.]*\bfrom\b|\bcommanders? you control\b/;
 // The keyword route (evasion/protection stacks) only counts when the commander's
 // text is about itself. Text that lends something to other creatures, triggers on
 // other permanents or hits a target (Lyra's other Angels, Avacyn's indestructible,
@@ -586,7 +586,31 @@ const LENDS_OUTWARD =
   /\b(?:other|each|target|enters|dies|upkeep|proliferate)\b|\bwhenever (?:an?|you|one or more)\b|\bcreatures? you control\b/;
 // A lone evasion/protection keyword plus "whenever ~ deals combat damage" is a
 // commander that wants to connect (Vorosh, Black Widow).
+// Double strike on its own is a voltron body unless the card hands it, or haste, to a whole team
+// (Kratos, Sylvia Brightspear), and only when no engine is the main text (Oketra the True).
+const TEAM_DOUBLE_STRIKE = /\b(?:all creatures|your team)\b/;
 const SELF_COMBAT = /\bwhenever ~ deals combat damage\b/;
+// A combat-damage payoff that rewards OTHER creatures (Prowler's counter on another target
+// creature) is a support commander, not one that connects alone.
+const PAYS_OTHER_CREATURES =
+  /\banother (?:target )?creature\b|\btarget creature\b|\bother creatures\b|\bcreatures you control\b/;
+// (a) of golden R11: the commander grows itself by its own action. A counter on
+// itself from its own attack, combat damage or beginning-of-combat/turn trigger,
+// or from a mana-paid activation. Growth that waits on OTHER things (another
+// creature entering, you drawing) never matches because the trigger is named here.
+const SELF_GROWTH =
+  /\bwhenever ~ (?:attacks|deals combat damage)[^.]*(?:\.[^.]*)?\bput [^.]*?\+1\/\+1 counters? on (?:~|\b(?:it|him|her)\b)|\bwhenever ~ [^.,]*\battacks?\b[^.]*,[^.]*~ gets \+|\bat the beginning of (?:combat|your (?:upkeep|combat|turn|precombat main phase))[^.]*\bput [^.]*?\+1\/\+1 counters? on (?:~|\b(?:it|him|her)\b)|\}[^:.]*: [^.]*(?:\bput [^.]*?\+1\/\+1 counters? on (?:~|\b(?:it|him|her)\b)(?![^.]*(?:\.[^.]*)?\bcreates?\b)|~ gets \+)/;
+// Evasion and protection the commander writes out on itself rather than as a
+// Scryfall keyword ("can't be blocked", "it has hexproof").
+const SELF_UNBLOCKABLE =
+  /(?:~|\b(?:it|he|she)) can't be blocked(?! by (?:more than|creatures (?:with (?!power|greater)|of)))/;
+const SELF_EVASION_TEXT: Array<[string, RegExp]> = [
+  ['unblockable', SELF_UNBLOCKABLE],
+  ['hexproof', /(?:~|\b(?:it|he|she)) (?:has|gains?) [^.]*\bhexproof\b/],
+  ['protection', /(?:~|\b(?:it|he|she)) (?:has|gains?) [^.]*\bprotection from\b/],
+  ['ward', /(?:~|\b(?:it|he|she)) (?:has|gains?) [^.]*\bward\b/],
+  ['indestructible', /(?:~|\b(?:it|he|she)) (?:has|gains?) [^.]*\bindestructible\b/],
+];
 // Exported so the display-side playstyle index can recover these from oracle
 // text for collection cards, which carry no Scryfall `keywords` array.
 export const VOLTRON_KEYWORDS = new Set([
@@ -603,6 +627,39 @@ export const VOLTRON_KEYWORDS = new Set([
   'indestructible',
   'deathtouch',
 ]);
+
+// The community half of the voltron rule (golden R11). EDHREC's Voltron theme
+// share is the Voltron tag's count over the sum of the page's theme counts.
+// Under 4% on a page with 30 or more themed decks the commander is not voltron
+// even when its text fits (Gisela, Emrakul and Gishath carry the keywords, not
+// the deck). The share only vetoes: it never makes a commander voltron, and a
+// thin or missing page leaves the text rule alone.
+const VOLTRON_MIN_THEMED_DECKS = 30;
+const VOLTRON_MIN_THEME_SHARE = 0.04;
+
+/** The slice of EDHREC's commander-page themes the profile reads (an `EDHRECTheme` fits). */
+export interface CommanderProfileTheme {
+  name: string;
+  slug?: string;
+  count: number;
+}
+
+export interface CommanderProfileOptions {
+  /** The commander's EDHREC page themes, when the page was fetched. Absent = text decides. */
+  edhrecThemes?: ReadonlyArray<CommanderProfileTheme>;
+}
+
+function voltronVetoed(themes: ReadonlyArray<CommanderProfileTheme> | undefined): boolean {
+  if (!themes) return false;
+  let total = 0;
+  let voltron = 0;
+  for (const t of themes) {
+    if (!(t.count > 0)) continue;
+    total += t.count;
+    if (t.slug === 'voltron' || t.name.toLowerCase() === 'voltron') voltron += t.count;
+  }
+  return total >= VOLTRON_MIN_THEMED_DECKS && voltron / total < VOLTRON_MIN_THEME_SHARE;
+}
 
 // ─── Profile builder ─────────────────────────────────────────────────
 
@@ -629,7 +686,8 @@ export function isTribalProfile(
 
 export function buildCommanderProfile(
   commander: ScryfallCard,
-  partner?: ScryfallCard | null
+  partner?: ScryfallCard | null,
+  options?: CommanderProfileOptions
 ): CommanderProfile {
   const sources = [commander, ...(partner ? [partner] : [])];
   const text = sources.map((c) => getCombinedOracleText(withoutLandFaces(c))).join('\n');
@@ -686,8 +744,10 @@ export function buildCommanderProfile(
   // keywords with no dominant engine. A lone flyer or a big vanilla body is not a
   // voltron plan: that rule alone was 12% precise against the golden set.
   const kw = new Set((commander.keywords ?? []).map((k) => k.toLowerCase()));
-  const voltronHits = [...kw].filter((k) => VOLTRON_KEYWORDS.has(k));
-  const suitsUp = VOLTRON_TEXT.test(text) || kw.has('double strike');
+  const voltronHitSet = new Set([...kw].filter((k) => VOLTRON_KEYWORDS.has(k)));
+  for (const [name, re] of SELF_EVASION_TEXT) if (re.test(text)) voltronHitSet.add(name);
+  const voltronHits = [...voltronHitSet];
+  const suitsUp = VOLTRON_TEXT.test(text) || SELF_GROWTH.test(text);
   const engineKeywords: CommanderKeyword[] = [
     'tokens',
     'sacrifice',
@@ -699,12 +759,15 @@ export function buildCommanderProfile(
   const hasEngine = abilities.some((a) => engineKeywords.includes(a.keyword));
   if (
     !seen.has('voltron') &&
+    !voltronVetoed(options?.edhrecThemes) &&
     frontTypeLine(commander).toLowerCase().includes('creature') &&
     (suitsUp ||
       (!hasEngine &&
-        (voltronHits.length >= 3 ||
-          (!LENDS_OUTWARD.test(text) &&
-            (voltronHits.length >= 2 || (voltronHits.length >= 1 && SELF_COMBAT.test(text)))))))
+        ((kw.has('double strike') && !TEAM_DOUBLE_STRIKE.test(text)) ||
+          voltronHits.length >= 3 ||
+          (voltronHits.length >= 2 && SELF_UNBLOCKABLE.test(text)) ||
+          (voltronHits.length >= 1 && SELF_COMBAT.test(text) && !PAYS_OTHER_CREATURES.test(text)) ||
+          (voltronHits.length >= 2 && !LENDS_OUTWARD.test(text)))))
   ) {
     abilities.push({
       keyword: 'voltron',

@@ -773,7 +773,9 @@ export async function analyzeCommanderDeck(
     }
 
     const { roleCounts } = computeRoleCounts(params.cards);
-    const commanderProfile = buildCommanderProfile(params.commander, params.partnerCommander);
+    const commanderProfile = buildCommanderProfile(params.commander, params.partnerCommander, {
+      edhrecThemes: edhrecData.themes,
+    });
     const commanders = [params.commander, params.partnerCommander ?? []].flat();
     const { roleTargets, overridePacing, overrideLandTarget } = deriveAnalysisTargets({
       commanders,

@@ -462,3 +462,151 @@ describe('isTribalProfile', () => {
     expect(isTribalProfile(plain, ['W'])).toBe(false);
   });
 });
+
+// Golden R11: voltron needs the commander's text AND the community's agreement.
+describe('voltron: the EDHREC theme-share veto', () => {
+  const gisela = makeCard({
+    name: 'Gisela, Blade of Goldnight',
+    type_line: 'Legendary Creature — Angel',
+    oracle_text:
+      'Flying, first strike\nIf a source would deal damage to an opponent or a permanent an opponent controls, that source deals double that damage instead.',
+    keywords: ['Flying', 'First strike'],
+  });
+  const savanti = makeCard({
+    name: "Savanti Romero, Time's Exile",
+    type_line: 'Legendary Creature — Demon Wizard',
+    oracle_text:
+      'Trample\nAt the beginning of combat on your turn, put a +1/+1 counter on Savanti Romero. Then you draw X cards and lose X life, where X is the number of counters on Savanti Romero.',
+    keywords: ['Trample'],
+  });
+  const theme = (name: string, count: number) => ({ name, slug: name.toLowerCase(), count });
+  const isVoltron = (c: ScryfallCard, edhrecThemes?: ReturnType<typeof theme>[]) =>
+    buildCommanderProfile(c, null, { edhrecThemes }).abilities.some((a) => a.keyword === 'voltron');
+
+  it('fires on text alone when no page was fetched', () => {
+    expect(isVoltron(savanti)).toBe(true);
+    expect(isVoltron(savanti, [])).toBe(true);
+  });
+
+  it('vetoes text that fits when the page has 30+ themed decks and the share is under 4%', () => {
+    expect(isVoltron(savanti, [theme('Voltron', 3), theme('Counters', 297)])).toBe(false);
+  });
+
+  it('keeps it at 4% and above', () => {
+    expect(isVoltron(savanti, [theme('Voltron', 4), theme('Counters', 96)])).toBe(true);
+  });
+
+  it('lets the text decide on a thin page (under 30 themed decks)', () => {
+    expect(isVoltron(savanti, [theme('Voltron', 0), theme('Counters', 29)])).toBe(true);
+  });
+
+  it('ignores zero and missing counts instead of throwing', () => {
+    expect(isVoltron(savanti, [theme('Voltron', 0), theme('Counters', Number.NaN)])).toBe(true);
+  });
+
+  it('never makes a commander voltron on its own: a 40% share with no text stays false', () => {
+    const vanilla = makeCard({ name: 'Bear', type_line: 'Legendary Creature — Bear', power: '2' });
+    expect(isVoltron(vanilla, [theme('Voltron', 40), theme('Other', 60)])).toBe(false);
+  });
+
+  it('vetoes a keyword body the community does not play as voltron (Gisela, 2%)', () => {
+    expect(isVoltron(gisela)).toBe(true);
+    expect(isVoltron(gisela, [theme('Voltron', 17), theme('Angels', 831)])).toBe(false);
+  });
+
+  it('does not change any other keyword', () => {
+    const themes = [theme('Voltron', 1), theme('Counters', 999)];
+    const withThemes = buildCommanderProfile(savanti, null, { edhrecThemes: themes });
+    const without = buildCommanderProfile(savanti);
+    expect(withThemes.abilities.map((a) => a.keyword)).toEqual(
+      without.abilities.map((a) => a.keyword).filter((k) => k !== 'voltron')
+    );
+  });
+});
+
+describe('voltron: the text half', () => {
+  const creature = (name: string, oracle_text: string, kws: string[] = []) =>
+    makeCard({ name, type_line: 'Legendary Creature — Test', oracle_text, keywords: kws });
+  const fires = (c: ScryfallCard) => keywords(c).includes('voltron');
+
+  it('counts a counter it puts on itself from its own combat damage or an activation (Zuko, Viv Vision)', () => {
+    expect(
+      fires(
+        creature(
+          'Zuko, Seeking Honor',
+          'Whenever Zuko deals combat damage to a player, put a +1/+1 counter on him.'
+        )
+      )
+    ).toBe(true);
+    expect(
+      fires(
+        creature(
+          'Viv Vision, Teen Synthezoid',
+          'Flying\nPower-up — {7}: Put two +1/+1 counters on Viv Vision.'
+        )
+      )
+    ).toBe(true);
+  });
+
+  it('does not count growth that waits on other creatures or makes tokens alongside (Namora)', () => {
+    expect(
+      fires(creature('Grower', 'Whenever another creature enters, put a +1/+1 counter on Grower.'))
+    ).toBe(false);
+    expect(
+      fires(
+        creature(
+          'Namora, the Sea Queen',
+          'Power-up — {5}{U}: Put a +1/+1 counter on Namora. Create two 1/1 blue Merfolk creature tokens.'
+        )
+      )
+    ).toBe(false);
+  });
+
+  it('counts "can\'t be blocked by creatures with power 2 or less" as evasion next to a keyword (Questing Beast)', () => {
+    const qb = creature(
+      'Questing Beast',
+      "Vigilance, deathtouch, haste\nQuesting Beast can't be blocked by creatures with power 2 or less.\nCombat damage that would be dealt by creatures you control can't be prevented.\nWhenever Questing Beast deals combat damage to an opponent, it deals that much damage to target planeswalker that player controls.",
+      ['Vigilance', 'Haste', 'Deathtouch']
+    );
+    expect(fires(qb)).toBe(true);
+  });
+
+  it('does not count a restriction ("can\'t be blocked by creatures with horsemanship") as evasion (Zuo Ci)', () => {
+    const zuoCi = creature(
+      'Zuo Ci, the Mocking Sage',
+      "Hexproof\nZuo Ci can't be blocked by creatures with horsemanship.",
+      ['Hexproof']
+    );
+    expect(fires(zuoCi)).toBe(false);
+  });
+
+  it('reads "~ is equipped" and "attach ... to ~" at the end of a sentence (Cloud, Yuffie)', () => {
+    expect(
+      fires(
+        creature(
+          "Cloud, Planet's Champion",
+          'During your turn, as long as Cloud is equipped, it has double strike and indestructible.'
+        )
+      )
+    ).toBe(true);
+    expect(
+      fires(
+        creature(
+          'Yuffie, Materia Hunter',
+          'When Yuffie enters, you may attach an Equipment you control to Yuffie.'
+        )
+      )
+    ).toBe(true);
+  });
+
+  it('keeps double strike a body unless it is lent to a whole team (Kratos)', () => {
+    expect(fires(creature('Plain Striker', 'Double strike', ['Double strike']))).toBe(true);
+    expect(
+      fires(
+        creature('Kratos, God of War', 'Double strike\nAll creatures have haste.', [
+          'Double strike',
+        ])
+      )
+    ).toBe(false);
+  });
+});

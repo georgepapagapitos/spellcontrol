@@ -1826,7 +1826,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // archetype-aware land count below. Computed once, unconditionally (not
   // gated behind balancedRoles): a tribal/spellslinger/enchantress commander
   // should get its real archetype and land count regardless of that toggle.
-  const commanderProfile = buildCommanderProfile(commander, partnerCommander);
+  const commanderProfile = buildCommanderProfile(commander, partnerCommander, {
+    edhrecThemes: state.edhrecData?.themes,
+  });
 
   // E89 (iter-7 Slice E): untap-theme visibility. commanderWantsUntap is
   // near-inert for most decks — true only when the commander (or partner)
