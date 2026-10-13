@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '@/types/index';
-import { allocationSummary, buildRows, type CrossDeckCtx } from './deck-display-rows';
+import { buildRows, type CrossDeckCtx } from './deck-display-rows';
+import { allocationSummary } from './deck-row-allocation';
 import { buildCommanderRows } from './deck-display-derive';
 import { deckCardActions } from './deck-card-actions';
 import type { DeckDisplayCard } from './deck-display-types';

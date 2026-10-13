@@ -38,6 +38,15 @@ import { withTagAdded, withTagRemoved } from '@/lib/deck/deck-tags';
 const decksIdbStorage = createIndexedDbStorage('spellcontrol-decks');
 import { pickRandomPresetColor } from '@/lib/util/preset-colors';
 import { migrateDecksState } from './decks-migrate';
+import { defaultDeckName, withCommander } from './deck-naming';
+import {
+  bindCopy,
+  bindSlotCopy,
+  releaseCopyIn,
+  setSlotProxy,
+  withoutReleased,
+  type ReleaseTarget,
+} from './deck-copy-claims';
 import type { EnrichedCard } from '../types';
 import type { SavedCube } from './cube';
 import { toast } from './toasts';
@@ -123,17 +132,8 @@ export interface DeckCard {
   released?: true;
 }
 
-/** A slot with `copyId` bound to it. Binding a real copy ends a proxy or a release. */
-function bindCopy(c: DeckCard, copyId: string | null): DeckCard {
-  if (!copyId || (!c.proxy && !c.released)) return { ...c, allocatedCopyId: copyId };
-  const { proxy: _proxy, released: _released, ...rest } = c;
-  void _proxy;
-  void _released;
-  return { ...rest, allocatedCopyId: copyId };
-}
-
-/** Which copy claim "Release copy" lets go of: a list slot or a commander seat. */
-export type ReleaseTarget = { slotId: string } | 'commander' | 'partner';
+export type { ReleaseTarget } from './deck-copy-claims';
+export { UNTITLED_DECK_NAME, commanderShortName, deckNameForCommander } from './deck-naming';
 
 /** The three zones a `DeckCard` slot can live in — tags (and any other
  *  per-slot user edit) are scoped to whichever zone the slot is in. */
@@ -873,75 +873,24 @@ export const useDecksStore = create<DecksState>()(
           ),
         })),
 
-      setCardAllocation: (deckId, slotId, allocatedCopyId) => {
-        // Every claiming zone: a sideboard or considering slot takes a copy too.
-        const bind = (list: DeckCard[] | undefined) =>
-          (list ?? []).map((c) => (c.slotId === slotId ? bindCopy(c, allocatedCopyId) : c));
+      setCardAllocation: (deckId, slotId, allocatedCopyId) =>
         set((s) => ({
           decks: s.decks.map((d) =>
-            d.id === deckId
-              ? touch({
-                  ...d,
-                  cards: bind(d.cards),
-                  sideboard: bind(d.sideboard),
-                  considering: bind(d.considering),
-                })
-              : d
+            d.id === deckId ? touch(bindSlotCopy(d, slotId, allocatedCopyId)) : d
           ),
-        }));
-      },
+        })),
 
-      releaseCopy: (deckId, target) => {
-        const release = (list: DeckCard[] | undefined) =>
-          (list ?? []).map((c): DeckCard =>
-            typeof target === 'object' && c.slotId === target.slotId
-              ? { ...c, allocatedCopyId: null, released: true }
-              : c
-          );
+      releaseCopy: (deckId, target) =>
         set((s) => ({
-          decks: s.decks.map((d) => {
-            if (d.id !== deckId) return d;
-            if (target === 'commander')
-              return touch({ ...d, commanderAllocatedCopyId: null, commanderReleased: true });
-            if (target === 'partner')
-              return touch({
-                ...d,
-                partnerCommanderAllocatedCopyId: null,
-                partnerCommanderReleased: true,
-              });
-            return touch({
-              ...d,
-              cards: release(d.cards),
-              sideboard: release(d.sideboard),
-              considering: release(d.considering),
-            });
-          }),
-        }));
-      },
+          decks: s.decks.map((d) => (d.id === deckId ? touch(releaseCopyIn(d, target)) : d)),
+        })),
 
-      setCardProxy: (deckId, slotId, proxy, allocatedCopyId = null) => {
-        const apply = (list: DeckCard[] | undefined) =>
-          (list ?? []).map((c): DeckCard => {
-            if (c.slotId !== slotId) return c;
-            const { proxy: _proxy, released: _released, ...rest } = c;
-            void _proxy;
-            void _released;
-            if (proxy) return { ...rest, allocatedCopyId: null, proxy: true };
-            return { ...rest, allocatedCopyId };
-          });
+      setCardProxy: (deckId, slotId, proxy, allocatedCopyId = null) =>
         set((s) => ({
           decks: s.decks.map((d) =>
-            d.id === deckId
-              ? touch({
-                  ...d,
-                  cards: apply(d.cards),
-                  sideboard: apply(d.sideboard),
-                  considering: apply(d.considering),
-                })
-              : d
+            d.id === deckId ? touch(setSlotProxy(d, slotId, proxy, allocatedCopyId)) : d
           ),
-        }));
-      },
+        })),
 
       setCardTags: (deckId, zone, slotIds, tags) => {
         const ids = new Set(slotIds);
@@ -1619,66 +1568,6 @@ export const useDecksStore = create<DecksState>()(
 
 export function newDeckCard(card: ScryfallCard, allocatedCopyId: string | null = null): DeckCard {
   return { slotId: genId('slot'), card, allocatedCopyId, addedAt: Date.now() };
-}
-
-/** The name a deck gets when it's created with no name and no commander. */
-export const UNTITLED_DECK_NAME = 'Untitled deck';
-
-/**
- * A commander's short name: everything before the first comma for two-name
- * commanders ("Korvold, Fae-Cursed King" → "Korvold"). What a new deck is
- * named after, and what the editor calls the commander in a toast.
- */
-export function commanderShortName(commander: ScryfallCard): string {
-  return commander.name.split(',')[0].trim();
-}
-
-function defaultDeckName(commander: ScryfallCard | null): string {
-  return commander ? commanderShortName(commander) : UNTITLED_DECK_NAME;
-}
-
-/**
- * The deck with `card` in the command zone. A deck still carrying the
- * placeholder name takes the incoming commander's short name, the same rule
- * `createDeck` uses, so a deck started empty and given a commander later reads
- * the same as one created with it (E465). Only a CHANGE of commander renames:
- * re-seating the same card (releasing its copy claim, a cross-deck move) is
- * not a pick. Only the store's own mutators call this. A server pull or an
- * undo writes the whole row through `setState`/`replaceDeck` and never passes
- * here, so a commander arriving from another device can't rename anything.
- */
-function withCommander(d: Deck, card: ScryfallCard | null, allocated: string | null): Deck {
-  return {
-    ...withoutReleased(d, 'commanderReleased'),
-    name: deckNameForCommander(d, card),
-    commander: card,
-    commanderAllocatedCopyId: allocated,
-  };
-}
-
-/** The deck without one commander seat's release marker: seating a card or
- *  binding a copy there is the user taking the seat back. */
-function withoutReleased(d: Deck, key: 'commanderReleased' | 'partnerCommanderReleased'): Deck {
-  if (!d[key]) return d;
-  const next = { ...d };
-  delete next[key];
-  return next;
-}
-
-/**
- * The name `deck` should carry once `next` is its commander: the incoming
- * commander's short name when the deck still has the placeholder name and the
- * commander actually changes, else the name it already has. The rule behind
- * {@link withCommander}, exported for the dialogs that commit a whole deck
- * through `replaceDeck` (Paste cards, Bulk edit) so every way of picking a
- * commander names the deck the same way.
- */
-export function deckNameForCommander(
-  deck: Pick<Deck, 'name' | 'commander'>,
-  next: ScryfallCard | null
-): string {
-  const rename = !!next && deck.name === UNTITLED_DECK_NAME && deck.commander?.name !== next.name;
-  return rename ? defaultDeckName(next) : deck.name;
 }
 
 /** Look up a deck by id (selector helper). */

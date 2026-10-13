@@ -47,14 +47,13 @@ import { ComboBadge } from './ComboBadge';
 import {
   resolveInclusionPct,
   frontFaceMana,
-  allocationAriaLabel,
-  allocationTitle,
   frontFaceImage,
   frontFaceImageLarge,
   type Row,
   type CurrencyCode,
   type ShowPrefs,
 } from './deck-display-rows';
+import { allocationAriaLabel, allocationTitle } from './deck-row-allocation';
 import { qtyOwnershipClass } from './deck-display-derive';
 import { SectionIcon, AllocationChip, ProxyTag } from './deck-display-icons';
 import { RoleBadge, LegalityBadge } from './deck-display-icons';

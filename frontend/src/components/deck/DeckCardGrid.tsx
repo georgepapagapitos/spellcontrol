@@ -24,13 +24,13 @@ import { type BinderInfo } from '@/lib/binder/binder-refs';
 import { formatMoney } from '@/lib/collection/format-money';
 import {
   foilTileClass,
-  allocationSummary,
   packInOrder,
   gridSectionSpan,
   type CurrencyCode,
   type Row,
   type TypedGroup,
 } from './deck-display-rows';
+import { allocationSummary } from './deck-row-allocation';
 import { SectionIcon } from './deck-display-icons';
 import { FoilShimmer } from '../shared/FoilShimmer';
 import { PartnerHeaderButton, LegalityBadge, RoleBadge } from './deck-display-icons';
