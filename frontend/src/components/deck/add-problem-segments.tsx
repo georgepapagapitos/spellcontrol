@@ -63,13 +63,13 @@ export function ProblemSegments({ segments }: { segments: React.ReactElement[] }
   ));
 }
 
-/** The add-cards result list: every tab's rows are options of one listbox, and a listbox needs a name. */
+/** The add-cards result list: every tab's rows are list items, each holding its own add / preview / dismiss buttons (an option cannot hold buttons). The search input drives the highlighted row by arrow keys and announces it. */
 export function ResultList({ children }: { children: React.ReactNode }) {
   return (
     <ul
       className="card-search-results"
       id="card-search-results"
-      role="listbox"
+      role="list"
       aria-label="Search results"
     >
       {children}

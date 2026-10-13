@@ -345,8 +345,8 @@ function SearchResultRow({
   return (
     <li
       id={`card-search-result-${resultIndex}`}
-      role="option"
-      aria-selected={active}
+      data-result-name={name}
+      aria-current={active ? 'true' : undefined}
       className={`inline-card-search-item${warn ? ' is-off-color' : ''}`}
       onMouseEnter={onHover}
     >
@@ -507,7 +507,6 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   const [sort, setSort] = useState<AddSort>('default');
   const [announce, setAnnounce] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
-  const [visibleCount, setVisibleCount] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Binder-location discovery hint (see lib/home/wedge-hints.ts) — dismissed
@@ -695,7 +694,12 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
     const moveActive = (delta: number) => {
       const next = Math.min(max - 1, Math.max(0, activeIndex + delta));
       setActiveIndex(next);
-      document.getElementById(`card-search-result-${next}`)?.scrollIntoView({ block: 'nearest' });
+      const row = document.getElementById(`card-search-result-${next}`);
+      row?.scrollIntoView({ block: 'nearest' });
+      // The rows are list items holding their own buttons, not options, so the
+      // input cannot point at the row with aria-activedescendant: say it instead.
+      const rowName = row?.dataset.resultName;
+      if (rowName) handleAnnounce(`${rowName}, ${next + 1} of ${max}. Enter adds it.`);
     };
     if (e.key === 'ArrowDown') {
       if (max === 0) return;
@@ -777,9 +781,6 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
         }
         inputProps={{
           onKeyDown: handleKeyDown,
-          'aria-controls': 'card-search-results',
-          'aria-activedescendant':
-            visibleCount > 0 ? `card-search-result-${activeIndex}` : undefined,
         }}
         trailing={
           activeMode === 'collection' ? (
@@ -880,7 +881,6 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             publishVisible={(cards, addAt) => {
               visibleResultsRef.current = cards;
               addCurrentRef.current = addAt;
-              setVisibleCount(cards.length);
             }}
             compiledSupertype={compiledSupertype}
             compiledTypes={compiledTypes}
@@ -924,7 +924,6 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
               publishVisible={(cards, addAt) => {
                 visibleResultsRef.current = cards;
                 addCurrentRef.current = addAt;
-                setVisibleCount(cards.length);
               }}
               suggestions={suggestions}
               oneAwayCombos={oneAwayCombos}
@@ -953,7 +952,6 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             publishVisible={(cards, addAt) => {
               visibleResultsRef.current = cards;
               addCurrentRef.current = addAt;
-              setVisibleCount(cards.length);
             }}
             gapByName={gapByName}
             comboProducesByName={comboProducesByName}

@@ -970,6 +970,13 @@
   }
 }
 
+/* A list row in a dialog keeps the full 44 on touch. */
+@media (pointer: coarse) {
+  .card-edit-printing-row {
+    min-height: 44px;
+  }
+}
+
 .card-edit-printing-row.is-active {
   border-color: var(--accent);
   background: var(--accent-light);

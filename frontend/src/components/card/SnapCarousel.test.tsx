@@ -28,10 +28,14 @@ function Harness({
   index,
   count = 5,
   handle,
+  onSlideClick,
+  renderSlide = (i: number) => <span>slide {i}</span>,
 }: {
   index: number;
   count?: number;
   handle?: React.Ref<SnapCarouselHandle>;
+  onSlideClick?: (index: number, isActive: boolean) => void;
+  renderSlide?: (index: number) => React.ReactNode;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
   return (
@@ -44,7 +48,8 @@ function Harness({
       windowRadius={1}
       className="track"
       slideClassName="slide"
-      renderSlide={(i) => <span>slide {i}</span>}
+      onSlideClick={onSlideClick}
+      renderSlide={renderSlide}
     />
   );
 }
@@ -161,5 +166,53 @@ describe('SnapCarousel', () => {
     );
     expect(spy).toHaveBeenCalledTimes(1);
     spy.mockRestore();
+  });
+
+  it('a slide is a plain group, so the controls it holds are not nested in a button', () => {
+    // A binder page's tappable cards live inside the slide: an ARIA button
+    // cannot contain them (axe nested-interactive), so the slide is a group and
+    // every button on screen is a real, separate one.
+    render(
+      <Harness index={1} renderSlide={(i) => <button type="button">card on page {i}</button>} />
+    );
+    expect(screen.queryByRole('button', { name: /^Slide / })).toBeNull();
+    expect(screen.getByRole('group', { name: 'Slide 2 of 5' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'card on page 1' })).toBeTruthy();
+  });
+
+  it('the track is a labelled, focusable scroll region', () => {
+    render(<Harness index={0} />);
+    const track = screen.getByRole('region', { name: 'Slides' });
+    expect(track.tabIndex).toBe(0);
+  });
+
+  it('a tap on a peeking slide centers it and reports it, a tap on the active slide only reports', () => {
+    const onSlideClick = vi.fn();
+    render(<Harness index={2} onSlideClick={onSlideClick} />);
+    const spy = vi.spyOn(Element.prototype, 'scrollIntoView').mockClear();
+    fireEvent.click(screen.getByText('slide 3'));
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(onSlideClick).toHaveBeenLastCalledWith(3, false);
+    spy.mockClear();
+    fireEvent.click(screen.getByText('slide 2'));
+    expect(spy).not.toHaveBeenCalled();
+    expect(onSlideClick).toHaveBeenLastCalledWith(2, true);
+    spy.mockRestore();
+  });
+
+  it('a tap on a control inside a slide still reaches that control', () => {
+    const inner = vi.fn();
+    render(
+      <Harness
+        index={2}
+        renderSlide={(i) => (
+          <button type="button" onClick={inner}>
+            card on page {i}
+          </button>
+        )}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'card on page 2' }));
+    expect(inner).toHaveBeenCalledTimes(1);
   });
 });

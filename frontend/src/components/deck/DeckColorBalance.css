@@ -148,8 +148,18 @@
     transform: translate(-50%, -50%);
   }
 
+  /* The two counts sit side by side: stacked, their press targets share one
+     ~25px pitch and cannot both reach 44. A row is then one 44px line, so the
+     ghosts of the rows above and below clear each other too. */
+  .deck-color-balance-row {
+    min-height: 44px;
+    box-sizing: border-box;
+  }
+
   .deck-color-balance-values {
-    row-gap: var(--space-2);
+    grid-auto-flow: column;
+    align-items: center;
+    column-gap: var(--space-2);
   }
 }
 

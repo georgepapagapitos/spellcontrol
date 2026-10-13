@@ -1367,6 +1367,17 @@ button.playtest-card-pt__value--editable:focus-visible {
   outline-offset: 1px;
 }
 
+/* The plates print where a card's body prints, so they scale with the card and
+   read 16px on a small table. Two of them sit edge to edge, so a ghost cannot
+   grow either one past the other: on touch each plate itself clears the 24px
+   WCAG 2.5.8 floor (a 44px press would steal the card's own tap). */
+@media (pointer: coarse) {
+  button.playtest-card-pt__value--editable {
+    min-width: 24px;
+    min-height: 24px;
+  }
+}
+
 @media (hover: hover) and (pointer: fine) {
   button.playtest-card-pt__value--editable:hover {
     background: #2a2a2e;
@@ -3222,8 +3233,18 @@ button.playtest-card-pt__value--editable:focus-visible {
    without letting it grow the panel or reach over the felt. Same technique as
    the mana pips and the pile kebab. */
 @media (pointer: coarse) {
+  /* The three press targets share one row and the details chevron sits right
+     under it, so no ghost can reach 44 without being clipped by a neighbour:
+     the boxes themselves are 44 (the glyphs stay small and centered). */
   .playtest-life-table__step {
     position: relative;
+    width: 44px;
+    height: 44px;
+  }
+
+  .playtest-life-table__total {
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 
@@ -3303,6 +3324,7 @@ button.playtest-card-pt__value--editable:focus-visible {
 @media (pointer: coarse) {
   .playtest-life-table__details {
     position: relative;
+    min-height: 44px;
   }
 
   .playtest-life-table__details::after {

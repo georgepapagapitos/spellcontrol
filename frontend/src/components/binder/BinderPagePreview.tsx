@@ -232,6 +232,7 @@ export function BinderPagePreview({
               prevLabel="Previous page"
               nextLabel="Next page"
               slideClassName="binder-pages-slide"
+              label="Binder pages"
               renderSlide={(i) => (
                 <SlideGrid
                   slots={pages[i].slots}

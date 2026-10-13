@@ -1536,6 +1536,16 @@ e.currentTarget) close(); }}`. A full-screen viewer whose backdrop is covered by
   handler even when the container drives arrow keys (`useMenuKeyboard`).
   A search input that opens one is `role="combobox"` with
   `aria-expanded`, `aria-controls`, `aria-autocomplete="list"`.
+- **A row that holds its own buttons is not an option, and a slide that holds
+  controls is not a button.** An ARIA option or button cannot contain
+  interactive content (axe `nested-interactive`), so an add-cards result row
+  is a plain `li` in a `role="list"` (its add, preview and dismiss buttons are
+  siblings), and a `SnapCarousel` slide is `role="group"` with the track as the
+  one focusable region. The search input still drives the highlighted row with
+  the arrow keys and Enter, and says which row it is on through the live region
+  instead of `aria-activedescendant` (the row is marked `aria-current`). The
+  nightly overlay walk (`scripts/journey-overlays.mjs`) gates this at zero, with
+  no allowance list.
 - **Labels label a control.** `<label>` sits on a real input via `htmlFor`,
   or becomes a `<span id>` the custom control points at with
   `aria-labelledby`. A label wrapping an icon-only control carries its text
@@ -2199,6 +2209,16 @@ transform: translate(-50%, -50%)` on a `position: relative` parent) rather
   playtest sweep measured 42 of 43 `.btn` on /you at 41px, and #2239 did the
   same for `.pill-btn`. Every shared control is 44px on a coarse pointer now;
   those per-surface selectors restate the base rule.
+- **Overlays obey the same floor.** The nightly overlay walk
+  (`scripts/journey-overlays.mjs`) opens every menu, popover, dialog and sheet
+  on the phone tier and measures real hit areas inside it, so a popover row, a
+  dialog list row and a sheet's chips are held to 44px like a page control.
+  Two sizing rules the walk surfaced: controls that share a row with a
+  neighbour (the playtest life steps, a stat panel's two counts) cannot both
+  ghost to 44, so the boxes themselves are 44 or the row is laid out so the
+  press targets do not share a pitch; and a ghost that would bite into a
+  neighbour grows away from it (upward from the glyph's bottom edge) instead of
+  centering.
 - **In a dense list row, NO control may take the 44px on its own box — every
   one of them ghosts.** A row is `display: flex; align-items: center`, so a
   child with `min-height: 44px` sets the **row's** height. One un-ghosted

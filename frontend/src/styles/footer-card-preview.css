@@ -172,6 +172,12 @@
   transition: transform 0.22s var(--ease-out-soft);
 }
 
+.card-preview-track:focus-visible,
+.binder-pages-track:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 .card-preview-close {
   position: absolute;
   top: calc(var(--safe-top) + var(--space-1));
@@ -1036,7 +1042,7 @@
   .card-preview-context-pill::after {
     content: '';
     position: absolute;
-    inset: -11px 0;
+    inset: -12px 0;
   }
 }
 
@@ -1593,6 +1599,9 @@
 }
 
 .binder-pages-sheet {
+  /* The shared close button reads these; without them it collapsed to its icon (22px). */
+  --pv-close-size: 44px;
+  --pv-close-inset: max(var(--space-3), var(--safe-right));
   --bp-top: calc(52px + var(--safe-top));
   --bp-panel: calc(9rem + var(--safe-bottom));
   --bp-gutter: var(--space-3);

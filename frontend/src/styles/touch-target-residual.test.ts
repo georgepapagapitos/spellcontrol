@@ -41,7 +41,7 @@ describe('E1000 residual touch targets', () => {
   it('the card preview context row and pills reach 44 on touch', () => {
     const css = read('footer-card-preview.css');
     expect(css).toMatch(/\.card-preview-context\s*\{[^}]*min-height:\s*44px/);
-    expect(css).toMatch(/\.card-preview-context-pill::after\s*\{[^}]*inset:\s*-11px 0/);
+    expect(css).toMatch(/\.card-preview-context-pill::after\s*\{[^}]*inset:\s*-12px 0/);
     expect(css).toMatch(/\.card-preview-ext-link::after\s*\{[^}]*inset:\s*-9px -6px/);
   });
 

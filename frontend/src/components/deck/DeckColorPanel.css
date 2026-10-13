@@ -163,6 +163,23 @@
   border-radius: 2px;
 }
 
+/* The name's press is a 44px ghost; the row's own padding keeps neighbours clear. */
+@media (pointer: coarse) {
+  .deck-castability-card:not(.is-static) {
+    position: relative;
+  }
+
+  .deck-castability-card:not(.is-static)::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
 .deck-castability-card.is-static {
   text-decoration: none;
   cursor: auto;
