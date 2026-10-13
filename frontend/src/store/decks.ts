@@ -114,15 +114,26 @@ export interface DeckCard {
    * drifting back here. Binding a copy to the slot clears it.
    */
   proxy?: true;
+  /**
+   * The user released this slot's copy ("Release copy"), so it stays empty: a
+   * card the deck still needs, but no automatic matcher refills it, which is
+   * what used to hand the released copy straight back on the next boot. Only
+   * binding a copy (Use my copy, a printing pick) clears it.
+   */
+  released?: true;
 }
 
-/** A slot with `copyId` bound to it. Binding a real copy ends a proxy. */
+/** A slot with `copyId` bound to it. Binding a real copy ends a proxy or a release. */
 function bindCopy(c: DeckCard, copyId: string | null): DeckCard {
-  if (!copyId || !c.proxy) return { ...c, allocatedCopyId: copyId };
-  const { proxy: _proxy, ...rest } = c;
+  if (!copyId || (!c.proxy && !c.released)) return { ...c, allocatedCopyId: copyId };
+  const { proxy: _proxy, released: _released, ...rest } = c;
   void _proxy;
+  void _released;
   return { ...rest, allocatedCopyId: copyId };
 }
+
+/** Which copy claim "Release copy" lets go of: a list slot or a commander seat. */
+export type ReleaseTarget = { slotId: string } | 'commander' | 'partner';
 
 /** The three zones a `DeckCard` slot can live in — tags (and any other
  *  per-slot user edit) are scoped to whichever zone the slot is in. */
@@ -138,6 +149,10 @@ export interface Deck {
   /** Allocations for the commander(s), parallel to the commander fields. */
   commanderAllocatedCopyId: string | null;
   partnerCommanderAllocatedCopyId: string | null;
+  /** The commander seat's `DeckCard.released`: its copy was released, so no
+   *  matcher refills it. Seating a card or binding a copy clears it. */
+  commanderReleased?: true;
+  partnerCommanderReleased?: true;
   cards: DeckCard[];
   sideboard: DeckCard[];
   /**
@@ -469,6 +484,12 @@ interface DecksState {
   addCard(deckId: string, card: ScryfallCard, allocatedCopyId?: string | null): string;
   removeCard(deckId: string, slotId: string): void;
   setCardAllocation(deckId: string, slotId: string, allocatedCopyId: string | null): void;
+  /**
+   * Free the copy a slot or commander seat holds and keep it free: the card
+   * stays in the deck as one you still need, and no matcher (boot, sync,
+   * re-import, Repair) binds a copy there again until the user does.
+   */
+  releaseCopy(deckId: string, target: ReleaseTarget): void;
   /**
    * Mark (or unmark) one slot, in any zone, as a proxy. Marking releases the
    * slot's copy; unmarking binds `allocatedCopyId` when one is given.
@@ -852,27 +873,60 @@ export const useDecksStore = create<DecksState>()(
           ),
         })),
 
-      setCardAllocation: (deckId, slotId, allocatedCopyId) =>
+      setCardAllocation: (deckId, slotId, allocatedCopyId) => {
+        // Every claiming zone: a sideboard or considering slot takes a copy too.
+        const bind = (list: DeckCard[] | undefined) =>
+          (list ?? []).map((c) => (c.slotId === slotId ? bindCopy(c, allocatedCopyId) : c));
         set((s) => ({
           decks: s.decks.map((d) =>
             d.id === deckId
               ? touch({
                   ...d,
-                  cards: d.cards.map((c) =>
-                    c.slotId === slotId ? bindCopy(c, allocatedCopyId) : c
-                  ),
+                  cards: bind(d.cards),
+                  sideboard: bind(d.sideboard),
+                  considering: bind(d.considering),
                 })
               : d
           ),
-        })),
+        }));
+      },
+
+      releaseCopy: (deckId, target) => {
+        const release = (list: DeckCard[] | undefined) =>
+          (list ?? []).map((c): DeckCard =>
+            typeof target === 'object' && c.slotId === target.slotId
+              ? { ...c, allocatedCopyId: null, released: true }
+              : c
+          );
+        set((s) => ({
+          decks: s.decks.map((d) => {
+            if (d.id !== deckId) return d;
+            if (target === 'commander')
+              return touch({ ...d, commanderAllocatedCopyId: null, commanderReleased: true });
+            if (target === 'partner')
+              return touch({
+                ...d,
+                partnerCommanderAllocatedCopyId: null,
+                partnerCommanderReleased: true,
+              });
+            return touch({
+              ...d,
+              cards: release(d.cards),
+              sideboard: release(d.sideboard),
+              considering: release(d.considering),
+            });
+          }),
+        }));
+      },
 
       setCardProxy: (deckId, slotId, proxy, allocatedCopyId = null) => {
         const apply = (list: DeckCard[] | undefined) =>
           (list ?? []).map((c): DeckCard => {
             if (c.slotId !== slotId) return c;
-            if (proxy) return { ...c, allocatedCopyId: null, proxy: true };
-            const { proxy: _proxy, ...rest } = c;
+            const { proxy: _proxy, released: _released, ...rest } = c;
             void _proxy;
+            void _released;
+            if (proxy) return { ...rest, allocatedCopyId: null, proxy: true };
             return { ...rest, allocatedCopyId };
           });
         set((s) => ({
@@ -1148,7 +1202,11 @@ export const useDecksStore = create<DecksState>()(
               : d.sideboard;
             const previous =
               keepPrevious && d.commander
-                ? [newDeckCard(d.commander, d.commanderAllocatedCopyId ?? null)]
+                ? [
+                    d.commanderReleased
+                      ? { ...newDeckCard(d.commander, null), released: true as const }
+                      : newDeckCard(d.commander, d.commanderAllocatedCopyId ?? null),
+                  ]
                 : [];
             return touch(
               withCommander({ ...d, cards: [...cards, ...previous], sideboard }, card, allocated)
@@ -1161,7 +1219,7 @@ export const useDecksStore = create<DecksState>()(
           decks: s.decks.map((d) =>
             d.id === deckId
               ? touch({
-                  ...d,
+                  ...withoutReleased(d, 'partnerCommanderReleased'),
                   partnerCommander: card,
                   partnerCommanderAllocatedCopyId: allocated,
                 })
@@ -1240,29 +1298,33 @@ export const useDecksStore = create<DecksState>()(
           >();
           for (const deck of s.decks) {
             updates.set(deck.id, {
-              commanderAllocatedCopyId: deck.commanderAllocatedCopyId,
-              partnerCommanderAllocatedCopyId: deck.partnerCommanderAllocatedCopyId,
+              commanderAllocatedCopyId: deck.commanderReleased
+                ? null
+                : deck.commanderAllocatedCopyId,
+              partnerCommanderAllocatedCopyId: deck.partnerCommanderReleased
+                ? null
+                : deck.partnerCommanderAllocatedCopyId,
               // `?? []` guards a partial/malformed persisted deck row (this now
               // also runs from sync.ts's rehydrate, which reads back whatever
               // shape actually landed in IDB) — must not crash on a missing array.
               cards: (deck.cards ?? []).map((c) => ({
                 slotId: c.slotId,
-                allocatedCopyId: c.proxy ? null : c.allocatedCopyId,
+                allocatedCopyId: c.proxy || c.released ? null : c.allocatedCopyId,
               })),
               sideboard: (deck.sideboard ?? []).map((c) => ({
                 slotId: c.slotId,
-                allocatedCopyId: c.proxy ? null : c.allocatedCopyId,
+                allocatedCopyId: c.proxy || c.released ? null : c.allocatedCopyId,
               })),
               considering: (deck.considering ?? []).map((c) => ({
                 slotId: c.slotId,
-                allocatedCopyId: c.proxy ? null : c.allocatedCopyId,
+                allocatedCopyId: c.proxy || c.released ? null : c.allocatedCopyId,
               })),
             });
           }
 
           for (const deck of s.decks) {
             const u = updates.get(deck.id)!;
-            if (deck.commander) {
+            if (deck.commander && !deck.commanderReleased) {
               slots.push({
                 deckId: deck.id,
                 deckName: deck.name,
@@ -1275,7 +1337,7 @@ export const useDecksStore = create<DecksState>()(
                 },
               });
             }
-            if (deck.partnerCommander) {
+            if (deck.partnerCommander && !deck.partnerCommanderReleased) {
               slots.push({
                 deckId: deck.id,
                 deckName: deck.name,
@@ -1288,11 +1350,11 @@ export const useDecksStore = create<DecksState>()(
                 },
               });
             }
-            // A proxy slot never enters the matching: the user plays a stand-in
-            // there, so handing it a copy is what used to pull a released copy
-            // back out of the deck that should have it.
+            // A proxy or released slot never enters the matching: the user plays
+            // a stand-in there, or let its copy go, so handing it a copy is what
+            // used to pull a released copy straight back.
             for (const c of deck.cards ?? []) {
-              if (c.proxy) continue;
+              if (c.proxy || c.released) continue;
               const slotId = c.slotId;
               slots.push({
                 deckId: deck.id,
@@ -1308,7 +1370,7 @@ export const useDecksStore = create<DecksState>()(
               });
             }
             for (const c of deck.sideboard ?? []) {
-              if (c.proxy) continue;
+              if (c.proxy || c.released) continue;
               const slotId = c.slotId;
               slots.push({
                 deckId: deck.id,
@@ -1328,7 +1390,7 @@ export const useDecksStore = create<DecksState>()(
             // It is also a donor zone (lib/collection/allocations.ts DonorZone),
             // like every other claiming zone.
             for (const c of deck.considering ?? []) {
-              if (c.proxy) continue;
+              if (c.proxy || c.released) continue;
               const slotId = c.slotId;
               slots.push({
                 deckId: deck.id,
@@ -1587,11 +1649,20 @@ function defaultDeckName(commander: ScryfallCard | null): string {
  */
 function withCommander(d: Deck, card: ScryfallCard | null, allocated: string | null): Deck {
   return {
-    ...d,
+    ...withoutReleased(d, 'commanderReleased'),
     name: deckNameForCommander(d, card),
     commander: card,
     commanderAllocatedCopyId: allocated,
   };
+}
+
+/** The deck without one commander seat's release marker: seating a card or
+ *  binding a copy there is the user taking the seat back. */
+function withoutReleased(d: Deck, key: 'commanderReleased' | 'partnerCommanderReleased'): Deck {
+  if (!d[key]) return d;
+  const next = { ...d };
+  delete next[key];
+  return next;
 }
 
 /**

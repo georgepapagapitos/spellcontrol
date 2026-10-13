@@ -30,6 +30,8 @@ interface Args {
   partnerCommander: ScryfallCard | null | undefined;
   commanderAllocatedCopyId: string | null | undefined;
   partnerCommanderAllocatedCopyId: string | null | undefined;
+  commanderReleased?: boolean;
+  partnerCommanderReleased?: boolean;
   collectionByCopyId: Map<string, EnrichedCard> | undefined;
   ownershipFor: DeckDisplayProps['ownershipFor'];
   deckId: string | undefined;
@@ -59,6 +61,8 @@ export function useDeckRows({
   partnerCommander,
   commanderAllocatedCopyId,
   partnerCommanderAllocatedCopyId,
+  commanderReleased,
+  partnerCommanderReleased,
   collectionByCopyId,
   ownershipFor,
   deckId,
@@ -111,6 +115,8 @@ export function useDeckRows({
       partnerCommander,
       commanderAllocatedCopyId,
       partnerCommanderAllocatedCopyId,
+      commanderReleased,
+      partnerCommanderReleased,
       collectionByCopyId,
       crossDeck,
       claimedByForName,
@@ -122,6 +128,8 @@ export function useDeckRows({
     partnerCommander,
     commanderAllocatedCopyId,
     partnerCommanderAllocatedCopyId,
+    commanderReleased,
+    partnerCommanderReleased,
     collectionByCopyId,
     crossDeck,
     claimedByForName,

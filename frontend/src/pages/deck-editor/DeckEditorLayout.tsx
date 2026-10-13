@@ -225,6 +225,8 @@ export function DeckEditorLayout({
             selectedThemes={deck.generationContext?.selectedThemes}
             commanderAllocatedCopyId={deck.commanderAllocatedCopyId}
             partnerCommanderAllocatedCopyId={deck.partnerCommanderAllocatedCopyId}
+            commanderReleased={deck.commanderReleased}
+            partnerCommanderReleased={deck.partnerCommanderReleased}
             // The deck's own slots, never rebuilt field by field: a copy that
             // listed fields dropped `proxy` and `sortIndex` on the way.
             cards={deck.cards}

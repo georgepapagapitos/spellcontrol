@@ -32,6 +32,7 @@ import {
   frontFaceImageLarge,
   backFaceImageLarge,
   colorKeyOf,
+  isReleasedOwned,
   type CurrencyCode,
   type Row,
   type CrossDeckCtx,
@@ -69,6 +70,9 @@ export function buildCommanderRows(args: {
   partnerCommander: ScryfallCard | null | undefined;
   commanderAllocatedCopyId: string | null | undefined;
   partnerCommanderAllocatedCopyId: string | null | undefined;
+  /** The seats' `Deck.commanderReleased` / `partnerCommanderReleased`. */
+  commanderReleased?: boolean;
+  partnerCommanderReleased?: boolean;
   collectionByCopyId: Map<string, EnrichedCard> | undefined;
   crossDeck: CrossDeckCtx;
   claimedByForName: (cardName: string) => Row['claimedBy'];
@@ -79,13 +83,20 @@ export function buildCommanderRows(args: {
     partnerCommander,
     commanderAllocatedCopyId,
     partnerCommanderAllocatedCopyId,
+    commanderReleased,
+    partnerCommanderReleased,
     collectionByCopyId,
     crossDeck,
     claimedByForName,
     currency,
   } = args;
   const rows: Row[] = [];
-  const push = (c: ScryfallCard, allocatedCopyId?: string | null, isPartner = false) => {
+  const push = (
+    c: ScryfallCard,
+    allocatedCopyId: string | null | undefined,
+    released: boolean | undefined,
+    isPartner = false
+  ) => {
     const owned = allocatedCopyId ? collectionByCopyId?.get(allocatedCopyId) : undefined;
     const status: AllocationStatus = classifyAllocation(
       allocatedCopyId ?? null,
@@ -113,6 +124,7 @@ export function buildCommanderRows(args: {
       orphanQty: status === 'orphan' ? 1 : 0,
       claimedElsewhereQty: status === 'claimed-elsewhere' ? 1 : 0,
       proxyQty: 0,
+      releasedQty: isReleasedOwned(released, status, c.name, crossDeck) ? 1 : 0,
       claimedBy: status === 'claimed-elsewhere' ? claimedByForName(c.name) : undefined,
       imageNormal: owned?.imageNormal ?? frontFaceImage(c),
       imageNormalBack: owned?.imageNormalBack ?? backFaceImage(c),
@@ -134,8 +146,9 @@ export function buildCommanderRows(args: {
       tagsEdited: false,
     });
   };
-  if (commander) push(commander, commanderAllocatedCopyId);
-  if (partnerCommander) push(partnerCommander, partnerCommanderAllocatedCopyId, true);
+  if (commander) push(commander, commanderAllocatedCopyId, commanderReleased);
+  if (partnerCommander)
+    push(partnerCommander, partnerCommanderAllocatedCopyId, partnerCommanderReleased, true);
   return rows;
 }
 
