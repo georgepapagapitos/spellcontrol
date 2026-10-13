@@ -18,7 +18,7 @@ import { Link } from 'react-router-dom';
 import type { DeckCategory } from '@/deck-builder/types';
 import { ManaSymbol } from '../shared/ManaSymbol';
 import { type Row } from './deck-display-rows';
-import { allocationSummary } from './deck-row-allocation';
+import { allocationSummary, proxyMarkQty } from './deck-row-allocation';
 import { CircleAlert } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { LegalityIssue } from '@/lib/deck/deck-validation';
@@ -97,10 +97,11 @@ export function SectionIcon({ icon }: { icon: string }) {
 // sits outside the hover-gated cluster). Muted small caps, not a pill: it is
 // a word, so a stand-in reads as one without a symbol to learn.
 export function ProxyTag({ row }: { row: Row }) {
-  if (row.proxyQty === 0) return null;
+  const n = proxyMarkQty(row);
+  if (n === 0) return null;
   return (
     <Chip className="deck-row-proxy-tag" title={allocationSummary(row)}>
-      {row.proxyQty === row.qty ? 'proxy' : `${row.proxyQty} proxy`}
+      {n === row.qty ? 'proxy' : `${n} proxy`}
     </Chip>
   );
 }

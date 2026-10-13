@@ -308,6 +308,12 @@ export interface Row {
    * "Use my copy" to take one back (no matcher refills a released slot).
    */
   releasedQty: number;
+  /**
+   * Of `allocatedQty`, the slots holding a collection copy flagged as a proxy
+   * (`EnrichedCard.proxy`). Owned and covered, and marked "proxy" like a
+   * proxy slot, so a deck shows its stand-ins wherever they are tracked.
+   */
+  ownedProxyQty: number;
   /** First deck claiming a copy of this card (for the badge link/color). Only set when claimedElsewhereQty > 0. */
   claimedBy?: AllocationInfo;
   /**
@@ -439,6 +445,7 @@ export function buildRows(
     const status: AllocationStatus = dc.proxy ? 'allocated' : classify(dc);
     const released = isReleasedOwned(dc.released, status, card.name, crossDeck) ? 1 : 0;
     const owned = dc.allocatedCopyId ? collectionById?.get(dc.allocatedCopyId) : undefined;
+    const ownedProxy = !dc.proxy && status === 'allocated' && owned?.proxy ? 1 : 0;
 
     // Per-printing bucket, keyed by the slot's *printing identity* (set +
     // collector number), not the raw card.id. Generated decks may carry
@@ -499,6 +506,7 @@ export function buildRows(
       existing.stack ??= dc.stack;
       if (dc.allocatedCopyId) existing.allocatedCopyIds.push(dc.allocatedCopyId);
       existing.releasedQty += released;
+      existing.ownedProxyQty += ownedProxy;
       if (dc.proxy) existing.proxyQty += 1;
       else if (status === 'allocated') existing.allocatedQty += 1;
       else if (status === 'orphan') existing.orphanQty += 1;
@@ -549,6 +557,7 @@ export function buildRows(
       claimedElsewhereQty: status === 'claimed-elsewhere' ? 1 : 0,
       proxyQty: dc.proxy ? 1 : 0,
       releasedQty: released,
+      ownedProxyQty: ownedProxy,
       claimedBy: status === 'claimed-elsewhere' ? claimedByFor(card.name) : undefined,
       imageNormal: owned?.imageNormal ?? frontFaceImage(card),
       imageNormalBack: owned?.imageNormalBack ?? backFaceImage(card),

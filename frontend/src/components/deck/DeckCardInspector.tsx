@@ -8,7 +8,7 @@ import { formatMoney } from '@/lib/collection/format-money';
 import { ROLE_TITLES } from '@/lib/deck-analysis/role-badges';
 import type { CurrencyCode, Row } from './deck-display-rows';
 import { cardAllRoles, frontFaceMana } from './deck-display-rows';
-import { allocationSummary } from './deck-row-allocation';
+import { allocationSummary, proxyMarkQty } from './deck-row-allocation';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
@@ -145,7 +145,7 @@ export function DeckCardInspector({
       )}
 
       <div className="deck-card-inspector-owned">
-        {row.proxyQty > 0 && <Chip className="deck-card-inspector-chip">proxy</Chip>}
+        {proxyMarkQty(row) > 0 && <Chip className="deck-card-inspector-chip">proxy</Chip>}
         <span className="deck-card-inspector-owned-text">{allocationSummary(row)}</span>
         <BinderBadge binders={card.binders} />
         {row.proxyQty > 0 && slotIds.length > 0 && actions?.onSetProxy && (
