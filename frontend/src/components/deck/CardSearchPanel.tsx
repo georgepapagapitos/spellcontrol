@@ -69,6 +69,7 @@ import {
   type SuggestionFilter,
 } from '@/lib/coach/deck-suggestions';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
+import { SuggestionsHandoff, suggestionPreviewEntries } from './suggestions-results-parts';
 import type { CardPreviewAction } from '@/components/card/CardPreview';
 
 import { userMessage } from '@/lib/util/user-error';
@@ -1506,27 +1507,7 @@ function SuggestionsResults({
   const carousel = useAddPreviewCarousel(existingCardCounts, (entry) => addByName(entry.name));
   // Context line under the art: why this card surfaced (EDHREC % / role, or
   // the combo it completes).
-  const previewEntries = useMemo<CarouselEntry[]>(
-    () =>
-      rows.map((row) => {
-        if (row.kind === 'combo') {
-          return {
-            name: row.name,
-            label: row.produces ? `Completes: ${row.produces}` : 'Completes a combo',
-          };
-        }
-        if (row.kind === 'gem') {
-          return {
-            name: row.name,
-            label: row.signals?.length ? hiddenGemReason({ signals: row.signals }) : 'Hidden gem',
-          };
-        }
-        const info = classifyInclusion(row.inclusion);
-        const pct = info.kind === 'pct' ? `In ${info.pct}% of decks` : 'Off-meta';
-        return { name: row.name, label: row.roleLabel ? `${pct} · ${row.roleLabel}` : pct };
-      }),
-    [rows]
-  );
+  const previewEntries = useMemo(() => suggestionPreviewEntries(rows), [rows]);
 
   const previewFitAt = async (index: number) => {
     const row = rows[index];
@@ -1554,6 +1535,7 @@ function SuggestionsResults({
   }
 
   const total = counts.owned + counts.inOtherDeck + counts.inCube + counts.unowned;
+  const showHandoff = query.trim().length >= 2;
   if (total === 0 && failed && !query) {
     // The analysis never produced anything — say so. The success-shaped copy
     // below ("your deck already runs the staples") is a lie on a blank deck
@@ -1580,11 +1562,11 @@ function SuggestionsResults({
               ? 'No suggestions match your filter.'
               : 'No suggestions right now. Your deck already runs the staples for this commander.'}
           </p>
-          {query.trim().length >= 2 && (
-            <div className="card-search-empty-actions">
-              <Button onClick={onSearchCollection}>Search your collection</Button>
-              <Button onClick={onSearchScryfall}>Search all of Scryfall</Button>
-            </div>
+          {showHandoff && (
+            <SuggestionsHandoff
+              onSearchCollection={onSearchCollection}
+              onSearchScryfall={onSearchScryfall}
+            />
           )}
         </div>
         <HiddenSuggestions />
@@ -1718,6 +1700,16 @@ function SuggestionsResults({
           )}
           {gems.map((row, i) => renderRow(row, staples.length + combos.length + i))}
         </ResultList>
+      )}
+      {/* The filter is a view over the list, not a search: whatever it matched,
+          the next step is one tap away. The query carries over (it is the
+          panel's one input). Static, so the live region stays quiet. */}
+      {showHandoff && (
+        <SuggestionsHandoff
+          trailing
+          onSearchCollection={onSearchCollection}
+          onSearchScryfall={onSearchScryfall}
+        />
       )}
       <HiddenSuggestions />
       {carousel.preview}
