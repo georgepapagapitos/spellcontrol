@@ -534,6 +534,11 @@ export async function generateLands(
       for (const c of [...capsFilteredLands].sort((a, b) => rank(b) - rank(a))) {
         const sc = landCardMap.get(c.name);
         if (!sc || picked.has(sc.name) || usedNames.has(sc.name) || isMdfcLand(sc)) continue;
+        // A spare is seated later by the coherence repair, so it clears the
+        // collection here: an "available only" Zo-Zu build got Sokenzan and
+        // Memorial to War, neither owned, in place of its Tectonic Edge.
+        if (ownedOnly && notInCollection(sc.name, collectionNames)) continue;
+        if (availableCount(sc.name) <= 0) continue;
         if (
           !fitsColorIdentity(sc, colorIdentity) ||
           isColorlessOnlyLand(sc, { typalFixing: tribal })
