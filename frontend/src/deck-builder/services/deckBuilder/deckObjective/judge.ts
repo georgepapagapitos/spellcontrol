@@ -76,6 +76,22 @@ export function memoRoleOf(
  */
 export const MIN_GAIN = 0.3;
 
+/** Terms a card earns by being a card of a kind or by a theme read, not by the commander's data. */
+export const GENERIC_GAIN: readonly TermKey[] = ['roles', 'synergy', 'engines', 'lift'];
+
+/**
+ * What a card the commander's page has no row for must gain outside
+ * GENERIC_GAIN (twice MIN_GAIN): the swap has to improve the deck by what the
+ * card itself does, not by a role count or an incidental theme read. Coach and
+ * the generator's search hold an off-page card to the same bar.
+ */
+export const OFF_PAGE_MIN_GAIN = 0.6;
+
+/** A score change less the GENERIC_GAIN terms: what an off-page card earns itself. */
+export function ownGain(terms: Partial<Record<TermKey, number>>, delta: number): number {
+  return delta - GENERIC_GAIN.reduce((sum, k) => sum + (terms[k] ?? 0), 0);
+}
+
 export interface SwapJudgement {
   /** Full score change, the library in `deck`'s slots. */
   delta: number;

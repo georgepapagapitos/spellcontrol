@@ -63,7 +63,7 @@ import {
   requiresOwnedCards,
 } from './constraints';
 import { isBasicLand, isLandCard } from './context';
-import { MIN_GAIN, applyMove, memoRoleOf } from './judge';
+import { MIN_GAIN, OFF_PAGE_MIN_GAIN, applyMove, memoRoleOf, ownGain } from './judge';
 import {
   MAX_LAND_EVALUATIONS,
   MAX_LAND_UPGRADES,
@@ -141,7 +141,8 @@ export interface OptimizeOptions {
    * Owned cards with no page evidence for this commander (E509): the rest of
    * the collection, resolved so it competes. A spell comes in as a repair, or
    * as an improvement that takes out an unowned card or one the page doesn't
-   * vouch for, never an owned card the page's players play.
+   * vouch for. It takes out an owned card the page's players play only past
+   * OFF_PAGE_MIN_GAIN of its own, the bar Coach holds it to.
    */
   offPageOwned?: ReadonlySet<string>;
   /**
@@ -691,18 +692,18 @@ export function* optimizeSteps(
       }
       if (!isRepair && opts.repairOnly && move.in.some((c) => opts.repairOnly!.has(c.name)))
         continue;
-      // An owned spell the page never ranked takes the place of an unowned card
-      // or one the page doesn't vouch for, never of an owned card its players play.
-      if (
+      // An owned spell the page never ranked takes the place of an owned card
+      // its players play only by what it does itself: Coach's off-page bar. An
+      // "available only" deck is all owned page cards, so a flat refusal kept
+      // every off-page owned card out (Zo-Zu's Zealous Conscripts beside Kiki-Jiki).
+      const offPageBar =
         !isRepair &&
-        opts.offPageOwned &&
+        !!opts.offPageOwned &&
         move.in.some((c) => opts.offPageOwned!.has(c.name) && !isLandCard(c)) &&
         move.out.some((i) => {
           const o = current.cards[i];
           return isOwnedCard(o, ctx) && ctx.qualityOf(o).source === 'page';
-        })
-      )
-        continue;
+        });
       let required = opts.minGain;
       if (trust) {
         const verdict = judgeOf(move, false);
@@ -743,6 +744,12 @@ export function* optimizeSteps(
       // While the deck breaks a constraint, only a repair is taken; past the
       // cap, nothing else is.
       if (bestRepair || forced.length > 0) continue;
+      if (
+        offPageBar &&
+        ownGain(termDeltas(score, currentScore), score.total - currentScore.total) <
+          OFF_PAGE_MIN_GAIN
+      )
+        continue;
       if (score.total - currentScore.total >= required) {
         // A land is chosen from dozens by a noisy goldfish: the best of them
         // clears the bar by luck, so it has to clear it again on other games.
