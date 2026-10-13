@@ -263,9 +263,41 @@ self-only cost reduction ("This spell costs {1} less") is not ramp.
 R10. "Cards put into your graveyard" payoffs (The Gitrog Monster, Slogurk, Yuma)
 and surveil are not mill. "Put a card from the top of your library into your
 graveyard" (Scion of the Ur-Dragon, Kellan) is.
-R11. Voltron: two or more evasion/protection keywords with no engine, or text
-that buffs the commander itself (equipment, auras, double strike, a "commander you
-control" clause). A lone flyer or a big vanilla body is not.
+R11. Voltron (settled 2026-10-13 against EDHREC theme data; supersedes the earlier
+wording, which the first two rating passes read differently: held-out kappa .64).
+Voltron in practice is a deck built to win through ONE creature's damage, usually the
+commander, suited up with equipment, auras or counters, and protected. A commander
+is voltron when BOTH parts hold.
+Part 1, the text asks for it. The commander (a) grows or suits ITSELF up by its own
+action (counters or a pump on itself that its own attack, combat damage, or its
+controller's beginning of turn or combat produces, or a mana-paid activation;
+"attach ... to it"; casts or recasts Auras and Equipment for itself; a bonus while
+IT is equipped or enchanted). Growth that only happens when OTHER things happen
+(another creature enters or dies, you sacrifice, gain life, draw or cast spells)
+is an engine payoff, not (a), and a size set by counting a resource (lands, cards
+in hand) is a big body, not (a). Or (b) wants to connect ALONE
+(two or more evasion/protection abilities, written out or keywords, or one plus a
+"whenever ~ deals combat damage" payoff, with no engine as its main text; double
+strike when the body itself is the point), or (c) has a "commander you control"
+clause paying off its attacks. Not enough: an equipment or aura engine that hands
+gear to many creatures or copies gear, a token or value engine carrying incidental
+double strike or flying, keywords or counters lent to OTHER creatures, a lone
+flyer, a big vanilla body, a drawback.
+Part 2, the community agrees. EDHREC's Voltron theme share (its count over the sum
+of the commander's theme counts, `panels.taglinks`) is at least 4% when the page
+lists 30 or more themed decks. Under 4% the answer is FALSE even if the text fits.
+With fewer than 30 themed decks or no page, the text decides alone. The share
+never makes a commander voltron on its own.
+Why 4%: of the 144 voltron-relevant commanders (out of 760 rated) with 30 or more
+themed decks, 49 sit under 4% and 95 at 4% or more, with only 13 between 2% and 5%,
+so 4% falls in the trough. The old voltron labels sat at a median 10% share against
+0.2% for the rest, but the share alone is a weak classifier (about 40% precision at
+its best cut), which is why it only vetoes.
+Disputed cases: Firion (equipment-copy engine, 9% share but gear for many creatures,
+text fails): NO. God-Eternal Oketra (token engine, incidental double strike, 0.4%
+share): NO. Questing Beast (several evasion/protection abilities, 9%): YES. Savanti
+Romero (puts a counter on itself every combat, 12% of 25 decks): YES. Viv Vision
+(counters on itself, flying, 9% of 21 decks): YES, weakest of the five.
 R12. Tribal: a text reference to one of the commander's own types, including
 tokens of that type (Elenda, Namora, Great Goblin). Changeling and "chosen type"
 lords count.

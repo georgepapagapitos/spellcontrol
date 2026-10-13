@@ -1,6 +1,6 @@
 {
   "source": "Scryfall oracle-cards bulk 2026-10-12T09:02:38.125+00:00; Commander-legal legendary creatures and 'can be your commander' cards",
-  "method": "Strata: top = the 250 most-played commanders by EDHREC rank; sample = 200 seeded at random from the rest; extra = rare-keyword enrichment (up to 5 detector hits and 3 loose-word misses per keyword), used for precision only. Two blind raters tagged every commander with every keyword in commander-profile.golden.md; the 118 splits (of 20,100 pairs) were settled by its rulings.",
+  "method": "Strata: top = the 250 most-played commanders by EDHREC rank; sample = 200 seeded at random from the rest; extra = rare-keyword enrichment (up to 5 detector hits and 3 loose-word misses per keyword), used for precision only. Two blind raters tagged every commander with every keyword in commander-profile.golden.md; the 118 splits (of 20,100 pairs) were settled by its rulings. Voltron truth re-rated 2026-10-13 under R11 (EDHREC Voltron theme share cross-check): 214 voltron-relevant commanders, two fresh blind raters, 9 splits settled by the ruling.",
   "keywords": [
     "etb",
     "creature-etb",
@@ -205,22 +205,27 @@
     "FN untap-engine: Loki, God of Lies",
     "FN untap-engine: Raiyuu, Storm's Edge",
     "FN untap-engine: The Beast, Deathless Prince",
-    "FN voltron: Animar, Soul of Elements",
+    "FN voltron: Ardenn, Intrepid Archaeologist",
+    "FN voltron: Azula, Ruthless Firebender",
     "FN voltron: Basim Ibn Ishaq",
     "FN voltron: Cait, Cage Brawler",
     "FN voltron: Donald Blake, Guise of Thor",
+    "FN voltron: Evereth, Viceroy of Plunder",
     "FN voltron: Garnet, Princess of Alexandria",
-    "FN voltron: Hawkeye, Bowslinger",
+    "FN voltron: Iron Fist, Hero for Hire",
     "FN voltron: Iymrith, Desert Doom",
     "FN voltron: Jin Sakai, Ghost of Tsushima",
-    "FN voltron: Ob Nixilis, Unshackled",
+    "FN voltron: Kestia, the Cultivator",
+    "FN voltron: Krenko, Tin Street Kingpin",
+    "FN voltron: Laelia, the Blade Reforged",
+    "FN voltron: Niv-Mizzet, Guildpact",
+    "FN voltron: Obeka, Splitter of Seconds",
     "FN voltron: Progenitus",
     "FN voltron: Ratonhnhaké꞉ton",
+    "FN voltron: Ronin, Shadow Stalker",
+    "FN voltron: Seymour Flux",
     "FN voltron: Silvar, Devourer of the Free",
-    "FN voltron: The Mindskinner",
-    "FN voltron: The Thing",
-    "FN voltron: Tifa Lockhart",
-    "FN voltron: Ulamog, the Defiler",
+    "FN voltron: Spider-Man Noir",
     "FN voltron: Zuko, Seeking Honor",
     "FN wheel-discard: Kefka, Court Mage // Kefka, Ruler of Ruin",
     "FN wheel-discard: Rankle, Master of Pranks",
@@ -305,8 +310,15 @@
     "FP voltron: Agrus Kos, Spirit of Justice",
     "FP voltron: Akiri, Fearless Voyager",
     "FP voltron: Codsworth, Handy Helper",
+    "FP voltron: Drizzt Do'Urden",
+    "FP voltron: Emrakul, the Promised End",
+    "FP voltron: Gisela, Blade of Goldnight",
+    "FP voltron: Gishath, Sun's Avatar",
+    "FP voltron: Hit-Monkey",
     "FP voltron: Maha, Its Feathers Night",
-    "FP voltron: Sab-Sunen, Luxa Embodied"
+    "FP voltron: Quicksilver, Speedster",
+    "FP voltron: Valgavoth, Terror Eater",
+    "FP voltron: Éomer, King of Rohan"
   ],
   "cards": {
     "Aang, Airbending Master": {
@@ -6243,7 +6255,7 @@
     {
       "name": "Animar, Soul of Elements",
       "stratum": "sample",
-      "truth": ["plus-one-counters", "counters-generic", "ramp", "voltron"]
+      "truth": ["plus-one-counters", "counters-generic", "ramp"]
     },
     {
       "name": "Anowon, the Ruin Thief",
@@ -6283,7 +6295,7 @@
     {
       "name": "Ardenn, Intrepid Archaeologist",
       "stratum": "top",
-      "truth": ["artifact-matters", "enchantment-matters"]
+      "truth": ["artifact-matters", "enchantment-matters", "voltron"]
     },
     {
       "name": "Arixmethes, Slumbering Isle",
@@ -6363,7 +6375,7 @@
     {
       "name": "Azula, Ruthless Firebender",
       "stratum": "sample",
-      "truth": ["attack-trigger", "counters-generic", "ramp"]
+      "truth": ["attack-trigger", "counters-generic", "ramp", "voltron"]
     },
     {
       "name": "Azusa, Lost but Seeking",
@@ -6780,7 +6792,7 @@
     {
       "name": "Drizzt Do'Urden",
       "stratum": "extra",
-      "truth": ["etb", "dies-trigger", "plus-one-counters", "counters-generic", "tokens", "voltron"]
+      "truth": ["etb", "dies-trigger", "plus-one-counters", "counters-generic", "tokens"]
     },
     {
       "name": "Durnan of the Yawning Portal",
@@ -6860,7 +6872,7 @@
     {
       "name": "Emrakul, the Promised End",
       "stratum": "top",
-      "truth": ["voltron"]
+      "truth": []
     },
     {
       "name": "Emry, Lurker of the Loch",
@@ -6890,7 +6902,8 @@
         "dies-trigger",
         "plus-one-counters",
         "counters-generic",
-        "artifact-matters"
+        "artifact-matters",
+        "voltron"
       ]
     },
     {
@@ -7072,12 +7085,12 @@
     {
       "name": "Gisela, Blade of Goldnight",
       "stratum": "top",
-      "truth": ["voltron"]
+      "truth": []
     },
     {
       "name": "Gishath, Sun's Avatar",
       "stratum": "sample",
-      "truth": ["voltron", "tribal"]
+      "truth": ["tribal"]
     },
     {
       "name": "Gix, Yawgmoth Praetor",
@@ -7251,7 +7264,7 @@
     {
       "name": "Hawkeye, Bowslinger",
       "stratum": "sample",
-      "truth": ["plus-one-counters", "counters-generic", "voltron"]
+      "truth": ["plus-one-counters", "counters-generic"]
     },
     {
       "name": "Heliod, Sun-Crowned",
@@ -7293,7 +7306,7 @@
     {
       "name": "Hit-Monkey",
       "stratum": "sample",
-      "truth": ["voltron"]
+      "truth": []
     },
     {
       "name": "Honest Rutstein",
@@ -7348,7 +7361,7 @@
     {
       "name": "Iron Fist, Hero for Hire",
       "stratum": "sample",
-      "truth": ["plus-one-counters", "counters-generic", "spellcast"]
+      "truth": ["plus-one-counters", "counters-generic", "spellcast", "voltron"]
     },
     {
       "name": "Ishkanah, Grafwidow",
@@ -7570,7 +7583,7 @@
     {
       "name": "Kestia, the Cultivator",
       "stratum": "sample",
-      "truth": ["attack-trigger", "draw", "enchantment-matters"]
+      "truth": ["attack-trigger", "draw", "enchantment-matters", "voltron"]
     },
     {
       "name": "Kethis, the Hidden Hand",
@@ -7693,7 +7706,14 @@
     {
       "name": "Krenko, Tin Street Kingpin",
       "stratum": "top",
-      "truth": ["attack-trigger", "plus-one-counters", "counters-generic", "tokens", "tribal"]
+      "truth": [
+        "attack-trigger",
+        "plus-one-counters",
+        "counters-generic",
+        "tokens",
+        "voltron",
+        "tribal"
+      ]
     },
     {
       "name": "Kutzil, Malamet Exemplar",
@@ -7733,7 +7753,7 @@
     {
       "name": "Laelia, the Blade Reforged",
       "stratum": "top",
-      "truth": ["attack-trigger", "plus-one-counters", "counters-generic"]
+      "truth": ["attack-trigger", "plus-one-counters", "counters-generic", "voltron"]
     },
     {
       "name": "Lathliss, Dragon Queen",
@@ -8195,7 +8215,7 @@
     {
       "name": "Niv-Mizzet, Guildpact",
       "stratum": "extra",
-      "truth": ["lifegain", "draw"]
+      "truth": ["lifegain", "draw", "voltron"]
     },
     {
       "name": "Niv-Mizzet, Parun",
@@ -8225,13 +8245,7 @@
     {
       "name": "Ob Nixilis, Unshackled",
       "stratum": "sample",
-      "truth": [
-        "dies-trigger",
-        "plus-one-counters",
-        "counters-generic",
-        "lifeloss-drain",
-        "voltron"
-      ]
+      "truth": ["dies-trigger", "plus-one-counters", "counters-generic", "lifeloss-drain"]
     },
     {
       "name": "Ob Nixilis, the Fallen",
@@ -8241,7 +8255,7 @@
     {
       "name": "Obeka, Splitter of Seconds",
       "stratum": "sample",
-      "truth": []
+      "truth": ["voltron"]
     },
     {
       "name": "Obosh, the Preypiercer",
@@ -8418,7 +8432,7 @@
     {
       "name": "Quicksilver, Speedster",
       "stratum": "extra",
-      "truth": ["voltron"]
+      "truth": []
     },
     {
       "name": "Raff, Weatherlight Stalwart",
@@ -8503,7 +8517,7 @@
     {
       "name": "Ronin, Shadow Stalker",
       "stratum": "extra",
-      "truth": ["sacrifice", "artifact-matters", "ramp"]
+      "truth": ["sacrifice", "artifact-matters", "ramp", "voltron"]
     },
     {
       "name": "Rosie Cotton of South Lane",
@@ -8534,7 +8548,7 @@
     {
       "name": "Sab-Sunen, Luxa Embodied",
       "stratum": "sample",
-      "truth": ["plus-one-counters", "counters-generic", "draw"]
+      "truth": ["plus-one-counters", "counters-generic", "draw", "voltron"]
     },
     {
       "name": "Safana, Calimport Cutthroat",
@@ -8677,7 +8691,7 @@
     {
       "name": "Seymour Flux",
       "stratum": "extra",
-      "truth": ["plus-one-counters", "counters-generic", "draw"]
+      "truth": ["plus-one-counters", "counters-generic", "draw", "voltron"]
     },
     {
       "name": "Shabraz, the Skyshark",
@@ -8802,7 +8816,7 @@
     {
       "name": "Spider-Man Noir",
       "stratum": "extra",
-      "truth": ["attack-trigger", "plus-one-counters", "counters-generic"]
+      "truth": ["attack-trigger", "plus-one-counters", "counters-generic", "voltron"]
     },
     {
       "name": "Spinnerette, Arachnobat",
@@ -9096,7 +9110,7 @@
     {
       "name": "The Mindskinner",
       "stratum": "top",
-      "truth": ["mill", "voltron"]
+      "truth": ["mill"]
     },
     {
       "name": "The Necrobloom",
@@ -9146,7 +9160,7 @@
     {
       "name": "The Thing",
       "stratum": "sample",
-      "truth": ["attack-trigger", "plus-one-counters", "proliferate", "counters-generic", "voltron"]
+      "truth": ["attack-trigger", "plus-one-counters", "proliferate", "counters-generic"]
     },
     {
       "name": "The Thirteenth Doctor",
@@ -9206,7 +9220,7 @@
     {
       "name": "Tifa Lockhart",
       "stratum": "extra",
-      "truth": ["landfall", "voltron"]
+      "truth": ["landfall"]
     },
     {
       "name": "Tifa, Martial Artist",
@@ -9293,7 +9307,7 @@
     {
       "name": "Ulamog, the Defiler",
       "stratum": "top",
-      "truth": ["plus-one-counters", "counters-generic", "voltron"]
+      "truth": ["plus-one-counters", "counters-generic"]
     },
     {
       "name": "Ulamog, the Infinite Gyre",
@@ -9356,7 +9370,7 @@
     {
       "name": "Valgavoth, Terror Eater",
       "stratum": "top",
-      "truth": ["voltron"]
+      "truth": []
     },
     {
       "name": "Valki, God of Lies // Tibalt, Cosmic Impostor",
@@ -9638,7 +9652,7 @@
     {
       "name": "Éomer, King of Rohan",
       "stratum": "extra",
-      "truth": ["etb", "plus-one-counters", "counters-generic", "monarch", "voltron", "tribal"]
+      "truth": ["etb", "plus-one-counters", "counters-generic", "monarch", "tribal"]
     },
     {
       "name": "Éomer, Marshal of Rohan",

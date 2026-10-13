@@ -1,6 +1,6 @@
 {
   "source": "Scryfall oracle-cards bulk 2026-10-12T09:02:38.125+00:00; Commander-legal legendary creatures and 'can be your commander' cards",
-  "method": "Held-out: 90 commanders rated after the detectors were tuned (45 unrated EDHREC-ranked, 45 random, seeded). Two blind raters tagged every commander with every keyword in commander-profile.golden.md; the splits were settled by its rulings.",
+  "method": "Held-out: 90 commanders rated after the detectors were tuned (45 unrated EDHREC-ranked, 45 random, seeded). Two blind raters tagged every commander with every keyword in commander-profile.golden.md; the splits were settled by its rulings. Voltron truth re-rated 2026-10-13 under R11 (EDHREC Voltron theme share cross-check): 214 voltron-relevant commanders, two fresh blind raters, 9 splits settled by the ruling.",
   "keywords": [
     "etb",
     "creature-etb",
@@ -51,6 +51,7 @@
     "FN untap-engine: Tadeas, Juniper Ascendant",
     "FN voltron: Questing Beast",
     "FN voltron: Savanti Romero, Time's Exile",
+    "FN voltron: Squall, SeeD Mercenary",
     "FN voltron: Viv Vision, Teen Synthezoid",
     "FP attack-trigger: Commander Mustard",
     "FP etb: Aragorn, King of Gondor",
@@ -62,7 +63,8 @@
     "FP tokens: Firion, Wild Rose Warrior",
     "FP tribal: Ultron, Artificial Malevolence",
     "FP voltron: Firion, Wild Rose Warrior",
-    "FP voltron: God-Eternal Oketra"
+    "FP voltron: God-Eternal Oketra",
+    "FP voltron: Leonardo, Worldly Warrior"
   ],
   "cards": {
     "Akroma, Angel of Wrath": {
@@ -979,7 +981,7 @@
     {
       "name": "Leonardo, Worldly Warrior",
       "stratum": "sample",
-      "truth": ["voltron"]
+      "truth": []
     },
     {
       "name": "Linvala, Keeper of Silence",
@@ -1154,7 +1156,7 @@
     {
       "name": "Squall, SeeD Mercenary",
       "stratum": "top",
-      "truth": ["attack-trigger", "graveyard-recursion"]
+      "truth": ["attack-trigger", "graveyard-recursion", "voltron"]
     },
     {
       "name": "Tadeas, Juniper Ascendant",
