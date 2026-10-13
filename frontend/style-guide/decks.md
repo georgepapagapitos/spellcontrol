@@ -525,8 +525,10 @@ one playing the proxy.
   slot holding a copy flagged as a proxy in the collection (`EnrichedCard.proxy`)
   is owned and covered, and shows `proxy` in every place above, so a deck
   shows its stand-ins whichever way they are tracked. The summary says
-  "Proxy copy from your collection". Its ⋮ has no **Not a proxy**: that flag
-  lives on the copy and is changed in the collection.
+  "Proxy copy from your collection". Its ⋮ has neither proxy action: it is a
+  proxy already, and that flag lives on the copy and is changed in the
+  collection. On a mixed stack, **Mark one as proxy** takes a slot holding a
+  real copy, never the proxy copy.
 - **Print proxies still prints it.** That sheet is where a stand-in comes from.
 - **The page passes the deck's own slots to the deck view.** It used to copy
   them field by field, and that copy dropped `proxy` and `sortIndex`. A new
