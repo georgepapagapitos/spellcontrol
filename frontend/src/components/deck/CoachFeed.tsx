@@ -50,6 +50,7 @@ import type { CostPlan } from '@/deck-builder/services/deckBuilder/costAnalyzer'
 import type { BracketFitPlan } from '@/deck-builder/services/deckBuilder/bracketFit';
 import type { LandUpgradeMove } from '@/deck-builder/services/deckBuilder/landUpgrades';
 import type { ComboMatch } from '@/types/combos';
+import { CoachLeanStrip, useLeanInto, type LeanProfile } from './CoachLeanStrip';
 import type { CrossDeckMove } from '@/lib/coach/cross-deck-moves';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import type { MisfitSummary } from '@/deck-builder/services/deckBuilder/cardFit';
@@ -142,10 +143,8 @@ export interface CoachFeedProps {
   edhrecMissing?: boolean;
   // Commander name for row copy
   commanderName?: string;
-  // EDHREC theme browser
-  browser?: ReactNode;
-  // Busy names (actions in flight)
-  busyNames?: Set<string>;
+  browser?: ReactNode; // EDHREC theme browser
+  busyNames?: Set<string>; // actions in flight
   // Next best move data (rendered at top of feed)
   nextBestMoves?: NextBestMove[];
   combosLoading?: boolean;
@@ -165,6 +164,7 @@ export interface CoachFeedProps {
    * sees, so it costs nothing (see `hashRefineInput`).
    */
   aiAgrees?: ReadonlyMap<string, string>;
+  commanderProfile?: LeanProfile; // E260: source of the free "Lean into" themes
   /** The saved setting a move breaks, or null (lib/coach/deck-settings-fit.ts). A
    *  move that breaks one is not shown; the empty state names the setting. */
   settingsBreak?: (change: Change) => SettingsBreak | null;
@@ -243,6 +243,7 @@ export function CoachFeed({
   ownedOnly,
   onOwnedOnlyChange,
   aiAgrees,
+  commanderProfile = null,
   settingsBreak,
   hasReplaceCut,
   targetBracket,
@@ -539,6 +540,7 @@ export function CoachFeed({
     }
     return list;
   }, [addsAndSwaps, lane, cutsLoading, activeFilter, ownedOnly, offMetaOnly]);
+  const lean = useLeanInto(filteredRows, activeFilter === 'cuts', commanderProfile);
 
   // E64: global off-meta count — independent of `activeFilter` (a lane
   // switch shouldn't make the differentiator's own count flicker), but
@@ -852,6 +854,7 @@ export function CoachFeed({
                 </label>
               </div>
 
+              <CoachLeanStrip {...lean.strip} />
               {/* Apply all drop-ins — budget filter only */}
               {activeFilter === 'budget' && dropInChanges.length > 0 && (
                 <Button
@@ -931,7 +934,7 @@ export function CoachFeed({
                 className="list-stack list-stack--flush coach-feed-rows"
                 aria-label="Deck suggestions"
               >
-                {(showAllRows ? filteredRows : filteredRows.slice(0, ROW_CAP)).map(({ change }) => {
+                {(showAllRows ? lean.rows : lean.rows.slice(0, ROW_CAP)).map(({ change }) => {
                   const isLeaving = leavingIds.has(change.id);
                   // A move row's apply carries the donor's patch; the Fit audition
                   // adds through the plain path, so it would leave that out.

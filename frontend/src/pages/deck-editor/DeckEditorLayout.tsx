@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useDecksStore, effectiveBracket, type Deck } from '@/store/decks';
 import { DeckDisplay } from '@/components/deck/DeckDisplay';
 import { type DeckView } from '@/lib/deck-analysis/deck-view';
@@ -5,6 +6,7 @@ import {
   bracketReasons,
   bracketBorderline,
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import { buildCommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
 import { DeckCombosPanel } from '@/components/deck/DeckCombosPanel';
 import { DeckAnalysisPanel } from '@/components/deck/DeckAnalysisPanel';
 import { DeckAiReview } from '@/components/deck/DeckAiReview';
@@ -144,6 +146,11 @@ export function DeckEditorLayout({
     ownedNames,
   } = ownership;
   const { handleAddEngineCard, setShowFill, addingEngineNames } = addFlow;
+  // E260: the Coach feed's free "Lean into" lever reads the commander's abilities.
+  const commanderProfile = useMemo(
+    () => (deck.commander ? buildCommanderProfile(deck.commander, deck.partnerCommander) : null),
+    [deck.commander, deck.partnerCommander]
+  );
   const {
     formatConfig,
     isCommander,
@@ -530,6 +537,7 @@ export function DeckEditorLayout({
                   cutSwaps={{ deck, combos: mainboardComboData, owned: collectionCards }}
                   targetBracket={coachSettings.targetBracket}
                   aiAgrees={aiAgrees ?? undefined}
+                  commanderProfile={commanderProfile}
                   upgradePlan={
                     planAvailable
                       ? {

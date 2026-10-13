@@ -68,6 +68,33 @@
   color: var(--on-accent);
 }
 
+/* E260 "Lean into": the free lever. Chips reuse `.filter-chip`; the hint line
+   says it costs nothing (or what the chosen theme did). */
+.coach-feed-lean {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.coach-feed-lean-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.coach-feed-lean-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.coach-feed-lean-hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
 /* "Owned only" checkbox label — compact, touch-friendly. */
 .coach-feed-owned-toggle {
   display: flex;
