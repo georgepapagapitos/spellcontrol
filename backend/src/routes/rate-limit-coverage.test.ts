@@ -3,6 +3,7 @@ import { isRateLimiter, testAwareLimiter } from '../route-utils';
 
 import { authRouter } from './auth';
 import { adminRouter } from './admin';
+import { adminBracketVotesRouter } from './admin-bracket-votes';
 import { syncRouter } from './sync';
 import { gamesRouter } from './games';
 import { gameResultsRouter } from './game-results';
@@ -71,6 +72,7 @@ type Layer = {
 const ROUTERS: Array<[string, unknown]> = [
   ['auth', authRouter],
   ['admin', adminRouter],
+  ['admin-bracket-votes', adminBracketVotesRouter],
   ['sync', syncRouter],
   ['games', gamesRouter],
   ['game-results', gameResultsRouter],
