@@ -84,6 +84,7 @@ export interface ScryfallCard {
    */
   all_parts?: Array<{ component?: string; name?: string; type_line?: string }>;
   tokens?: CardToken[]; // Tokens/emblems this card creates, pre-distilled (offline bundle)
+  pricedFromSet?: string; // E1011: set of the printing the price was read from (its own has none)
   // Added during deck generation
   isGameChanger?: boolean;
   isThemeSynergyCard?: boolean; // true if from EDHREC highsynergycards/topcards/gamechangers
@@ -587,19 +588,17 @@ export interface BuildReport extends TargetMissFields {
    *  seating one past a cap the user set is never silent). Undefined when no
    *  seated must-include broke either cap. */
   mustIncludeOverrideNote?: string;
-  /** Disclosure when a combo-completion candidate (Combo Integrity Audit /
-   *  combo floor) was skipped because it would exceed the deck budget.
-   *  Undefined when no budget is set or nothing was skipped. */
+  /** Disclosure when a combo-completion candidate (Combo Integrity Audit / combo floor)
+   *  was skipped for the deck budget. Undefined when no budget is set or none was skipped. */
   budgetNote?: string;
   /** Disclosure when the role-cap escape hatch admitted an over-cap card
    *  rather than shipping the deck short (a thin type pool left no
    *  under-cap alternative). Undefined when the cap was never breached. */
   roleCapOverflowNote?: string;
-  /** Disclosure when the price-sanity tie-break (E80) actually flipped a same-role
-   *  pick's winner toward the cheaper option at least once. Undefined when the
-   *  tie-break never decided an outcome (off via budgetOption='expensive', or no
-   *  qualifying pair ever arose). */
+  /** Disclosure when the price-sanity tie-break (E80) flipped a same-role pick toward the
+   *  cheaper option at least once. Undefined when it never decided an outcome. */
   priceSanityNote?: string;
+  printingPriceNote?: string; // E1011: cards priced from another printing (the filtered one has none)
   /** Disclosure (E221) when archetype tag-page blending injected cards into a
    *  thin commander×theme pool. Names the theme and the commander's own deck
    *  count, so the reader can see why we reached past their commander's page.
@@ -876,6 +875,7 @@ export interface GeneratedDeck extends TargetMissFields {
   mustIncludeOverrideNote?: string; // e.g. a forced pick was seated over the game-changer limit or max card price
   budgetNote?: string; // e.g. a combo upgrade was skipped to honor the budget cap
   roleCapOverflowNote?: string; // e.g. N cards kept over their role target to finish the deck (thin type pool)
+  printingPriceNote?: string; // E1011: cards priced from another printing because the filtered one has no price
   priceSanityNote?: string; // e.g. N cheaper near-equivalents preferred over premium picks (E80)
   bracketPriceDisclosureNote?: string; // e.g. casual-bracket ask + no budget still shipped a high total — bracket caps power, not price (E110)
   gameChangerBracketConflictNote?: string; // e.g. bracket 4/5 allows unlimited Game Changers but a finite limit still caps the deck

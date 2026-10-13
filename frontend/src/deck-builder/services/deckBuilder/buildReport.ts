@@ -213,6 +213,7 @@ export function assembleBuildReport(input: {
   if (generated.budgetNote) report.budgetNote = generated.budgetNote;
   if (generated.roleCapOverflowNote) report.roleCapOverflowNote = generated.roleCapOverflowNote;
   if (generated.priceSanityNote) report.priceSanityNote = generated.priceSanityNote;
+  if (generated.printingPriceNote) report.printingPriceNote = generated.printingPriceNote;
   if (generated.bracketPriceDisclosureNote)
     report.bracketPriceDisclosureNote = generated.bracketPriceDisclosureNote;
   if (generated.gameChangerBracketConflictNote)

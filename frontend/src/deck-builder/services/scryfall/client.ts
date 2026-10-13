@@ -18,6 +18,7 @@ import { scryfallFetch, scryfallRequest, scryfallErrorMessage } from '@/lib/card
 import { apiUrl } from '@/lib/api/api-base';
 import type { ScryfallCardRef } from '@/lib/cards/scryfall-card-link';
 import { persistCard, readCachedCards } from './cache';
+import { priceUnpricedFromOtherPrintings } from './unpricedPrintings';
 import { HARDCODED_GAME_CHANGERS as SHARED_GAME_CHANGERS } from '@spellcontrol/deck-metrics';
 
 /**
@@ -1021,7 +1022,7 @@ async function offlineGetCardsByNamesImpl(
  * Live batch fetch via Scryfall's /cards/collection endpoint.
  * Fetches up to 75 cards per request, drastically reducing API calls vs individual lookups.
  */
-async function liveGetCardsByNames(
+async function liveGetCardsByNamesResolve(
   names: string[],
   onProgress?: CardFetchProgress,
   preferredSet?: string,
@@ -1318,7 +1319,7 @@ const usdPriceRank = (card: ScryfallCard): number =>
  * Set-based filters (set:xxx) are stripped since those are handled by getCardsByNames.
  * When strict=true, cards without a matching printing are REMOVED from the map.
  */
-async function liveUpgradeCardPrintings(
+async function liveUpgradeCardPrintingsResolve(
   cards: Map<string, ScryfallCard>,
   scryfallQuery: string,
   strict: boolean = false
@@ -1483,6 +1484,22 @@ async function liveUpgradeCardPrintings(
   if (upgraded > 0) {
     logger.debug(`[Scryfall] Upgraded ${upgraded}/${entries.length} cards to match "${filters}"`);
   }
+}
+
+async function liveGetCardsByNames(
+  ...args: Parameters<typeof liveGetCardsByNamesResolve>
+): ReturnType<typeof liveGetCardsByNamesResolve> {
+  const result = await liveGetCardsByNamesResolve(...args);
+  // Only a set pin can land a card on an unpriced printing (and cube scale must not pay a search).
+  if (args[2]) await priceUnpricedFromOtherPrintings(result, getCardPrice);
+  return result;
+}
+
+async function liveUpgradeCardPrintings(
+  ...args: Parameters<typeof liveUpgradeCardPrintingsResolve>
+): Promise<void> {
+  await liveUpgradeCardPrintingsResolve(...args);
+  if (args[1]) await priceUnpricedFromOtherPrintings(args[0], getCardPrice);
 }
 
 export async function upgradeCardPrintings(

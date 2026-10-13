@@ -41,6 +41,7 @@ import {
   validateScryfallFilter,
   parseSetFromQuery,
   stripRequiredSetTerm,
+  getCardPrice,
 } from './client';
 import { resetScryfallRateLimit } from '@/lib/cards/scryfall-fetch';
 
@@ -1231,6 +1232,74 @@ describe('upgradeCardPrintings', () => {
     // The newest Skirk Prospector is a Secret Lair with only a $16.87 foil price: the
     // $0.35 Double Masters 2022 printing keeps it under a $2 cap.
     expect(cards.get('Skirk Prospector')?.set).toBe('dmr');
+  });
+
+  // E1011: a filter whose every matching printing is unpriced seats the card unpriced, which
+  // the budget read as free. Real printings: Lightning Bolt's plst and slz have no price,
+  // its fdc printing is $0.81; Command Tower's only priced printing is frc.
+  it('prices a card whose matching printings are all unpriced from its cheapest priced printing', async () => {
+    const all = (
+      JSON.parse(
+        readFileSync(
+          resolve(
+            dirname(fileURLToPath(import.meta.url)),
+            '../deckBuilder/__fixtures__/unpriced-printings.fixture.json'
+          ),
+          'utf8'
+        )
+      ) as { cards: ScryfallCard[] }
+    ).cards;
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      const q = decodeURIComponent(String(url));
+      const priced = q.includes('usd>0');
+      const data = all.filter(
+        (c) =>
+          q.includes(`!"${c.name}"`) &&
+          (priced ? !!c.prices.usd : c.set === 'plst' || c.set === 'slz')
+      );
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ object: 'list', has_more: false, data }),
+      };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const cards = new Map([
+      ['Lightning Bolt', makeCard({ name: 'Lightning Bolt', set: 'cmm' })],
+      ['Command Tower', makeCard({ name: 'Command Tower', set: 'cmm' })],
+    ]);
+
+    await upgradeCardPrintings(cards, 'set:plst or set:slz', true);
+
+    const bolt = cards.get('Lightning Bolt')!;
+    expect(['plst', 'slz']).toContain(bolt.set); // the printing the filter chose stays seated
+    expect(getCardPrice(bolt)).toBe('0.81'); // priced at the fdc printing
+    expect(bolt.pricedFromSet).toBe('fdc');
+    const tower = cards.get('Command Tower')!;
+    expect(tower.set).toBe('slz');
+    expect(getCardPrice(tower)).toBe('0.24');
+    expect(tower.pricedFromSet).toBe('frc');
+  });
+
+  it('leaves a card unpriced when no printing of the name has a price', async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      const priced = decodeURIComponent(String(url)).includes('usd>0');
+      const data = priced ? [] : [makeCard({ name: 'Unreleased Thing', set: 'slz' })];
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ object: 'list', has_more: false, data }),
+      };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const cards = new Map([
+      ['Unreleased Thing', makeCard({ name: 'Unreleased Thing', set: 'cmm' })],
+    ]);
+
+    await upgradeCardPrintings(cards, 'set:slz or set:plst', true);
+
+    expect(getCardPrice(cards.get('Unreleased Thing')!)).toBeNull();
+    expect(cards.get('Unreleased Thing')?.pricedFromSet).toBeUndefined();
   });
 
   it('sends an OR of sets to Scryfall instead of dropping it', async () => {
