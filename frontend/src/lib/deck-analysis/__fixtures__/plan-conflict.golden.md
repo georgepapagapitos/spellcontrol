@@ -118,6 +118,61 @@ adjudicated against the definition (these rulings were written after seeing the 
 - R5. A wipe whose size the pilot sets (Let the Galaxy Burn, X plus 2 damage) is read at the
   size that spares the pilot's best creatures. FINE.
 
+### Validation set (rated before rule v2 was run)
+
+The third set (J01 to J29, seed 27182818, 92 items) was drawn disjoint from the first two, from the
+same corpus. The corpus had no unused "other" decks and only five unused control decks left, so
+the draw is go-wide 8 / voltron 4 / control 5 / creature-midrange 8 / combo 4 (29 decks, not 30).
+Two fresh blind raters rated it with this definition and R1 to R5 (no rule output). Agreement:
+87 of 92, kappa 0.71 (FINE/FINE 80, CONFLICT/CONFLICT 7, FINE vs CONFLICT 5). The five splits
+were adjudicated against the definition, before v2 ran on the set:
+
+- R6. A wipe that returns permanents to hand (Devastation Tide, Flood of Tears) keeps the cards
+  and loses only tokens and tempo; sets 1 and 2 rated every such wipe FINE. FINE unless the
+  deck's board is mostly tokens (J08, J19: FINE).
+- J09 Kirtar's Wrath: CONFLICT (R1). Derevi's recast restarts nothing, and no mass dodge or
+  recursion is in the list; the single-creature blinks are not a dodge.
+- J10 Ondu Inversion: FINE (R2). The commander's Prismatic Bridge side puts a creature or
+  planeswalker onto the battlefield each upkeep from an empty board.
+- J16 Chandra's Ignition: FINE (R5). The pilot picks the source creature and so the damage.
+
+Data note: the corpus names J02's commander "Gisela, the Broken Blade // Brisela, ..." (a meld
+card); the raters' batch had no commander line for it and its "Bruna // Brisela" card is not in
+the fixture. J02 has no CONFLICT item.
+
+## Rule v2 result (not shipped)
+
+Rule v2 (source in `.claude/tools/plan-conflict-harness/plan-conflict.v2.ts`) changed v1 as
+follows: mass protection counts only when unconditional (not "Commander creatures", not on an
+attack trigger); a commander engine counts only when its token line needs no "another" or
+"other" permanent; three or more dodge, recursion or graveyard-engine cards make an answer (one
+or two lone cards do not, R1); +1/+1-counter decks get +2 toughness against a fixed-size wipe;
+"that aren't enchanted" is a slice for aura decks; a modal wipe is read at the mode that spares
+the plan; any "X" is the pilot's size; "each permanent destroyed" no longer reads as a wipe of
+all permanents; and the instant/sorcery gate was dropped, so a permanent such as Nevinyrral's
+Disk counts. It was tuned on sets 1 and 2 and then run once on set 3:
+
+- Set 1 (98 items, 8 CONFLICT): precision 7 of 7 (Wilson 0.65 to 1.00), recall 7 of 8.
+- Set 2 (90 items, 9 CONFLICT): precision 7 of 7 (Wilson 0.65 to 1.00), recall 7 of 9 (0.45 to 0.94).
+- Set 3 (92 items, 8 CONFLICT): precision 2 of 8 = 0.25 (Wilson 0.07 to 0.59), recall 2 of 8 = 0.25
+  (Wilson 0.07 to 0.59).
+
+The gate was precision of at least 0.8 on the unseen set, so v2 was not shipped. Set 3 misses:
+
+- False positives: J06 Selective Obliteration (exiles all but colorless, the deck is colorless),
+  J10 Urza's Ruinous Blast (spares legendary, the deck is mostly legendary), J10 Time Wipe (saves
+  a creature first), J10 Ondu Inversion (R2, the rule's engine test only knows tokens), J17
+  Blasphemous Act and J19 Kirtar's Wrath (wipe-then-profit shells whose payoffs the rule does
+  not read).
+- False negatives: Blasphemous Act in J05, J16 and J18, Chain Reaction in J16 and J24, and
+  Collision of Realms in J24. "X" as the pilot's size wrongly drops Chain Reaction, whose X is
+  the creature count; J16 (44 percent) and J18 (30 percent, voltron) sit under the 45 percent
+  lean line the raters read at 40 percent.
+
+The slices that failed are new kinds (colorless, legendary, a saved creature), not the four
+classes v2 fixed. A v3 needs a general "which permanents does the wipe spare, and are they the
+plan" test instead of a list of exceptions, and a fourth unseen draw.
+
 ## Rule v1 result (not shipped)
 
 Rule v1 (symmetric wipe, creature share at least 45 percent or artifact/enchantment share at

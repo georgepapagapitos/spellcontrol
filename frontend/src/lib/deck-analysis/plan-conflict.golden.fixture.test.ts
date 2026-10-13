@@ -36,10 +36,11 @@ function kappa(items: Item[]): number {
 // The adjudicated plan-conflict set (E356 slice E): the definition and rulings are in
 // `__fixtures__/plan-conflict.golden.md`. A rule built on it is measured against `truth`.
 describe('plan-conflict golden fixture', () => {
-  it('holds two disjoint 30-deck sets with real oracle text for every card', () => {
+  it('holds three disjoint sets (30, 30 and 29 decks) with real oracle text for every card', () => {
     expect(F.decks.filter((d) => d.set === 'tuned')).toHaveLength(30);
     expect(F.decks.filter((d) => d.set === 'heldout')).toHaveLength(30);
-    expect(new Set(F.decks.map((d) => d.id)).size).toBe(60);
+    expect(F.decks.filter((d) => d.set === 'validation')).toHaveLength(29);
+    expect(new Set(F.decks.map((d) => d.id)).size).toBe(89);
     for (const d of F.decks) {
       for (const n of [...Object.keys(d.cards), ...d.commanders]) {
         expect(F.cards[n]?.o, `${d.id} ${n}`).toBeTruthy();
@@ -57,11 +58,14 @@ describe('plan-conflict golden fixture', () => {
   it('keeps the rater agreement and positives it was adjudicated at', () => {
     const tuned = F.items.filter((i) => i.set === 'tuned');
     const held = F.items.filter((i) => i.set === 'heldout');
-    expect([tuned.length, held.length]).toEqual([98, 90]);
+    const valid = F.items.filter((i) => i.set === 'validation');
+    expect([tuned.length, held.length, valid.length]).toEqual([98, 90, 92]);
     expect(kappa(tuned)).toBeCloseTo(0.694, 2);
     expect(kappa(held)).toBeCloseTo(0.595, 2);
+    expect(kappa(valid)).toBeCloseTo(0.707, 2);
     expect(tuned.filter((i) => i.truth === 'CONFLICT')).toHaveLength(8);
     expect(held.filter((i) => i.truth === 'CONFLICT')).toHaveLength(9);
+    expect(valid.filter((i) => i.truth === 'CONFLICT')).toHaveLength(8);
   });
 
   it('settles every rater split with a written ruling, and only splits', () => {
