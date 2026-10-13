@@ -746,6 +746,37 @@ describe('usePlayStore — online flow', () => {
     expect(usePlayStore.getState().onlinePolling).toBe(true);
   });
 
+  // E449: the server writes the canonical row for a finished online game to
+  // the seated players; a spectator watching it end must not get a local row.
+  it('a spectator watching an online game finish gets no history row, a seated player does', async () => {
+    const finished = (version: number): GameState => ({
+      ...makeOnlineGame(version),
+      status: 'finished',
+      endedAt: 5,
+      winnerSeat: 0,
+    });
+    try {
+      useAuth.setState({ user: { id: 'spectator', username: 's', role: 'user' } } as never);
+      mockGet.mockResolvedValue(makeOnlineGame(2));
+      await usePlayStore.getState().watchOnline('abcd');
+      mockGet.mockResolvedValue(finished(3));
+      await usePlayStore.getState().refreshOnline();
+      expect(usePlayStore.getState().online?.status).toBe('finished');
+      expect(usePlayStore.getState().history).toHaveLength(0);
+
+      resetStore();
+      useAuth.setState({ user: { id: 'u2', username: 'guest', role: 'user' } } as never);
+      mockGet.mockResolvedValue(makeOnlineGame(2));
+      await usePlayStore.getState().watchOnline('abcd');
+      mockGet.mockResolvedValue(finished(3));
+      await usePlayStore.getState().refreshOnline();
+      expect(usePlayStore.getState().history).toHaveLength(1);
+    } finally {
+      usePlayStore.getState().stopPolling();
+      useAuth.setState({ user: null } as never);
+    }
+  });
+
   it('watchOnline refuses a table that answered as if it were not there', async () => {
     mockGet.mockResolvedValue(null);
     await expect(usePlayStore.getState().watchOnline('ZZZZ')).rejects.toThrow();

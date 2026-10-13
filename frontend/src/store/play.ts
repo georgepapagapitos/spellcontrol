@@ -841,6 +841,12 @@ function recordIfFinished(
   set: (fn: (s: PlayState) => Partial<PlayState>) => void
 ) {
   if (state.status === 'finished' && state.endedAt) {
+    // An online game's row belongs to the players who sat at it. A spectator
+    // watching it end (E449) has no seat and so no history entry.
+    if (state.mode === 'online') {
+      const me = useAuth.getState().user?.id;
+      if (!me || !state.players.some((p) => p.userId === me)) return;
+    }
     let queued = false;
     set((s) => {
       if (s.history.some((r) => r.id === state.id)) return {};
