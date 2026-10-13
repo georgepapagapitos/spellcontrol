@@ -58,6 +58,12 @@
   outline: none;
   flex: 1;
   min-width: 0;
+  /* A text input's intrinsic width (about 20 characters) is its min-content,
+     and min-width: 0 does not change what the pill reports to a wrapping
+     parent: at a 24px browser font that is 363px, so the deck toolbar's
+     control row grew past a 390px phone and the page scrolled sideways. A
+     percentage width contributes nothing to min-content. */
+  width: 100%;
   /* Cover the pill's own vertical padding — the 3px band above and below the
      input was not tappable, on a control the pill already sizes for touch. */
   align-self: stretch;

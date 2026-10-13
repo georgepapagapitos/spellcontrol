@@ -32,3 +32,24 @@ describe('grid caption plate scales with the browser text size', () => {
     expect(b).toMatch(/padding-top:\s*var\(--space-2-5\)/);
   });
 });
+
+// The deck page at a 24px browser font on a 390px phone (nightly run 38351166188):
+// the search pill's <input> reports its ~20-character intrinsic width as the
+// toolbar row's minimum, 363px against a 342px column, so the page scrolled
+// sideways and the toolbar pills, hero totals and stat tiles read as cut.
+describe('the search pill does not widen its row', () => {
+  const rule = (file: string, selector: string): string => {
+    const text = readFileSync(join(dir, file), 'utf8');
+    const at = text.indexOf(`${selector} {`);
+    expect(at, `${selector} rule exists`).toBeGreaterThan(-1);
+    return text.slice(at, text.indexOf('}', at));
+  };
+
+  it('its input has a percentage width, which adds nothing to min-content', () => {
+    expect(rule('search-controls.css', '.search-pill > input')).toMatch(/\bwidth:\s*100%/);
+  });
+
+  it('the admin console-helper tokens wrap instead of scrolling the page', () => {
+    expect(rule('admin-scanner.css', '.admin-sub code')).toContain('overflow-wrap: anywhere');
+  });
+});

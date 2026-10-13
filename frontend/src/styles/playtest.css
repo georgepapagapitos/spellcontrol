@@ -1369,13 +1369,13 @@ button.playtest-card-pt__value--editable:focus-visible {
 
 /* The plates print where a card's body prints, so they scale with the card and
    read 16px on a small table. Two of them sit edge to edge, so a ghost cannot
-   grow either one past the other: on touch each plate itself clears the 24px
-   WCAG 2.5.8 floor (a 44px press would steal the card's own tap). */
-@media (pointer: coarse) {
-  button.playtest-card-pt__value--editable {
-    min-width: 24px;
-    min-height: 24px;
-  }
+   grow either one past the other: each plate itself clears the 24px WCAG 2.5.8
+   floor, at every pointer (a 44px press would steal the card's own tap). The
+   floor was touch-only until the nightly's desktop axe pass measured 16x16 on a
+   mouse table once a creature was on the battlefield. */
+button.playtest-card-pt__value--editable {
+  min-width: 24px;
+  min-height: 24px;
 }
 
 @media (hover: hover) and (pointer: fine) {

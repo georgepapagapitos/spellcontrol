@@ -676,7 +676,7 @@ export function CardPreview({
         <Link
           key={`b-${b.id}`}
           to={`/collection/binders/${b.id}`}
-          className="card-preview-context-pill card-preview-context-pill--binder"
+          className="card-preview-context-pill text-link card-preview-context-pill--binder"
           style={{ '--pill-color': b.color || 'var(--accent)' } as React.CSSProperties}
           onClick={onClose}
           title={`Open binder ${b.name}`}
@@ -689,7 +689,7 @@ export function CardPreview({
         <Link
           key={`d-${d.deckId}`}
           to={`/decks/${d.ownerId}`}
-          className="card-preview-context-pill card-preview-context-pill--deck"
+          className="card-preview-context-pill text-link card-preview-context-pill--deck"
           style={{ '--pill-color': d.deckColor || 'var(--accent)' } as React.CSSProperties}
           onClick={onClose}
           title={`In deck: ${d.deckName}`}
@@ -703,7 +703,7 @@ export function CardPreview({
         <Link
           key={`c-${c.ownerId}`}
           to={`/decks/cube/${c.ownerId}`}
-          className="card-preview-context-pill card-preview-context-pill--cube"
+          className="card-preview-context-pill text-link card-preview-context-pill--cube"
           style={{ '--pill-color': 'var(--cube-color)' } as React.CSSProperties}
           onClick={onClose}
           title={`In cube: ${c.ownerName}`}
@@ -721,7 +721,7 @@ export function CardPreview({
           <Link
             key={`cl-${l.cubeId}`}
             to={`/decks/cube/${l.cubeId}`}
-            className="card-preview-context-pill card-preview-context-pill--cube card-preview-context-pill--listed"
+            className="card-preview-context-pill text-link card-preview-context-pill--cube card-preview-context-pill--listed"
             style={{ '--pill-color': 'var(--cube-color)' } as React.CSSProperties}
             onClick={onClose}
             title={`Listed in cube: ${l.cubeName}`}
@@ -1039,7 +1039,7 @@ export function CardPreview({
 
           <div className="card-preview-head">
             <div className="card-preview-name-row">
-              <h2 className="card-preview-name" id={nameId}>
+              <h2 className="card-preview-name" id={nameId} title={face?.name ?? current.name}>
                 {face?.name ?? <CardName card={current} />}
               </h2>
               {!hidePrice && !isPlaytest && (
@@ -1052,7 +1052,11 @@ export function CardPreview({
             {(headTypeLine || headManaCost) && (
               <div className="card-preview-typeline">
                 {headManaCost && <ManaCost cost={headManaCost} className="card-preview-mana" />}
-                {headTypeLine && <span className="card-preview-type">{headTypeLine}</span>}
+                {headTypeLine && (
+                  <span className="card-preview-type" title={headTypeLine}>
+                    {headTypeLine}
+                  </span>
+                )}
                 {headStat && <span className="card-preview-pt">{headStat}</span>}
               </div>
             )}

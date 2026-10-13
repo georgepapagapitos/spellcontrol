@@ -72,6 +72,15 @@ describe('the power/toughness plate', () => {
     );
   });
 
+  it('each editable plate clears the 24px target floor at every pointer', () => {
+    // WCAG 2.5.8 AA: two plates edge to edge leave no spacing exception, so
+    // the plate itself is the target. It was inside `(pointer: coarse)` only
+    // and a mouse table measured 16x16 (axe target-size, nightly desktop walk).
+    expect(css).toMatch(
+      /[\r\n]button\.playtest-card-pt__value--editable\s*\{[^}]*min-width:\s*24px;\s*min-height:\s*24px/
+    );
+  });
+
   it('is two plates, not one box with a slash', () => {
     expect(badges).not.toMatch(/playtest-card-pt__slash/);
     expect(css).not.toMatch(/playtest-card-pt__slash/);
