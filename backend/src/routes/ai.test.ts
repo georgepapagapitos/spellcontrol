@@ -327,6 +327,7 @@ describe('POST /api/ai/deck-review', () => {
       // Both passes are billed: research 500/100 + writing 1000/200. The user
       // pays for the lookups whether or not their prose is shown.
       usage: { inputTokens: 1500, outputTokens: 300 },
+      createdAt: expect.any(Number),
     });
 
     const second = await request(app)
@@ -444,6 +445,127 @@ describe('POST /api/ai/deck-review', () => {
     expect(res.status).toBe(200);
     expect(parseStream(res.text).done).toMatchObject({ cached: false });
     expect(mockState.generate).toHaveBeenCalledTimes(4);
+  });
+
+  describe('forced re-read of an unchanged deck (E254)', () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    const refreshBody = (overrides: Record<string, unknown> = {}) =>
+      reviewBody({ refresh: true, ...overrides });
+    const post = (cookie: string, body: Record<string, unknown>) =>
+      request(app).post('/api/ai/deck-review').set('Cookie', cookie).send(body);
+    const age = async (username: string, ms: number) => {
+      const { getPool } = await import('../db');
+      await getPool().query(
+        `UPDATE ai_reviews SET created_at = created_at - $2
+          WHERE user_id = (SELECT id FROM users WHERE username = $1)`,
+        [username, ms]
+      );
+    };
+
+    it('409s inside the window, names when it frees up, and never calls the model', async () => {
+      const cookie = await makeUser('ai-reread-window');
+      await optIn(cookie);
+      const first = parseStream((await post(cookie, reviewBody())).text).done as {
+        createdAt: number;
+      };
+      expect(mockState.generate).toHaveBeenCalledTimes(2);
+
+      const res = await post(cookie, refreshBody());
+      expect(res.status).toBe(409);
+      expect(res.body.availableAt).toBe(first.createdAt + DAY);
+      expect(mockState.generate).toHaveBeenCalledTimes(2);
+      const status = await request(app).get('/api/ai/status').set('Cookie', cookie);
+      expect(status.body.used).toBe(1);
+    });
+
+    it('regenerates once the window has passed, replaces the row and spends one quota', async () => {
+      const cookie = await makeUser('ai-reread-open');
+      await optIn(cookie);
+      await post(cookie, reviewBody());
+      await age('ai-reread-open', DAY + 1000);
+      mockState.generate.mockClear();
+
+      const res = await post(cookie, refreshBody());
+      expect(res.status).toBe(200);
+      expect(parseStream(res.text).done).toMatchObject({ cached: false });
+      expect(mockState.generate).toHaveBeenCalledTimes(2);
+
+      const { getPool } = await import('../db');
+      const rows = await getPool().query<{ created_at: string }>(
+        `SELECT created_at FROM ai_reviews
+          WHERE user_id = (SELECT id FROM users WHERE username = $1)`,
+        ['ai-reread-open']
+      );
+      expect(rows.rows).toHaveLength(1);
+      expect(Date.now() - Number(rows.rows[0].created_at)).toBeLessThan(60_000);
+      const status = await request(app).get('/api/ai/status').set('Cookie', cookie);
+      expect(status.body.used).toBe(1);
+
+      // The window restarts from the new reading.
+      expect((await post(cookie, refreshBody())).status).toBe(409);
+    });
+
+    it('a plain (non-forced) request still replays inside and outside the window', async () => {
+      const cookie = await makeUser('ai-reread-plain');
+      await optIn(cookie);
+      await post(cookie, reviewBody());
+      await age('ai-reread-plain', DAY + 1000);
+      const res = await post(cookie, reviewBody());
+      expect(parseStream(res.text).done).toMatchObject({ cached: true });
+      expect(mockState.generate).toHaveBeenCalledTimes(2);
+    });
+
+    it('a changed deck re-reads even with refresh set and a reading inside the window', async () => {
+      const cookie = await makeUser('ai-reread-changed');
+      await optIn(cookie);
+      await post(cookie, reviewBody());
+      const res = await post(
+        cookie,
+        refreshBody({ cards: [{ name: 'Sol Ring', oracleId: 'o-1', qty: 1 }] })
+      );
+      expect(res.status).toBe(200);
+      expect(parseStream(res.text).done).toMatchObject({ cached: false });
+      expect(mockState.generate).toHaveBeenCalledTimes(4);
+    });
+
+    it('keeps the old reading when the forced re-read fails', async () => {
+      const cookie = await makeUser('ai-reread-fail');
+      await optIn(cookie);
+      await post(cookie, reviewBody());
+      await age('ai-reread-fail', DAY + 1000);
+      const { getPool } = await import('../db');
+      const before = await getPool().query<{ content: string; created_at: string }>(
+        `SELECT content, created_at FROM ai_reviews
+          WHERE user_id = (SELECT id FROM users WHERE username = $1)`,
+        ['ai-reread-fail']
+      );
+      mockState.generate.mockReset();
+      mockState.generate.mockRejectedValue(new Error('boom'));
+
+      const res = await post(cookie, refreshBody());
+      expect(res.status).toBe(502);
+      const after = await getPool().query<{ content: string; created_at: string }>(
+        `SELECT content, created_at FROM ai_reviews
+          WHERE user_id = (SELECT id FROM users WHERE username = $1)`,
+        ['ai-reread-fail']
+      );
+      expect(after.rows).toEqual(before.rows);
+    });
+
+    it('a forced re-read counts against the daily limit', async () => {
+      const cookie = await makeUser('ai-reread-quota');
+      await optIn(cookie);
+      const { getPool } = await import('../db');
+      await getPool().query('UPDATE users SET ai_daily_limit = 1 WHERE username = $1', [
+        'ai-reread-quota',
+      ]);
+      await post(cookie, reviewBody());
+      await age('ai-reread-quota', DAY + 1000);
+      // The aged row is from a prior day, so today's quota is open once.
+      expect((await post(cookie, refreshBody())).status).toBe(200);
+      const status = await request(app).get('/api/ai/status').set('Cookie', cookie);
+      expect(status.body.used).toBe(1);
+    });
   });
 
   it('429s at the daily limit; cache hits still work past it', async () => {

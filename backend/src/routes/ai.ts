@@ -90,6 +90,14 @@ export const aiRouter: Router = Router();
 
 export const DEFAULT_DAILY_LIMIT = 10;
 export const DEFAULT_DAILY_USD_CAP = 5;
+/**
+ * How long a stored reading of an unchanged deck is protected from a forced
+ * re-read ("Read again"). Measured from the reading's own `created_at` on the
+ * server clock; a content or prompt-version change is a different cache key and
+ * never meets this window. A forced re-read spends one unit of the same daily
+ * quota and the same global USD cap as any fresh reading.
+ */
+export const REREAD_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 const reviewLimiter = testAwareLimiter({ windowMs: 60_000, max: 10 });
 const optInLimiter = testAwareLimiter({ windowMs: 60_000, max: 20 });
@@ -305,6 +313,8 @@ interface ReviewDone {
    * so the client distinguishes "none" from "unknown" the same way.
    */
   fetched?: string[];
+  /** When the stored reading was written (server clock, epoch ms). */
+  createdAt: number;
 }
 type ReviewLine = { delta: string } | { done: ReviewDone } | { error: string };
 
@@ -358,19 +368,32 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
     input_tokens: number;
     output_tokens: number;
     fetched_names: string[] | null;
+    created_at: string | number;
   }>(
-    `SELECT content, model, input_tokens, output_tokens, fetched_names
+    `SELECT content, model, input_tokens, output_tokens, fetched_names, created_at
        FROM ai_reviews
       WHERE user_id = $1 AND feature = $2 AND input_hash = $3`,
     [userId, DECK_REVIEW_FEATURE, inputHash]
   );
-  if (cached.rows.length > 0) {
+  // `refresh` asks for a fresh reading of a deck whose stored reading still
+  // matches. It is honoured once per window; the old row stays until the new
+  // one is written, so a failed generation costs the reader nothing.
+  const refresh = (req.body as { refresh?: unknown } | undefined)?.refresh === true;
+  if (cached.rows.length > 0 && refresh) {
+    const availableAt = Number(cached.rows[0].created_at) + REREAD_WINDOW_MS;
+    if (Date.now() < availableAt) {
+      return res
+        .status(409)
+        .json({ error: 'This deck was read recently. Try again later.', availableAt });
+    }
+  } else if (cached.rows.length > 0) {
     const row = cached.rows[0];
     send({ delta: row.content });
     send({
       done: {
         content: row.content,
         cached: true,
+        createdAt: Number(row.created_at),
         model: row.model,
         usage: { inputTokens: row.input_tokens, outputTokens: row.output_tokens },
         ...(row.fetched_names?.length ? { fetched: row.fetched_names } : {}),
@@ -504,11 +527,26 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
 
   const fetchedNames = lookedUpNames(generation.fetched);
 
+  const now = Date.now();
+  // A forced re-read replaces the stored row in place (one row per key), so
+  // the quota meter and spend ledger count it as a fresh generation: the old
+  // row is >= 24h old, hence from an earlier UTC day. The WHERE keeps two racing
+  // re-reads from both landing.
   await pool.query(
     `INSERT INTO ai_reviews
        (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, cache_write_tokens, cache_read_tokens, created_at, deck_id, prompt_version, fetched_names)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-     ON CONFLICT (user_id, feature, input_hash) DO NOTHING`,
+     ON CONFLICT (user_id, feature, input_hash) ${
+       refresh
+         ? `DO UPDATE SET model = EXCLUDED.model, content = EXCLUDED.content,
+              input_tokens = EXCLUDED.input_tokens, output_tokens = EXCLUDED.output_tokens,
+              cache_write_tokens = EXCLUDED.cache_write_tokens,
+              cache_read_tokens = EXCLUDED.cache_read_tokens, created_at = EXCLUDED.created_at,
+              deck_id = EXCLUDED.deck_id, prompt_version = EXCLUDED.prompt_version,
+              fetched_names = EXCLUDED.fetched_names
+            WHERE ai_reviews.created_at <= $15`
+         : 'DO NOTHING'
+     }`,
     [
       crypto.randomUUID(),
       userId,
@@ -520,10 +558,11 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
       generation.outputTokens,
       generation.cacheWriteTokens ?? 0,
       generation.cacheReadTokens ?? 0,
-      Date.now(),
+      now,
       request.deckId,
       DECK_REVIEW_PROMPT_VERSION,
       JSON.stringify(fetchedNames),
+      ...(refresh ? [now - REREAD_WINDOW_MS] : []),
     ]
   );
 
@@ -531,6 +570,7 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
     done: {
       content: generation.content,
       cached: false,
+      createdAt: now,
       model: AI_MODEL,
       usage: { inputTokens: generation.inputTokens, outputTokens: generation.outputTokens },
       ...(generation.truncated ? { truncated: true } : {}),

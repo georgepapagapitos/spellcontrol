@@ -12,6 +12,10 @@ import {
   deckContentKey,
   fetchReviewHistory,
   requestDeckReview,
+  formatAvailableAt,
+  formatReadOn,
+  REREAD_WINDOW_MS,
+  RereadWindowError,
   splitReviewSections,
   stripEmphasis,
   toAiAnalysis,
@@ -52,7 +56,7 @@ interface HeldReview {
    * isn't known client-side, so it carries an as-of date instead.
    */
   key: string | null;
-  /** Server timestamp, present only on history-restored readings. */
+  /** Server timestamp of when the reading was written. */
   writtenAt?: number;
   /**
    * Cards this reading looked up — its recommendations. Held per reading, not
@@ -110,6 +114,15 @@ export function DeckAiReview({
   const [streamed, setStreamed] = useState('');
   /** Past readings for this deck, newest first. Null until fetched. */
   const [history, setHistory] = useState<ReviewReading[] | null>(null);
+  /**
+   * The server refused a forced re-read of this deck state: the time it frees
+   * up. Kept with the content key it was learned for, so editing the deck
+   * (a different key, never window-limited) lifts it.
+   */
+  // The clock the window is judged on: the panel's own mount. A day-long window
+  // doesn't need a ticking render, and a remount lifts an expired one.
+  const [mountedAt] = useState(() => Date.now());
+  const [lock, setLock] = useState<{ until: number; key: string } | null>(null);
 
   // Restoring past readings is a DB read of the user's own content — free,
   // never a model call — so fetching on expand doesn't break the
@@ -176,16 +189,31 @@ export function DeckAiReview({
 
   const remaining = Math.max(0, status.limit - status.used);
   const stale = review !== null && review.key !== null && review.key !== currentKey;
+  // When a forced re-read of this deck state frees up. Known from the reading's
+  // own date when it was written for this exact deck; a history-restored
+  // reading can't say, so it waits for the server's answer.
+  const sameDeckAt = review?.key === currentKey ? review.writtenAt : undefined;
+  const freesUpAt =
+    lock?.key === currentKey
+      ? lock.until
+      : sameDeckAt !== undefined
+        ? sameDeckAt + REREAD_WINDOW_MS
+        : null;
+  const rereadBlocked = !stale && freesUpAt !== null && freesUpAt > mountedAt;
 
   const read = () => {
     const requestKey = currentKey;
+    // A reading of the same deck state is asked for again, not replaced: the
+    // earlier one stays on screen until the new one has fully arrived, and
+    // stays for good if the model call fails. A changed deck streams in place.
+    const refresh = review !== null && !stale;
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
     setPhase('reading');
     setError(null);
     setStreamed('');
-    setReview(null);
+    if (!refresh) setReview(null);
     const analysis = toAiAnalysis(
       analyzeDeck({ format, commander, partnerCommander, mainboard }, taggerReady),
       { target: bracketTarget, estimate: bracketEstimate },
@@ -203,12 +231,19 @@ export function DeckAiReview({
         currency: aiPriceCurrency(),
         format,
         analysis,
+        ...(refresh ? { refresh: true } : {}),
       },
-      setStreamed,
+      refresh ? undefined : setStreamed,
       controller.signal
     )
       .then((result) => {
-        setReview({ content: result.content, key: requestKey, fetched: result.fetched });
+        setReview({
+          content: result.content,
+          key: requestKey,
+          writtenAt: result.createdAt ?? Date.now(),
+          fetched: result.fetched,
+        });
+        setLock(null);
         setStreamed('');
         setPhase('idle');
         if (!result.cached) noteAiSpend();
@@ -217,6 +252,12 @@ export function DeckAiReview({
         // A reading the reader stopped is not a failure: back to idle with no
         // error card, and nothing has been spent.
         if (err.name === 'AbortError' || controller.signal.aborted) {
+          setStreamed('');
+          setPhase('idle');
+          return;
+        }
+        if (err instanceof RereadWindowError) {
+          setLock({ until: err.availableAt, key: requestKey });
           setStreamed('');
           setPhase('idle');
           return;
@@ -285,22 +326,28 @@ export function DeckAiReview({
           gap before the first label arrives. */}
       {(review || streamed) && (
         <div aria-live="polite">
-          {stale && (
+          {/* Every settled reading carries its date. A reading of this very deck
+              can be read again once per day (the server holds the window); the
+              button stays in place, disabled, with the time it frees up. */}
+          {review && (
             <div className="deck-ai-stale" role="status">
-              <span>The deck or AI sources changed since this reading.</span>
-              <Button onClick={read} disabled={phase === 'reading'}>
+              <span>
+                {stale
+                  ? 'The deck or AI sources changed since this reading.'
+                  : phase === 'reading'
+                    ? 'Reading again. The earlier reading stays until the new one is ready.'
+                    : review.writtenAt
+                      ? `Read on ${formatReadOn(review.writtenAt)}.`
+                      : ''}
+              </span>
+              <Button onClick={read} disabled={phase === 'reading' || rereadBlocked}>
                 Read again
               </Button>
-            </div>
-          )}
-          {/* A history-restored reading gets an as-of date, not a stale flag —
-              whether the deck has changed since isn't knowable client-side. */}
-          {review?.key === null && (
-            <div className="deck-ai-stale" role="status">
-              <span>Written {formatRelativeTime(review.writtenAt ?? 0, { verbose: true })}.</span>
-              <Button onClick={read} disabled={phase === 'reading'}>
-                Read again
-              </Button>
+              {rereadBlocked && freesUpAt !== null && phase !== 'reading' && (
+                <span className="deck-ai-remaining">
+                  Available again {formatAvailableAt(freesUpAt)}.
+                </span>
+              )}
             </div>
           )}
           {/* Announced, but visually hidden — a "Writing…" line that later
@@ -371,7 +418,7 @@ export function DeckAiReview({
         </div>
       )}
 
-      {phase === 'reading' && !streamed && (
+      {phase === 'reading' && !streamed && !review && (
         <div
           className="deck-ai-skeleton"
           role="status"

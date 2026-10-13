@@ -33,6 +33,8 @@ export interface DeckReviewResult {
    * rather than reading absence as "it looked nothing up".
    */
   fetched?: string[];
+  /** When the reading was written, on the server clock (epoch ms). */
+  createdAt?: number;
 }
 
 /**
@@ -146,6 +148,34 @@ export interface DeckReviewPayload {
   /** The deck's format key; the server judges suggestions legal in it (absent = Commander). */
   format?: string;
   analysis: AiAnalysisPayload;
+  /**
+   * Ask for a fresh reading of a deck whose stored reading still matches.
+   * The server allows this once per deck per {@link REREAD_WINDOW_MS} and
+   * answers 409 with the time it frees up ({@link RereadWindowError}).
+   */
+  refresh?: boolean;
+}
+
+/** Mirrors the server's `REREAD_WINDOW_MS`; the server is the one that enforces it. */
+export const REREAD_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/** The server refused a forced re-read: the stored reading is still inside its window. */
+export class RereadWindowError extends Error {
+  constructor(readonly availableAt: number) {
+    super('This deck was read recently.');
+    this.name = 'RereadWindowError';
+  }
+}
+
+/** "Oct 12" */
+export function formatReadOn(ms: number): string {
+  return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+/** "Oct 13 at 3:14 PM" */
+export function formatAvailableAt(ms: number): string {
+  const time = new Date(ms).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  return `${formatReadOn(ms)} at ${time}`;
 }
 
 /** null = feature unavailable (backend key absent) or caller unauthenticated. */
@@ -214,6 +244,10 @@ export async function requestDeckReview(
     body: JSON.stringify(payload),
     signal,
   });
+  if (res.status === 409) {
+    const body = (await res.json().catch(() => null)) as { availableAt?: unknown } | null;
+    if (typeof body?.availableAt === 'number') throw new RereadWindowError(body.availableAt);
+  }
   // Anything that fails before the first byte still answers with a status code
   // and a JSON body; handleResponse always throws for those.
   if (!res.ok) await handleResponse<never>(res);
