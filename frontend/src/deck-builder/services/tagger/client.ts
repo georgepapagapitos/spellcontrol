@@ -922,6 +922,25 @@ const WIPE_SCOPE_PLANESWALKERS = /(?:destroy|exile)\b[^.]*?\ball\b[^.]*?planeswa
 const WIPE_SCOPE_ALL =
   /\ball (?:nonland )?permanents?\b|\beach permanent\b|(?=[\s\S]*\boverload\b)(?=[\s\S]*\b(?:destroy|exile|return) target nonland permanent\b)/i;
 
+// "Permanents that are one or more colors" (All Is Dust, Ugin's -X); "colored
+// permanents" for any future printing worded that way.
+const WIPE_SCOPE_COLORED_ONLY =
+  /\bthat(?:'s| are| is) one or more colors\b|\bone or more colors\b[^.]*\bpermanents?\b|\bcolored (?:nonland )?permanents?\b/i;
+
+/** A sweep of permanents that are one or more colors only (All Is Dust, Ugin's -X). */
+export function isColoredOnlyWipe(card: {
+  name: string;
+  oracle_text?: string;
+  card_faces?: Array<{ oracle_text?: string }>;
+}): boolean {
+  const text = (
+    card.oracle_text ??
+    card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ??
+    ''
+  ).trim();
+  return WIPE_SCOPE_ALL.test(text) && WIPE_SCOPE_COLORED_ONLY.test(text);
+}
+
 export function getWipeScope(card: {
   name: string;
   oracle_text?: string;
@@ -934,6 +953,20 @@ export function getWipeScope(card: {
   ).trim();
   if (!text) return NO_WIPE_SCOPE;
   if (isOneSidedWipe(card)) return NO_WIPE_SCOPE;
+  // A sweep of colored permanents only (All Is Dust, Ugin, the Spirit Dragon's -X) spares
+  // a colorless artifact, which is nearly every artifact: reading it as "all permanents"
+  // billed an Eldrazi artifact deck for collateral it does not take, and All Is Dust
+  // (94% of Emrakul's Eldrazi decks) scored as the worst wipe to keep. Enchantments are
+  // colored, so those still count.
+  if (isColoredOnlyWipe(card)) {
+    return {
+      creatures: true,
+      artifacts: false,
+      enchantments: true,
+      planeswalkers: true,
+      all: false,
+    };
+  }
   return {
     creatures: WIPE_SCOPE_CREATURES.test(text),
     artifacts: WIPE_SCOPE_ARTIFACTS.test(text),
