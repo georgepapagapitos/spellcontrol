@@ -446,7 +446,10 @@ export async function acquireCardPoolPhase(
 ): Promise<AcquireCardPoolResult> {
   const { usingCache } = ctx;
   let scryfallQuery = ctx.scryfallQuery;
-  let landScryfallQuery = ctx.scryfallQuery;
+  // The player's own filter shapes the spells, not the nonbasic land search:
+  // `t:creature` there matched no land and every nonbasic slot went to a basic.
+  // Only the pool's own constraint (legality, era) reaches the lands below.
+  let landScryfallQuery = '';
   let altPool: AlternatePoolResult | null = null;
 
   const { commander, partnerCommander, colorIdentity, customization, onProgress } = state.context;

@@ -759,6 +759,27 @@ describe('a nonbasic target the first pass can not fill', () => {
   const nonbasicNames = (cards: ScryfallCard[]) =>
     cards.filter((c) => !c.type_line.includes('Basic')).map((c) => c.name);
 
+  it('Command Tower takes only a free nonbasic slot, never a basic one', async () => {
+    vi.mocked(getCardsByNames).mockImplementationOnce(
+      async (names: string[]) => new Map(names.map((n) => [n, land(n)]))
+    );
+    // One nonbasic asked for (basicCount 5 of 6) and the page fills it.
+    const lands = await generateLands(
+      [row('Spire of Industry', 50)],
+      ['W', 'U'],
+      6,
+      new Set(),
+      5,
+      99,
+      []
+    );
+    // By name: this file's getCardByName mock types every fetched card a basic.
+    const names = lands.map((c) => c.name);
+    expect(names).toContain('Spire of Industry');
+    expect(names).not.toContain('Command Tower');
+    expect(lands).toHaveLength(6);
+  });
+
   it('owned-only: an owned land past the first 2x candidates is still seen', async () => {
     const page = Array.from({ length: 14 }, (_, i) => row(`Land ${i + 1}`, 60 - i));
     vi.mocked(getCardsByNames).mockImplementationOnce(

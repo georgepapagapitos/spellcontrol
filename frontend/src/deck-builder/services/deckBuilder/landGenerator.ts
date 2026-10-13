@@ -538,7 +538,9 @@ export async function generateLands(
     format === 99 &&
     colorIdentity.length >= 2 &&
     // E1005: 'No nonbasics' (nonBasicTarget 0) is the user's call, a Tower included.
-    nonBasicTarget > 0 &&
+    // And only into a free nonbasic slot: with the picks already at the target,
+    // the Tower took a basic's place and shipped one nonbasic over the count.
+    lands.length < nonBasicTarget &&
     !usedNames.has('Command Tower') &&
     !bannedCards.has('Command Tower') &&
     !(
