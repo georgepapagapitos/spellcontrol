@@ -434,7 +434,7 @@ describe('acquireCardPoolPhase', () => {
     expect(result).toEqual({
       altPool: null,
       scryfallQuery: 'f:commander',
-      landScryfallQuery: 'f:commander',
+      landScryfallQuery: '',
     });
     expect(fetchCommanderDataMock).not.toHaveBeenCalled();
     expect(buildAlternatePoolMock).not.toHaveBeenCalled();
@@ -476,8 +476,20 @@ describe('acquireCardPoolPhase', () => {
       scryfallQuery: 'r:common',
     });
     expect(result.scryfallQuery).toBe('r:common is:permanent -t:land f:paupercommander');
-    expect(result.landScryfallQuery).toBe('r:common f:paupercommander');
+    expect(result.landScryfallQuery).toBe('f:paupercommander');
     expect(result.landScryfallQuery).not.toContain('-t:land');
+  });
+
+  // The player's filter is for spells: `t:creature` on the land fallback
+  // matched no land, so every nonbasic slot went to a basic.
+  it("keeps the player's own Scryfall filter out of the land query", async () => {
+    fetchCommanderDataMock.mockResolvedValue(edhrecData());
+    const result = await acquireCardPoolPhase(makeState(), {
+      usingCache: false,
+      scryfallQuery: 't:creature',
+    });
+    expect(result.scryfallQuery).toBe('t:creature');
+    expect(result.landScryfallQuery).toBe('');
   });
 
   // LIVE (stress sweep 2026-09-24): a motif no card matched said "Built by
