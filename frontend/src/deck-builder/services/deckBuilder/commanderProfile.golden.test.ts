@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { buildCommanderProfile } from './commanderProfile';
 import type { ScryfallCard } from '@/deck-builder/types';
 import golden from './__fixtures__/commander-profile.golden.fixture.json';
+import heldOutGolden from './__fixtures__/commander-profile.heldout.fixture.json';
 
 // Guard for the commander side of the profile: which themes and keywords
 // buildCommanderProfile claims for a commander. The fixture is 670 real
@@ -92,5 +93,46 @@ describe('commander profile against the golden set', () => {
     expect(recall('proliferate')).toBeGreaterThanOrEqual(0.9);
     expect(recall('landfall')).toBeGreaterThanOrEqual(0.9);
     expect(recall('group-hug')).toBeGreaterThanOrEqual(0.85);
+  });
+});
+
+// The second guard: 90 commanders rated AFTER the detectors were tuned on the
+// set above (45 unrated EDHREC-ranked, 45 seeded random, two blind raters), so
+// it measures generalization. The creature-etb, leaves-battlefield and
+// spellcast fixes below came from its misses.
+const heldOut = heldOutGolden as unknown as Fixture;
+const heldOutFired = (name: string) =>
+  new Set<string>(
+    buildCommanderProfile({ name, ...heldOut.cards[name] } as ScryfallCard).abilities.map(
+      (a) => a.keyword
+    )
+  );
+
+describe('commander profile against the held-out set', () => {
+  it('misses no commander the held-out set does not already list as a known miss', () => {
+    const known = new Set(heldOut.knownMisses);
+    const found = heldOut.items.flatMap((item) => {
+      const fired = heldOutFired(item.name);
+      return heldOut.keywords.flatMap((k) => {
+        const f = fired.has(k);
+        return f === item.truth.includes(k) ? [] : [`${f ? 'FP' : 'FN'} ${k}: ${item.name}`];
+      });
+    });
+    expect(found.filter((m) => !known.has(m))).toEqual([]);
+    expect(heldOut.knownMisses.filter((m) => !found.includes(m))).toEqual([]);
+  });
+
+  it.each([
+    ['Grumgully, the Generous', 'creature-etb'], // "enters with an additional +1/+1 counter"
+    ['Satoru, the Infiltrator', 'creature-etb'], // "Satoru and/or one or more other creatures enter"
+    ['Athreos, Shroud-Veiled', 'leaves-battlefield'], // "dies or is put into exile"
+    ['God-Eternal Oketra', 'leaves-battlefield'],
+    ["Lozhan, Dragons' Legacy", 'spellcast'], // "cast an Adventure or Dragon spell"
+  ])('%s is profiled %s', (name, keyword) => {
+    expect(heldOutFired(name).has(keyword)).toBe(true);
+  });
+
+  it('does not read an Equipment entering as a creature-enters trigger (Firion)', () => {
+    expect(heldOutFired('Firion, Wild Rose Warrior').has('creature-etb')).toBe(false);
   });
 });
