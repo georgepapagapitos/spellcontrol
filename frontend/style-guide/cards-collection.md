@@ -447,6 +447,30 @@ layout)`) instead of separate `cards`/`binders`/options arguments.
   render pass (`compileBinderCandidates` + `nextBinderMatchCompiled`), not
   once per row, since the list can hold a booster box.
 
+**"What we found" follows an import (E307, 2026-10).** A real import (not the
+sample) puts one more card at the top of the Collection page, wearing the same
+`.import-review` container as the summary above: a facts line (card count, value
+once the collection is priced, the one or two colors most of the cards play), then
+the three owned commanders the player already has the most of the deck for. The
+ranking is the commander finder's "Most of the deck owned" score
+(`lib/deck/owned-commander-picks.ts` over `computeReadiness`), not a second one,
+and a tile is a `CommanderResultCard` with its coverage bar. A tap opens
+`/decks/new/generate?commander=` with `ownedFirst` router state, which lands on
+"Lean on mine". Rules:
+
+- **Once per import, always dismissible, never blocking.** `store/post-import-moment.ts`
+  remembers the last announcing import and whether it was put away (device-local;
+  the content is recomputed from the live collection). Reopen is Collection ⋮ →
+  "What we found". The Add cards sheet offers "See what we found" in its summary so
+  the card is not discovered by accident behind the sheet.
+- **Three states besides ready.** Loading says what it is doing (a spinner and
+  "Checking your commanders…"), empty (no commander in the collection, or fewer
+  than 20 cards) says so and offers "Find a commander", and an EDHREC outage says
+  "Couldn't rate your commanders right now" with Retry. The facts line shows in all
+  four.
+- **Counted.** `import_completed`, `post_import_shown` (once per import, not per
+  reopen) and `post_import_tapped` ride the usage beacon.
+
 **Import admin left the add flow (T153, 2026-09-26).** `UploadPanel` used to
 mix adding cards with collection administration — an import-history aside
 with per-import delete, a "Restore backup" file picker, and a "Clear all"

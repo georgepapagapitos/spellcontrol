@@ -1,0 +1,45 @@
+/* PostImportMoment — "what we found in your collection" (board E307). Wears the
+   import review card (.import-review, styles/import-upload.css) so the two read
+   as one vocabulary; this file only adds what that card does not have. */
+
+.post-import-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+.post-import-colors {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  --pip-size: 1rem;
+}
+
+.post-import-lead {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.post-import-picks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+}
+
+.post-import-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}

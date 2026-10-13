@@ -53,7 +53,14 @@ export type EventName =
   | 'test_hand_opened'
   // A rules walkthrough reached its last step (board E357). Its pageview
   // counts the opens, and this counts the finishes, per walkthrough path.
-  | 'walkthrough_finished';
+  | 'walkthrough_finished'
+  // The import funnel past the click (board E307): a real (non-sample) import
+  // finished, the "what we found" moment was put in front of the importer, and
+  // they tapped a commander in it. Three counts, so the drop between each says
+  // whether the moment is seen and whether it is acted on.
+  | 'import_completed'
+  | 'post_import_shown'
+  | 'post_import_tapped';
 
 const ID_ROUTES =
   /^\/(s|d|u|gn|pods|friends|decks\/cube|decks|collection\/(?:binders|lists|sets))\/([^/]+)(\/.*)?$/;

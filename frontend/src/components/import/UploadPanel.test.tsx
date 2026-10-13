@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, within, waitFor } from '@testing-library/react';
 import type { EnrichedCard, FetchErrorRow, UploadResponse } from '@/types/index';
 import type { ImportHistoryEntry } from '@/lib/sync/local-cards';
+import { usePostImportMoment } from '@/store/post-import-moment';
 
 // UploadPanel's own commit path (importCards) and parse path (importText) are
 // mocked; everything else (Modal, ConfirmDialog, useConfirm, card-tags,
@@ -62,6 +63,9 @@ const pushProgressMock = vi.fn<() => { done: number; total: number; ops: number 
 vi.mock('@/lib/sync/use-push-progress', () => ({
   usePushProgress: () => pushProgressMock(),
 }));
+
+const trackMock = vi.fn();
+vi.mock('@/lib/util/analytics', () => ({ track: (name: string) => trackMock(name) }));
 
 interface MockState {
   cards: EnrichedCard[];
@@ -307,6 +311,26 @@ describe('UploadPanel "mark all as proxies" toggle', () => {
     // label's accessible name and steals its click.
     expect(screen.getByText('Counts as owned, with no market value.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /marking an import as proxies/i })).toBeNull();
+  });
+
+  it('counts the import and announces the "what we found" moment', async () => {
+    importTextMock.mockResolvedValue(mkResponse([card(1)]));
+    trackMock.mockClear();
+    usePostImportMoment.setState({ importId: null, open: false, shownCounted: true });
+    const onSeeFindings = vi.fn();
+
+    render(<UploadPanel onSeeFindings={onSeeFindings} />);
+    paste();
+
+    await waitFor(() => expect(importCardsMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(trackMock).toHaveBeenCalledWith('import_completed'));
+    expect(usePostImportMoment.getState()).toMatchObject({
+      importId: 'new-import-id',
+      open: true,
+      shownCounted: false,
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'See what we found' }));
+    expect(onSeeFindings).toHaveBeenCalledTimes(1);
   });
 
   it('threads proxy:true to importText when checked before a paste import', async () => {

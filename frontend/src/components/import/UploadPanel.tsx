@@ -30,6 +30,8 @@ import {
 } from '@/lib/import-export/import-review';
 import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
 import { Modal } from '@/components/overlays/Modal';
+import { track } from '@/lib/util/analytics';
+import { usePostImportMoment } from '@/store/post-import-moment';
 import { useCanScan } from '@/lib/scanner/use-can-scan';
 import { useSealMoment } from '@/components/shared/SealMoment';
 
@@ -128,9 +130,12 @@ interface UploadPanelProps {
    *  exposes scanning as a peer entry point — two scan buttons in the
    *  same surface is confusing. */
   hideScanButton?: boolean;
+  /** Closes the host so the "what we found" moment on the Collection page is
+   *  in view. Without it the panel does not offer the shortcut. */
+  onSeeFindings?: () => void;
 }
 
-export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
+export function UploadPanel({ hideScanButton = false, onSeeFindings }: UploadPanelProps = {}) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pasteText, setPasteText] = useState('');
   /** Google Sheets / Drive share link, fetched server-side and staged as a file. */
@@ -164,6 +169,8 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
    *  post-import "where did my cards go?" panel. Cleared whenever the user
    *  starts a new import or dismisses the panel. */
   const [recentImportIds, setRecentImportIds] = useState<Set<string>>(new Set());
+  /** The post-import "what we found" moment was announced by this import. */
+  const [findingsReady, setFindingsReady] = useState(false);
   const [pendingReimportGate, setPendingReimportGate] = useState<PendingReimportGate | null>(null);
   const [importProgress, setImportProgress] = useState<ImportProgressState | null>(null);
   /** Parsing is done and the cards are being written to the device. */
@@ -424,6 +431,18 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     setRecentImportIds(newImportIds);
     haptics.success();
     fireSealMoment();
+    announceFindings(p, [...newImportIds][0]);
+  }
+
+  /**
+   * A real import finished: count it, and put the "what we found" moment up on
+   * the Collection page (board E307). The sample collection is not an import.
+   */
+  function announceFindings(p: PendingImport, importId: string | undefined) {
+    if (p.isSample || !importId) return;
+    track('import_completed');
+    usePostImportMoment.getState().announce(importId);
+    setFindingsReady(true);
   }
 
   /** Commits an already-parsed paste/scan/retry result. Sibling of commitFiles. */
@@ -474,6 +493,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     setRecentImportIds(new Set([id]));
     haptics.success();
     fireSealMoment();
+    announceFindings(p, id);
   }
 
   /**
@@ -625,6 +645,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
   const handleDismissReviewSummary = () => {
     setSuccessMsg(null);
     setRecentImportIds(new Set());
+    setFindingsReady(false);
   };
 
   /**
@@ -692,6 +713,13 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
           </div>
 
           {successMsg && <p className="import-review-line">{successMsg}</p>}
+          {successMsg && findingsReady && onSeeFindings && (
+            <div>
+              <Button variant="link" onClick={onSeeFindings}>
+                See what we found
+              </Button>
+            </div>
+          )}
 
           {(routingSummary.entries.length > 0 || routingSummary.unroutedCount > 0) && (
             <div className="import-review-section import-review-section--routing">

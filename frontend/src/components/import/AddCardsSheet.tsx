@@ -341,7 +341,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
             hidden={activeTab !== 'upload'}
             className="add-cards-panel add-cards-panel-upload"
           >
-            <UploadPanel hideScanButton />
+            <UploadPanel hideScanButton onSeeFindings={onClose} />
           </div>
 
           <div
