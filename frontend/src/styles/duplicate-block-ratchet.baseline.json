@@ -566,13 +566,6 @@
       "styles/search-controls.css:.deck-filters-panel"
     ]
   },
-  "ae40cdc4a3": {
-    "size": 2,
-    "locations": [
-      "components/aggregates/TrendingRail.css:.trending-tile-skeleton",
-      "components/deck/DeckSizePrompt.css:.deck-size-prompt-row"
-    ]
-  },
   "b15e7a8592": {
     "size": 3,
     "locations": [

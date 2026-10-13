@@ -258,7 +258,7 @@ export function DeckSizePrompt({
           {aiSlot && <div className="deck-size-prompt-ai">{aiSlot}</div>}
 
           {options.length > 0 ? (
-            <ul className="deck-size-prompt-list" role="list">
+            <ul className="list-stack" role="list">
               {options.map((o) => (
                 <OptionRow
                   key={o.key}
@@ -276,7 +276,7 @@ export function DeckSizePrompt({
           {moreOptions && moreOptions.length > 0 && (
             <div className="deck-size-prompt-more">
               {showAll ? (
-                <ul className="deck-size-prompt-list" role="list">
+                <ul className="list-stack" role="list">
                   {moreOptions.map((o) => (
                     <OptionRow
                       key={o.key}

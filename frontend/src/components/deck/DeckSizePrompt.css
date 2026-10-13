@@ -26,31 +26,23 @@
    (measured 49px → 37.8px at 1400×700) and, once both AI and list were
    expanded, overran the sheet with unreachable content. A single scroller
    has no shrink split to tune — content is natural height, the region
-   scrolls, the footer stays pinned. */
+   scrolls, the footer stays pinned.
+   The body owns its inset and the gap between its sections. Without it the
+   AI panel, the rows and the empty line ran flush to the sheet's edges while
+   the header and footer sat at --space-4 (user report, 2026-10-13). */
 .deck-size-prompt-body {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
-.deck-size-prompt-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin: 0;
-  padding: 0 0 var(--space-1);
-  list-style: none;
+.deck-size-prompt-body > * {
   flex-shrink: 0;
-}
-
-.deck-size-prompt-ai {
-  flex-shrink: 0;
-  /* The body is a plain column with no gap; the AI strip inside carries no
-     margin of its own, so its host wrapper spaces it off the ranked rows. */
-  margin-bottom: var(--space-3);
 }
 
 /* Desktop: the 480px card-picker default is a phone sheet's width on a
@@ -69,8 +61,8 @@
 .deck-size-prompt-row {
   display: flex;
   align-items: center;
-  gap: var(--space-2-5);
-  padding: var(--space-2) var(--space-2);
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
@@ -179,7 +171,7 @@
 }
 
 .deck-size-prompt-empty {
-  margin: var(--space-1) 0;
+  margin: 0;
   font-size: var(--text-sm);
   color: var(--text-muted);
 }

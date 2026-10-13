@@ -29,6 +29,11 @@ where every section lives.
   edge with no scrollbar anywhere, the "can't scroll down" report,
   2026-08-18). `DeckSizePrompt.css`'s `.deck-size-prompt-body` is the
   reference. Give chrome (`.card-picker-header`/`-footer`) `flex-shrink: 0`.
+  The shell pads only its header and footer, so the body owns its inset: the
+  same inline `--space-4` as the header, plus a token `gap` between its
+  blocks (no child margins). Without it the AI panel and rows ran flush to
+  the sheet's edges (2026-10-13, guarded by
+  `styles/deck-size-prompt-body-inset.test.ts`).
 - **A dense desktop dialog widens past the phone default.** The shell's
   ≥1024px modal is `width: 480px` — right for a short confirm, cramped for a
   working dialog (AI prose + candidate rows). Override per-sheet with a
