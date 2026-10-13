@@ -26,6 +26,7 @@ import {
   setForceLiveSearch,
 } from '@/deck-builder/services/scryfall/client';
 import { type AlternatePoolResult } from './phaseAlternatePool';
+import { pageThemesFor } from './deckEdhrecSource';
 import { fetchCommanderData, fetchSaltIndex } from '@/deck-builder/services/edhrec/client';
 import {
   getCardRole,
@@ -1817,12 +1818,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   }
   detectedPacing = resolvedPacing;
 
-  // Commander profile (mechanically detected archetype/tribes/abilities from
-  // oracle text) — the fallback for theme-inference, and the input to the
-  // archetype-aware land count below. Computed once, unconditionally (not gated
-  // behind balancedRoles), so every commander gets its real archetype and land count.
+  // Commander profile (archetype/tribes/abilities from oracle text): the theme-inference
+  // fallback and the archetype-aware land count input, computed once for every commander.
+  // A theme page has no themes, so the Voltron veto reads the base page (E1002).
   const commanderProfile = buildCommanderProfile(commander, partnerCommander, {
-    edhrecThemes: state.edhrecData?.themes,
+    edhrecThemes: await pageThemesFor(state.edhrecData, commander, partnerCommander),
   });
 
   // E89 (iter-7 Slice E): untap-theme visibility. commanderWantsUntap is
