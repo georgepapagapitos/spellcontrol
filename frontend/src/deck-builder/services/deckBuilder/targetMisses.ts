@@ -72,12 +72,27 @@ export function poolExhaustionCause(params: {
   return 'your budget and card limits';
 }
 
+/** Why the budget converge stopped over budget: the first clause of what it
+ *  recorded (the price-data tail stays in budgetNote), else the pool that
+ *  limited the swaps. Null when nothing says. */
+function budgetCause(
+  residual: string | undefined,
+  ownedOnly: boolean,
+  hasScryfallQuery: boolean
+): string | null {
+  const first = residual?.split('. ')[0]?.replace(/\.$/, '');
+  if (first) return first;
+  if (ownedOnly) return 'your collection has no cheaper card that fits';
+  if (hasScryfallQuery) return 'your Scryfall filter has no cheaper card that fits';
+  return null;
+}
+
 const isBasic = (c: { type_line: string }) => c.type_line.includes('Basic');
 
 export function computeTargetMisses(
   deck: GeneratedDeck,
   ctx: InvariantContext,
-  built: { effectiveNonBasicLandCount?: number } = {}
+  built: { effectiveNonBasicLandCount?: number; budgetResidualReason?: string } = {}
 ): TargetMiss[] {
   const flagged = new Set<TargetMiss['key']>();
   for (const v of checkDeckInvariants(deck, ctx)) {
@@ -143,7 +158,7 @@ export function computeTargetMisses(
       key: 'budget',
       asked: cz.deckBudget,
       got: Math.round(spend * 100) / 100,
-      cause: null,
+      cause: budgetCause(built.budgetResidualReason, ownedOnly, !!cz.scryfallQuery),
       currency,
     });
   }

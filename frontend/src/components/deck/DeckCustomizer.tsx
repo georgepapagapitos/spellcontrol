@@ -88,6 +88,7 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
     update({
       landCount: suggestion.landCount,
       nonBasicLandCount: suggestion.nonBasicLandCount,
+      landsExplicit: false,
     });
     setUserEditedLands(false);
   };
@@ -115,7 +116,11 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
       bannedCards: [],
       manaPhilosophy: undefined,
       ...(suggestion
-        ? { landCount: suggestion.landCount, nonBasicLandCount: suggestion.nonBasicLandCount }
+        ? {
+            landCount: suggestion.landCount,
+            nonBasicLandCount: suggestion.nonBasicLandCount,
+            landsExplicit: false,
+          }
         : {}),
     });
     setUserEditedLands(false);
@@ -584,11 +589,11 @@ function SizeAndLandsGroup({ customization, update }: DeckCustomizerProps) {
   const setUserEditedLands = useDeckBuilderStore((s) => s.setUserEditedLands);
 
   const handleTotal = (n: number) => {
-    update({ landCount: n });
+    update({ landCount: n, landsExplicit: true });
     setUserEditedLands(true);
   };
   const handleNonBasic = (n: number) => {
-    update({ nonBasicLandCount: n });
+    update({ nonBasicLandCount: n, landsExplicit: true });
     setUserEditedLands(true);
   };
 

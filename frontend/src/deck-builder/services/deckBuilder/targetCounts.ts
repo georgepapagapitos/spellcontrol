@@ -50,13 +50,16 @@ function landCountFloor(format: number, deckCards: number): number {
   return Math.round((deckCards * MIN_LAND_COUNT) / 99);
 }
 
-/** True when landCount/nonBasicLandCount are both still at the store defaults
- *  — the only signal available that the user hasn't customized lands (no
- *  dirty flag is threaded through generation context). */
+/** True when the player hasn't customized lands: both inputs sit at the store
+ *  defaults AND neither was typed. A typed 37 / 15 is an ask, not a default. */
 export function isDefaultLandCount(
-  customization: Pick<Customization, 'landCount' | 'nonBasicLandCount'>
+  customization: Pick<Customization, 'landCount' | 'nonBasicLandCount' | 'landsExplicit'>
 ): boolean {
-  return customization.landCount === DEFAULT_LAND_COUNT && customization.nonBasicLandCount === 15;
+  return (
+    !customization.landsExplicit &&
+    customization.landCount === DEFAULT_LAND_COUNT &&
+    customization.nonBasicLandCount === 15
+  );
 }
 
 /**

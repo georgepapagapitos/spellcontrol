@@ -1056,12 +1056,12 @@ export interface Customization {
   /**
    * MTG format the build targets. Only commander-family formats generate;
    * 'paupercommander' (PDH) routes sourcing to a Scryfall pool constrained to
-   * `f:paupercommander` and gates every pick on that legality. Optional —
-   * absent means 'commander' (all pre-existing builds).
+   * `f:paupercommander` and gates every pick on that legality. Optional: absent = 'commander'.
    */
   mtgFormat?: DeckFormat;
   landCount: number;
   nonBasicLandCount: number; // How many non-basic lands to include (rest will be basics)
+  landsExplicit?: boolean; // Player typed lands/nonbasic: never auto-tuned, even at 37/15
   bannedCards: string[]; // Card names to exclude from deck generation
   banLists: BanList[]; // Named ban lists (preset + custom)
   mustIncludeCards: string[]; // Card names to force-include in deck generation (first priority)

@@ -116,6 +116,26 @@ describe('computeTargetMisses', () => {
     expect(b!.got).toBeGreaterThan(21);
   });
 
+  it('gives a blown budget the reason the converge recorded', () => {
+    const m = computeTargetMisses(
+      assemble(cleanCategories()),
+      context({ customization: customization({ deckBudget: 20 }) }),
+      {
+        budgetResidualReason:
+          'no cheaper alternative for the remaining cards. 2 cards have no price data',
+      }
+    );
+    expect(miss(m, 'budget')?.cause).toBe('no cheaper alternative for the remaining cards');
+  });
+
+  it('falls back to the pool that limited a blown budget', () => {
+    const m = computeTargetMisses(
+      assemble(cleanCategories()),
+      context({ customization: customization({ deckBudget: 20, scryfallQuery: 't:elf' }) })
+    );
+    expect(miss(m, 'budget')?.cause).toBe('your Scryfall filter has no cheaper card that fits');
+  });
+
   it('reports a partial owned share that fell short', () => {
     const m = computeTargetMisses(
       assemble(cleanCategories()),

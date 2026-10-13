@@ -288,6 +288,7 @@ export const useDeckBuilderStore = create<AppState>((set, get) => ({
           deckFormat: defaultCustomization.deckFormat,
           landCount: defaultCustomization.landCount,
           nonBasicLandCount: defaultCustomization.nonBasicLandCount,
+          landsExplicit: false,
         }),
         mustIncludeCards: [],
         tempMustIncludeCards: [],

@@ -126,8 +126,6 @@ describe('getDeckSummaryData — deckGrade boundary stability (E129)', () => {
         adjustedSuggestion: 37,
         currentBasic: 15,
         currentNonbasic: 22,
-        suggestedBasic: 15,
-        suggestedNonbasic: 22,
         rampCount: 10,
         manaProducerCount: 8,
         verdict: 'ok',

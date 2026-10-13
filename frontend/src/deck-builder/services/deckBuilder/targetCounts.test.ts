@@ -240,6 +240,14 @@ describe('isDefaultLandCount', () => {
     );
   });
 
+  it('is false when the user typed the default numbers themselves', () => {
+    expect(
+      isDefaultLandCount(
+        makeCustomization({ landCount: 37, nonBasicLandCount: 15, landsExplicit: true })
+      )
+    ).toBe(false);
+  });
+
   it('is false once the user has changed land count', () => {
     expect(isDefaultLandCount(makeCustomization({ landCount: 34, nonBasicLandCount: 15 }))).toBe(
       false

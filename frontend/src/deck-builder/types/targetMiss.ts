@@ -6,7 +6,7 @@ export interface TargetMiss {
   asked: number;
   got: number;
   /** What actually happened, as a clause. Null when the
-   *  deck cannot say (a budget miss is explained by `budgetNote`). */
+   *  deck cannot say. */
   cause: string | null;
   /** Money amounts only. */
   currency?: 'USD' | 'EUR';
