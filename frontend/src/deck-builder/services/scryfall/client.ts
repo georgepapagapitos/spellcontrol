@@ -1227,6 +1227,7 @@ export async function getCardsByNames(
   return getCardRepository().getCardsByNames(names, onProgress, preferredSet, opts);
 }
 
+const UPGRADE_MAX_PAGES = 4; // Extra search pages read for one upgrade batch
 const UPGRADE_BATCH_SIZE = 15; // Card names per search query for printing upgrades
 
 /**
@@ -1394,13 +1395,37 @@ async function liveUpgradeCardPrintings(
         // Skip art-series and other non-playable layouts — `unique=prints` includes them,
         // and they often match treatment filters like is:full-art / frame:extendedart.
         const matchMap = new Map<string, ScryfallCard>();
-        // E527: an art filter often matches a reversible SLD printing; seat the card it prints.
-        for (const card of data.data.map(resolveReversiblePrinting)) {
-          if (!isPlayableCard(card)) continue;
-          const frontName = frontFaceName(card.name);
-          if (!matchMap.has(card.name) && !matchMap.has(frontName)) {
-            matchMap.set(card.name, card);
-            if (frontName !== card.name) matchMap.set(frontName, card);
+        const addMatches = (list: ScryfallCard[]) => {
+          // E527: an art filter often matches a reversible SLD printing; seat the card it prints.
+          for (const card of list.map(resolveReversiblePrinting)) {
+            if (!isPlayableCard(card)) continue;
+            const frontName = frontFaceName(card.name);
+            if (!matchMap.has(card.name) && !matchMap.has(frontName)) {
+              matchMap.set(card.name, card);
+              if (frontName !== card.name) matchMap.set(frontName, card);
+            }
+          }
+        };
+        addMatches(data.data);
+        // A wide filter (-set:cmm, f:commander) matches every printing of every name,
+        // so one 175-card page can end before the batch's later cards appear, and
+        // strict mode would then drop them. Read on while a name is still unmatched.
+        const unmatched = () =>
+          uncached.some(
+            (e) => !matchMap.has(e.searchName) && !matchMap.has(cards.get(e.mapKey)?.name ?? '')
+          );
+        let more = data.has_more === true;
+        for (let page = 2; more && page <= UPGRADE_MAX_PAGES && unmatched(); page++) {
+          try {
+            const next = await scryfallRequest(
+              `/cards/search?q=${encodedQuery}&unique=prints&order=released&dir=desc&page=${page}`
+            );
+            if (!next.ok) break;
+            const nextData = (await next.json()) as ScryfallSearchResponse;
+            addMatches(nextData.data);
+            more = nextData.has_more === true;
+          } catch {
+            break;
           }
         }
 

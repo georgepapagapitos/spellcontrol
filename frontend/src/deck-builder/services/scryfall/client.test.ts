@@ -1153,6 +1153,63 @@ describe('upgradeCardPrintings', () => {
     });
     expect(cards.get("Krark's Thumb")?.card_faces).toBeUndefined();
   });
+
+  // E1004: a wide filter matches every printing of every name, so one page can
+  // end before the batch's later cards; strict mode then dropped them.
+  it('reads on to the next page when a name has not matched yet, and sends a negated set as written', async () => {
+    const cards = new Map([
+      ['Sol Ring', makeCard({ name: 'Sol Ring', set: 'cmm' })],
+      ['Arcane Signet', makeCard({ name: 'Arcane Signet', set: 'cmm' })],
+    ]);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          object: 'list',
+          has_more: true,
+          data: [makeCard({ name: 'Sol Ring', set: 'c21' })],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          object: 'list',
+          has_more: false,
+          data: [makeCard({ name: 'Arcane Signet', set: 'eld' })],
+        }),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await upgradeCardPrintings(cards, '-set:cmm', true);
+
+    expect(cards.get('Sol Ring')?.set).toBe('c21');
+    expect(cards.get('Arcane Signet')?.set).toBe('eld');
+    const urls = fetchMock.mock.calls.map((c) => decodeURIComponent(String(c[0])));
+    expect(urls[0]).toContain(' -set:cmm');
+    expect(urls[1]).toContain('page=2');
+  });
+
+  it('sends an OR of sets to Scryfall instead of dropping it', async () => {
+    const cards = new Map([['Skullclamp', makeCard({ name: 'Skullclamp', set: 'slz' })]]);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        object: 'list',
+        has_more: false,
+        data: [makeCard({ name: 'Skullclamp', set: 'clb' })],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await upgradeCardPrintings(cards, 'set:cmm or set:clb', true);
+
+    expect(decodeURIComponent(String(fetchMock.mock.calls[0][0]))).toContain('set:cmm or set:clb');
+    expect(cards.get('Skullclamp')?.set).toBe('clb');
+  });
 });
 
 // Primary, unbatched check — meant to run at the very start of generation
