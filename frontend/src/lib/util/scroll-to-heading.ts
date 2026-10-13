@@ -33,7 +33,9 @@ export function scrollToHeading(id: string): void {
  * was. A page that already put the caret in one of its own fields (Card
  * search's autofocused box) keeps it: the field was the page's deliberate
  * arrival target, and taking it back to the heading made that autofocus a
- * no-op on every in-app navigation.
+ * no-op on every in-app navigation. A tab the person just arrowed onto is the
+ * same case: a strip whose tabs are routes remounts and hands focus to the new
+ * tab (`tab-focus-handoff`), and the heading must not take it back.
  *
  * Returns whether arrival is settled (heading focused, or the page holds
  * focus), so a caller waiting on a lazy route can stop watching.
@@ -43,7 +45,7 @@ export function focusArrivalHeading(container: HTMLElement): boolean {
   if (
     active &&
     container.contains(active) &&
-    active.matches('input, textarea, select, [contenteditable="true"]')
+    active.matches('input, textarea, select, [contenteditable="true"], [role="tab"]')
   ) {
     return true;
   }

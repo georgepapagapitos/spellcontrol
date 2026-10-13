@@ -1713,11 +1713,21 @@ async function writeA11yReport(results) {
         id: `keyboard-${k.kind}`,
         impact: 'serious',
         help:
-          k.kind === 'no-ring'
-            ? 'Keyboard focus shows no visible indicator'
-            : k.kind === 'invisible'
-              ? 'Keyboard focus lands on an element the user cannot see'
-              : 'Tab stops moving (keyboard trap)',
+          {
+            'no-ring': 'Keyboard focus shows no visible indicator',
+            invisible: 'Keyboard focus lands on an element the user cannot see',
+            stuck: 'Tab stops moving (keyboard trap)',
+            'focus-in': 'Focus is not inside the overlay after it opens',
+            'arrow-down': 'ArrowDown does not move to the next menu item',
+            'arrow-up': 'ArrowUp does not move to the previous menu item',
+            home: 'Home does not reach the first item',
+            end: 'End does not reach the last item',
+            activate: 'Enter or Space does not activate the focused item',
+            'trap-leak': 'Tab leaves a modal dialog or sheet',
+            'popover-trap': 'Tab never leaves a non-modal popover or menu',
+            escape: 'Escape does not close the overlay',
+            'focus-return': 'Focus does not return to the opener after the overlay closes',
+          }[k.kind] ?? `Keyboard check failed (${k.kind})`,
         nodes: [{ target: k.el, html: '', summary: '' }],
       });
   }

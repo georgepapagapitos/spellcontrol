@@ -63,6 +63,17 @@ describe('focusArrivalHeading', () => {
     expect(document.activeElement).toBe(input);
   });
 
+  it('leaves focus on a tab the person just arrowed onto (a route tab remounts its strip)', () => {
+    document.body.innerHTML =
+      '<main><h1>Brewers</h1><div role="tablist"><button role="tab">Brewers</button></div></main>';
+    const main = document.querySelector('main')!;
+    const tab = main.querySelector<HTMLElement>('[role=tab]')!;
+    tab.focus();
+
+    expect(focusArrivalHeading(main)).toBe(true);
+    expect(document.activeElement).toBe(tab);
+  });
+
   it('still takes focus from a field outside the page (the header)', () => {
     document.body.innerHTML =
       '<header><input aria-label="Header search" /></header><main><h1>Decks</h1></main>';

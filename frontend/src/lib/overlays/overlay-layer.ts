@@ -50,6 +50,35 @@ export function getFocusable(root: HTMLElement): HTMLElement[] {
   );
 }
 
+/**
+ * What Tab actually stops on inside `root`, in order. `getFocusable` is
+ * everything that CAN take focus; Tab skips a roving-tabindex tab that is not
+ * selected (`tabindex="-1"`) and every radio of a group but the checked one
+ * (all of them, if none is checked: the browser stops on the first). A trap
+ * that took "the last focusable" for the end of the panel, when the browser's
+ * Tab never lands there, let Tab walk out of the dialog.
+ */
+export function tabStops(root: HTMLElement): HTMLElement[] {
+  const stops = getFocusable(root).filter((el) => el.tabIndex >= 0);
+  const seenGroup = new Set<string>();
+  return stops.filter((el) => {
+    if (!(el instanceof HTMLInputElement) || el.type !== 'radio' || !el.name) return true;
+    const group = `${el.form?.id ?? ''}|${el.name}`;
+    const checked = stops.find(
+      (o) =>
+        o instanceof HTMLInputElement &&
+        o.type === 'radio' &&
+        o.name === el.name &&
+        o.form === el.form &&
+        o.checked
+    );
+    if (checked) return el === checked;
+    if (seenGroup.has(group)) return false;
+    seenGroup.add(group);
+    return true;
+  });
+}
+
 /** Move focus into `panel` if it isn't already there. */
 export function focusInto(panel: HTMLElement): void {
   if (panel.contains(document.activeElement)) return;
@@ -65,7 +94,64 @@ export function focusInto(panel: HTMLElement): void {
  * bottom edge). Every overlay's close path goes through here for that reason.
  */
 export function restoreFocus(el: Element | null | undefined): void {
-  if (el instanceof HTMLElement && el.isConnected) el.focus({ preventScroll: true });
+  if (!(el instanceof HTMLElement)) return;
+  if (el.isConnected) {
+    el.focus({ preventScroll: true });
+    return;
+  }
+  // The opener was unmounted while the overlay was open: a control that hides
+  // under any open overlay (the scan button) comes back as a new element once
+  // the overlay's layer is gone. Give that successor the focus, unless the
+  // person has already put it somewhere.
+  requestAnimationFrame(() => {
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    findSuccessor(el)?.focus({ preventScroll: true });
+  });
+}
+
+/** The element that took an unmounted control's place: same id, or the one control with its tag and label. */
+function findSuccessor(gone: HTMLElement): HTMLElement | null {
+  if (gone.id) return document.getElementById(gone.id);
+  const label = gone.getAttribute('aria-label');
+  if (!label) return null;
+  const same = document.querySelectorAll<HTMLElement>(
+    `${gone.tagName.toLowerCase()}[aria-label="${CSS.escape(label)}"]`
+  );
+  return same.length === 1 ? same[0] : null;
+}
+
+/**
+ * Where focus returns when a menu's item opens something. A menu item is gone
+ * the moment its menu closes, so a dialog that remembered the item as its
+ * opener restored focus to nothing and dropped it on <body>. Each open menu
+ * registers its panel here against the control it hangs off (its trigger, or
+ * the row a right-click landed on); `captureOpener` swaps an item for that
+ * control.
+ */
+const returnAnchors = new WeakMap<Element, HTMLElement>();
+
+export function registerReturnAnchor(panel: Element, anchor: HTMLElement | null): () => void {
+  if (anchor) returnAnchors.set(panel, anchor);
+  return () => {
+    returnAnchors.delete(panel);
+  };
+}
+
+/**
+ * The element an overlay should hand focus back to when it closes: whatever
+ * has focus as it opens, unless that is an item of an open menu, in which
+ * case the control the menu hangs off. Call it during the first render (an
+ * overlay's own `autoFocus` has not run yet), as `useState(captureOpener)`.
+ */
+export function captureOpener(): HTMLElement | null {
+  if (typeof document === 'undefined') return null;
+  const active = document.activeElement;
+  for (let n: Element | null = active; n; n = n.parentElement) {
+    const anchor = returnAnchors.get(n);
+    if (anchor?.isConnected) return anchor;
+  }
+  return active instanceof HTMLElement ? active : null;
 }
 
 /**
@@ -74,7 +160,7 @@ export function restoreFocus(el: Element | null | undefined): void {
  */
 export function trapTab(panel: HTMLElement, e: KeyboardEvent): boolean {
   if (e.key !== 'Tab') return false;
-  const focusables = getFocusable(panel);
+  const focusables = tabStops(panel);
   if (focusables.length === 0) {
     // Nothing tabbable — keep focus pinned on the panel itself.
     e.preventDefault();

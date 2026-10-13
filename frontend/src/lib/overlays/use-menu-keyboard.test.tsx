@@ -2,6 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { useRef, useState } from 'react';
+import { Modal } from '@/components/overlays/Modal';
 import { useMenuKeyboard } from './use-menu-keyboard';
 
 interface HarnessProps {
@@ -69,7 +70,13 @@ function Harness({
  * A `dialog` panel: arbitrary controls rather than menuitems, so focus lands on
  * the first focusable and Tab stays inside instead of dismissing.
  */
-function DialogHarness({ ignoreSelector }: { ignoreSelector?: string }) {
+function DialogHarness({
+  ignoreSelector,
+  modal = false,
+}: {
+  ignoreSelector?: string;
+  modal?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -79,6 +86,7 @@ function DialogHarness({ ignoreSelector }: { ignoreSelector?: string }) {
     panelRef,
     triggerRef,
     dialog: true,
+    modal,
     ignoreSelector,
   });
   return (
@@ -420,11 +428,35 @@ describe('useMenuKeyboard', () => {
       expect(document.activeElement).toBe(screen.getByRole('button', { name: 'First chip' }));
     });
 
-    it('traps Tab inside the panel instead of dismissing it', () => {
+    it('walks the panel in order, then lets Tab go: past the last control it closes onto the trigger', () => {
       render(<DialogHarness />);
       openMenu();
 
-      // A filter panel full of chips is unreachable if the first Tab closes it.
+      // Mid-panel the browser's own order is left alone (a filter panel full
+      // of chips stays reachable), and the panel stays open.
+      fireEvent.keyDown(document, { key: 'Tab' });
+      expect(screen.getByRole('dialog')).toBeTruthy();
+
+      // A non-modal popover must not hold focus: Tab off the last control
+      // closes it and parks focus on the trigger so the page carries on.
+      screen.getByRole('button', { name: 'Last chip' }).focus();
+      fireEvent.keyDown(document, { key: 'Tab' });
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Trigger' }));
+    });
+
+    it('lets Shift+Tab go from the first control', () => {
+      render(<DialogHarness />);
+      openMenu();
+      fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Trigger' }));
+    });
+
+    it('traps Tab inside a modal panel (a bottom sheet) and wraps', () => {
+      render(<DialogHarness modal />);
+      openMenu();
+
       screen.getByRole('button', { name: 'Last chip' }).focus();
       fireEvent.keyDown(document, { key: 'Tab' });
       expect(screen.getByRole('dialog')).toBeTruthy();
@@ -474,5 +506,134 @@ describe('useMenuKeyboard', () => {
 
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('menu')).toBeNull();
+  });
+});
+
+describe('useMenuKeyboard: checkbox and radio items', () => {
+  function CheckHarness() {
+    const [open, setOpen] = useState(false);
+    const triggerRef = useRef<HTMLButtonElement>(null);
+    const panelRef = useRef<HTMLDivElement>(null);
+    useMenuKeyboard({ open, onClose: () => setOpen(false), panelRef, triggerRef });
+    return (
+      <div>
+        <button ref={triggerRef} type="button" onClick={() => setOpen((v) => !v)}>
+          Trigger
+        </button>
+        {open && (
+          <ul ref={panelRef as never} role="menu" aria-label="Row details">
+            <li role="presentation">
+              <button type="button" role="menuitemcheckbox" aria-checked>
+                Price
+              </button>
+            </li>
+            <li role="presentation">
+              <button type="button" role="menuitemradio" aria-checked={false}>
+                Mana
+              </button>
+            </li>
+          </ul>
+        )}
+      </div>
+    );
+  }
+
+  it('roves over menuitemcheckbox and menuitemradio, not only menuitem', () => {
+    render(<CheckHarness />);
+    fireEvent.click(screen.getByRole('button', { name: 'Trigger' }));
+    expect(document.activeElement).toBe(screen.getByRole('menuitemcheckbox', { name: 'Price' }));
+    fireEvent.keyDown(document, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(screen.getByRole('menuitemradio', { name: 'Mana' }));
+    fireEvent.keyDown(document, { key: 'Home' });
+    expect(document.activeElement).toBe(screen.getByRole('menuitemcheckbox', { name: 'Price' }));
+  });
+});
+
+describe('useMenuKeyboard: the menu going away with focus in it', () => {
+  function Unmounting() {
+    const [open, setOpen] = useState(false);
+    const triggerRef = useRef<HTMLButtonElement>(null);
+    const panelRef = useRef<HTMLDivElement>(null);
+    useMenuKeyboard({ open, onClose: () => setOpen(false), panelRef, triggerRef });
+    return (
+      <div>
+        <button ref={triggerRef} type="button" onClick={() => setOpen((v) => !v)}>
+          Trigger
+        </button>
+        {open && (
+          <div ref={panelRef} role="menu">
+            {/* Closes the menu the way a real action does: no focus return of its own. */}
+            <button type="button" role="menuitem" onClick={() => setOpen(false)}>
+              Act
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  it('hands focus to the trigger instead of dropping it on the body', () => {
+    render(<Unmounting />);
+    fireEvent.click(screen.getByRole('button', { name: 'Trigger' }));
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Act' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Act' }));
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Trigger' }));
+  });
+});
+
+describe('useMenuKeyboard: a dialog opened from a menu item', () => {
+  function MenuThenDialog() {
+    const [open, setOpen] = useState(false);
+    const [dialog, setDialog] = useState(false);
+    const triggerRef = useRef<HTMLButtonElement>(null);
+    const panelRef = useRef<HTMLDivElement>(null);
+    useMenuKeyboard({ open, onClose: () => setOpen(false), panelRef, triggerRef });
+    return (
+      <div>
+        <button ref={triggerRef} type="button" onClick={() => setOpen((v) => !v)}>
+          Trigger
+        </button>
+        {open && (
+          <div ref={panelRef} role="menu">
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                setDialog(true);
+              }}
+            >
+              Export
+            </button>
+          </div>
+        )}
+        {dialog && (
+          <Modal label="Export" onClose={() => setDialog(false)}>
+            <button type="button">Done</button>
+          </Modal>
+        )}
+      </div>
+    );
+  }
+
+  it('returns focus to the menu trigger when the dialog closes, not to the vanished item', () => {
+    // Reduced motion closes the dialog at once (no exit keyframe to wait for).
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+      (query: string) =>
+        ({
+          matches: query.includes('prefers-reduced-motion'),
+          media: query,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+        }) as unknown as MediaQueryList
+    );
+    render(<MenuThenDialog />);
+    fireEvent.click(screen.getByRole('button', { name: 'Trigger' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Export' }));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Trigger' }));
   });
 });

@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
-import { focusInto, trapTab, useOverlayLayer } from './overlay-layer';
+import {
+  focusInto,
+  tabStops,
+  registerReturnAnchor,
+  trapTab,
+  useOverlayLayer,
+} from './overlay-layer';
 
 export interface UseMenuKeyboardOptions {
   /** Whether the menu is currently open. */
@@ -34,6 +40,15 @@ export interface UseMenuKeyboardOptions {
    */
   dialog?: boolean;
   /**
+   * With `dialog`: the panel is a real modal (a bottom sheet), so Tab wraps
+   * inside it for good. Without it a `dialog` panel is a non-modal popover:
+   * Tab walks its controls in order, and Tab past the last one (or Shift+Tab
+   * before the first) closes it and hands focus to the trigger, so the page
+   * carries on from there. A popover that held focus forever would be a
+   * keyboard trap with Escape as the only way out.
+   */
+  modal?: boolean;
+  /**
    * Elements matching this selector count as "inside" for the outside-pointerdown
    * and scroll-dismiss guards. Needed by panels whose own children portal out of
    * the panel subtree — SortPopover embeds SelectMenus, which render their
@@ -61,7 +76,8 @@ export interface UseMenuKeyboardOptions {
   scopeSelector?: string;
 }
 
-const DEFAULT_ITEM_SELECTOR = '[role="menuitem"]';
+const DEFAULT_ITEM_SELECTOR =
+  '[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]';
 
 function getItems(panel: HTMLElement, selector: string): HTMLElement[] {
   return Array.from(panel.querySelectorAll<HTMLElement>(selector)).filter(
@@ -109,6 +125,7 @@ export function useMenuKeyboard({
   itemSelector = DEFAULT_ITEM_SELECTOR,
   initialItemSelector,
   dialog = false,
+  modal = false,
   ignoreSelector,
   preventScroll = false,
   scopeSelector,
@@ -197,8 +214,21 @@ export function useMenuKeyboard({
         if (dialog && currentPanel) {
           // Arbitrary content — keep Tab inside it rather than dismissing on
           // the first press.
-          trapTab(currentPanel, e);
-          return;
+          if (modal) {
+            trapTab(currentPanel, e);
+            return;
+          }
+          const stops = tabStops(currentPanel);
+          const at = document.activeElement;
+          const edge = e.shiftKey ? stops[0] : stops[stops.length - 1];
+          // Mid-panel: the browser's own order is the right one.
+          if (
+            at instanceof HTMLElement &&
+            currentPanel.contains(at) &&
+            at !== edge &&
+            at !== currentPanel
+          )
+            return;
         }
         // Close and park focus on the trigger so the browser's default tab
         // traversal continues from the menu's anchor point.
@@ -259,11 +289,29 @@ export function useMenuKeyboard({
     itemSelector,
     initialItemSelector,
     dialog,
+    modal,
     ignoreSelector,
     preventScroll,
     scopeSelector,
     isTopmost,
   ]);
+
+  // A menu item that acts closes its menu by unmounting it, and the focus it
+  // held goes with it (to <body>). Hand it back to the control the menu hangs
+  // off. Focus the action itself moved on (a dialog it opened) is left alone.
+  useEffect(() => {
+    if (!open) return;
+    const panel = panelRef.current;
+    const back = focusBackRef.current ?? triggerRef.current;
+    const release = panel ? registerReturnAnchor(panel, back) : undefined;
+    return () => {
+      release?.();
+      const at = document.activeElement;
+      if (!at || at === document.body || panel?.contains(at)) {
+        back?.focus({ preventScroll: true });
+      }
+    };
+  }, [open, panelRef, triggerRef, focusBackRef]);
 
   return { closeAndReturnFocus };
 }

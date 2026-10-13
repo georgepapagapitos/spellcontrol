@@ -4,6 +4,7 @@ import { Clock, Radiation, Skull, Ticket, Zap, type LucideIcon } from 'lucide-re
 import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
 import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { getSafeViewport } from '@/lib/overlays/popover-placement';
+import { focusInto } from '@/lib/overlays/overlay-layer';
 import { usePressRepeat } from '@/lib/play/use-press-repeat';
 import { Button } from '@/components/shared/Button';
 
@@ -285,6 +286,13 @@ export function LifeAdjustPanel({
     setClamped({ left, top });
   }, [anchorRect, variant, addingCounter]);
 
+  // The floating panel is `visibility: hidden` until it is placed, and a
+  // hidden element takes no focus, so the focus-trap's own move on mount lands
+  // nowhere. Move it in once the panel shows.
+  useEffect(() => {
+    if (variant === 'floating' && clamped && panelRef.current) focusInto(panelRef.current);
+  }, [variant, clamped]);
+
   function submitCounter() {
     const kind = counterText.trim().slice(0, MAX_COUNTER_NAME);
     if (!kind) return;
@@ -513,6 +521,7 @@ export function LifeAdjustPanel({
       <div className="playtest-ctx__backdrop" role="presentation" onClick={onClose} />
       <div
         ref={panelRef}
+        tabIndex={-1}
         className="playtest-life-panel-floating"
         style={{
           left: clamped?.left ?? anchorRect?.left ?? 0,

@@ -13,19 +13,33 @@
 // a ring). Menus and popovers don't: they close when focus leaves them, so a
 // walk would measure the page behind.
 //
+// Each overlay also gets the keys beyond Tab (journey-keyboard.mjs): focus
+// lands inside, arrows/Home/End/Enter/Space in a menu, Tab trapped in a modal
+// and released from a popover, Escape closes, focus returns to the opener. They
+// run on a fresh load opened BY KEYBOARD (the opener is focused and Enter is
+// pressed), on both tiers. Page-level tab strips get the arrow-key check too.
+//
 // The walk gates at zero on both tiers: there are no allowances. A rule that
 // "can't be fixed here" is a pattern to change, not a count to ratchet.
 
 import { TIERS } from './journey-browser.mjs';
+import { keyboardChecks, tally } from './journey-keyboard.mjs';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * The keyboard pass opens each overlay the way a keyboard user does: the
+ * opener is focused and activated with Enter, and every opener is remembered
+ * on the page (`__kbOpeners`) so the pass can tell where focus must return.
+ */
+let KEYBOARD_OPEN = false;
 
 /** Click the first visible element whose aria-label or text matches. */
 async function clickMatch(page, sel, re, { timeout = 15_000 } = {}) {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
     const hit = await page.evaluate(
-      ({ sel, src, flags }) => {
+      ({ sel, src, flags, kbd }) => {
         const rx = new RegExp(src, flags);
         const el = [...document.querySelectorAll(sel)].find(
           (e) =>
@@ -35,12 +49,18 @@ async function clickMatch(page, sel, re, { timeout = 15_000 } = {}) {
         );
         if (!el) return false;
         el.scrollIntoView({ block: 'center' });
-        el.click();
+        if (kbd) {
+          el.focus({ preventScroll: true });
+          (window.__kbOpeners ??= []).push(el);
+        } else el.click();
         return true;
       },
-      { sel, src: re.source, flags: re.flags }
+      { sel, src: re.source, flags: re.flags, kbd: KEYBOARD_OPEN }
     );
-    if (hit) return;
+    if (hit) {
+      if (KEYBOARD_OPEN) await page.keyboard.press('Enter');
+      return;
+    }
     await sleep(250);
   }
   throw new Error(`nothing matching ${sel} ${re}`);
@@ -50,14 +70,18 @@ async function clickMatch(page, sel, re, { timeout = 15_000 } = {}) {
 async function rightClick(page, sel, n = 0) {
   await page.waitForSelector(sel, { timeout: 15_000 });
   const at = await page.evaluate(
-    ({ sel, n }) => {
+    ({ sel, n, kbd }) => {
       const el = document.querySelectorAll(sel)[n];
       if (!el) return null;
       el.scrollIntoView({ block: 'center' });
+      if (kbd) {
+        el.focus({ preventScroll: true });
+        (window.__kbOpeners ??= []).push(el);
+      }
       const r = el.getBoundingClientRect();
       return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
     },
-    { sel, n }
+    { sel, n, kbd: KEYBOARD_OPEN }
   );
   if (!at) throw new Error(`no ${sel} #${n}`);
   await page.mouse.click(at.x, at.y, { button: 'right' });
@@ -228,6 +252,7 @@ function catalog({ deck, binder }) {
       open: click('button.filter-popover-btn', /Filters/),
       ready: '[role=dialog], .filter-popover-panel',
       menu: true,
+      kbdKind: 'dialog', // the collection filters are a centered modal dialog
     },
     {
       route: '/collection',
@@ -310,6 +335,21 @@ function catalog({ deck, binder }) {
       phone: true,
       timeout: 45_000,
     },
+    // Tab strips on the page itself: the overlay checks don't apply, the arrow keys do.
+    {
+      route: deck,
+      name: 'deck tab strip',
+      open: async () => {},
+      ready: '[role=tablist]',
+      tabsOnly: true,
+    },
+    {
+      route: '/decks/discover',
+      name: 'discover tab strip',
+      open: async () => {},
+      ready: '[role=tablist]',
+      tabsOnly: true,
+    },
     ...(binder
       ? [
           {
@@ -317,6 +357,14 @@ function catalog({ deck, binder }) {
             name: 'binder pages viewer',
             open: click('.binder-summary button', /^Browse/),
             ready: '.binder-pages-slide.is-active',
+          },
+          {
+            route: binder,
+            name: 'binder tab strip',
+            open: async () => {},
+            ready: '[role=tab]', // the tablist itself is display: contents
+            tabsOnly: true,
+            desktop: true, // the phone hides the strip (responsive-nav.css); "All binders" is its switcher
           },
         ]
       : []),
@@ -339,7 +387,13 @@ function playtestSteps(deck) {
     await open(page);
   };
   return [
-    { route, name: 'opening hand sheet', open: async () => {}, ready: '.playtest-opening-sheet' },
+    {
+      route,
+      name: 'opening hand sheet',
+      open: async () => {},
+      ready: '.playtest-opening-sheet',
+      noEscape: true, // non-dismissable: keep or mulligan is the way out
+    },
     {
       route,
       name: 'table after a draw and a play',
@@ -360,6 +414,10 @@ function playtestSteps(deck) {
       name: 'resume game dialog',
       open: async () => {},
       ready: '[role=dialog], [role=alertdialog]',
+      // Start fresh (Escape) deals a new game, whose opening hand is also a dialog.
+      kbdReady: '[role=dialog]:not(.playtest-opening-sheet), [role=alertdialog]',
+      // Escape here is "Start fresh", which clears the saved game the keyboard pass reopens.
+      noPostEscape: true,
     },
     {
       route,
@@ -390,6 +448,7 @@ function playtestSteps(deck) {
         await clickMatch(p, 'button.playtest-ctx-action', /^Move to/);
       }),
       ready: '.playtest-ctx-action--submenu.is-open',
+      kbdReady: '[data-menu-panel="1"]',
       menu: true,
     },
     {
@@ -444,14 +503,20 @@ export async function overlayWalk({
     // phone sideways"), so a phone walks it in landscape.
     const t = TIERS[tierName];
     const landscape = tierName === 'phone' && it.route.endsWith('/playtest');
-    await page.setViewport(landscape ? { ...t, width: t.height, height: t.width } : t);
-    await page.goto(base + it.route, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-    await sleep(settleMs);
-    let err = null;
-    try {
+    const load = async () => {
+      await page.setViewport(landscape ? { ...t, width: t.height, height: t.width } : t);
+      await page.goto(base + it.route, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+      await sleep(settleMs);
+    };
+    const openIt = async () => {
       await it.open(page, tierName);
       await page.waitForSelector(it.ready, { visible: true, timeout: it.timeout ?? 15_000 });
       await sleep(settleMs / 2);
+    };
+    await load();
+    let err = null;
+    try {
+      await openIt();
     } catch (e) {
       err = String(e.message ?? e).slice(0, 160);
       if (process.env.JOURNEY_OVERLAYS) {
@@ -476,7 +541,37 @@ export async function overlayWalk({
       expected: it.ready,
       observed: err ?? it.ready,
     }));
-    await page.keyboard.press('Escape');
-    await sleep(400);
+    if (!it.noPostEscape) {
+      await page.keyboard.press('Escape');
+      await sleep(400);
+    }
+    // Keys beyond Tab, on a fresh load opened by keyboard. The table surface
+    // itself (`scope: 'body'`) is not an overlay, so it has none.
+    if (!err && !it.scope) {
+      KEYBOARD_OPEN = true;
+      try {
+        const found = await keyboardChecks(page, it, async () => {
+          await load();
+          await openIt();
+        });
+        for (const f of found) {
+          rec.a11y.keyboard.push(f);
+          rec.fail = true;
+          console.log(`        keyboard (${f.kind}): ${f.el}`);
+        }
+      } catch (e) {
+        const msg = `${it.name}: keyboard pass failed: ${String(e.message ?? e).slice(0, 140)}`;
+        rec.a11y.keyboard.push({ kind: 'pass-error', el: msg });
+        rec.fail = true;
+        console.log(`        keyboard (pass-error): ${msg}`);
+      } finally {
+        KEYBOARD_OPEN = false;
+      }
+      await page.keyboard.press('Escape');
+    }
   }
+  const ran = Object.entries(tally)
+    .map(([k, n]) => `${k} ${n}`)
+    .join(', ');
+  console.log(`keyboard checks run (${tierName}, overlays): ${ran}`);
 }

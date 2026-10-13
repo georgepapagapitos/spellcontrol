@@ -6,6 +6,7 @@ import { inkOn } from '@/lib/util/ink';
 import type { MaterializedBinder } from '@/types/index';
 import { BinderExportDialog } from './BinderExportDialog';
 import { Chip } from '@/components/shared/Chip';
+import { noteTabFocus, useTabFocusHandoff } from '@/components/overlays/tab-focus-handoff';
 
 /**
  * Deliberately diverges from the shared `Tabs` component (board E164): plain
@@ -39,10 +40,15 @@ export function BinderTabs({ binders }: Props) {
   const navigate = useNavigate();
   const [exportOpen, setExportOpen] = useState(false);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-
   // Sort by position so reorder arrows produce a consistent display — hoisted
   // above the handlers below so the roving-tabindex helpers can index into it.
   const sorted = [...binders].sort((a, b) => a.def.position - b.def.position);
+
+  // Each binder is its own route, so the strip remounts under an arrow key.
+  useTabFocusHandoff('Binders', activeTab ?? '', () => {
+    const idx = sorted.findIndex((b) => b.def.id === activeTab);
+    tabRefs.current[idx]?.focus({ preventScroll: true });
+  });
 
   const selectTab = (id: string) => {
     setActiveTab(id);
@@ -58,6 +64,7 @@ export function BinderTabs({ binders }: Props) {
     const idx = ((rawIdx % sorted.length) + sorted.length) % sorted.length;
     const target = sorted[idx];
     if (!target) return;
+    noteTabFocus('Binders', target.def.id);
     selectTab(target.def.id);
     tabRefs.current[idx]?.focus();
   };

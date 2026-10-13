@@ -15,7 +15,13 @@ import {
   Settings,
   X,
 } from 'lucide-react';
-import { focusInto, restoreFocus, trapTab, useOverlayLayer } from '@/lib/overlays/overlay-layer';
+import {
+  captureOpener,
+  focusInto,
+  restoreFocus,
+  trapTab,
+  useOverlayLayer,
+} from '@/lib/overlays/overlay-layer';
 import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
 import { useWakeLock } from '@/lib/util/use-wake-lock';
 import { getCardById } from '@/lib/api';
@@ -415,15 +421,25 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   // by the `onClose` passed to `useOverlayLayer` above, E481). Same shared
   // layer stack as Modal/useSheetExit, so a dialog opened on top of the
   // scanner is the one that answers a press.
+  //
+  // The opener is read on the first render and `onClose` through a ref: the
+  // callers pass an inline arrow, and their own re-renders (the scan button
+  // re-renders as this layer opens) would otherwise re-run this effect,
+  // "restoring" focus mid-scan and then taking the scanner's own root as the
+  // opener to return to.
+  const [opener] = useState(captureOpener);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
   useEffect(() => {
     const root = rootRef.current;
-    const prevFocused = document.activeElement as HTMLElement | null;
     if (root) focusInto(root);
 
     const onKey = (e: KeyboardEvent) => {
       if (!isTopmost()) return;
       if (e.key === 'Escape') {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (rootRef.current) trapTab(rootRef.current, e);
@@ -433,9 +449,9 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       document.removeEventListener('keydown', onKey);
       // Don't drop keyboard/screen-reader users at the top of the page when
       // the scanner closes.
-      restoreFocus(prevFocused);
+      restoreFocus(opener);
     };
-  }, [onClose, isTopmost]);
+  }, [opener, isTopmost]);
 
   /**
    * Keep the viewfinder and search region in viewport coordinates, inside
@@ -962,6 +978,18 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   // Camera is actually up. The corner chrome only makes sense over a live
   // preview; over the black "starting" screen it reads as orphan icons.
   const cameraLive = status === 'ready' || status === 'scanning';
+
+  // The controls appear once the camera is live. Until then focus sat on the
+  // dialog itself or on the "starting" screen's own button, which goes away
+  // with that screen and takes focus to <body> with it. Hand focus to Close
+  // then, unless the person has already moved it to a control that is here.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!cameraLive || !root) return;
+    const at = document.activeElement;
+    if (at && at !== root && root.contains(at)) return;
+    root.querySelector<HTMLElement>('.scanner-topbar button')?.focus({ preventScroll: true });
+  }, [cameraLive]);
   const starting = status === 'idle' || status === 'starting';
   const firstCard = cameraLive && totalCount === 0 && !lastScan;
   const editing = editingId ? queue.find((e) => e.id === editingId) : undefined;
@@ -978,19 +1006,25 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       role="dialog"
       aria-label="Card scanner"
       aria-modal="true"
+      tabIndex={-1}
     >
       <video ref={videoRef} className="scanner-video" playsInline muted />
 
       {/* Tap-to-rescan surface. A transparent full-bleed button *below* the
           corner chrome: tapping bare camera forces a capture, which is how
           to add another copy of the card just scanned (the auto loop
-          deliberately won't). Gated to `ready` so it can't fire mid-capture. */}
-      {status === 'ready' && (
+          deliberately won't). It stays mounted while the camera is live, so a
+          keyboard user's focus is not pulled out from under them when a scan
+          starts, and does nothing outside `ready`, so it can't fire mid-capture. */}
+      {cameraLive && (
         <button
           type="button"
           className="scanner-capture-surface"
           aria-label="Tap to scan the card in view"
-          onClick={() => void captureAndIdentify(true)}
+          aria-disabled={status !== 'ready'}
+          onClick={() => {
+            if (status === 'ready') void captureAndIdentify(true);
+          }}
         />
       )}
 

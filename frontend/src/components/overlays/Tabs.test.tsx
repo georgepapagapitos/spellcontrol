@@ -178,3 +178,38 @@ describe('Tabs — health badges', () => {
     expect(container.querySelector('.sc-tab-badge')).toBeNull();
   });
 });
+
+describe('Tabs: a strip that remounts under a route change', () => {
+  // Discover's Decks | Brewers: each tab is a page that renders its own strip,
+  // so the arrow key that changes the tab unmounts the focused button.
+  function TwoPages() {
+    const [page, setPage] = useState<'a' | 'b'>('a');
+    return (
+      <div key={page}>
+        <Tabs
+          ariaLabel="Pages"
+          value={page}
+          onChange={(id) => setPage(id as 'a' | 'b')}
+          tabs={[
+            { id: 'a', label: 'Alpha' },
+            { id: 'b', label: 'Beta' },
+          ]}
+        />
+      </div>
+    );
+  }
+
+  it('puts focus on the newly selected tab of the strip that mounts', () => {
+    render(<TwoPages />);
+    screen.getByRole('tab', { name: 'Alpha' }).focus();
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Alpha' }), { key: 'ArrowRight' });
+    const beta = screen.getByRole('tab', { name: 'Beta' });
+    expect(beta.getAttribute('aria-selected')).toBe('true');
+    expect(document.activeElement).toBe(beta);
+  });
+
+  it('does not take focus on a mount that no key press asked for', () => {
+    render(<TwoPages />);
+    expect(document.activeElement).toBe(document.body);
+  });
+});

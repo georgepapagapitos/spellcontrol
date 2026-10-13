@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, type ReactNode, type Ref } from 'react';
 import './Tabs.css';
 import { useOverflowEdges } from '@/lib/util/use-overflow-edges';
 import { Chip } from '@/components/shared/Chip';
+import { noteTabFocus, useTabFocusHandoff } from './tab-focus-handoff';
 
 /** A tab's health badge — see {@link TabItem.badge}. */
 export interface TabBadge {
@@ -168,11 +169,19 @@ export function Tabs<T extends string>({
     else if (pastLeft > 0) list.scrollLeft -= pastLeft + pad;
   }, [isScrollStrip, value, tabKey]);
 
+  // A strip whose tabs are routes remounts on a change: take the focus the key
+  // press moved (see tab-focus-handoff).
+  useTabFocusHandoff(ariaLabel ?? '', value, () => {
+    const idx = tabs.findIndex((t) => t.id === value);
+    btnRefs.current[idx]?.focus({ preventScroll: true });
+  });
+
   const focusSelect = (rawIdx: number) => {
     if (tabs.length === 0) return;
     const idx = ((rawIdx % tabs.length) + tabs.length) % tabs.length;
     const next = tabs[idx];
     if (!next) return;
+    noteTabFocus(ariaLabel ?? '', next.id);
     onChange(next.id);
     // Move focus to the newly-selected tab so keyboard users track selection.
     btnRefs.current[idx]?.focus();
