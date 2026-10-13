@@ -909,6 +909,30 @@ describe('a build with no EDHREC land list', () => {
     }
   });
 
+  it('seeds the typed fixers a symbol query cannot see: Blood Crypt names no mana symbol', async () => {
+    const crypt = structuredClone(
+      JSON.parse(
+        readFileSync(
+          resolve(
+            dirname(fileURLToPath(import.meta.url)),
+            '__fixtures__',
+            'edgar-lands.fixture.json'
+          ),
+          'utf8'
+        )
+      ).cards.find((c: ScryfallCard) => c.name === 'Blood Crypt')
+    ) as ScryfallCard;
+    vi.mocked(searchCards).mockImplementation(async (q: string) =>
+      page(q.includes('t:swamp') ? [crypt] : [])
+    );
+    try {
+      const lands = await generateLands([], ['B', 'R'], 1, new Set(), 0, 99, []);
+      expect(lands.map((c) => c.name)).toEqual(['Blood Crypt']);
+    } finally {
+      vi.mocked(searchCards).mockImplementation(async () => page([]));
+    }
+  });
+
   it('permanents-only: a sorcery // land MDFC does not take a land slot', async () => {
     const emeria = real('Sink into Stupor // Soporific Springs');
     vi.mocked(searchCards).mockImplementation(async () => page([emeria]));
@@ -923,6 +947,73 @@ describe('a build with no EDHREC land list', () => {
       vi.mocked(searchCards).mockImplementation(async () => page([]));
       vi.mocked(isMdfcLand).mockImplementation(() => false);
     }
+  });
+});
+
+describe('E1004: a multicolor deck seats fixers before colorless tribal lands', () => {
+  const EDGAR = new Map<string, ScryfallCard>(
+    (
+      JSON.parse(
+        readFileSync(
+          resolve(
+            dirname(fileURLToPath(import.meta.url)),
+            '__fixtures__',
+            'edgar-lands.fixture.json'
+          ),
+          'utf8'
+        )
+      ) as { cards: ScryfallCard[] }
+    ).cards.map((c) => [c.name, c])
+  );
+  // Inclusion order on Edgar Markov's page: the colorless tribal lands lead.
+  const PAGE: [string, number][] = [
+    ['Voldaren Estate', 70],
+    ['Unclaimed Territory', 60],
+    ['Secluded Courtyard', 50],
+    ['Blood Crypt', 30],
+    ['Dragonskull Summit', 25],
+    ['Caves of Koilos', 20],
+    ['Takenuma, Abandoned Mire', 10],
+  ];
+  const run = async () => {
+    vi.mocked(getCardsByNames).mockImplementation(
+      async () => new Map(PAGE.map(([n]) => [n, structuredClone(EDGAR.get(n)!)]))
+    );
+    try {
+      return (
+        await generateLands(
+          PAGE.map(([name, inclusion]) => ({
+            name,
+            sanitized: name.toLowerCase(),
+            primary_type: 'Land',
+            inclusion,
+            num_decks: inclusion * 100,
+          })),
+          ['W', 'B', 'R'],
+          4,
+          new Set(),
+          0,
+          99,
+          [],
+          undefined,
+          new Set(),
+          null
+        )
+      ).map((c) => c.name);
+    } finally {
+      vi.mocked(getCardsByNames).mockImplementation(async () => new Map());
+    }
+  };
+
+  it('keeps one colorless tribal land and fills the rest with the on-color duals', async () => {
+    const names = await run();
+    const colorless = names.filter((n) =>
+      ['Voldaren Estate', 'Unclaimed Territory', 'Secluded Courtyard'].includes(n)
+    );
+    expect(colorless).toEqual(['Voldaren Estate']);
+    expect(names).toEqual(
+      expect.arrayContaining(['Blood Crypt', 'Dragonskull Summit', 'Caves of Koilos'])
+    );
   });
 });
 

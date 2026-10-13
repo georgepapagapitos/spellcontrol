@@ -44,7 +44,7 @@ import {
   WUBRG,
 } from './manabaseMath';
 import { producedManaColors } from '@/lib/deck-analysis/mana-sources';
-import { landPowerScore } from './landPower';
+import { isColorlessOnlyLand, landPowerScore, untappedConditionOutOfReach } from './landPower';
 import { COMMANDER_STAPLE_INCLUSION } from './premiumCards';
 import { computeManaPhilosophyBoosts } from './manaPhilosophy';
 
@@ -66,6 +66,12 @@ export const MDFC_LAND_BOOST = 50;
  *  yet (0 inclusion) can compete with mid-inclusion staples, without steamrolling
  *  a proven high-inclusion pick. Sized between COLOR_DEMAND (25) and MDFC (50). */
 export const LAND_POWER_BOOST_MAX = 40;
+
+/** Pushes a second colorless-only land in a multicolor deck below every real
+ *  candidate (inclusion tops out near 100). */
+export const COLORLESS_FILLER_PENALTY = 1000;
+/** A land whose untapped condition the deck cannot meet ranks like a tapland. */
+export const UNMET_CONDITION_PENALTY = 25;
 
 const TAPLAND_PENALTIES: Record<Pacing, number> = {
   'aggressive-early': -30,
@@ -372,6 +378,30 @@ export async function generateLands(
       if (merit > 0) {
         const boost = Math.round((LAND_POWER_BOOST_MAX * merit) / 100);
         landPenalties.set(name, (landPenalties.get(name) ?? 0) + boost);
+      }
+    }
+
+    // Fallback ranker guards (E1004). In a multicolor deck a land that taps for
+    // {C} only (Voldaren Estate, Unclaimed Territory: their colors are restricted
+    // to a creature type) takes a slot a fixer needs, and the coherence repair
+    // swaps two or more of them for basics when a color runs short, shipping the
+    // deck under its nonbasic target. Keep the best one; the rest rank below every
+    // real candidate, so they only fill a pool with nothing else in it.
+    if (colorIdentity.length >= 2) {
+      let keeper: string | undefined;
+      for (const [name, card] of landCardMap) {
+        if (!isColorlessOnlyLand(card) || isMdfcLand(card)) continue;
+        if (!keeper || (inclusionOf.get(name) ?? 0) > (inclusionOf.get(keeper) ?? 0)) keeper = name;
+      }
+      for (const [name, card] of landCardMap) {
+        if (name === keeper || !isColorlessOnlyLand(card) || isMdfcLand(card)) continue;
+        landPenalties.set(name, (landPenalties.get(name) ?? 0) - COLORLESS_FILLER_PENALTY);
+      }
+    }
+    // A land that is untapped only on a condition the deck cannot meet is a tapland.
+    for (const [name, card] of landCardMap) {
+      if (untappedConditionOutOfReach(card)) {
+        landPenalties.set(name, (landPenalties.get(name) ?? 0) - UNMET_CONDITION_PENALTY);
       }
     }
 

@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { landPowerScore } from './landPower';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { isColorlessOnlyLand, landPowerScore, untappedConditionOutOfReach } from './landPower';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 const card = (p: Partial<ScryfallCard>): ScryfallCard => ({ name: 'x', ...p }) as ScryfallCard;
@@ -77,5 +80,49 @@ describe('landPowerScore', () => {
     // In 5 colors the fixing is worth the ping — it stays a strong pick.
     const WUBRG = new Set(['W', 'U', 'B', 'R', 'G']);
     expect(landPowerScore(cityOfBrass, WUBRG)).toBeGreaterThanOrEqual(60);
+  });
+});
+
+describe('E1004: colorless-only and out-of-reach untapped lands, on real oracle text', () => {
+  const fx = JSON.parse(
+    readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), '__fixtures__', 'edgar-lands.fixture.json'),
+      'utf8'
+    )
+  ) as { cards: ScryfallCard[] };
+  const byName = (n: string) => fx.cards.find((c) => c.name === n)!;
+
+  it('reads the spend-restricted rainbow lands and plain utility as colorless-only', () => {
+    for (const n of [
+      'Voldaren Estate',
+      'Unclaimed Territory',
+      'Secluded Courtyard',
+      'Reliquary Tower',
+      "Rogue's Passage",
+    ]) {
+      expect(isColorlessOnlyLand(byName(n)), n).toBe(true);
+    }
+  });
+
+  it('does not read fixers, colored utility, rainbow lands or fetches as colorless-only', () => {
+    for (const n of [
+      'Blood Crypt',
+      'Caves of Koilos',
+      'Takenuma, Abandoned Mire',
+      'Bojuka Bog',
+      'Command Tower',
+      'Bloodstained Mire',
+    ]) {
+      expect(isColorlessOnlyLand(byName(n)), n).toBe(false);
+    }
+  });
+
+  it('flags only an untapped condition that asks for something other than lands', () => {
+    for (const n of ['Dragonskull Summit', 'Isolated Chapel', 'Luxury Suite', 'Blood Crypt']) {
+      expect(untappedConditionOutOfReach(byName(n)), n).toBe(false);
+    }
+    for (const n of ['Mines of Moria', 'Temple of the Dragon Queen', 'Fortified Beachhead']) {
+      expect(untappedConditionOutOfReach(byName(n)), n).toBe(true);
+    }
   });
 });

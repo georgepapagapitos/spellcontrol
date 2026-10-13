@@ -39,6 +39,15 @@ export const LAND_RESERVE_MAX_SHARE = 0.2;
 export const ROCK_HOLD_SHARE = 0.1;
 /** How many of the newest on-identity nonbasics the merit widen adds. */
 export const MERIT_POOL_MAX = 40;
+/** How many most-played typed fixers the merit widen adds for a multicolor deck. */
+export const FIXER_POOL_MAX = 25;
+const BASIC_TYPE_BY_COLOR: Record<string, string> = {
+  W: 'plains',
+  U: 'island',
+  B: 'swamp',
+  R: 'mountain',
+  G: 'forest',
+};
 
 /** The merit widen's candidates (E116): the newest on-identity plain nonbasic
  *  lands, which EDHREC's list can't contain yet and which carry most of the
@@ -60,6 +69,30 @@ export async function fetchMeritLands(
       if (out.length >= MERIT_POOL_MAX) break;
       if (skip(card) || isMdfcLand(card)) continue;
       out.push(card);
+    }
+    // The newest-first page above is mostly utility and cyclers. The lands that fix
+    // a multicolor deck (shocks, fetches, checklands, typed duals) name a basic
+    // land type, not a mana symbol, so the symbol query never finds them: add the
+    // most-played of them, or a build with no EDHREC land list never sees one.
+    if (colorIdentity.length >= 2) {
+      try {
+        const types = colorIdentity.map((c) => BASIC_TYPE_BY_COLOR[c]).filter(Boolean);
+        const fixers = await searchCards(
+          `t:land -t:basic (${types.map((t) => `t:${t} OR o:${t}`).join(' OR ')})`,
+          commanderSearchIdentity(colorIdentity),
+          { order: 'edhrec' }
+        );
+        const seen = new Set(out.map((c) => c.name));
+        let added = 0;
+        for (const card of fixers.data) {
+          if (added >= FIXER_POOL_MAX) break;
+          if (seen.has(card.name) || skip(card) || isMdfcLand(card)) continue;
+          out.push(card);
+          added++;
+        }
+      } catch {
+        // The fixer page is a bonus; the newest-first pool above stands.
+      }
     }
     return out;
   } catch {
