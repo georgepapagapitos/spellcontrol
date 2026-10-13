@@ -1288,14 +1288,6 @@
   border-color: var(--accent);
 }
 
-.deck-row.is-selected {
-  background: var(--accent-light);
-  --text-muted: var(--text-muted-tint);
-  --text-secondary: var(--text-secondary-tint);
-  --accent: var(--accent-tint);
-  --accent-hover: var(--accent-hover-tint);
-}
-
 /* ── Manual reorder (E172) ────────────────────────────────────────────
    Dedicated drag handle — NOT the whole row — so a vertical touch drag
    anywhere else on the row keeps scrolling the list by default; only a

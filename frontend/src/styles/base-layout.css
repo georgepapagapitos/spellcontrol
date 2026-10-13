@@ -552,6 +552,55 @@ select {
   gap: 0;
 }
 
+/* The selected-state tint (STYLE_GUIDE § Selected state): the accent-light
+   ground and the on-tint ink pair every rule painting it must re-point
+   (styles/text-contrast-grounds.test.ts). Each selector below keeps its own
+   border, text color and weight in its own sheet; only the shared ground lives
+   here. Selected a new option? Add its selector to this list, never a copy of
+   the block (styles/duplicate-block-ratchet.test.ts fails a copy). Every
+   member sits at the specificity it had in its own sheet, so ties with a
+   pointer-state rule resolve as they did; a member with such a rule of the
+   same specificity that sets a different ground goes in its own sheet. */
+.gen-mode-card.is-active,
+.choice-option.is-selected,
+.cube-collab-friend-row.checked,
+.playtest-designations-picker__row.is-active,
+.playtest-takeback-picker__row.is-active,
+.partner-toggle.active,
+.option-card-editing,
+.toolbar-pill.open,
+.bracket-pill.active,
+.settings-theme-option.is-active,
+.feedback-bracket.is-active,
+.choice-dialog-option-active,
+.layout-option.is-selected,
+.brew-rail-step.is-active,
+.gen-mode-chip.is-active,
+.playtest-log-dock__phase.is-current,
+.table-ticker-dock__toggle.is-open,
+.sort-preset-chip.is-selected,
+.option-card.active,
+.preset-pill.active,
+.deck-toolbar-select-toggle[aria-pressed='true'],
+.card-edit-owned-toggle[aria-pressed='true'],
+.cle-tray-chip.is-selected,
+.seat-menu-facing-btn.is-selected,
+.scan-row.is-selected,
+.deck-row.is-selected,
+.chip-suggest-item.active,
+.inline-card-search-row.active,
+.you-layout .you-nav-row[aria-current='page'],
+.cmdk-option[data-active='true'],
+.discover-search-option.is-highlight,
+.set-filter-result.is-highlight,
+.daily-guess-option.is-highlight {
+  background: var(--accent-light);
+  --text-muted: var(--text-muted-tint);
+  --text-secondary: var(--text-secondary-tint);
+  --accent: var(--accent-tint);
+  --accent-hover: var(--accent-hover-tint);
+}
+
 /* A column of text lines (name over meta) that fills its row and can shrink. */
 .text-stack {
   display: flex;

@@ -120,11 +120,6 @@
 
 .toolbar-pill.open {
   border-color: var(--accent);
-  background: var(--accent-light);
-  --text-muted: var(--text-muted-tint);
-  --text-secondary: var(--text-secondary-tint);
-  --accent: var(--accent-tint);
-  --accent-hover: var(--accent-hover-tint);
 }
 
 .toolbar-pill-label {
@@ -371,11 +366,6 @@
    aria-pressed-driven active state (mirrors CardListTable's select toggle). */
 .deck-toolbar-select-toggle[aria-pressed='true'] {
   border-color: var(--accent);
-  background: var(--accent-light);
-  --text-muted: var(--text-muted-tint);
-  --text-secondary: var(--text-secondary-tint);
-  --accent: var(--accent-tint);
-  --accent-hover: var(--accent-hover-tint);
   color: var(--accent);
 }
 

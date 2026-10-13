@@ -52,11 +52,6 @@
 .seat-menu-facing-btn.is-selected {
   border-color: var(--accent);
   color: var(--accent);
-  background: var(--accent-light);
-  --text-muted: var(--text-muted-tint);
-  --text-secondary: var(--text-secondary-tint);
-  --accent: var(--accent-tint);
-  --accent-hover: var(--accent-hover-tint);
 }
 
 /* ── Layout picker: the "Custom…" tile ── */
@@ -276,11 +271,6 @@
 .cle-tray-chip.is-selected {
   border-color: var(--accent);
   color: var(--accent);
-  background: var(--accent-light);
-  --text-muted: var(--text-muted-tint);
-  --text-secondary: var(--text-secondary-tint);
-  --accent: var(--accent-tint);
-  --accent-hover: var(--accent-hover-tint);
 }
 
 .cle-controls {

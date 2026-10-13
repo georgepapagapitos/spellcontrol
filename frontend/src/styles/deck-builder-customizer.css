@@ -567,11 +567,6 @@ button.option-card:focus-visible,
 }
 
 .option-card.active {
-  background: var(--accent-light);
-  --text-muted: var(--text-muted-tint);
-  --text-secondary: var(--text-secondary-tint);
-  --accent: var(--accent-tint);
-  --accent-hover: var(--accent-hover-tint);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -601,11 +596,6 @@ button.option-card:focus-visible,
 
 .option-card-editing {
   border-color: var(--accent);
-  background: var(--accent-light);
-  --text-muted: var(--text-muted-tint);
-  --text-secondary: var(--text-secondary-tint);
-  --accent: var(--accent-tint);
-  --accent-hover: var(--accent-hover-tint);
 }
 
 .option-card-input {
@@ -668,11 +658,6 @@ button.option-card:focus-visible,
 }
 
 .preset-pill.active {
-  background: var(--accent-light);
-  --text-muted: var(--text-muted-tint);
-  --text-secondary: var(--text-secondary-tint);
-  --accent: var(--accent-tint);
-  --accent-hover: var(--accent-hover-tint);
   border-color: var(--accent);
   color: var(--accent);
   font-weight: 600;

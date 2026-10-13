@@ -1404,11 +1404,6 @@
 
 .cube-collab-friend-row.checked {
   border-color: var(--accent);
-  background: var(--accent-light);
-  --text-muted: var(--text-muted-tint);
-  --text-secondary: var(--text-secondary-tint);
-  --accent: var(--accent-tint);
-  --accent-hover: var(--accent-hover-tint);
 }
 
 .cube-collab-friend-row.disabled {

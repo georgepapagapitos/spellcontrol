@@ -203,14 +203,6 @@
   cursor: pointer;
 }
 
-.daily-guess-option.is-highlight {
-  background: var(--accent-light);
-  --text-muted: var(--text-muted-tint);
-  --text-secondary: var(--text-secondary-tint);
-  --accent: var(--accent-tint);
-  --accent-hover: var(--accent-hover-tint);
-}
-
 .daily-guess-option-name {
   min-width: 0;
   overflow: hidden;

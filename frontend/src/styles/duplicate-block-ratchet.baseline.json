@@ -157,9 +157,8 @@
     ]
   },
   "34f938ef44": {
-    "size": 5,
+    "size": 4,
     "locations": [
-      "styles/binder-card-management.css:.inline-card-search-row.active",
       "styles/deck-builder-commander.css:.commander-search-item:focus-visible",
       "styles/deck-builder-customizer.css:.deck-customizer-autocomplete-item:focus-visible",
       "styles/deck-builder-display.css:.sort-menu-reverse:focus-visible",
@@ -211,13 +210,6 @@
     "locations": [
       "components/deck/WedgeHintStrip.css:.wedge-hint-strip-icon",
       "styles/deck-builder-card-list.css:.deck-empty-state-icon"
-    ]
-  },
-  "4ddc830d44": {
-    "size": 2,
-    "locations": [
-      "styles/deck-builder-customizer.css:.preset-pill.active",
-      "styles/playtest.css:.playtest-corner-btn.is-primary"
     ]
   },
   "504fc38a8c": {
@@ -310,15 +302,13 @@
     ]
   },
   "6d16202fc8": {
-    "size": 9,
+    "size": 7,
     "locations": [
       "components/binder/BinderLadder.css:.binder-ladder-rung.is-me",
       "components/play/OnlineGameView.css:.ogv-life-step:active:not(:disabled)",
       "components/play/PhaseChip.css:button.ogv-phase-chip--tappable:not(:disabled):active",
-      "pages/DailyPage.css:.daily-guess-option.is-highlight",
       "playtest/components/ReactionPicker.css:.playtest-reaction-picker__emote:active",
-      "styles/admin-scanner.css:.scan-row.is-selected",
-      "styles/deck-builder-card-list.css:.deck-row.is-selected",
+      "styles/base-layout.css:.gen-mode-card.is-active, .choice-option.is-selected, .cube-collab-friend-row.checked, .playtest-designations-picker__row.is-active, .playtest-takeback-picker__row.is-active, .partner-toggle.active, .option-card-editing, .toolbar-pill.open, .bracket-pill.active, .settings-theme-option.is-active, .feedback-bracket.is-active, .choice-dialog-option-active, .layout-option.is-selected, .brew-rail-step.is-active, .gen-mode-chip.is-active, .playtest-log-dock__phase.is-current, .table-ticker-dock__toggle.is-open, .sort-preset-chip.is-selected, .option-card.active, .preset-pill.active, .deck-toolbar-select-toggle[aria-pressed='true'], .card-edit-owned-toggle[aria-pressed='true'], .cle-tray-chip.is-selected, .seat-menu-facing-btn.is-selected, .scan-row.is-selected, .deck-row.is-selected, .chip-suggest-item.active, .inline-card-search-row.active, .you-layout .you-nav-row[aria-current='page'], .cmdk-option[data-active='true'], .discover-search-option.is-highlight, .set-filter-result.is-highlight, .daily-guess-option.is-highlight",
       "styles/playtest.css:.playtest-ctx-action:active:not(:disabled)",
       "styles/playtest.css:.playtest-hand.is-over"
     ]
@@ -415,22 +405,13 @@
     ]
   },
   "86371a6ad7": {
-    "size": 17,
+    "size": 8,
     "locations": [
-      "components/deck/GenerationModePicker.css:.gen-mode-chip.is-active",
       "components/trade/TradeOfferList.css:.trade-offer-status.is-accepted",
       "playtest/components/DiceRoller.css:.playtest-dice-grid button:active",
-      "playtest/components/LogDock.css:.playtest-log-dock__phase.is-current",
-      "playtest/components/TableTicker.css:.table-ticker-dock__toggle.is-open",
       "styles/binder-card-management.css:.collection-grid-scryfall:focus-visible, .collection-grid-scryfall.is-open",
       "styles/binder-card-management.css:.collection-list-scryfall:focus-visible, .collection-list-scryfall.is-open",
       "styles/binder-rules-editor.css:.chip-joiner.and",
-      "styles/binder-rules-editor.css:.sort-preset-chip.is-selected",
-      "styles/deck-builder-customizer.css:.option-card.active",
-      "styles/deck-builder-display.css:.deck-toolbar-select-toggle[aria-pressed='true']",
-      "styles/modals-dialogs.css:.card-edit-owned-toggle[aria-pressed='true']",
-      "styles/play-layout-editor.css:.cle-tray-chip.is-selected",
-      "styles/play-layout-editor.css:.seat-menu-facing-btn.is-selected",
       "styles/playtest.css:.playtest-ctx-sticker-add button:enabled:active, .playtest-ctx-sticker button:active",
       "styles/playtest.css:.playtest-zone-card__primary:active",
       "styles/search-controls.css:.sort-popover-btn:focus-visible, .sort-popover-btn.open"
@@ -484,9 +465,9 @@
     "size": 4,
     "locations": [
       "components/deck/DeckColorBalance.css:.deck-color-balance-value-btn::after  [@media (pointer: coarse)]",
+      "components/deck/DeckColorPanel.css:.deck-castability-card:not(.is-static)::after  [@media (pointer: coarse)]",
       "components/deck/DeckIdentityCard.css:.deck-identity-card-archetype-menu .toolbar-pill::after  [@media (pointer: coarse)]",
-      "components/play/BoardSheets.css:.board-sheet .board-sheet-note-fix::after  [@media (pointer: coarse)]",
-      "components/shared/ColorMatchModeToggle.css:.color-mode-toggle .chip-joiner::after  [@media (pointer: coarse)]"
+      "components/play/BoardSheets.css:.board-sheet .board-sheet-note-fix::after  [@media (pointer: coarse)]"
     ]
   },
   "a4c87b3ff6": {
@@ -607,13 +588,6 @@
       "components/trade/TradeComposer.css:.trade-stepper-btn"
     ]
   },
-  "b5fbc94984": {
-    "size": 2,
-    "locations": [
-      "styles/binder-card-management.css:.inline-card-search-printing.is-selected",
-      "styles/binder-rules-editor.css:.chip-suggest-item.active"
-    ]
-  },
   "b6d7e4fb5a": {
     "size": 4,
     "locations": [
@@ -632,15 +606,11 @@
     ]
   },
   "b8a75e1655": {
-    "size": 7,
+    "size": 3,
     "locations": [
-      "components/app-shell/CommandPalette.css:.cmdk-option[data-active='true']",
-      "components/decks/DiscoverSearch.css:.discover-search-option.is-highlight",
       "playtest/components/PlaytestStatsSheet.css:.playtest-stats-verdict--keep",
       "styles/admin-scanner.css:.admin-deck-link.is-active",
-      "styles/collection.css:.set-filter-result.is-highlight",
-      "styles/search-controls.css:.filter-popover-btn:focus-visible, .filter-popover-btn[aria-expanded='true']",
-      "styles/settings-page.css:.you-layout .you-nav-row[aria-current='page']"
+      "styles/search-controls.css:.filter-popover-btn:focus-visible, .filter-popover-btn[aria-expanded='true']"
     ]
   },
   "b8b43fbaf2": {
@@ -935,22 +905,6 @@
     "locations": [
       "playtest/components/OpeningHandSheet.css:.playtest-opening-card img",
       "styles/deck-builder-test-hand.css:.deck-test-hand-card-art img"
-    ]
-  },
-  "fda052d21c": {
-    "size": 11,
-    "locations": [
-      "components/deck/GenerationModePicker.css:.gen-mode-card.is-active",
-      "components/shared/form.css:.choice-option.is-selected",
-      "pages/cube/cube.css:.cube-collab-friend-row.checked",
-      "playtest/components/DesignationsPicker.css:.playtest-designations-picker__row.is-active",
-      "playtest/components/TakebackModePicker.css:.playtest-takeback-picker__row.is-active",
-      "styles/deck-builder-commander.css:.partner-toggle.active",
-      "styles/deck-builder-customizer.css:.option-card-editing",
-      "styles/deck-builder-display.css:.toolbar-pill.open",
-      "styles/deck-builder-settings.css:.bracket-pill.active",
-      "styles/settings-page.css:.settings-theme-option.is-active",
-      "styles/shared.css:.feedback-bracket.is-active"
     ]
   }
 }
