@@ -7,7 +7,7 @@ import {
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { DeckCombosPanel } from '@/components/deck/DeckCombosPanel';
 import { DeckAnalysisPanel } from '@/components/deck/DeckAnalysisPanel';
-import { useCommanderProfile } from '@/lib/deck/use-commander-profile';
+import { useCommanderProfile, useWarmCommanderPage } from '@/lib/deck/use-commander-profile';
 import { DeckAiReview } from '@/components/deck/DeckAiReview';
 import { DeckAiRefine } from '@/components/deck/DeckAiRefine';
 import { AiSourcesControl } from '@/components/deck/AiSourcesControl';
@@ -148,6 +148,7 @@ export function DeckEditorLayout({
   } = ownership;
   const { handleAddEngineCard, setShowFill, addingEngineNames } = addFlow;
   // E260: the Coach feed's free "Lean into" lever reads the commander's abilities.
+  useWarmCommanderPage(deck.commander, deck.partnerCommander);
   const commanderProfile = useCommanderProfile(deck.commander, deck.partnerCommander);
   const {
     formatConfig,

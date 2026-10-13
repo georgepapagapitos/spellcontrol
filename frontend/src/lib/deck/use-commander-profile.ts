@@ -1,6 +1,11 @@
-import { useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { onCommanderPageCached, peekCommanderThemes } from '@/deck-builder/services/edhrec/client';
+import {
+  fetchCommanderData,
+  fetchPartnerCommanderData,
+  onCommanderPageCached,
+  peekCommanderThemes,
+} from '@/deck-builder/services/edhrec/client';
 import {
   buildCommanderProfile,
   type CommanderProfile,
@@ -26,4 +31,24 @@ export function useCommanderProfile(
     () => (commander ? buildCommanderProfile(commander, partner, { edhrecThemes }) : null),
     [commander, partner, edhrecThemes]
   );
+}
+
+/**
+ * The deck editor's half: a deck reopened with its analysis saved never fetches the commander's
+ * page, so nothing would hold the themes the profile reads. Fetch it once when no surface has
+ * (the session caches it), without blocking anything; offline or a failure leaves the text reading.
+ */
+export function useWarmCommanderPage(
+  commander: ScryfallCard | null | undefined,
+  partner?: ScryfallCard | null
+): void {
+  const name = commander?.name;
+  const partnerName = partner?.name;
+  useEffect(() => {
+    if (!name || peekCommanderThemes(name, partnerName)) return;
+    const page = partnerName
+      ? fetchPartnerCommanderData(name, partnerName)
+      : fetchCommanderData(name);
+    page.catch(() => {});
+  }, [name, partnerName]);
 }
