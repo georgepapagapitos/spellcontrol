@@ -566,6 +566,16 @@ export function checkDeckInvariants(
         (disclosed ? ' (forced pick, disclosed)' : '')
     );
   }
+  // A card priced from another printing (E1011) is priced by every check above and in the
+  // budget; the deck must say so, or its price is not the printing it shows.
+  const borrowed = cards.filter((c) => c.pricedFromSet);
+  if (borrowed.length > 0 && !deck.printingPriceNote) {
+    add(
+      'HARD',
+      'max-price',
+      `${borrowed.length} cards priced from another printing with no disclosure (${borrowed[0].name})`
+    );
+  }
   if (unpriced > 0 && (maxPrice != null || cz.deckBudget != null)) {
     add('SOFT', 'max-price', `${unpriced} nonbasic cards have no ${currency} price`);
   }

@@ -110,6 +110,7 @@ import {
   type FillHardGates,
 } from './scryfallFill';
 import { fetchPassingWindows, holdSpellsToFilter, windowFetcher } from './fetchPassingWindows';
+import { buildPrintingPriceNote } from './printingPriceNote';
 import { isUnsupportedSynergyPayoff } from './synergyDependency';
 import {
   computePackageBoosts,
@@ -4748,6 +4749,13 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     currency,
   });
 
+  // E1011: a card seated on a printing with no price is priced at its cheapest priced
+  // printing (client.ts), so say so.
+  const printingPriceNote = buildPrintingPriceNote(
+    [...nonLandCards, ...categories.lands],
+    currency
+  );
+
   // Settings-conflict disclosure: bracket 4/5 implies unlimited Game
   // Changers, but a finite gameChangerLimit still caps the deck below that.
   // Undefined off bracket 4/5, or when the limit is already unlimited.
@@ -5023,6 +5031,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     roleCapOverflowNote,
     roleDeficitNotes,
     priceSanityNote,
+    printingPriceNote,
     bracketPriceDisclosureNote,
     gameChangerBracketConflictNote,
     wipeAsymmetryNote,

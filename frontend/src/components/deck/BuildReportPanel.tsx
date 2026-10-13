@@ -231,6 +231,7 @@ export function BuildReportPanel({
     roleCapOverflowNote,
     roleDeficitNotes,
     priceSanityNote,
+    printingPriceNote,
     bracketPriceDisclosureNote,
     gameChangerBracketConflictNote,
     wipeAsymmetryNote,
@@ -470,6 +471,10 @@ export function BuildReportPanel({
 
       {priceSanityNote && (
         <p className="build-report-line build-report-source">{priceSanityNote}</p>
+      )}
+
+      {printingPriceNote && (
+        <p className="build-report-line build-report-source">{printingPriceNote}</p>
       )}
 
       {bracketPriceDisclosureNote && (

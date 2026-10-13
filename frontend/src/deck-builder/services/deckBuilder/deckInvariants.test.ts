@@ -412,6 +412,24 @@ describe('price, budget, rarity and the other per-card caps', () => {
     );
   });
 
+  it('prices a card from another printing for the cap, and wants the deck to say so (E1011)', () => {
+    const cats = cleanCategories();
+    swap(cats, 'Forest', card('Rhystic Study', { pricedFromSet: 'sld' }), 'synergy');
+    const cz = customization({ maxCardPrice: 50 });
+    const silent = checkDeckInvariants(assemble(cats), context({ customization: cz }));
+    expect(
+      silent.filter((x) => x.check === 'max-price').map((x) => `${x.level} ${x.detail}`)
+    ).toEqual([
+      'HARD Rhystic Study 70.36 USD > cap 50',
+      'HARD 1 cards priced from another printing with no disclosure (Rhystic Study)',
+    ]);
+    const told = checkDeckInvariants(
+      assemble(cats, { printingPriceNote: 'Rhystic Study is priced at its cheapest printing.' }),
+      context({ customization: cz })
+    );
+    expect(told.filter((x) => x.detail.includes('another printing'))).toEqual([]);
+  });
+
   it('flags a budget blown by more than 5%, SOFT once the budget note owns up to it', () => {
     const cz = customization({ deckBudget: 20 });
     const silent = checkDeckInvariants(assemble(cleanCategories()), context({ customization: cz }));
