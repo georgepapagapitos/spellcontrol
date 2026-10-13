@@ -115,6 +115,21 @@ export interface RoleCapGate {
    *  the escape hatch admits an over-cap card, so the build report can
    *  disclose it in one aggregate note (never silent). */
   overflowCounts?: Partial<Record<RoleKey, number>>;
+  /** The plan is board-centric (tokens, tribal, go-wide, attack-trigger): a wipe
+   *  torches the deck's own board, so a fill may not seat one past its target. */
+  boardCentric?: boolean;
+  /** Cap only these roles. A last-resort backfill sets it to the roles that cost
+   *  the deck something past target, so a cap cannot leave the deck short. */
+  onlyRoles?: readonly RoleKey[];
+}
+
+/** A fill is the backstop behind the EDHREC pick loop, which already chose the
+ *  deck-appropriate wipes. Past that, a wipe costs the deck's own board, so its
+ *  cap sits at target + 1 (target for a board-centric plan), the band the
+ *  post-fill rebalance trims to, not the generic max(2, 20%). */
+function fillRoleCap(role: RoleKey, target: number, boardCentric: boolean | undefined): number {
+  if (role === 'boardwipe') return target + (boardCentric ? 0 : 1);
+  return target + roleCapTolerance(target);
 }
 
 // Hard gates the EDHREC-pool picker (cardPicking.ts) enforces but a raw
@@ -147,6 +162,12 @@ export interface FillHardGates {
   /** The collection's own cards (E1003): an owned-only fill draws its candidates
    *  from these instead of the global edhrec page. */
   ownedPool?: readonly SubstituteCandidate[];
+  /** Own-board cost of seating a card, 0 for anything that is not a symmetric or
+   *  collateral-heavy board wipe (wipeQualityPenalty). Set only for a
+   *  board-centric plan. Wipes sort behind every other candidate by it, so a
+   *  fill under tight caps seats a one-sided wipe before a symmetric one, and a
+   *  wipe only after the spells that cost the deck nothing. */
+  wipePenalty?: (card: ScryfallCard) => number;
 }
 
 /**
@@ -305,6 +326,18 @@ export async function fillWithScryfall(
       }
     }
 
+    if (gates?.wipePenalty) {
+      const penalty = gates.wipePenalty;
+      const keyed = passing.map((card, i) => ({
+        card,
+        i,
+        w: validateCardRole(card) === 'boardwipe' ? penalty(card) : 0,
+      }));
+      keyed.sort((a, b) => a.w - b.w || a.i - b.i);
+      passing.length = 0;
+      for (const { card } of keyed) passing.push(card);
+    }
+
     // Pass 2: take up to `count`, applying the dynamic budget/price gate in order.
     const result: ScryfallCard[] = [];
     // Candidates skipped ONLY for being over their role's cap — replayed as an
@@ -347,11 +380,12 @@ export async function fillWithScryfall(
         return false;
       if (!allowCapOverflow && gates?.roleCap) {
         const role = validateCardRole(card);
-        if (role) {
+        if (role && (!gates.roleCap.onlyRoles || gates.roleCap.onlyRoles.includes(role))) {
           const target = gates.roleCap.roleTargets[role] ?? 0;
           if (
             target > 0 &&
-            (gates.roleCap.currentRoleCounts[role] ?? 0) >= target + roleCapTolerance(target)
+            (gates.roleCap.currentRoleCounts[role] ?? 0) >=
+              fillRoleCap(role, target, gates.roleCap.boardCentric)
           ) {
             capSkipped.push(card);
             return false;
@@ -399,12 +433,24 @@ export async function fillWithScryfall(
         const overB = roleB
           ? (roleCap.currentRoleCounts[roleB] ?? 0) - (roleCap.roleTargets[roleB] ?? 0)
           : 0;
-        return overA - overB;
+        return (
+          overA - overB ||
+          (gates.wipePenalty?.(a) ?? 0) * Number(roleA === 'boardwipe') -
+            (gates.wipePenalty?.(b) ?? 0) * Number(roleB === 'boardwipe')
+        );
       });
       let admitted = 0;
       for (const card of capSkipped) {
         if (result.length >= count) break;
         if (admitted >= ROLE_CAP_HATCH_MAX_PER_PASS) break;
+        // The hatch exists so a pass never ships short over a soft target. A
+        // symmetric wipe in a board-centric plan is not worth that: it torches
+        // the deck's own board, and a later fill closes the gap with a spell
+        // that costs nothing (E1009: Krenko's typed instant fill ran out of
+        // owned instants and the hatch seated two wipes).
+        if (roleCap.boardCentric && gates.wipePenalty && validateCardRole(card) === 'boardwipe') {
+          if (gates.wipePenalty(card) > 0) continue;
+        }
         if (tryAcceptCard(card, true)) admitted++;
       }
     }

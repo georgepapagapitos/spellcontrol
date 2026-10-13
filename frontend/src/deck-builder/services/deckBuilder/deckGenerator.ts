@@ -109,6 +109,7 @@ import {
   recordFillSeat,
   type FillHardGates,
 } from './scryfallFill';
+import { wipeQualityPenalty } from './wipeTieBreaks';
 import { fetchPassingWindows, windowFetcher } from './fetchPassingWindows';
 import { isUnsupportedSynergyPayoff } from './synergyDependency';
 import {
@@ -2089,6 +2090,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     deckCardsSoFar: () => Object.values(categories).flat(),
     qualifiedGateOverflowCount,
     ownedPool: context.collectionPool,
+    // Read lazily: preferAsymmetricWipes is resolved after this object exists.
+    wipePenalty: (card) =>
+      preferAsymmetricWipes
+        ? wipeQualityPenalty(card, isOneSidedWipe, getWipeScope, typeTargets)
+        : 0,
   };
   // Aggregate, generation-wide count of role-cap escape-hatch admissions —
   // every gated path (pick loop, Scryfall fallback, shortage backfill, owned
@@ -2110,11 +2116,17 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // shared `fillGates` object) since `roleTargets` isn't resolved until
   // later, and NOT applied to the no-EDHREC-data / direct-role-bucket fills,
   // which fill a role bucket to its OWN target by construction.
-  const fillGatesWithRoleCap = (): FillHardGates =>
+  const fillGatesWithRoleCap = (onlyRoles?: readonly RoleKey[]): FillHardGates =>
     roleTargets
       ? {
           ...fillGates,
-          roleCap: { roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts },
+          roleCap: {
+            roleTargets,
+            currentRoleCounts,
+            overflowCounts: roleCapOverflowCounts,
+            boardCentric: preferAsymmetricWipes,
+            onlyRoles,
+          },
         }
       : fillGates;
 
@@ -3848,7 +3860,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           ignoreOwnedRarity,
           isCardAllowedBySynergyDependencies,
           liftScoreOf,
-          fillGates,
+          // Only wipes are capped here: this backfill is what stands between the
+          // deck and basic-land padding, and a wipe is the one role that costs it.
+          fillGatesWithRoleCap(['boardwipe']),
           state.cfg.mtgFormat
         );
         for (const c of ownedFill) addOwnedCard(c);
@@ -3881,7 +3895,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           ignoreOwnedRarity,
           isCardAllowedBySynergyDependencies,
           liftScoreOf,
-          fillGates,
+          fillGatesWithRoleCap(['boardwipe']),
           state.cfg.mtgFormat
         );
         for (const c of relaxedCards) {
