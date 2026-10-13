@@ -976,10 +976,22 @@ describe('E1004: a multicolor deck seats fixers before colorless tribal lands', 
     ['Caves of Koilos', 15],
     ['Takenuma, Abandoned Mire', 10],
   ];
-  const run = async (count = 4, spares?: ScryfallCard[], tribal = false) => {
+  const run = async (
+    count = 4,
+    spares?: ScryfallCard[],
+    tribal = false,
+    owned?: { names: Set<string>; strategy: 'full' | 'available' }
+  ) => {
     vi.mocked(getCardsByNames).mockImplementation(
       async () => new Map(PAGE.map(([n]) => [n, structuredClone(EDGAR.get(n)!)]))
     );
+    // Positions 13 (collectionNames), 14 (available counts) and 19 (strategy).
+    const middle = Array<unknown>(20).fill(undefined);
+    if (owned) {
+      middle[3] = owned.names;
+      middle[4] = new Map([...owned.names].map((n) => [n, 1]));
+      middle[9] = owned.strategy;
+    }
     try {
       return (
         await (generateLands as (...args: unknown[]) => Promise<ScryfallCard[]>)(
@@ -999,7 +1011,7 @@ describe('E1004: a multicolor deck seats fixers before colorless tribal lands', 
           undefined,
           new Set(),
           null,
-          ...Array<undefined>(20),
+          ...middle,
           spares,
           tribal
         )
@@ -1035,6 +1047,22 @@ describe('E1004: a multicolor deck seats fixers before colorless tribal lands', 
     expect(names).not.toContain('Unclaimed Territory');
     expect(names).not.toContain('Secluded Courtyard');
   });
+
+  // The coherence repair seats a spare, so an owned-only build's spares are owned:
+  // an "available only" Zo-Zu build got Sokenzan and Memorial to War, neither owned.
+  it.each(['full', 'available'] as const)(
+    'an owned-only (%s) build hands on owned spares only',
+    async (strategy) => {
+      const ownedNames = new Set(['Blood Crypt', 'Dragonskull Summit', 'Caves of Koilos']);
+      const spares: ScryfallCard[] = [];
+      const picked = await run(1, spares, false, { names: ownedNames, strategy });
+      for (const n of picked) expect(ownedNames.has(n)).toBe(true);
+      const names = spares.map((c) => c.name);
+      expect(names.length).toBeGreaterThan(0);
+      expect(names).not.toContain('Takenuma, Abandoned Mire');
+      for (const n of names) expect(ownedNames.has(n)).toBe(true);
+    }
+  );
 });
 
 // E1003: the candidate cut ran before the price cap. A tight cap that failed the

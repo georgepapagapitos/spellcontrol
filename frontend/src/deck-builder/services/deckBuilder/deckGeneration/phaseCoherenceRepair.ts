@@ -44,6 +44,7 @@ import { isAltWinCard } from '@/deck-builder/services/winConditions/detect';
 import { classifyAnswer } from '../answerCoverage';
 import { classifyCard } from '@/deck-builder/services/synergy/classify';
 import { buildManabaseSummary } from '../manabaseMath';
+import { isColorlessOnlyLand } from '../landPower';
 import { buildCommanderProfile, isTribalProfile } from '../commanderProfile';
 import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
 import { evictionKeeper } from './evictionKeeper';
@@ -112,6 +113,8 @@ export interface CoherenceRepairContext {
   /** Gate-cleared fixing nonbasics the land pass did not pick, best first. A colorless
    *  land given up for a short color is replaced by one of these before a basic. */
   landSpares?: ScryfallCard[];
+  /** The nonbasic count the player asked for. A land swap never ends under it. */
+  nonBasicTarget?: number;
 }
 
 export interface CoherenceRepairResult {
@@ -414,7 +417,9 @@ export async function applyCoherenceRepair(
       const identity = new Set(state.context.colorIdentity);
       const spare = ctx.landSpares?.find(
         (s) =>
-          !state.usedNames.has(s.name) && producedManaColors(s, identity).includes(f.basicFixColor!)
+          !state.usedNames.has(s.name) &&
+          (!ownedOnly || !notInCollection(s.name, collectionNames)) &&
+          producedManaColors(s, identity).includes(f.basicFixColor!)
       );
       if (spare) {
         state.categories.lands[idx] = spare;
@@ -428,6 +433,19 @@ export async function applyCoherenceRepair(
         continue;
       }
       if (isChannelFinding(f)) continue;
+      // A basic for a working colorless land costs a nonbasic: never below the
+      // count the player set (Zo-Zu asked for 6 and would have lost Tectonic Edge
+      // to a Mountain). A dead fetch still goes, it taps for nothing.
+      const nonBasics = state.categories.lands.filter(
+        (l) => !/\bbasic\b/i.test(getFrontFaceTypeLine(l))
+      ).length;
+      if (
+        ctx.nonBasicTarget != null &&
+        nonBasics <= ctx.nonBasicTarget &&
+        isColorlessOnlyLand(cut, { typalFixing: tribal })
+      ) {
+        continue;
+      }
       const basic = await ctx.getBasicLand(basicName);
       if (!basic) continue;
       state.categories.lands[idx] = { ...basic };

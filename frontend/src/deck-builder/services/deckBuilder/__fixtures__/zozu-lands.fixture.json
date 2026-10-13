@@ -1,0 +1,229 @@
+{
+  "_source": "Scryfall /cards/collection 2026-10-13: the nonbasic lands of the Zo-Zu (mono-red, available only, 6 nonbasics) deck that shipped unowned lands, plus Mountain",
+  "cards": [
+    {
+      "cmc": 0,
+      "color_identity": [],
+      "colors": [],
+      "games": ["paper", "mtgo"],
+      "id": "94b9d7af-3e6f-4227-bb7d-a17d6f250535",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Tectonic Edge",
+      "oracle_id": "4927150d-7ff6-4232-b20e-d2ea245ac710",
+      "oracle_text": "{T}: Add {C}.\n{1}, {T}, Sacrifice this land: Destroy target nonbasic land. Activate only if an opponent controls four or more lands.",
+      "prices": {
+        "usd": "0.33",
+        "usd_foil": null,
+        "usd_etched": null,
+        "eur": "0.30",
+        "eur_foil": null,
+        "tix": "0.04"
+      },
+      "produced_mana": ["C"],
+      "rarity": "uncommon",
+      "set": "c14",
+      "type_line": "Land"
+    },
+    {
+      "cmc": 0,
+      "color_identity": [],
+      "colors": [],
+      "games": ["paper"],
+      "id": "12f8071c-8955-4aa2-889c-6043df047223",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Ghost Quarter",
+      "oracle_id": "2ec4288e-34c6-4831-a2c0-ba1ca1d9d1dc",
+      "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice this land: Destroy target land. Its controller may search their library for a basic land card, put it onto the battlefield, then shuffle.",
+      "prices": {
+        "usd": "0.92",
+        "usd_foil": null,
+        "usd_etched": null,
+        "eur": "0.71",
+        "eur_foil": null,
+        "tix": null
+      },
+      "produced_mana": ["C"],
+      "rarity": "uncommon",
+      "set": "cm2",
+      "type_line": "Land"
+    },
+    {
+      "cmc": 0,
+      "color_identity": [],
+      "colors": [],
+      "games": ["paper", "mtgo"],
+      "id": "143147d2-2eec-41e7-b78a-592288b38630",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Field of Ruin",
+      "oracle_id": "f825c98f-a327-440b-8c0d-ebe02e23bfb7",
+      "oracle_text": "{T}: Add {C}.\n{2}, {T}, Sacrifice this land: Destroy target nonbasic land an opponent controls. Each player searches their library for a basic land card, puts it onto the battlefield, then shuffles.",
+      "prices": {
+        "usd": "0.37",
+        "usd_foil": null,
+        "usd_etched": null,
+        "eur": "0.25",
+        "eur_foil": null,
+        "tix": "0.15"
+      },
+      "produced_mana": ["C"],
+      "rarity": "uncommon",
+      "set": "moc",
+      "type_line": "Land"
+    },
+    {
+      "cmc": 0,
+      "color_identity": [],
+      "colors": [],
+      "games": ["paper", "mtgo"],
+      "id": "aaafb9bc-7cea-4624-a227-595544fa42b0",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Wasteland",
+      "oracle_id": "09a70ae8-3859-4a09-901d-dce063fa3b5f",
+      "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice this land: Destroy target nonbasic land.",
+      "prices": {
+        "usd": "25.92",
+        "usd_foil": "40.38",
+        "usd_etched": null,
+        "eur": "21.85",
+        "eur_foil": "28.48",
+        "tix": "14.78"
+      },
+      "produced_mana": ["C"],
+      "rarity": "rare",
+      "set": "ema",
+      "type_line": "Land"
+    },
+    {
+      "cmc": 0,
+      "color_identity": ["R"],
+      "colors": [],
+      "games": ["paper", "mtgo", "arena"],
+      "id": "aa548dcd-c1dd-492d-a69f-c65dfeef0633",
+      "keywords": ["Channel"],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Sokenzan, Crucible of Defiance",
+      "oracle_id": "c5ee72d5-3a9e-4fe5-8802-3286ee612055",
+      "oracle_text": "{T}: Add {R}.\nChannel — {3}{R}, Discard this card: Create two 1/1 colorless Spirit creature tokens. They gain haste until end of turn. This ability costs {1} less to activate for each legendary creature you control.",
+      "prices": {
+        "usd": "3.04",
+        "usd_foil": "3.18",
+        "usd_etched": null,
+        "eur": "2.75",
+        "eur_foil": "3.33",
+        "tix": "0.12"
+      },
+      "produced_mana": ["R"],
+      "rarity": "rare",
+      "set": "neo",
+      "type_line": "Legendary Land"
+    },
+    {
+      "cmc": 0,
+      "color_identity": ["R"],
+      "colors": [],
+      "games": ["paper", "mtgo"],
+      "id": "c3fe9351-82ad-47b0-b30c-208effbb9f3d",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Memorial to War",
+      "oracle_id": "f98db69c-b330-4560-ac53-10857674466b",
+      "oracle_text": "This land enters tapped.\n{T}: Add {R}.\n{4}{R}, {T}, Sacrifice this land: Destroy target land.",
+      "prices": {
+        "usd": "0.33",
+        "usd_foil": null,
+        "usd_etched": null,
+        "eur": "0.12",
+        "eur_foil": null,
+        "tix": "0.04"
+      },
+      "produced_mana": ["R"],
+      "rarity": "uncommon",
+      "set": "cmr",
+      "type_line": "Land"
+    },
+    {
+      "cmc": 0,
+      "color_identity": ["R"],
+      "colors": [],
+      "games": ["paper", "mtgo"],
+      "id": "62b0b5f8-6b51-4fa5-85ae-290475525a9d",
+      "keywords": ["Cycling"],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Forgotten Cave",
+      "oracle_id": "394c6de5-7957-4a0b-a6b9-ee0c707cd022",
+      "oracle_text": "This land enters tapped.\n{T}: Add {R}.\nCycling {R} ({R}, Discard this card: Draw a card.)",
+      "prices": {
+        "usd": "0.31",
+        "usd_foil": null,
+        "usd_etched": null,
+        "eur": "0.15",
+        "eur_foil": null,
+        "tix": "0.07"
+      },
+      "produced_mana": ["R"],
+      "rarity": "common",
+      "set": "c21",
+      "type_line": "Land"
+    },
+    {
+      "cmc": 0,
+      "color_identity": ["R"],
+      "colors": [],
+      "games": ["paper", "mtgo", "arena"],
+      "id": "85177bd7-6c50-48da-b692-ae5fe7bd357c",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Mountain",
+      "oracle_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+      "oracle_text": "({T}: Add {R}.)",
+      "prices": {
+        "usd": null,
+        "usd_foil": null,
+        "usd_etched": null,
+        "eur": null,
+        "eur_foil": null,
+        "tix": null
+      },
+      "produced_mana": ["R"],
+      "rarity": "common",
+      "set": "mdd",
+      "type_line": "Basic Land — Mountain"
+    }
+  ]
+}

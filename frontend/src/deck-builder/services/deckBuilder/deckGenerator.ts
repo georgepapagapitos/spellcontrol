@@ -143,12 +143,7 @@ import {
   survivingSubstitutionRows,
 } from './finalDeckDisclosure';
 import { resolveMultiCopyCards } from './multiCopy';
-import {
-  generateLands,
-  CHANNEL_LAND_BOOST,
-  MDFC_LAND_BOOST,
-  BASIC_LAND_NAMES,
-} from './landGenerator';
+import { generateLands, CHANNEL_LAND_BOOST, MDFC_LAND_BOOST } from './landGenerator';
 import { resolveManaPhilosophy } from './manaPhilosophy';
 import { assertCommandersEligible, commanderPreviewNote } from './commanderEligibility';
 import {
@@ -190,10 +185,11 @@ import { applyRoleSurplusRebalance } from './deckGeneration/phaseRoleSurplusReba
 import { buildRoleDeficitNotes } from './deckGeneration/roleDeficitNotes';
 import { applyLandSqueezeReconcile } from './deckGeneration/phaseLandSqueezeReconcile';
 import { applyFlagshipSeating } from './deckGeneration/phaseFlagshipSeating';
+import { sweepUnownedLands } from './deckGeneration/ownedLandSweep';
 import {
   runLandDeficitTopUp,
   runLastResortLandFill,
-  type LandTopUpContext,
+  landTopUpContextFor,
 } from './deckGeneration/landTopUp';
 import {
   acquireCommanderDataPhase,
@@ -3271,21 +3267,13 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // over the Commander limit"). Topping up first lets the trim reconcile the
   // surplus — its land budget (max(0, lands - landTarget)) still protects the
   // freshly added basics.
-  const landTopUpCtx: LandTopUpContext = {
+  const landTopUpCtx = landTopUpContextFor(
     colorIdentity,
     categories,
     arenaOnly,
-    // E1005: 'available' pads only with the basics the player has free, when
-    // the collection lists any basic at all. ponytail: a collection with no
-    // basics reads as "basics not tracked", not "owns none", because capping it
-    // at zero ships a 43-card deck; tell the two apart when the import keeps a
-    // basics flag.
-    availableBasicCount:
-      collectionStrategy === 'available' &&
-      [...BASIC_LAND_NAMES].some((n) => (context.collectionAvailableCounts?.get(n) ?? 0) > 0)
-        ? (name) => context.collectionAvailableCounts?.get(name) ?? 0
-        : undefined,
-  };
+    collectionStrategy,
+    context.collectionAvailableCounts
+  );
   await runLandDeficitTopUp(landTopUpCtx, targets.lands);
 
   // ── Smart Trim: priority-aware, role-aware, combo-aware ──
@@ -4265,6 +4253,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       getBasicLand: async (name) =>
         getCachedCard(name, arenaOnly) ?? (await getCardByName(name, arenaOnly).catch(() => null)),
       landSpares,
+      nonBasicTarget: effectiveNonBasicLandCount,
     });
     coherenceRepairs = [...comboAuditRepairs, ...repairResult.repairs];
     // A repair add can complete a tracked combo — refresh completeness against
@@ -4765,6 +4754,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     targetBracket,
     maxGameChangers
   );
+
+  // An owned-only build ships no unowned land the report doesn't name (ownedLandSweep.ts).
+  if (ownedOnlyBuild)
+    await sweepUnownedLands(state, context.collectionNames, relaxedNames, landSpares, landTopUpCtx);
 
   // Surfaced relaxation count = relaxed cards that SURVIVED the combo audit /
   // fixup passes above (they can evict cards added to categories.synergy), so

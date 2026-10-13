@@ -1,11 +1,11 @@
 import { logger } from '@/lib/util/logger';
-import type { ScryfallCard, DeckCategory } from '@/deck-builder/types';
+import type { ScryfallCard, DeckCategory, CollectionStrategy } from '@/deck-builder/types';
 import {
   getCardByName,
   getCachedCard,
   getFrontFaceTypeLine,
 } from '@/deck-builder/services/scryfall/client';
-import { countColorPips } from '../landGenerator';
+import { BASIC_LAND_NAMES, countColorPips } from '../landGenerator';
 
 // Basics (and Wastes, which this generator treats as a duplicable basic
 // stand-in for colorless identities — see the colorless branch below) are
@@ -45,6 +45,31 @@ export interface LandTopUpContext {
    *  The land-deficit top-up honors it; the last-resort pad does not. Mirrors generateLands' availableCount, so the top-up cannot pad past the
    *  copies the player can actually pull (E1005). */
   availableBasicCount?: (name: string) => number;
+}
+
+/** The top-up's view over the generator's own `categories`, mutated by reference. */
+export function landTopUpContextFor(
+  colorIdentity: string[],
+  categories: Record<DeckCategory, ScryfallCard[]>,
+  arenaOnly: boolean,
+  collectionStrategy: CollectionStrategy,
+  availableCounts: ReadonlyMap<string, number> | undefined
+): LandTopUpContext {
+  return {
+    colorIdentity,
+    categories,
+    arenaOnly,
+    // E1005: 'available' pads only with the basics the player has free, when
+    // the collection lists any basic at all. ponytail: a collection with no
+    // basics reads as "basics not tracked", not "owns none", because capping it
+    // at zero ships a 43-card deck; tell the two apart when the import keeps a
+    // basics flag.
+    availableBasicCount:
+      collectionStrategy === 'available' &&
+      [...BASIC_LAND_NAMES].some((n) => (availableCounts?.get(n) ?? 0) > 0)
+        ? (name) => availableCounts?.get(name) ?? 0
+        : undefined,
+  };
 }
 
 /**

@@ -890,4 +890,84 @@ describe('applyCoherenceRepair', () => {
       expect(repairs.filter((r) => r.cut.startsWith('Junk'))).toHaveLength(MAX_COHERENCE_SWAPS);
     });
   });
+
+  // A mono-red Zo-Zu build, "available only", 6 nonbasics, shipped Sokenzan and
+  // Memorial to War (not owned) in place of the owned Tectonic Edge and Ghost
+  // Quarter: the colorless-land repair refilled from spares nobody held to the
+  // collection. Real Scryfall oracle text.
+  describe('colorless lands in an owned-only build (Zo-Zu)', () => {
+    const zozuLands = () => {
+      const fx = JSON.parse(
+        readFileSync(
+          resolve(
+            dirname(fileURLToPath(import.meta.url)),
+            '..',
+            '__fixtures__',
+            'zozu-lands.fixture.json'
+          ),
+          'utf8'
+        )
+      ) as { cards: ScryfallCard[] };
+      return (n: string) => structuredClone(fx.cards.find((c) => c.name === n)!);
+    };
+    const OWNED_UTILITY = ['Tectonic Edge', 'Ghost Quarter', 'Field of Ruin', 'Wasteland'];
+    const redShort = (owned: string[]) => {
+      const real = zozuLands();
+      const state = makeState();
+      state.context.colorIdentity = ['R'];
+      for (let i = 0; i < 8; i++) {
+        const name = `Red Spell ${i}`;
+        state.categories.synergy.push(
+          scryfallCard(name, { mana_cost: '{1}{R}{R}', color_identity: ['R'] })
+        );
+        state.usedNames.add(name);
+        state.edhrecData!.cardlists.allNonLand.push(edhrecCard(name, 25));
+      }
+      state.categories.lands = [...OWNED_UTILITY.map(real), real('Mountain')];
+      for (const l of state.categories.lands) state.usedNames.add(l.name);
+      state.cfg.collectionStrategy = 'available';
+      state.context.collectionNames = new Set([
+        ...[...state.usedNames].filter((n) => n.startsWith('Red Spell') || n.startsWith('Deck')),
+        ...DECK_SPELLS,
+        ...OWNED_UTILITY,
+        ...owned,
+      ]);
+      return { real, state };
+    };
+    const landNames = (state: GenerationState) => state.categories.lands.map((l) => l.name);
+
+    it('never seats an unowned spare, and keeps the owned utility lands at the nonbasic target', async () => {
+      const { real, state } = redShort([]);
+      await applyCoherenceRepair(
+        state,
+        makeCtx(state, {
+          landSpares: [real('Sokenzan, Crucible of Defiance'), real('Memorial to War')],
+          nonBasicTarget: 4,
+        })
+      );
+      expect(landNames(state)).not.toContain('Sokenzan, Crucible of Defiance');
+      expect(landNames(state)).not.toContain('Memorial to War');
+      expect(landNames(state)).toEqual([...OWNED_UTILITY, 'Mountain']);
+    });
+
+    it('refills from an owned spare that makes the short color', async () => {
+      const { real, state } = redShort(['Forgotten Cave']);
+      const { repairs } = await applyCoherenceRepair(
+        state,
+        makeCtx(state, {
+          landSpares: [real('Sokenzan, Crucible of Defiance'), real('Forgotten Cave')],
+          nonBasicTarget: 4,
+        })
+      );
+      expect(repairs.map((r) => r.added)).toContain('Forgotten Cave');
+      expect(landNames(state)).not.toContain('Sokenzan, Crucible of Defiance');
+    });
+
+    it('trades a colorless land for a basic only above the nonbasic target', async () => {
+      const { state } = redShort([]);
+      await applyCoherenceRepair(state, makeCtx(state, { landSpares: [], nonBasicTarget: 3 }));
+      const nonBasics = landNames(state).filter((n) => n !== 'Mountain');
+      expect(nonBasics).toHaveLength(3);
+    });
+  });
 });
