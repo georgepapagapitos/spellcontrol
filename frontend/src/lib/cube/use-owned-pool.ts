@@ -8,6 +8,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useCollectionStore } from '@/store/collection';
 import { useDecksStore } from '@/store/decks';
 import { useCubeStore } from '@/store/cube';
+import { useAllocations, computeSurplusByName } from '@/lib/collection/allocations';
 import { buildAvailableCollection } from '@/lib/collection/collection-availability';
 import { filterPool, type PoolFilters } from './pool-filters';
 import { fetchCubeOracle } from './oracle';
@@ -33,6 +34,7 @@ export function useOwnedCubePool(filters: PoolFilters) {
   const collectionCards = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
   const savedCubes = useCubeStore((s) => s.saved);
+  const allocations = useAllocations();
   const tagsReady = useCardTagsReady();
   const tagsOf = tagsReady ? getCardTags : NO_TAGS;
 
@@ -40,9 +42,13 @@ export function useOwnedCubePool(filters: PoolFilters) {
     () => buildAvailableCollection(collectionCards, decks, savedCubes).names,
     [collectionCards, decks, savedCubes]
   );
+  const spareNames = useMemo(
+    () => new Set(computeSurplusByName(collectionCards, allocations).keys()),
+    [collectionCards, allocations]
+  );
   const { names: uniqueNames, hidden } = useMemo(
-    () => filterPool(collectionCards, availableNames, filters, tagsOf),
-    [collectionCards, availableNames, filters, tagsOf]
+    () => filterPool(collectionCards, availableNames, filters, tagsOf, spareNames),
+    [collectionCards, availableNames, spareNames, filters, tagsOf]
   );
 
   const [pool, setPool] = useState<CubeCard[] | null>(null);
@@ -60,7 +66,13 @@ export function useOwnedCubePool(filters: PoolFilters) {
         await Promise.all([loadTaggerData(), loadCubeSignal(filters.rarity), ensureCardTags()]);
         // Recomputed fresh (not the outer memo): ensureCardTags() may have just
         // resolved, and the memo above won't reflect that until the next render.
-        const { names } = filterPool(collectionCards, availableNames, filters);
+        const { names } = filterPool(
+          collectionCards,
+          availableNames,
+          filters,
+          undefined,
+          spareNames
+        );
         const enriched = await fetchCubeOracle(names, collectionCards, onFetchProgress);
         const built = namesToCubePool(names, collectionCards, enriched, filters.rarity);
         setPool(built);
@@ -73,7 +85,7 @@ export function useOwnedCubePool(filters: PoolFilters) {
         setLoading(false);
       }
     },
-    [pool, loadedKey, key, collectionCards, availableNames, filters]
+    [pool, loadedKey, key, collectionCards, availableNames, spareNames, filters]
   );
 
   return { pool, uniqueNames, hidden, loading, error, load };

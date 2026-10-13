@@ -1,5 +1,6 @@
 import type { EnrichedCard } from '@/types';
 import { getCardTags } from '@/lib/cards/card-tags';
+import { computeSpareCopyIds } from '@spellcontrol/binder-routing';
 import { isBasicLandName } from '@/lib/collection/allocations-core';
 import { formatExclusion, type CubeFormat } from './play-format';
 
@@ -9,9 +10,9 @@ import { formatExclusion, type CubeFormat } from './play-format';
  * filters hide, so the ranking and the refiner are untouched.
  *
  * - `source`: 'available' = at least one copy is free of any deck / physical
- *   cube (the default — what you can physically pull); 'spares' = available
- *   AND you own two or more copies, so a cube built from it never touches a
- *   deck's only copy; 'all' = every name you own.
+ *   cube (the default — what you can physically pull); 'spares' = at least
+ *   one copy beyond the one your collection keeps (the shared spare rule), so
+ *   a cube built from it never touches a deck's only copy; 'all' = every name you own.
  * - `maxPrice`: keep a name only if its CHEAPEST priced copy is at or under
  *   the ceiling (market price, display currency). A name with no priced copy
  *   is hidden and counted as `unpriced` rather than let through — prices are
@@ -50,7 +51,7 @@ export interface PoolHidden {
   basics: number;
   /** Every copy is committed to a deck or another physical cube. */
   committed: number;
-  /** `spares`: only one copy owned. */
+  /** `spares`: no copy beyond the one the collection keeps (the shared spare rule). */
   singles: number;
   /** No owned copy is within the rarity cap. */
   rarity: number;
@@ -70,12 +71,24 @@ const RARITY_OK: Record<RarityCap, (rarity: string) => boolean> = {
   pauper: (r) => r === 'common',
 };
 
+function computeSpareNames(collection: readonly EnrichedCard[]): Set<string> {
+  const ids = computeSpareCopyIds(collection, new Set());
+  return new Set(collection.filter((c) => ids.has(c.copyId)).map((c) => c.name));
+}
+
 export function filterPool(
   collection: readonly EnrichedCard[],
   availableNames: ReadonlySet<string>,
   filters: PoolFilters,
   /** Oracle tags per card name — the bundled otag index by default; injected so the filter stays pure. */
-  tagsOf: (name: string) => readonly string[] = getCardTags
+  tagsOf: (name: string) => readonly string[] = getCardTags,
+  /**
+   * Names with at least one spare copy, from the shared rule
+   * (`computeSurplusByName`, so deck/cube claims are honored). Omitted means
+   * "nothing is claimed", which is right only when `availableNames` is the
+   * whole collection.
+   */
+  spareNames: ReadonlySet<string> = new Set(computeSpareNames(collection))
 ): { names: string[]; hidden: PoolHidden } {
   const byName = new Map<string, EnrichedCard[]>();
   for (const c of collection) {
@@ -104,7 +117,7 @@ export function filterPool(
       hidden.committed++;
       continue;
     }
-    if (filters.source === 'spares' && rows.length < 2) {
+    if (filters.source === 'spares' && !spareNames.has(name)) {
       hidden.singles++;
       continue;
     }

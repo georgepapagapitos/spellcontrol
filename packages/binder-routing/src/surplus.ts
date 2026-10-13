@@ -41,40 +41,68 @@ export const SURPLUS_KEEP_COPIES = 1;
 const FINISH_KEEP_RANK: Record<string, number> = { foil: 0, etched: 0, nonfoil: 1 };
 
 /**
- * Which unallocated copy of a name is kept: a real card before a proxy, a
- * foil or etched copy before a nonfoil, then the lowest `copyId`. Every key is
+ * Which available copy of a name is kept: a foil or etched copy before a
+ * nonfoil, then the lowest `copyId`. Every key is
  * a physical fact of the copy, never its price, so the kept copy does not
  * flip when a price refresh reorders two printings, and a server projection
  * (whose prices are stamped differently from the device's) picks the same
  * copy as the owner's app.
  */
 function keepOrder(a: EnrichedCard, b: EnrichedCard): number {
-  const proxy = Number(Boolean(a.proxy)) - Number(Boolean(b.proxy));
-  if (proxy !== 0) return proxy;
   const finish = (FINISH_KEEP_RANK[a.finish] ?? 1) - (FINISH_KEEP_RANK[b.finish] ?? 1);
   if (finish !== 0) return finish;
   return a.copyId < b.copyId ? -1 : a.copyId > b.copyId ? 1 : 0;
 }
 
 /**
+ * Available: owned copies no deck, cube or binder-held allocation has
+ * claimed. `allocatedCopyIds` is the allocation map's key set (frontend
+ * `buildAllocationMap`) or `collectAllocatedCopyIds` over raw rows on the
+ * server; both claim a copy from any deck zone (commander, partner, mainboard,
+ * sideboard, considering) and from a physical cube. Every other count in the
+ * app ("N free", the cube pool's Available filter, the AI's uncommitted
+ * scope, the friend hub's spare flag) reads this one function or the spare
+ * rule built on it, so a copy cannot be available on one screen and claimed
+ * on another.
+ *
+ * Counts every available copy, basics and proxies included: a proxy is a
+ * card you can put in a deck, which is what "available" asks. What a proxy
+ * cannot be is a spare, see `computeSpareCopyIds`.
+ */
+export function availableCountsByName(
+  cards: readonly EnrichedCard[],
+  allocatedCopyIds: ReadonlySet<string>
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const c of cards) {
+    if (allocatedCopyIds.has(c.copyId)) continue;
+    counts.set(c.name, (counts.get(c.name) ?? 0) + 1);
+  }
+  return counts;
+}
+
+/**
  * Deterministically decides WHICH physical copies of each card name are
- * spare — a per-copy answer, not just a per-name count, so binder routing can
+ * spare: a per-copy answer, not just a per-name count, so binder routing can
  * place each copy independently (a binder rule matches or doesn't match a
  * SPECIFIC copy).
  *
- * The definition, per card name (basic lands excluded entirely):
- * 1. A copy allocated to a deck or cube is never spare. It is already
- *    claimed, which is a stronger status than "kept aside", and it does not
- *    use up the kept slot either (this is `computeSurplusByName`'s
- *    long-standing count: copies bound to no deck or cube, beyond the first).
- * 2. Of the remaining copies, `keepCopies` (default `SURPLUS_KEEP_COPIES`) are
- *    kept, picked by `keepOrder` (real before proxy, foil/etched before
- *    nonfoil, then lowest `copyId`). The rest are spare.
+ * The one definition of spare, per card name:
+ * 1. Start from the available copies (`availableCountsByName`): anything a deck
+ *    (any zone, considering included) or physical cube claims is never spare,
+ *    and does not use up the kept slot either.
+ * 2. Basic lands are excluded entirely (fungible) and proxies never count:
+ *    a proxy is not the card, so it is neither spare nor the copy kept.
+ * 3. Of what remains, `keepCopies` (default `SURPLUS_KEEP_COPIES`) are kept,
+ *    picked by `keepOrder` (foil/etched before nonfoil, then lowest `copyId`).
+ *    The rest are spare.
  *
  * The same input always gives the same answer regardless of collection array
- * order. Frontend `computeSurplusByName` is a per-name tally over this, so
- * "spare" has one definition app-wide; `allocations.test.ts` pins the two
- * agreeing.
+ * order. Every surface takes its answer from this function: the collection's
+ * spare filter and chip (`computeSurplusByName`), the spare value
+ * (`computeSparesSummary`), the cube pool's Spares only filter, the binder
+ * "Spare copies" rule, the shared-binder projection and the friend hub's spare
+ * flag on the server. `allocations.test.ts` and `spare-parity.test.ts` pin them.
  */
 export function computeSpareCopyIds(
   cards: readonly EnrichedCard[],
@@ -83,7 +111,7 @@ export function computeSpareCopyIds(
 ): Set<string> {
   const byName = new Map<string, EnrichedCard[]>();
   for (const c of cards) {
-    if (isBasicLandName(c.name)) continue;
+    if (isBasicLandName(c.name) || c.proxy) continue;
     if (allocatedCopyIds.has(c.copyId)) continue;
     const list = byName.get(c.name);
     if (list) list.push(c);

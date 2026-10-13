@@ -1,3 +1,4 @@
+import { availableCountsByName } from '@spellcontrol/binder-routing';
 import type { Deck } from '@/store/decks';
 import type { SavedCube } from '@/store/cube';
 import type { EnrichedCard } from '@/types/index';
@@ -83,17 +84,13 @@ export function buildAvailableCollection(
   decks: Deck[],
   physicalCubes: readonly SavedCube[]
 ): AvailableCollection {
-  const claimed = buildAllocationMap(decks, physicalCubes);
-  const names = new Set<string>();
-  const counts = new Map<string, number>();
-
-  for (const card of collection) {
-    if (claimed.has(card.copyId)) continue;
-    names.add(card.name);
-    counts.set(card.name, (counts.get(card.name) ?? 0) + 1);
-  }
-
-  return { names, counts };
+  // The shared definition of "available" (@spellcontrol/binder-routing): owned
+  // copies no deck zone or physical cube claims.
+  const counts = availableCountsByName(
+    collection,
+    new Set(buildAllocationMap(decks, physicalCubes).keys())
+  );
+  return { names: new Set(counts.keys()), counts };
 }
 
 /**

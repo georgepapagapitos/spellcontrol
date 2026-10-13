@@ -1348,44 +1348,67 @@ describe('POST /api/ai/deck-refine', () => {
       ['ai-refine-uncommitted']
     );
     const userId = rows[0].id;
-    // Two Sol Rings, one Swamp, one Viscera Seer in the collection …
-    const cardRows: Array<[string, string, number]> = [
-      ['c1', 'Sol Ring', 2],
-      ['c2', 'Swamp', 1],
-      ['c3', 'Viscera Seer', 1],
+    // One row per physical copy (the sync model): two Sol Rings, a Swamp, a
+    // Viscera Seer, two Rhystic Studies, a Mana Crypt and an Arcane Signet.
+    const cardRows: Array<[string, string]> = [
+      ['ring-1', 'Sol Ring'],
+      ['ring-2', 'Sol Ring'],
+      ['swamp-1', 'Swamp'],
+      ['seer-1', 'Viscera Seer'],
+      ['study-1', 'Rhystic Study'],
+      ['study-2', 'Rhystic Study'],
+      ['crypt-1', 'Mana Crypt'],
+      ['signet-1', 'Arcane Signet'],
     ];
-    for (const [id, name, quantity] of cardRows) {
+    for (const [id, name] of cardRows) {
       await getPool().query(
         `INSERT INTO user_cards (user_id, id, import_id, data, rev, updated_at)
          VALUES ($1, $2, 'i1', $3, 1, 0)`,
-        [userId, id, JSON.stringify({ name, quantity })]
+        [userId, id, JSON.stringify({ name })]
       );
     }
-    // … another deck commits ONE Sol Ring (mainboard) and the Viscera Seer
-    // (as its commander); this deck's own slots must not count against itself.
-    const deck = (id: string, cards: string[], commander: string | null) =>
+    // Another deck claims ONE Sol Ring (mainboard), the Viscera Seer (as its
+    // commander), a Rhystic Study (sideboard) and the Mana Crypt (considering);
+    // a physical cube claims the Arcane Signet. This deck's own claims must not
+    // count against it, and a draft cube claims nothing.
+    const deck = (id: string, data: object) =>
       getPool().query(
         `INSERT INTO user_decks (user_id, id, data, rev, updated_at) VALUES ($1, $2, $3, 1, 0)`,
-        [
-          userId,
-          id,
-          JSON.stringify({
-            cards: cards.map((name) => ({ card: { name } })),
-            commander: commander ? { name: commander } : null,
-          }),
-        ]
+        [userId, id, JSON.stringify(data)]
       );
-    await deck('other', ['Sol Ring'], 'Viscera Seer');
-    await deck('deck-1', ['Sol Ring', 'Swamp'], null);
+    const slot = (name: string, allocatedCopyId: string) => ({ card: { name }, allocatedCopyId });
+    await deck('other', {
+      cards: [slot('Sol Ring', 'ring-1')],
+      commander: { name: 'Viscera Seer' },
+      commanderAllocatedCopyId: 'seer-1',
+      sideboard: [slot('Rhystic Study', 'study-1')],
+      considering: [slot('Mana Crypt', 'crypt-1')],
+    });
+    await deck('deck-1', { cards: [slot('Swamp', 'swamp-1')], commander: null });
+    for (const [id, isPhysical, copy] of [
+      ['cube-1', true, 'signet-1'],
+      ['cube-2', false, 'swamp-1'],
+    ] as const) {
+      await getPool().query(
+        `INSERT INTO user_cubes (user_id, id, data, rev, updated_at) VALUES ($1, $2, $3, 1, 0)`,
+        [userId, id, JSON.stringify({ isPhysical, picks: [slot('X', copy)] })]
+      );
+    }
 
     expect((await loadOwnedNames(userId, 'owned', 'deck-1')).sort()).toEqual([
+      'Arcane Signet',
+      'Mana Crypt',
+      'Rhystic Study',
       'Sol Ring',
       'Swamp',
       'Viscera Seer',
     ]);
-    // Sol Ring survives (2 owned, 1 committed elsewhere); Swamp survives (this
-    // deck's own copy is not "another deck"); Viscera Seer is gone.
+    // Sol Ring and Rhystic Study survive (a second copy is free); Swamp survives
+    // (this deck's own copy is not "another deck", and a draft cube claims
+    // nothing). Viscera Seer (commander), Mana Crypt (considering) and Arcane
+    // Signet (physical cube) have no available copy left.
     expect((await loadOwnedNames(userId, 'uncommitted', 'deck-1')).sort()).toEqual([
+      'Rhystic Study',
       'Sol Ring',
       'Swamp',
     ]);

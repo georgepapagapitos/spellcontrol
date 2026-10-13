@@ -4,6 +4,11 @@ import { APIUserAbortError } from '@anthropic-ai/sdk';
 import { logger } from '../logger';
 import { loadAuthedUser, readSessionCookie, requireAuth } from '../auth';
 import { getPool } from '../db';
+import {
+  availableCountsByName,
+  collectAllocatedCopyIds,
+  type EnrichedCard,
+} from '@spellcontrol/binder-routing';
 import { testAwareLimiter } from '../route-utils';
 import { getScryfallCache } from '../scryfall-cache';
 import type { PriceCeiling } from '../cache';
@@ -649,10 +654,13 @@ async function scopeSearch(
 
 /**
  * The names the AI may search under a restricted scope (T112). `owned` is the
- * collection; `uncommitted` subtracts, per name, the copies already sitting in
- * the user's OTHER decks (mainboard plus commanders), so a card whose every
- * copy is spoken for is not offered. Exported for its route test — the
- * subtraction is the part worth pinning against real rows.
+ * collection; `uncommitted` is the names with an available copy, by the shared
+ * definition (`availableCountsByName` over the allocation set from
+ * `collectAllocatedCopyIds`): a copy that any OTHER deck (mainboard,
+ * sideboard, considering, commanders) or a physical cube claims is spoken for,
+ * so a card whose every copy is claimed is not offered. This deck's own claims
+ * do not count against it. Exported for its route test: the subtraction is the
+ * part worth pinning against real rows.
  */
 export async function loadOwnedNames(
   userId: string,
@@ -660,31 +668,33 @@ export async function loadOwnedNames(
   deckId: string
 ): Promise<string[]> {
   const pool = getPool();
-  const owned = await pool.query<{ name: string; qty: number }>(
-    `SELECT data->>'name' AS name, SUM(COALESCE((data->>'quantity')::numeric, 1))::int AS qty
+  const owned = await pool.query<{ id: string; name: string }>(
+    `SELECT id, data->>'name' AS name
        FROM user_cards
-      WHERE user_id = $1 AND deleted_at IS NULL AND data->>'name' IS NOT NULL
-      GROUP BY 1`,
+      WHERE user_id = $1 AND deleted_at IS NULL AND data->>'name' IS NOT NULL`,
     [userId]
   );
-  if (scope === 'owned') return owned.rows.map((r) => r.name);
+  if (scope === 'owned') return [...new Set(owned.rows.map((r) => r.name))];
 
-  // jsonb_path_query is set-returning: one row per card slot / commander.
-  const committed = await pool.query<{ name: string; qty: number }>(
-    `SELECT name, COUNT(*)::int AS qty FROM (
-       SELECT jsonb_path_query(data, '$.cards[*].card.name') #>> '{}' AS name
-         FROM user_decks WHERE user_id = $1 AND deleted_at IS NULL AND id <> $2
-       UNION ALL
-       SELECT jsonb_path_query(data, '$.commander.name') #>> '{}'
-         FROM user_decks WHERE user_id = $1 AND deleted_at IS NULL AND id <> $2
-       UNION ALL
-       SELECT jsonb_path_query(data, '$.partnerCommander.name') #>> '{}'
-         FROM user_decks WHERE user_id = $1 AND deleted_at IS NULL AND id <> $2
-     ) slots WHERE name IS NOT NULL GROUP BY name`,
-    [userId, deckId]
+  const [decks, cubes] = await Promise.all([
+    pool.query<{ data: unknown }>(
+      `SELECT data FROM user_decks WHERE user_id = $1 AND deleted_at IS NULL AND id <> $2`,
+      [userId, deckId]
+    ),
+    pool.query<{ data: unknown }>(
+      `SELECT data FROM user_cubes WHERE user_id = $1 AND deleted_at IS NULL`,
+      [userId]
+    ),
+  ]);
+  const claimed = collectAllocatedCopyIds(
+    decks.rows.map((r) => r.data),
+    cubes.rows.map((r) => r.data)
   );
-  const taken = new Map(committed.rows.map((r) => [r.name, r.qty]));
-  return owned.rows.filter((r) => r.qty > (taken.get(r.name) ?? 0)).map((r) => r.name);
+  const available = availableCountsByName(
+    owned.rows.map((r) => ({ copyId: r.id, name: r.name }) as EnrichedCard),
+    claimed
+  );
+  return [...available.keys()];
 }
 
 /**

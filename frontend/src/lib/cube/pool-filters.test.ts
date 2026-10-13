@@ -62,11 +62,25 @@ describe('filterPool', () => {
     expect(hidden.committed).toBe(0);
   });
 
-  it('spares = available AND two or more copies owned', () => {
+  it('spares = a copy beyond the one kept (the shared spare rule)', () => {
     const { names, hidden } = run({ source: 'spares' });
     expect(names).toEqual(['Sol Ring']);
     expect(hidden.singles).toBe(4);
     expect(hidden.committed).toBe(1);
+  });
+
+  it('two owned copies are not spares when a deck holds one of them', () => {
+    // No name has a spare once the claims are applied: the old "two or more
+    // owned" count would have listed Sol Ring.
+    const { names, hidden } = filterPool(
+      collection,
+      available,
+      { ...DEFAULT_POOL_FILTERS, source: 'spares' },
+      () => [],
+      new Set<string>()
+    );
+    expect(names).toEqual([]);
+    expect(hidden.singles).toBe(5);
   });
 
   it('rarity caps read the OWNED copy: peasant keeps common + uncommon, pauper common only', () => {

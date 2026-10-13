@@ -95,7 +95,9 @@ describe('YourCardsCard', () => {
     const links = screen.getAllByRole('link').filter((l) => l.className.includes('your-cards'));
     expect(links.map((l) => l.textContent)).toEqual([
       'Burn Pile2 cards to finish · $14',
-      'Spare copies1 copy · $2.00',
+      // The spare is the copy the shared rule leaves over (lowest copyId when
+      // finish ties), so its price is the value, not the cheaper of the pair.
+      'Spare copies1 copy · $3.00',
       'Sol Ringin 3 decks, you own 2',
     ]);
     expect(links[0].getAttribute('href')).toBe('/decks/burn');

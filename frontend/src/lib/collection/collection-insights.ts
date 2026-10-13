@@ -12,9 +12,9 @@
  * effects. `StatsBar`/`CollectionPage` own the store reads.
  */
 import { materializeBinders } from '@/lib/binder/materialize';
-import { isBasicLandName, SURPLUS_KEEP_COPIES, computeSurplusByName } from './allocations-core';
+import { isBasicLandName } from './allocations-core';
 import { priceOf } from '@/lib/deck/deck-value';
-import { getColorKey, COLOR_INFO } from '@spellcontrol/binder-routing';
+import { getColorKey, COLOR_INFO, computeSpareCopyIds } from '@spellcontrol/binder-routing';
 import { getCardType, TYPE_ORDER } from '@spellcontrol/binder-routing';
 import type { AllocationInfo } from './allocations-core';
 import type { Currency } from './currency';
@@ -93,39 +93,21 @@ export interface SparesSummary {
 }
 
 /**
- * Tradeable surplus (same definition `computeSurplusByName` already uses,
- * and the same filter the collection's "Tradeable surplus" toggle applies):
- * unallocated copies beyond the one kept copy per name, basics excluded.
- * Adds the money side surplus-by-name doesn't carry: per name, the MOST
- * valuable unclaimed copy is the one assumed kept (a player keeps their
- * nicest copy as the "working" one), so the spare value is the sum of the
- * cheaper unclaimed copies past that.
+ * Tradeable surplus, by the one shared spare rule (`computeSpareCopyIds` in
+ * @spellcontrol/binder-routing): available copies beyond the one kept per name,
+ * basics and proxies excluded. The value is the price of those very copies, so
+ * the count, the value and the collection's "Tradeable surplus" filter always
+ * describe the same cards.
  */
 export function computeSparesSummary(
   cards: EnrichedCard[],
   allocations: ReadonlyMap<string, AllocationInfo>
 ): SparesSummary | null {
-  const surplusByName = computeSurplusByName(cards, allocations);
-  if (surplusByName.size === 0) return null;
-
-  const unclaimedPricesByName = new Map<string, number[]>();
-  for (const c of cards) {
-    if (!surplusByName.has(c.name)) continue;
-    if (allocations.has(c.copyId)) continue;
-    const arr = unclaimedPricesByName.get(c.name);
-    if (arr) arr.push(c.purchasePrice);
-    else unclaimedPricesByName.set(c.name, [c.purchasePrice]);
-  }
-
-  let count = 0;
+  const spare = computeSpareCopyIds(cards, new Set(allocations.keys()));
+  if (spare.size === 0) return null;
   let value = 0;
-  for (const [name, extra] of surplusByName) {
-    const prices = (unclaimedPricesByName.get(name) ?? []).sort((a, b) => b - a);
-    const spare = prices.slice(SURPLUS_KEEP_COPIES);
-    count += extra;
-    value += spare.reduce((s, p) => s + p, 0);
-  }
-  return count > 0 ? { count, value } : null;
+  for (const c of cards) if (spare.has(c.copyId)) value += c.purchasePrice;
+  return { count: spare.size, value };
 }
 
 // ── Shared copies (decks/cubes wanting more than you own) ──────────────────
