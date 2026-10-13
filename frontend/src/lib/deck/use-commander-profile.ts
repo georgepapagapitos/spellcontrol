@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import {
-  fetchCommanderData,
-  fetchPartnerCommanderData,
   onCommanderPageCached,
   peekCommanderThemes,
+} from '@/deck-builder/services/edhrec/commander-page-cache';
+import {
+  fetchCommanderData,
+  fetchPartnerCommanderData,
 } from '@/deck-builder/services/edhrec/client';
 import {
   buildCommanderProfile,

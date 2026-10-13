@@ -1,5 +1,5 @@
 import type { ScryfallCard } from '@/deck-builder/types';
-import { peekCommanderThemes } from '../edhrec/client';
+import { peekCommanderThemes } from '../edhrec/commander-page-cache';
 import { buildCommanderProfile, type CommanderProfile } from './commanderProfile';
 
 /**

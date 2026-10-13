@@ -114,7 +114,7 @@ export async function pageThemesFor(
   commander: ScryfallCard,
   partner: ScryfallCard | null | undefined
 ): Promise<EDHRECCommanderData['themes'] | undefined> {
-  if (page.themes.length > 0) return page.themes;
+  if (page.themes?.length > 0) return page.themes;
   try {
     const base = await (partner
       ? fetchPartnerCommanderData(commander.name, partner.name)

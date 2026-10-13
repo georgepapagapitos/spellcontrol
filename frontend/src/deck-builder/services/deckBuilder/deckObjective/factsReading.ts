@@ -22,7 +22,7 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { CardFacts, Resource } from '@/deck-builder/services/cardFacts';
 import { readsAsProtection } from '@/deck-builder/services/tagger/client';
-import { peekCommanderThemes } from '../../edhrec/client';
+import { peekCommanderThemes } from '../../edhrec/commander-page-cache';
 import { getCombinedOracleText } from '../commanderProfile';
 import { buildCommanderProfileFromCache } from '../commanderProfileCached';
 import {
