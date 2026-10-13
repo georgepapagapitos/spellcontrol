@@ -106,8 +106,9 @@ describe('commander profile against the golden set', () => {
     expect(precision('tribal')).toBeGreaterThanOrEqual(0.85);
     // R11 (2026-10-13) made voltron a text rule AND an EDHREC theme-share veto. Text
     // alone measured P 0.59 / R 0.52 against the re-rated labels; with the page's
-    // themes passed in, 0.87 / 0.74 on top + sample (2 false positives, 7 misses
-    // short of perfect), so these floors sit a few commanders under that.
+    // themes passed in and the text half reading self-growth and written-out evasion,
+    // 0.84 / 0.78 on top + sample (4 false positives, 6 misses), so these floors sit
+    // a commander or two under that.
     expect(precision('voltron')).toBeGreaterThanOrEqual(0.8);
     expect(recall('voltron')).toBeGreaterThanOrEqual(0.68);
     expect(precision('spellcast')).toBeGreaterThanOrEqual(0.85);
