@@ -1,5 +1,9 @@
 import type { ScryfallCard } from '@/deck-builder/types';
-import { getCardsByNames, upgradeCardPrintings } from '@/deck-builder/services/scryfall/client';
+import {
+  getCardsByNames,
+  getFrontFaceTypeLine,
+  upgradeCardPrintings,
+} from '@/deck-builder/services/scryfall/client';
 
 /** Most windows one call walks: bounds the Scryfall round trips on a deep list. */
 const MAX_WINDOWS = 10;
@@ -48,3 +52,29 @@ export const windowFetcher =
     await upgradeCardPrintings(fetched, scryfallQuery, true);
     return fetched;
   };
+
+/**
+ * Hold the spells in `cards` to the player's Scryfall filter, in place: a spell
+ * with no printing that passes it is removed, one that has is seated on that
+ * printing. Lands are left alone, since the filter shapes spell picks, not the
+ * nonbasic land search (E1004).
+ */
+export async function holdSpellsToFilter(
+  cards: Map<string, ScryfallCard>,
+  preferredSet: string | undefined,
+  scryfallQuery: string
+): Promise<void> {
+  const spells = new Map<string, ScryfallCard>();
+  for (const [name, card] of cards) {
+    if (!getFrontFaceTypeLine(card).includes('Land')) spells.set(name, card);
+  }
+  if (preferredSet) {
+    for (const [name, card] of spells) if (card.set !== preferredSet) spells.delete(name);
+  }
+  await upgradeCardPrintings(spells, scryfallQuery, true);
+  for (const name of [...cards.keys()]) {
+    const held = spells.get(name);
+    if (held) cards.set(name, held);
+    else if (!getFrontFaceTypeLine(cards.get(name)!).includes('Land')) cards.delete(name);
+  }
+}

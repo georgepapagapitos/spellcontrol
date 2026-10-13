@@ -1192,6 +1192,47 @@ describe('upgradeCardPrintings', () => {
     expect(urls[1]).toContain('page=2');
   });
 
+  // E1004: the newest printings a wide filter reaches are promo and Secret Lair
+  // ones with no USD price. Real Scryfall printings, newest first.
+  it('seats the newest priced printing over a newer one with no USD price', async () => {
+    const printings = (
+      JSON.parse(
+        readFileSync(
+          resolve(
+            dirname(fileURLToPath(import.meta.url)),
+            '../deckBuilder/__fixtures__/unpriced-printings.fixture.json'
+          ),
+          'utf8'
+        )
+      ) as { cards: ScryfallCard[] }
+    ).cards;
+    const bolts = printings.filter((c) => c.name === 'Lightning Bolt');
+    expect(bolts[0].prices.usd).toBeNull(); // the newest printing is unpriced
+    const cards = new Map([
+      ['Lightning Bolt', makeCard({ name: 'Lightning Bolt', set: 'cmm' })],
+      ['Cultivate', makeCard({ name: 'Cultivate', set: 'cmm' })],
+      ['Skirk Prospector', makeCard({ name: 'Skirk Prospector', set: 'cmm' })],
+    ]);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ object: 'list', has_more: false, data: printings }),
+      })
+    );
+
+    await upgradeCardPrintings(cards, '-set:cmm', true);
+
+    expect(cards.get('Lightning Bolt')?.set).toBe('fdc');
+    expect(cards.get('Lightning Bolt')?.prices.usd).toBe('0.81');
+    // Three newer Secret Lair Drop printings are unpriced; the foil-priced one is seated.
+    expect(cards.get('Cultivate')?.set).toBe('sld');
+    // The newest Skirk Prospector is a Secret Lair with only a $16.87 foil price: the
+    // $0.35 Double Masters 2022 printing keeps it under a $2 cap.
+    expect(cards.get('Skirk Prospector')?.set).toBe('dmr');
+  });
+
   it('sends an OR of sets to Scryfall instead of dropping it', async () => {
     const cards = new Map([['Skullclamp', makeCard({ name: 'Skullclamp', set: 'slz' })]]);
     const fetchMock = vi.fn().mockResolvedValue({
