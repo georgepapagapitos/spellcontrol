@@ -1342,7 +1342,7 @@ describe('POST /api/ai/deck-refine', () => {
     const cookie = await makeUser('ai-refine-uncommitted');
     await optIn(cookie);
     const { getPool } = await import('../db');
-    const { loadOwnedNames } = await import('./ai');
+    const { loadOwnedNames } = await import('../ai/owned-names');
     const { rows } = await getPool().query<{ id: string }>(
       'SELECT id FROM users WHERE username = $1',
       ['ai-refine-uncommitted']
