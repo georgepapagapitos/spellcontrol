@@ -34,6 +34,7 @@ import {
   broadcastGameState,
   resolveGameAccess,
   touchPresence,
+  hasBeenAbsentLongEnough,
 } from '../games/live-registry';
 import {
   LISTING_PAGE_SIZE,
@@ -551,3 +552,84 @@ gamesRouter.post('/:code/leave', writeLimiter, requireAuth, async (req: Request,
   broadcastGameState(code, next);
   res.json({ game: next });
 });
+
+/**
+ * Whether `userId` may take the table over from an absent host (E451): seated
+ * with an account and still at the table, not already the host, and the host's
+ * seat unseen for `HOST_CLAIM_AFTER_MS`. Presence is the server's own record;
+ * no client clock is read.
+ */
+function canClaimHost(code: string, state: GameState, userId: string): boolean {
+  const me = state.players.find((p) => p.userId === userId);
+  if (!me || !me.connected || me.isHost || state.hostUserId === null) return false;
+  return hasBeenAbsentLongEnough(code, state.hostUserId);
+}
+
+/** GET /api/games/:code/host-claim — whether the caller may take over now; the client shows the button off this. */
+gamesRouter.get(
+  '/:code/host-claim',
+  readLimiter,
+  requireAuth,
+  async (req: Request, res: Response) => {
+    const code = String(req.params.code).toUpperCase();
+    const rows = await getDb()
+      .select({ state: gameSessions.state })
+      .from(gameSessions)
+      .where(eq(gameSessions.code, code))
+      .limit(1);
+    const state = rows[0]?.state as GameState | undefined;
+    if (!state || !state.players.some((p) => p.userId === req.user!.id)) {
+      return res.status(404).json({ error: 'Game not found.' });
+    }
+    touchPresence(code, req.user!.id);
+    res.json({ claimable: canClaimHost(code, state, req.user!.id) });
+  }
+);
+
+/**
+ * POST /api/games/:code/claim-host — a seated player takes the table once the
+ * host has been away 2 minutes. Applies E430's `transfer-host` to the caller's
+ * own seat under the same version lock as PATCH, so concurrent claims resolve
+ * to one host: the loser gets 409 (and a retry finds the claimant present).
+ */
+gamesRouter.post(
+  '/:code/claim-host',
+  writeLimiter,
+  requireAuth,
+  async (req: Request, res: Response) => {
+    const code = String(req.params.code).toUpperCase();
+    const db = getDb();
+    const rows = await db.select().from(gameSessions).where(eq(gameSessions.code, code)).limit(1);
+    const row = rows[0];
+    const current = row?.state as GameState | undefined;
+    const me = current?.players.find((p) => p.userId === req.user!.id);
+    if (!row || !current || !me) return res.status(404).json({ error: 'Game not found.' });
+    touchPresence(code, req.user!.id);
+    if (!canClaimHost(code, current, req.user!.id)) {
+      return res.status(403).json({ error: 'The host is still here.' });
+    }
+    const next = applyAction(current, { type: 'transfer-host', seat: me.seat });
+    const updated = await db
+      .update(gameSessions)
+      .set({
+        state: next,
+        version: next.version,
+        updatedAt: next.updatedAt,
+        hostUserId: next.hostUserId ?? undefined,
+      })
+      .where(and(eq(gameSessions.code, code), eq(gameSessions.version, current.version)))
+      .returning({ version: gameSessions.version });
+    if (updated.length === 0) {
+      const fresh = await db
+        .select()
+        .from(gameSessions)
+        .where(eq(gameSessions.code, code))
+        .limit(1);
+      return res
+        .status(409)
+        .json({ error: 'Version conflict.', current: fresh[0]?.state as GameState | undefined });
+    }
+    broadcastGameState(code, next);
+    res.json({ game: next });
+  }
+);

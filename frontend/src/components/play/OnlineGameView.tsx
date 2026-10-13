@@ -27,6 +27,7 @@ import './OnlineGameView.css';
 
 import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
+import { useHostClaim } from '@/lib/play/use-host-claim';
 import { isDiscordLink, voiceLinkLabel } from '@/lib/play/voice-link';
 
 // Mirrors playtest's TakebackConsentPrompt grace window (see its module doc):
@@ -130,6 +131,9 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
   const isHost = game.hostUserId != null && game.hostUserId === user?.id;
   const hostName = game.players.find((p) => p.userId === game.hostUserId)?.name ?? 'the host';
   const opponents = game.players.filter((p) => p.seat !== mySeat?.seat);
+  // E451: a seated player who is not the host may take over once the server
+  // reports the host away for 2 minutes. It asks; the server decides.
+  const hostClaim = useHostClaim(game.code, viewerSeated && !isHost && mySeat?.connected === true);
 
   // The host confirms before leaving: it hands the table on (and says to
   // whom), or ends it for everyone when nobody is left to take it. A
@@ -161,6 +165,20 @@ export function OnlineGameView({ game, errorMessage, onEnd, onLeave, onRematch }
       {errorMessage && (
         <div className="ogv-error" role="alert">
           {errorMessage}
+        </div>
+      )}
+
+      {hostClaim.claimable && (
+        <div className="ogv-claim" role="status">
+          <span>{hostName} has been away for a while.</span>
+          <Button variant="primary" onClick={hostClaim.claim} disabled={hostClaim.busy}>
+            Take over as host
+          </Button>
+        </div>
+      )}
+      {hostClaim.error && (
+        <div className="ogv-error" role="alert">
+          {hostClaim.error}
         </div>
       )}
 

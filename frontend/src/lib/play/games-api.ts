@@ -366,6 +366,22 @@ export async function leaveGame(code: string): Promise<{ deleted?: boolean; game
   return handleResponse<{ deleted?: boolean; game?: GameState }>(res);
 }
 
+/** Whether the caller may take over as host now (the server's 2-minute presence rule, E451). */
+export async function getHostClaimable(code: string): Promise<boolean> {
+  const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/host-claim`);
+  const data = await handleResponse<{ claimable: boolean }>(res);
+  return data.claimable;
+}
+
+/** Take the table over from a host who has been away. The new state also arrives on the table's stream. */
+export async function claimHost(code: string): Promise<GameState> {
+  const res = await authedFetch(`/api/games/${encodeURIComponent(code)}/claim-host`, {
+    method: 'POST',
+  });
+  const data = await handleResponse<{ game: GameState }>(res);
+  return data.game;
+}
+
 export interface DiscordStatus {
   /** The server can open Discord tables (the DISCORD_* env is set). */
   enabled: boolean;

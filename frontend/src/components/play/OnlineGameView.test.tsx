@@ -42,6 +42,14 @@ vi.mock('../../store/auth', () => ({
     selector({ user: mockAuthUserId.current ? { id: mockAuthUserId.current } : null }),
 }));
 
+const getHostClaimable = vi.fn(async (_code: string) => false);
+const claimHost = vi.fn(async (_code: string) => ({}));
+vi.mock('@/lib/play/games-api', async (orig) => ({
+  ...(await orig<typeof import('@/lib/play/games-api')>()),
+  getHostClaimable: (code: string) => getHostClaimable(code),
+  claimHost: (code: string) => claimHost(code),
+}));
+
 vi.mock('@/lib/util/haptics', () => ({
   haptics: { tap: vi.fn(), lethal: vi.fn(), warning: vi.fn(), success: vi.fn(), bump: vi.fn() },
 }));
@@ -697,5 +705,63 @@ describe('Spectator horde', () => {
     );
     render(<OnlineGameView game={game} />);
     await waitFor(() => expect(screen.getByRole('button', { name: 'Reload' })).toBeTruthy());
+  });
+});
+
+describe('Take over as host (E451)', () => {
+  function table(userId: string | null) {
+    mockAuthUserId.current = userId;
+    const game = createGameState({
+      id: 'game-test',
+      code: 'ABCD',
+      mode: 'online',
+      hostUserId: 'host_1',
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: true,
+      players: [
+        {
+          ...makePlayer({ id: 'p0', userId: 'host_1', seat: 0, name: 'Maya', startingLife: 40 }),
+          isHost: true,
+        },
+        makePlayer({ id: 'p1', userId: 'user_2', seat: 1, name: 'Ren', startingLife: 40 }),
+      ],
+    });
+    return game;
+  }
+
+  beforeEach(() => {
+    getHostClaimable.mockReset();
+    getHostClaimable.mockResolvedValue(false);
+    claimHost.mockClear();
+  });
+
+  afterEach(() => {
+    mockAuthUserId.current = 'user_1';
+  });
+
+  it('shows the button to a seated non-host when the server says the host is away', async () => {
+    getHostClaimable.mockResolvedValue(true);
+    render(<OnlineGameView game={table('user_2')} />);
+    expect(await screen.findByText('Maya has been away for a while.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Take over as host' }));
+    await waitFor(() => expect(claimHost).toHaveBeenCalledWith('ABCD'));
+  });
+
+  it('shows nothing while the host is present', async () => {
+    render(<OnlineGameView game={table('user_2')} />);
+    await waitFor(() => expect(getHostClaimable).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: 'Take over as host' })).toBeNull();
+  });
+
+  it('never asks, or shows it, for the host or a spectator', async () => {
+    getHostClaimable.mockResolvedValue(true);
+    const { unmount } = render(<OnlineGameView game={table('host_1')} />);
+    unmount();
+    render(<OnlineGameView game={table('stranger')} />);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(getHostClaimable).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Take over as host' })).toBeNull();
   });
 });
