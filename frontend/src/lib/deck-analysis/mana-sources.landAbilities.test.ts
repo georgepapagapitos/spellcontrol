@@ -27,6 +27,23 @@ describe('a land that makes color only by paying or by restriction counts as {C}
   });
 });
 
+describe('a typal deck counts a creature-restricted rainbow land as every color', () => {
+  const typal = (name: string, identity = ['W', 'B', 'R']) =>
+    producedManaColors(CARDS.get(name)!, new Set(identity), { typalFixing: true }).sort();
+
+  it('Cavern of Souls makes {C} plus each identity color', () => {
+    expect(typal('Cavern of Souls')).toEqual(['B', 'C', 'R', 'W']);
+  });
+
+  it('a restriction to artifact spells is not typal fixing', () => {
+    expect(typal('Power Depot')).toEqual(['C']);
+  });
+
+  it('is off unless asked', () => {
+    expect(colours('Cavern of Souls', ['W', 'B', 'R'])).toEqual(['C']);
+  });
+});
+
 describe('lands that tap for color unconditionally keep it', () => {
   it('Command Tower clamps to the identity', () => {
     expect(colours('Command Tower', ['W', 'G'])).toEqual(['G', 'W']);

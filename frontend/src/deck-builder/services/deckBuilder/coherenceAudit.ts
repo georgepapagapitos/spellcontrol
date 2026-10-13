@@ -44,6 +44,8 @@ export interface CoherenceAuditInput {
   roleOf?: (name: string) => string | null;
   /** Final manabase — enables the land-sanity detectors when provided. */
   lands?: ScryfallCard[];
+  /** A typal commander: any-color creature lands (Unclaimed Territory) are not colorless. */
+  tribal?: boolean;
   /** The already-computed manabase summary (for the short-color check). */
   manabase?: ManabaseSummary;
   /** Format string for the win-condition check ('commander' gates voltron);
@@ -222,7 +224,8 @@ function landSanityFindings(input: CoherenceAuditInput): CoherenceFinding[] {
       // there, as the manabase summary counts it (isScalingColorBurst, E631).
       const produced = producedManaColors(
         land,
-        input.colorIdentity?.length === 1 ? new Set(input.colorIdentity) : FULL_IDENTITY
+        input.colorIdentity?.length === 1 ? new Set(input.colorIdentity) : FULL_IDENTITY,
+        { typalFixing: input.tribal }
       );
       return produced.includes('C') && !produced.some((c) => c !== 'C');
     });

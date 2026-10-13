@@ -976,7 +976,7 @@ describe('E1004: a multicolor deck seats fixers before colorless tribal lands', 
     ['Caves of Koilos', 15],
     ['Takenuma, Abandoned Mire', 10],
   ];
-  const run = async (count = 4, spares?: ScryfallCard[]) => {
+  const run = async (count = 4, spares?: ScryfallCard[], tribal = false) => {
     vi.mocked(getCardsByNames).mockImplementation(
       async () => new Map(PAGE.map(([n]) => [n, structuredClone(EDGAR.get(n)!)]))
     );
@@ -1000,7 +1000,8 @@ describe('E1004: a multicolor deck seats fixers before colorless tribal lands', 
           new Set(),
           null,
           ...Array<undefined>(20),
-          spares
+          spares,
+          tribal
         )
       ).map((c) => c.name);
     } finally {
@@ -1016,6 +1017,13 @@ describe('E1004: a multicolor deck seats fixers before colorless tribal lands', 
     expect(colorless).toEqual(['Voldaren Estate']);
     expect(names).toEqual(
       expect.arrayContaining(['Blood Crypt', 'Dragonskull Summit', 'Caves of Koilos'])
+    );
+  });
+
+  it('keeps all three creature-restricted rainbow lands when the commander is tribal', async () => {
+    const names = await run(4, undefined, true);
+    expect(names).toEqual(
+      expect.arrayContaining(['Voldaren Estate', 'Unclaimed Territory', 'Secluded Courtyard'])
     );
   });
 

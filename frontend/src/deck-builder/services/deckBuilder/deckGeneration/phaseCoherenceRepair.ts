@@ -44,6 +44,7 @@ import { isAltWinCard } from '@/deck-builder/services/winConditions/detect';
 import { classifyAnswer } from '../answerCoverage';
 import { classifyCard } from '@/deck-builder/services/synergy/classify';
 import { buildManabaseSummary } from '../manabaseMath';
+import { buildCommanderProfile, isTribalProfile } from '../commanderProfile';
 import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
 import { evictionKeeper } from './evictionKeeper';
 
@@ -138,6 +139,7 @@ export async function applyCoherenceRepair(
   const { commander, partnerCommander } = state.context;
   const commanders = [commander, partnerCommander].filter((c): c is ScryfallCard => c != null);
   const colorIdentity = state.context.colorIdentity;
+  const tribal = isTribalProfile(buildCommanderProfile(commander, partnerCommander));
   const ownedOnly = constrainsToCollection(state.cfg.collectionStrategy);
   const collectionNames = state.context.collectionNames;
 
@@ -207,7 +209,13 @@ export async function applyCoherenceRepair(
     detectedCombos: ctx.detectedCombos,
     roleOf: getCardRole,
     lands: state.categories.lands,
-    manabase: buildManabaseSummary(state.categories.lands, current, new Set(colorIdentity)),
+    manabase: buildManabaseSummary(
+      state.categories.lands,
+      current,
+      new Set(colorIdentity),
+      tribal
+    ),
+    tribal,
     format: 'commander', // the deck builder only generates Commander-family decks
     colorIdentity, // enables the answer-coverage check (E79)
   });
@@ -399,7 +407,8 @@ export async function applyCoherenceRepair(
         !buildManabaseSummary(
           state.categories.lands,
           nonLands(),
-          new Set(colorIdentity)
+          new Set(colorIdentity),
+          tribal
         ).lines.some((l) => l.color === f.basicFixColor && l.short)
       ) {
         continue;

@@ -173,7 +173,10 @@ export async function generateLands(
   // Out-param: the fixing nonbasics that cleared every gate but were not picked,
   // best first. The coherence repair draws on it when it must give up a picked
   // colorless land, so the deck keeps its nonbasic count instead of a basic.
-  spares?: ScryfallCard[]
+  spares?: ScryfallCard[],
+  // The commander builds around one creature type: a land that makes any color
+  // for its creatures (Unclaimed Territory, Cavern of Souls) then fixes every color.
+  tribal: boolean = false
 ): Promise<ScryfallCard[]> {
   const lands: ScryfallCard[] = [];
   // E561: the nonbasic reserve held back from the spell picks comes back now.
@@ -333,6 +336,7 @@ export async function generateLands(
     const inclusionOf = new Map(edhrecLands.map((l) => [l.name, l.inclusion ?? 0]));
     const readingFor = (name: string) => ({
       allAbilities: (inclusionOf.get(name) ?? 0) >= COMMANDER_STAPLE_INCLUSION,
+      typalFixing: tribal,
     });
 
     // Color-demand boost: nudge lands that produce the colors this deck's
@@ -376,7 +380,7 @@ export async function generateLands(
     // case). When every demanded color still needs sources, meritIdentity
     // equals the full identity and this is byte-identical to before.
     // landPowerScore itself stays deck-agnostic; only this call site narrows.
-    const meritIdentity = colorsNeedingSources(nonLandCards, identitySet, basicCount);
+    const meritIdentity = colorsNeedingSources(nonLandCards, identitySet, basicCount, tribal);
     for (const [name, card] of landCardMap) {
       if (isChannelLand(card) || isMdfcLand(card)) continue;
       const merit = landPowerScore(card, meritIdentity, readingFor(name));
@@ -530,8 +534,8 @@ export async function generateLands(
       for (const c of [...capsFilteredLands].sort((a, b) => rank(b) - rank(a))) {
         const sc = landCardMap.get(c.name);
         if (!sc || picked.has(sc.name) || usedNames.has(sc.name) || isMdfcLand(sc)) continue;
-        if (!fitsColorIdentity(sc, colorIdentity) || isColorlessOnlyLand(sc)) continue;
-        if (producedManaColors(sc, identitySet).every((p) => !identitySet.has(p))) continue;
+        if (!fitsColorIdentity(sc, colorIdentity) || isColorlessOnlyLand(sc, { typalFixing: tribal })) continue;
+        if (producedManaColors(sc, identitySet, { typalFixing: tribal }).every((p) => !identitySet.has(p))) continue;
         spares.push(sc);
       }
     }
@@ -654,6 +658,7 @@ export async function generateLands(
       identity: new Set(colorIdentity),
       colors: colorsWithBasics,
       basicsNeeded,
+      typalFixing: tribal,
     });
 
     logger.debug('[DeckGen] Basic land distribution by residual deficit:', { landsPerColor });

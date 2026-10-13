@@ -149,12 +149,13 @@ export function fetchableBasicColors(
  *  they can find (the Karsten convention). */
 export function colorSourceCounts(
   cards: ScryfallCard[],
-  identity: ReadonlySet<string>
+  identity: ReadonlySet<string>,
+  typalFixing = false
 ): Record<ManaColor, number> {
   const sources: Record<ManaColor, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 };
   for (const card of cards) {
     if (!isManaSourceType(card)) continue;
-    let colors = producedManaColors(card, identity);
+    let colors = producedManaColors(card, identity, { typalFixing });
     const typeLine = (card.type_line || card.card_faces?.[0]?.type_line || '').toLowerCase();
     if (colors.length === 0 && typeLine.includes('land')) {
       colors = fetchableBasicColors(card, identity);
@@ -196,6 +197,8 @@ export interface BasicSplitInput {
   /** Colors eligible for basics (identity colors with a basic type). */
   colors: string[];
   basicsNeeded: number;
+  /** A typal deck: its any-color creature lands count as every color. */
+  typalFixing?: boolean;
 }
 
 /**
@@ -206,7 +209,7 @@ export interface BasicSplitInput {
  * even split when there are no pips at all (the old behaviors, preserved).
  */
 export function planBasicColorSplit(input: BasicSplitInput): Record<string, number> {
-  const { nonLandCards, pickedLands, identity, colors, basicsNeeded } = input;
+  const { nonLandCards, pickedLands, identity, colors, basicsNeeded, typalFixing } = input;
   const out: Record<string, number> = {};
   const eligible = colors.filter((c): c is ManaColor => (WUBRG as readonly string[]).includes(c));
   if (eligible.length === 0 || basicsNeeded <= 0) return out;
@@ -225,8 +228,8 @@ export function planBasicColorSplit(input: BasicSplitInput): Record<string, numb
     return out;
   }
 
-  const produced = colorSourceCounts(pickedLands, identity);
-  const spellSources = colorSourceCounts(nonLandCards, identity);
+  const produced = colorSourceCounts(pickedLands, identity, typalFixing);
+  const spellSources = colorSourceCounts(nonLandCards, identity, typalFixing);
 
   // Total color-production capacity once basics land: every source counts once
   // per color it makes, so duals legitimately push the sum past the land count.
@@ -283,10 +286,11 @@ export function planBasicColorSplit(input: BasicSplitInput): Record<string, numb
 export function colorsNeedingSources(
   nonLandCards: ScryfallCard[],
   identity: ReadonlySet<string>,
-  plannedBasics: number
+  plannedBasics: number,
+  typalFixing = false
 ): Set<string> {
   const pips = rawColorPips(nonLandCards);
-  const spellSources = colorSourceCounts(nonLandCards, identity);
+  const spellSources = colorSourceCounts(nonLandCards, identity, typalFixing);
   const curve: Record<number, number> = {};
   for (const card of nonLandCards) {
     const mv = Math.round(card.cmc ?? 0);
@@ -300,6 +304,7 @@ export function colorsNeedingSources(
     identity,
     colors: eligible,
     basicsNeeded: plannedBasics,
+    typalFixing,
   });
   const need = new Set<string>();
   for (const c of eligible as ManaColor[]) {
@@ -347,11 +352,12 @@ function enforceFloor(flagged: boolean[], allocated: number[]): number[] {
 export function buildManabaseSummary(
   lands: ScryfallCard[],
   nonLandCards: ScryfallCard[],
-  identity: ReadonlySet<string>
+  identity: ReadonlySet<string>,
+  typalFixing = false
 ): ManabaseSummary {
   const pips = rawColorPips(nonLandCards);
-  const landSources = colorSourceCounts(lands, identity);
-  const spellSources = colorSourceCounts(nonLandCards, identity);
+  const landSources = colorSourceCounts(lands, identity, typalFixing);
+  const spellSources = colorSourceCounts(nonLandCards, identity, typalFixing);
 
   // Cheap guard: a color can only be "demanded" if it's within the commander's
   // identity. Every legal nonland card's pips already fall within identity —

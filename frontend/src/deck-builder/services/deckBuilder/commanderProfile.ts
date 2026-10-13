@@ -608,6 +608,11 @@ export const VOLTRON_KEYWORDS = new Set([
 
 const ARCHETYPE_FALLBACK = Archetype.GOODSTUFF;
 
+/** The commander builds around one creature type (the profile's tribal ability). */
+export function isTribalProfile(profile: Pick<CommanderProfile, 'abilities'>): boolean {
+  return profile.abilities.some((a) => a.keyword === 'tribal');
+}
+
 export function buildCommanderProfile(
   commander: ScryfallCard,
   partner?: ScryfallCard | null
