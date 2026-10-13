@@ -28,11 +28,13 @@ import { tonightTradesRouter } from './routes/tonight-trades';
 import { tradesRouter } from './routes/trades';
 import { publicationsRouter } from './routes/publications';
 import { RESOURCE_PUBLICATIONS_DDL } from './db/schema-resource-publications';
+import { BRACKET_VOTES_DDL } from './db/schema-bracket-votes';
 import { publicRouter } from './routes/public';
 import { reportsRouter } from './routes/reports';
 import { discoverRouter } from './routes/discover';
 import { activityRouter } from './routes/activity';
 import { followsRouter } from './routes/follows';
+import { bracketVotesRouter } from './routes/bracket-votes';
 import { dailyRouter } from './routes/daily';
 import { brewersRouter } from './routes/brewers';
 import { aiRouter } from './routes/ai';
@@ -520,6 +522,7 @@ export async function createTestEnv(): Promise<TestEnv> {
     );
     CREATE UNIQUE INDEX deck_publications_slug_idx ON deck_publications(slug);
     ${RESOURCE_PUBLICATIONS_DDL}
+    ${BRACKET_VOTES_DDL}
     CREATE INDEX deck_publications_public_idx
       ON deck_publications(updated_at DESC) WHERE unpublished_at IS NULL;
     CREATE INDEX deck_publications_published_idx
@@ -704,6 +707,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/public/brewers', brewersRouter);
   app.use('/api/public', publicRouter);
   app.use('/api/follows', followsRouter);
+  app.use('/api/bracket-votes', bracketVotesRouter);
   app.use('/api/daily', dailyRouter);
   app.use('/api/reports', reportsRouter);
   app.use('/api/discover', discoverRouter);

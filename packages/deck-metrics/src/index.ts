@@ -1118,3 +1118,9 @@ export {
 
 // ── Deck cover art ──────────────────────────────────────────────────────────
 export { pickDeckCover, coverHasArt, type DeckCoverInput } from './cover.js';
+
+/**
+ * Bumped whenever the estimator's rules or weights change, so a bracket
+ * feedback label (E418) names the version that made the estimate it judges.
+ */
+export const BRACKET_ESTIMATOR_VERSION = 1;

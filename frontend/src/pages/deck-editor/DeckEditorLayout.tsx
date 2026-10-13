@@ -15,6 +15,8 @@ import { AiSourcesControl } from '@/components/deck/AiSourcesControl';
 import { PowerHero } from '@/components/deck/PowerHero';
 import { TableRecordPanel } from '@/components/deck/TableRecordPanel';
 import { BracketTableRead } from '@/components/deck/BracketTableRead';
+import { BracketVote } from '@/components/deck/BracketVote';
+import { deckListText } from '@/lib/deck-analysis/bracket-vote';
 import { CoachFeed } from '@/components/deck/CoachFeed';
 import { EnginePanel } from '@/components/deck/EnginePanel';
 import { WinConditionPanel } from '@/components/deck/WinConditionPanel';
@@ -313,7 +315,22 @@ export function DeckEditorLayout({
             bracketMissesCombos={bracketAnalysis.missesCombos}
             onSetBracketOverride={(b) => updateDeck(deck.id, { bracketOverride: b })}
             clockLibrary={deckLibrary}
-            bracketTableSlot={<BracketTableRead deckId={deck.id} />}
+            bracketTableSlot={
+              <>
+                <BracketTableRead deckId={deck.id} />
+                {deck.bracketEstimation && !bracketAnalysis.missesCombos && (
+                  <BracketVote
+                    deckId={deck.id}
+                    listText={deckListText(
+                      [deck.commander?.name, deck.partnerCommander?.name],
+                      deck.cards.map((c) => c.card.name)
+                    )}
+                    estimation={deck.bracketEstimation}
+                    stated={deck.bracketOverride ?? null}
+                  />
+                )}
+              </>
+            }
             archetypeOverride={deck.archetypeOverride}
             onSetArchetypeOverride={(a) => updateDeck(deck.id, { archetypeOverride: a })}
             deckGrade={deck.deckGrade}

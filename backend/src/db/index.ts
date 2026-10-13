@@ -3,6 +3,7 @@ import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { logger } from '../logger';
 import * as schema from './schema';
 import { RESOURCE_PUBLICATIONS_DDL } from './schema-resource-publications';
+import { BRACKET_VOTES_DDL } from './schema-bracket-votes';
 
 export type Database = NodePgDatabase<typeof schema>;
 
@@ -683,6 +684,7 @@ export async function ensureSchema(): Promise<void> {
     );
     CREATE UNIQUE INDEX IF NOT EXISTS deck_publications_slug_idx ON deck_publications(slug);
     ${RESOURCE_PUBLICATIONS_DDL}
+    ${BRACKET_VOTES_DDL}
     CREATE INDEX IF NOT EXISTS deck_publications_public_idx
       ON deck_publications(updated_at DESC) WHERE unpublished_at IS NULL;
 
