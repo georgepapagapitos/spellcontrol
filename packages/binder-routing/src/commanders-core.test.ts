@@ -140,6 +140,13 @@ describe('canBeCommanderByType', () => {
     ).toBe(true);
   });
 
+  it('finishes fast on repeated near-matches of the Grist phrase', () => {
+    const text = "isn't on the battlefield, it's a ".repeat(5000);
+    const t0 = performance.now();
+    expect(canBeCommanderByType('Legendary Planeswalker — X', text)).toBe(false);
+    expect(performance.now() - t0).toBeLessThan(500);
+  });
+
   it('takes any legendary planeswalker in Brawl only', () => {
     const liliana = 'Whenever a creature you control dies, draw a card.';
     expect(canBeCommanderByType('Legendary Planeswalker — Liliana', liliana)).toBe(false);

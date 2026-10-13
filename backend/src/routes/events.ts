@@ -99,7 +99,7 @@ export const ERROR_ROWS_PER_DAY = 500;
  */
 export function scrubText(text: string, max: number): string {
   return text
-    .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '[email]')
+    .replace(/[\w.+-]{1,64}@[\w-]{1,255}\.[\w.-]{1,255}/g, '[email]')
     .replace(/([?#])[^\s"')]*/g, '$1…')
     .replace(/\b\d{7,}\b/g, '[n]')
     .replace(/\s+/g, ' ')
