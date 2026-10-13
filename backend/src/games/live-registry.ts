@@ -319,6 +319,28 @@ function isSeatPresent(code: string, userId: string | null): boolean {
   return seen !== undefined && Date.now() - seen < PRESENCE_TTL_MS;
 }
 
+/** How long a host's seat must be absent before another seated player may claim the table (E451). */
+export const HOST_CLAIM_AFTER_MS = 2 * 60_000;
+
+// A restart empties `lastSeen`, so a host nobody has seen in this process is
+// measured from boot, not from forever ago: a live host reconnects and is
+// touched within seconds, and a vanished one becomes claimable 2 minutes in.
+const processStartedAt = Date.now();
+
+/**
+ * Whether `userId`'s seat has been absent from `code` for `HOST_CLAIM_AFTER_MS`.
+ * Server clock only. A live subscriber is never absent. Checked on every claim,
+ * so a host who comes back between the client's check and the claim wins.
+ */
+export function hasBeenAbsentLongEnough(code: string, userId: string, now = Date.now()): boolean {
+  const subs = subscribers.get(code);
+  if (subs) {
+    for (const sub of subs) if (sub.userId === userId) return false;
+  }
+  const seen = lastSeen.get(code)?.get(userId) ?? processStartedAt;
+  return now - seen >= HOST_CLAIM_AFTER_MS;
+}
+
 /**
  * The set of seats whose approval a request needs: every other seated
  * player who currently holds a connected seat AND is actually present (see

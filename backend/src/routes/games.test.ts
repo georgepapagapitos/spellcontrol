@@ -4420,3 +4420,89 @@ describe('Horde: games routes guard the trust boundary', () => {
     });
   });
 });
+
+// E451: any seated player takes the table once the host has been away 2 minutes.
+describe('host takeover (E451)', () => {
+  async function table(prefix: string, joiners: number) {
+    const host = await registerAndGetCookie(`${prefix}_h`);
+    const created = await request(app).post('/api/games').set('Cookie', host).send({});
+    const code = created.body.game.code as string;
+    const guests: string[] = [];
+    for (let i = 0; i < joiners; i++) {
+      const c = await registerAndGetCookie(`${prefix}_j${i}`);
+      await request(app).post(`/api/games/${code}/join`).set('Cookie', c).send({});
+      guests.push(c);
+    }
+    return { code, host, guests };
+  }
+  const hostColumn = async (code: string) =>
+    (await pool.query('SELECT host_user_id FROM game_sessions WHERE code = $1', [code])).rows[0]
+      ?.host_user_id as string;
+  const away = (ms: number) => vi.setSystemTime(Date.now() + ms);
+
+  afterEach(() => vi.useRealTimers());
+
+  it('rejects before 2 minutes and accepts after', async () => {
+    const { code, host, guests } = await table('games_tk_a', 2);
+    vi.useFakeTimers({ toFake: ['Date'] });
+    await request(app).get(`/api/games/${code}`).set('Cookie', host); // host seen now
+    away(119_000);
+    const early = await request(app).get(`/api/games/${code}/host-claim`).set('Cookie', guests[0]);
+    expect(early.body.claimable).toBe(false);
+    expect(
+      (await request(app).post(`/api/games/${code}/claim-host`).set('Cookie', guests[0])).status
+    ).toBe(403);
+    away(2_000);
+    const late = await request(app).get(`/api/games/${code}/host-claim`).set('Cookie', guests[0]);
+    expect(late.body.claimable).toBe(true);
+    const res = await request(app).post(`/api/games/${code}/claim-host`).set('Cookie', guests[1]);
+    expect(res.status).toBe(200);
+    const mine = res.body.game.players.find((p: { isHost: boolean }) => p.isHost);
+    expect(mine.name).toBeTruthy();
+    expect(res.body.game.hostUserId).not.toBeNull();
+    expect(await hostColumn(code)).toBe(res.body.game.hostUserId);
+    expect(res.body.game.players.filter((p: { isHost: boolean }) => p.isHost)).toHaveLength(1);
+  });
+
+  it('rejects a spectator and an unknown code', async () => {
+    const { code } = await table('games_tk_s', 1);
+    const stranger = await registerAndGetCookie('games_tk_s_x');
+    vi.useFakeTimers({ toFake: ['Date'] });
+    away(10 * 60_000);
+    expect(
+      (await request(app).post(`/api/games/${code}/claim-host`).set('Cookie', stranger)).status
+    ).toBe(404);
+    expect(
+      (await request(app).get(`/api/games/${code}/host-claim`).set('Cookie', stranger)).status
+    ).toBe(404);
+    expect(
+      (await request(app).post('/api/games/ZZZZ/claim-host').set('Cookie', stranger)).status
+    ).toBe(404);
+  });
+
+  it('a host who is back (seen again) cannot be displaced', async () => {
+    const { code, host, guests } = await table('games_tk_b', 1);
+    vi.useFakeTimers({ toFake: ['Date'] });
+    away(5 * 60_000);
+    await request(app).get(`/api/games/${code}`).set('Cookie', host);
+    expect(
+      (await request(app).post(`/api/games/${code}/claim-host`).set('Cookie', guests[0])).status
+    ).toBe(403);
+  });
+
+  it('concurrent claims resolve to exactly one host', async () => {
+    const { code, guests } = await table('games_tk_c', 2);
+    vi.useFakeTimers({ toFake: ['Date'] });
+    away(3 * 60_000);
+    const results = await Promise.all(
+      guests.map((c) => request(app).post(`/api/games/${code}/claim-host`).set('Cookie', c))
+    );
+    const statuses = results.map((r) => r.status).sort();
+    expect(statuses[0]).toBe(200);
+    expect([403, 409]).toContain(statuses[1]);
+    const state = (await pool.query('SELECT state FROM game_sessions WHERE code = $1', [code]))
+      .rows[0].state;
+    expect(state.players.filter((p: { isHost: boolean }) => p.isHost)).toHaveLength(1);
+    expect(await hostColumn(code)).toBe(state.hostUserId);
+  });
+});

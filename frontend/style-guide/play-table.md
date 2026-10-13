@@ -354,6 +354,13 @@ every seat, and a reload mid-game, rebuilds the identical board.
   "Leave table"; a joiner sees only "Leave table" plus "The host can start a
   rematch." — never a Rematch button that would bounce off the server's
   host-only check.
+- **Taking over an absent host is offered, never assumed (E451).** A seated
+  non-host sees a quiet strip above the header, "Maya has been away for a
+  while." with a primary "Take over as host", only when the server reports the
+  host's seat unseen for 2 minutes (it checks again on the claim, so a host who
+  is back wins). The host, spectators and a present host never see it. If the
+  E430 successor is the one who left, the same strip appears for the rest of the
+  table.
 - **A rail entry's status tag is glance information, not a second source of
   truth.** `OpponentSeat.status` ("Playing" / "Done" / "Offline") is folded
   into the same entry the rest of that seat's board already renders in, in
