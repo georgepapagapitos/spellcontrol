@@ -65,7 +65,7 @@ function basicTypeCount(card: ScryfallCard): number {
 export function landColorCoverage(
   card: ScryfallCard,
   identity: ReadonlySet<string>,
-  opts: { allAbilities?: boolean } = {}
+  opts: { allAbilities?: boolean; typalFixing?: boolean } = {}
 ): number {
   const fix = new Set(producedManaColors(card, identity, opts).filter((c) => identity.has(c)));
   for (const c of fetchableBasicColors(card, identity)) fix.add(c);
@@ -107,7 +107,7 @@ function painPenalty(card: ScryfallCard): number {
 export function landPowerScore(
   card: ScryfallCard,
   identity: ReadonlySet<string>,
-  opts: { allAbilities?: boolean } = {}
+  opts: { allAbilities?: boolean; typalFixing?: boolean } = {}
 ): number {
   if (!isLandCard(card)) return 0;
 
@@ -149,14 +149,15 @@ const ALL_COLORS: ReadonlySet<string> = new Set(COLOR_KEYS);
 /**
  * A land that taps for {C} and nothing colored, read the way the coherence audit
  * reads it (unconditional abilities only, so Unclaimed Territory and Voldaren
- * Estate, whose colors are spend-restricted, are colorless here). `allAbilities`
+ * Estate, whose colors are spend-restricted, are colorless here, unless the deck is
+ * typal: `typalFixing` reads them as the fixing they are). `allAbilities`
  * is the staple reading (a 40%+ page staple keeps the slot its paid color earned,
  * E585). Fetches make
  * no mana of their own and are not colorless.
  */
 export function isColorlessOnlyLand(
   card: ScryfallCard,
-  opts: { allAbilities?: boolean } = {}
+  opts: { allAbilities?: boolean; typalFixing?: boolean } = {}
 ): boolean {
   if (!isLandCard(card) || isBasicLand(card) || fetchedBasicRequirement(card)) return false;
   const produced = producedManaColors(card, ALL_COLORS, opts);

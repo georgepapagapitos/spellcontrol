@@ -104,6 +104,16 @@ describe('E1004: colorless-only and out-of-reach untapped lands, on real oracle 
     }
   });
 
+  it('reads the creature-restricted rainbow lands as fixing in a typal deck', () => {
+    for (const n of ['Voldaren Estate', 'Unclaimed Territory', 'Secluded Courtyard']) {
+      expect(isColorlessOnlyLand(byName(n), { typalFixing: true }), n).toBe(false);
+    }
+    // plain utility stays colorless in a typal deck
+    for (const n of ['Reliquary Tower', "Rogue's Passage"]) {
+      expect(isColorlessOnlyLand(byName(n), { typalFixing: true }), n).toBe(true);
+    }
+  });
+
   it('does not read fixers, colored utility, rainbow lands or fetches as colorless-only', () => {
     for (const n of [
       'Blood Crypt',

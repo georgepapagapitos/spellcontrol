@@ -52,7 +52,7 @@ import {
   loadCardEvidence,
   isBoardCentricPlan,
 } from './roleTargets';
-import { buildCommanderProfile } from './commanderProfile';
+import { buildCommanderProfile, isTribalProfile } from './commanderProfile';
 import { ARCHETYPE_LABEL } from './strategyVocabulary';
 import { Archetype } from '@/deck-builder/types';
 import type { ArchetypeProvenance, Pacing, RoleTargetBreakdown } from '@/deck-builder/types';
@@ -2055,7 +2055,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       manaPhilosophy,
       state.cfg.mtgFormat,
       landAllowed,
-      landSpares
+      landSpares,
+      isTribalProfile(commanderProfile, colorIdentity)
     );
   const dependencySupportCards = () => [
     commander,
@@ -4796,7 +4797,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
   // Manabase self-explanation over the FINAL deck (post trim/audit/padding):
   // sources built vs castability-weighted targets per color.
-  const manabase = buildManabaseSummary(categories.lands, nonLandCards, new Set(colorIdentity));
+  const manabase = buildManabaseSummary(
+    categories.lands,
+    nonLandCards,
+    new Set(colorIdentity),
+    isTribalProfile(commanderProfile, colorIdentity)
+  );
 
   // Role-cap escape-hatch disclosure (E77 iter-4 round 2) — aggregated across
   // every gated path over the whole generation; undefined when the cap was
@@ -4932,6 +4938,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     roleOf: getCardRole,
     lands: categories.lands,
     manabase,
+    tribal: isTribalProfile(commanderProfile, colorIdentity),
     format: 'commander', // the deck builder only generates Commander-family decks
     colorIdentity, // enables the answer-coverage matrix (E79)
   });

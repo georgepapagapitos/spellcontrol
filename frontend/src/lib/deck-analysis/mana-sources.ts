@@ -23,6 +23,28 @@ export function isScalingColorBurst(card: Pick<ScryfallCard, 'oracle_text'>): bo
 }
 
 /**
+ * A land whose any-color mana is spend-restricted to the deck's own creatures:
+ * Unclaimed Territory, Secluded Courtyard, Cavern of Souls ("a creature spell of
+ * the chosen type"), Voldaren Estate ("a Vampire spell"), Ancient Ziggurat ("a
+ * creature spell"), and Three Tree City, whose burst scales with the chosen type.
+ * In a deck built around one creature type most spells are such creatures, so the
+ * restriction costs little and the land fixes every color (`typalFixing`).
+ */
+export function isTypalFixingLand(card: Pick<ScryfallCard, 'oracle_text' | 'card_faces'>): boolean {
+  const ot = (card.oracle_text ?? card.card_faces?.[0]?.oracle_text ?? '').toLowerCase();
+  if (/equal to the number of creatures you control of the chosen type/.test(ot)) return true;
+  return ot
+    .split('\n')
+    .some(
+      (line) =>
+        /add one mana of any colou?r/.test(line) &&
+        /spend this mana only to cast an? (?!artifact|instant|sorcery|noncreature)[a-z]+ spell\b/.test(
+          line
+        )
+    );
+}
+
+/**
  * The colors of mana a card can produce, as WUBRG + C keys. This is the single
  * source of truth for "what does this card tap for" used by the deck's
  * mana-source tally (lands, rocks, dorks — any permanent that produces mana).
@@ -51,6 +73,10 @@ export function isScalingColorBurst(card: Pick<ScryfallCard, 'oracle_text'>): bo
  * `allAbilities` keeps Scryfall's reading, for the one caller that must not let
  * the color count move a staple's slot (see landGenerator's boosts).
  *
+ * `typalFixing` is for a deck built around one creature type: a land that makes
+ * any color for its creatures (`isTypalFixingLand`) then counts as a source of
+ * every identity color, on top of what it always taps for.
+ *
  * Name/text fallbacks cover the rare card cached without `produced_mana`.
  * Returns `[]` for non-producers.
  *
@@ -61,10 +87,17 @@ export function isScalingColorBurst(card: Pick<ScryfallCard, 'oracle_text'>): bo
 export function producedManaColors(
   card: ScryfallCard,
   identity: ReadonlySet<string>,
-  { allAbilities = false }: { allAbilities?: boolean } = {}
+  {
+    allAbilities = false,
+    typalFixing = false,
+  }: { allAbilities?: boolean; typalFixing?: boolean } = {}
 ): string[] {
   const typeLine = card.type_line || card.card_faces?.[0]?.type_line || '';
   const monoColor = COLOR_KEYS.filter((c) => identity.has(c));
+  if (typalFixing && !allAbilities && isTypalFixingLand(card)) {
+    const base = producedManaColors(card, identity);
+    return [...new Set([...base, ...monoColor])];
+  }
   if (!allAbilities && monoColor.length === 1 && isScalingColorBurst(card)) {
     return [monoColor[0], 'C'];
   }
