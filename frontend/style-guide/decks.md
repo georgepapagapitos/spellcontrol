@@ -531,6 +531,30 @@ one playing the proxy.
   `pages/DeckEditorPage.delete.test.tsx` (the proxy marker and drag position
   reach the deck view).
 
+### Release copy stays released (2026-10-13)
+
+Release used to clear the slot's copy and leave an ordinary empty slot, so the
+next boot, sync, re-import or Repair gave the same copy straight back. Proxy
+and Release are two different statements and both now stick:
+
+- **Mark as proxy:** "I play a stand-in here." Covered, never missing.
+- **Release copy:** "This deck doesn't get my copy." The card stays listed as
+  one the deck still needs (the count stays red), and no matcher refills it
+  (`DeckCard.released`; `Deck.commanderReleased` and
+  `partnerCommanderReleased` for the seats). If another deck is waiting on the
+  card, the freed copy goes there.
+- **Taking it back is explicit.** A released row says "Copy released from this
+  deck" ("1 released" on a stack) and its ⋮ offers **Use my copy**, on
+  commander rows too. Binding any copy, by Use my copy or a printing pick,
+  clears the marker. Marking a released slot as a proxy swaps one marker for
+  the other. Once the card leaves the collection the row reads "Not in your
+  collection" again.
+- **Release and Use my copy work in every claiming zone.** Both used to search
+  the mainboard only, so on a sideboard card they did nothing.
+- Guard: `store/decks.release-sticks.test.ts` (the remap case, all three zones
+  and both seats), `components/deck/deck-display-rows.released.test.ts`, and
+  `pages/deck-editor/use-deck-reallocation.test.tsx` (the sideboard handlers).
+
 ### No "also in your other decks" banner (2026-10-09)
 
 The deck list had a banner above it, "N cards here are also in your other
