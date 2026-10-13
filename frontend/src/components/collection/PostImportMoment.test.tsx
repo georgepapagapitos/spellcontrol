@@ -19,6 +19,7 @@ vi.mock('react-router-dom', async (importOriginal) => ({
 }));
 vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 
+import { PICK_COUNT } from '@/lib/deck/owned-commander-picks';
 import { PostImportMoment } from './PostImportMoment';
 
 function card(name: string, extra: Partial<EnrichedCard> = {}): EnrichedCard {
@@ -141,5 +142,54 @@ describe('PostImportMoment value', () => {
     renderMoment(filler);
     expect(screen.queryByText('$60')).toBeNull();
     expect(screen.getByText('30 cards')).toBeTruthy();
+  });
+
+  // The card sits above the collection table, so any height change moves the
+  // table (CLS 0.15 desktop, 0.43 phone, 2026-10-13). Every state fills the
+  // same grid with the same number of rows as the loaded card.
+  it('holds the loaded card footprint in the loading, empty and error states', async () => {
+    const rows = (c: HTMLElement) => c.querySelectorAll('.post-import-picks > li').length;
+    const cls = (c: HTMLElement) => c.querySelector('.post-import-picks')?.parentElement?.className;
+    fetchCommanderData.mockResolvedValue({
+      cardlists: { allNonLand: [{ name: 'Filler 0', inclusion: 90 }] },
+    });
+    const loaded = renderMoment([...filler, legend('A', 1), legend('B', 2), legend('C', 3)]);
+    const loadingRows = rows(loaded.container);
+    const loadingParent = cls(loaded.container);
+    expect(loaded.container.querySelector('.post-import-skeleton')).toBeTruthy();
+    await screen.findByText('A');
+    expect(rows(loaded.container)).toBe(loadingRows);
+    expect(rows(loaded.container)).toBe(PICK_COUNT);
+    expect(cls(loaded.container)).toBe(loadingParent);
+    loaded.unmount();
+
+    const empty = renderMoment(filler);
+    await screen.findByText(/No commanders in this collection yet/);
+    expect(rows(empty.container)).toBe(PICK_COUNT);
+    expect(empty.container.querySelector('.post-import-picks.is-idle')).toBeTruthy();
+    empty.unmount();
+
+    fetchCommanderData.mockRejectedValue(new Error('offline'));
+    const failed = renderMoment([...filler, legend('A', 1)]);
+    await screen.findByRole('alert');
+    expect(rows(failed.container)).toBe(PICK_COUNT);
+  });
+
+  it('stays out of layout and uncounted while the import sheet is open', async () => {
+    fetchCommanderData.mockResolvedValue({ cardlists: { allNonLand: [] } });
+    const { container, rerender } = render(
+      <MemoryRouter>
+        <PostImportMoment cards={filler} hidden />
+      </MemoryRouter>
+    );
+    expect(container.querySelector('.post-import-moment')?.hasAttribute('hidden')).toBe(true);
+    expect(trackMock).not.toHaveBeenCalledWith('post_import_shown');
+    rerender(
+      <MemoryRouter>
+        <PostImportMoment cards={filler} />
+      </MemoryRouter>
+    );
+    expect(container.querySelector('.post-import-moment')?.hasAttribute('hidden')).toBe(false);
+    await waitFor(() => expect(trackMock).toHaveBeenCalledWith('post_import_shown'));
   });
 });
