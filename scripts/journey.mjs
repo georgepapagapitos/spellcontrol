@@ -512,11 +512,11 @@ const NO_WRAP_AT_PHONE = [
  * padding presses nothing); a wrapping <label> does. Whole-pixel sampling
  * reads a 44px ghost as 43, hence the 43 cut.
  *
- * Five classes are RULINGS and not misses; they answer to WCAG 2.5.8's 24px
+ * Seven classes are RULINGS and not misses; they answer to WCAG 2.5.8's 24px
  * (the RULED_AA set in the function) and nothing else may join them without a
  * measured reason:
- *   - `.deck-row-open` and `.deck-row-menu-trigger` (and the rest of the
- *     controls in a deck row) are capped by the row's `min-height: 36px`
+ *   - `.deck-row-open`, `.deck-row-menu-trigger` and `.deck-row-qty` (and the
+ *     rest of the controls in a deck row) are capped by the row's `min-height: 36px`
  *     under `(pointer: coarse)`. That number is deliberate and the comment on
  *     it says why: a 100-row deck list, full-width rows, and a 44px version was
  *     tried and reverted because it stranded one 20px line of text in ~50px of
@@ -527,6 +527,9 @@ const NO_WRAP_AT_PHONE = [
  *     36 tall on purpose (collection.css): a 44px-tall ghost overhangs the card
  *     art in a 118x208 tile and steals the tile's own tap, which opens the card.
  *     A secondary action nested in a primary target, above the AA floor.
+ *   - `.playtest-card-pt__value` is the power / toughness plate pair printed on a
+ *     card's body: two plates edge to edge, scaled with the card, 24px each on
+ *     touch. A 44px ghost on either would cover the other and the card's own tap.
  *   - `.deck-curve-phases-bar-hit` is a chart column about 32px wide.
  *     Widening one column eats its neighbor; the fix is a different chart, not
  *     a floor.
@@ -566,12 +569,14 @@ const NO_WRAP_AT_PHONE = [
  *     sized by the line-height of the prose around it ("Privacy Policy",
  *     "Fan Content Policy" on /you).
  */
-function undersizedTouchTargets() {
+function undersizedTouchTargets(scope) {
   const RULED_AA = new Set([
     '.deck-row-open',
     '.deck-row-menu-trigger',
+    '.deck-row-qty',
     '.role-badge-btn',
     '.art-badge',
+    '.playtest-card-pt__value',
     '.deck-curve-phases-bar-hit',
   ]);
   const out = [];
@@ -593,6 +598,9 @@ function undersizedTouchTargets() {
     }
   };
   for (const el of document.querySelectorAll(sel)) {
+    // An overlay walk measures the overlay, not the page behind it: a popover
+    // covers part of that page, which would read as a clipped hit area.
+    if (scope && !el.closest(scope)) continue;
     const r0 = el.getBoundingClientRect();
     if (r0.width === 0 || r0.height === 0) continue;
     const cs = getComputedStyle(el);
@@ -974,7 +982,7 @@ async function main() {
           console.log(`        ${msg}`);
         }
       };
-      const record = async (label, { keyboard = true, allow = [] } = {}) => {
+      const record = async (label, { keyboard = true, scope = null } = {}) => {
         await sleep(300);
         const m = await page.evaluate(() => {
           const de = document.documentElement;
@@ -1009,7 +1017,7 @@ async function main() {
         // Touch floor is a phone concern: a fine pointer only needs WCAG
         // 2.5.8's 24px, and every desktop-only control clears that.
         const smallTargets =
-          tierName === 'phone' ? await page.evaluate(undersizedTouchTargets) : [];
+          tierName === 'phone' ? await page.evaluate(undersizedTouchTargets, scope) : [];
         // Overlapping targets DO fail — see overlappingTouchTargets.
         const overlapping =
           tierName === 'phone' ? await page.evaluate(overlappingTouchTargets) : [];
@@ -1025,21 +1033,6 @@ async function main() {
         if (a11y)
           a11y.keyboard = tierName === 'desktop' && keyboard ? await keyboardWalk(page) : [];
         if (A11Y) await page.evaluate(restoreScroll);
-        // A ratcheted allowance (journey-overlays.mjs): known rules on one overlay.
-        let allowed = 0;
-        if (a11y && allow.length) {
-          for (const g of [
-            a11y.base,
-            ...Object.values(a11y.themes),
-            ...Object.values(a11y.typesets),
-          ]) {
-            for (let i = g.length - 1; i >= 0; i--) {
-              if (!allow.includes(g[i].id)) continue;
-              allowed += g[i].count;
-              g.splice(i, 1);
-            }
-          }
-        }
         const errs = consoleErrors.filter((e) => !IGNORED_CONSOLE.test(e));
         const file = `${slug(label)}__${tierName}.png`;
         await page.screenshot({ path: path.join(OUT, file) }).catch(() => {});
@@ -1057,7 +1050,6 @@ async function main() {
           smallTargets,
           overlapping,
           a11y,
-          allowed,
           file,
         };
         rec.fail =

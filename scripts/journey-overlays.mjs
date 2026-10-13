@@ -12,6 +12,11 @@
 // Dialogs and sheets also get the Tab walk (focus lands inside, every stop has
 // a ring). Menus and popovers don't: they close when focus leaves them, so a
 // walk would measure the page behind.
+//
+// The walk gates at zero on both tiers: there are no allowances. A rule that
+// "can't be fixed here" is a pattern to change, not a count to ratchet.
+
+import { TIERS } from './journey-browser.mjs';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -63,11 +68,12 @@ const MENU = '[role=menu], .ctx-menu, .toolbar-popover-panel, .deck-editor-overf
 /**
  * Every overlay: where it lives, how to open it, what proves it is open, and
  * whether it is a menu (`menu: true` skips the Tab walk). `open(page)` runs
- * on a fresh load of `route`. Everything runs on the desktop tier, where the
- * axe theme and type-set sweeps run; `phone: true` items run on the phone tier
- * only (the scanner is gated to phones and tablets). The phone's own touch
- * probes (44px floor and friends) are not run inside overlays: the deck page
- * behind them has its own findings there, tracked on E1000.
+ * on a fresh load of `route`. Every overlay runs on both tiers: desktop gets
+ * the axe theme and type-set sweeps and the Tab walk, the phone gets the touch
+ * probes (44px hit-area floor, overlapping targets) with the overlay open, so
+ * a control inside a sheet or popover is measured like one on a page.
+ * `phone: true` items run on the phone tier only (the scanner is gated to
+ * phones and tablets); `desktop: true` items on desktop only.
  */
 function catalog({ deck, binder }) {
   const click = (sel, re) => (page) => clickMatch(page, sel, re);
@@ -79,6 +85,8 @@ function catalog({ deck, binder }) {
         await sleep(350);
       }
     };
+  /** A control that lives somewhere else on the phone: `phone` opens it there. */
+  const tiered = (desktop, phone) => (page, tier) => (tier === 'phone' ? phone : desktop)(page);
   const deckActions = click('button', /^Deck actions/);
   const editList = click('button.toolbar-pill', /^Edit the list/);
   const cardMenu = then(
@@ -118,7 +126,10 @@ function catalog({ deck, binder }) {
     {
       route: '/decks',
       name: 'import dialog',
-      open: click('button.pill-btn', /^Import deck/),
+      open: tiered(
+        click('button.pill-btn', /^Import deck/),
+        then(click('button', /^More deck actions/), click('button,[role=menuitem]', /^Import deck/))
+      ),
       ready: '.import-deck-modal',
     },
     {
@@ -127,12 +138,14 @@ function catalog({ deck, binder }) {
       open: click('button.site-avatar-menu-trigger', /Account menu/),
       ready: MENU,
       menu: true,
+      desktop: true, // on the phone "You" is a tab-bar link to /you, not a menu
     },
     {
       route: '/decks',
       name: 'keyboard shortcuts',
       open: click('button.footer-shortcuts-chip', /shortcuts/),
       ready: '.shortcuts-overlay',
+      desktop: true, // the footer chip is a hardware-keyboard affordance
     },
     // --- Deck editor (the generated deck: it has cards to act on)
     {
@@ -151,7 +164,7 @@ function catalog({ deck, binder }) {
     {
       route: deck,
       name: 'share dialog',
-      open: click('button.deck-visibility-chip', /Sharing:/),
+      open: click('button', /^Sharing:/),
       ready: '.share-dialog',
     },
     {
@@ -160,16 +173,11 @@ function catalog({ deck, binder }) {
       open: click('button.deck-format-link', /Format:/),
       ready: '.deck-format-sheet',
     },
-    // Allowance (ratchet: shrinks only, and a stale one fails): each result row
-    // is a listbox option that holds its own add / preview / dismiss buttons.
-    // The fix is a different pattern (rows as a list, the input off the
-    // listbox), tracked on E536.
     {
       route: deck,
       name: 'add cards sheet',
       open: click('button.btn-primary', /^Add cards/),
       ready: '.deck-add-sheet',
-      allow: ['nested-interactive'],
     },
     {
       route: deck,
@@ -181,7 +189,7 @@ function catalog({ deck, binder }) {
     {
       route: deck,
       name: 'view options popover',
-      open: click('button.toolbar-pill', /^View options/),
+      open: click('button.toolbar-pill', /^View/),
       ready: '.toolbar-popover-panel',
       menu: true,
     },
@@ -205,6 +213,7 @@ function catalog({ deck, binder }) {
       open: (p) => rightClick(p, '.deck-row-open', 3),
       ready: '.ctx-menu',
       menu: true,
+      desktop: true, // a phone opens the same actions from the row's Card actions button
     },
     {
       route: deck,
@@ -240,11 +249,26 @@ function catalog({ deck, binder }) {
       open: click('button.toolbar-pill', /^Details/),
       ready: '.toolbar-popover-panel',
       menu: true,
+      desktop: true, // the phone folds Details into the View options popover below
+    },
+    {
+      route: '/collection',
+      name: 'view options popover',
+      open: click('button', /^View options/),
+      ready: '.toolbar-popover-panel',
+      menu: true,
+      phone: true,
     },
     {
       route: '/collection',
       name: 'export dialog',
-      open: click('button.pill-btn', /^Export/),
+      open: tiered(
+        click('button.pill-btn', /^Export/),
+        then(
+          click('button', /^More collection actions/),
+          click('button,[role=menuitem]', /^Export/)
+        )
+      ),
       ready: '[role=dialog], .modal',
     },
     {
@@ -288,15 +312,11 @@ function catalog({ deck, binder }) {
     },
     ...(binder
       ? [
-          // Allowance: SnapCarousel slides are role=button and hold the page's tappable
-          // cards. The fix is a slide role that is not a button when a slide has its
-          // own controls (E536).
           {
             route: binder,
             name: 'binder pages viewer',
             open: click('.binder-summary button', /^Browse/),
             ready: '.binder-pages-slide.is-active',
-            allow: ['nested-interactive'],
           },
         ]
       : []),
@@ -333,6 +353,7 @@ function playtestSteps(deck) {
         await sleep(600);
       }),
       ready: '.playtest-main .playtest-card',
+      scope: 'body', // the table is the surface here
     },
     {
       route,
@@ -356,7 +377,8 @@ function playtestSteps(deck) {
     {
       route,
       name: 'hand card menu',
-      open: table((p) => rightClick(p, '.playtest-hand__cards .playtest-card', 0)),
+      // A middle card: the leftmost one opens its menu over the life panel.
+      open: table((p) => rightClick(p, '.playtest-hand__cards .playtest-card', 3)),
       ready: '.ctx-menu',
       menu: true,
     },
@@ -364,7 +386,7 @@ function playtestSteps(deck) {
       route,
       name: 'hand card submenu',
       open: table(async (p) => {
-        await rightClick(p, '.playtest-hand__cards .playtest-card', 0);
+        await rightClick(p, '.playtest-hand__cards .playtest-card', 3);
         await clickMatch(p, 'button.playtest-ctx-action', /^Move to/);
       }),
       ready: '.playtest-ctx-action--submenu.is-open',
@@ -407,35 +429,53 @@ export async function overlayWalk({
   deck,
   binder,
 }) {
-  const items = [...catalog({ deck, binder }), ...(deck ? playtestSteps(deck) : [])];
+  // JOURNEY_OVERLAYS=<regex> walks only the overlays whose "name route" matches,
+  // for iterating on one fix without the 10-minute full walk.
+  const only = process.env.JOURNEY_OVERLAYS ? new RegExp(process.env.JOURNEY_OVERLAYS, 'i') : null;
+  const items = [...catalog({ deck, binder }), ...(deck ? playtestSteps(deck) : [])].filter(
+    (it) => !only || only.test(`${it.name} ${it.route}`)
+  );
   for (const it of items) {
     if (!it.route) continue;
-    if (it.phone ? tierName !== 'phone' : tierName !== 'desktop') continue;
+    if (it.phone && tierName !== 'phone') continue;
+    if (it.desktop && tierName !== 'desktop') continue;
     consoleErrors.length = 0;
+    // The table is a landscape surface on a phone (portrait asks to "Turn your
+    // phone sideways"), so a phone walks it in landscape.
+    const t = TIERS[tierName];
+    const landscape = tierName === 'phone' && it.route.endsWith('/playtest');
+    await page.setViewport(landscape ? { ...t, width: t.height, height: t.width } : t);
     await page.goto(base + it.route, { waitUntil: 'domcontentloaded', timeout: 60_000 });
     await sleep(settleMs);
     let err = null;
     try {
-      await it.open(page);
+      await it.open(page, tierName);
       await page.waitForSelector(it.ready, { visible: true, timeout: it.timeout ?? 15_000 });
       await sleep(settleMs / 2);
     } catch (e) {
       err = String(e.message ?? e).slice(0, 160);
+      if (process.env.JOURNEY_OVERLAYS) {
+        const seen = await page.evaluate(() =>
+          [...document.querySelectorAll('button,[role=button],a[href]')]
+            .filter((b) => b.getBoundingClientRect().width > 0)
+            .map((b) => (b.getAttribute('aria-label') || b.textContent || '').trim().slice(0, 28))
+            .join(' | ')
+        );
+        console.log(`        visible controls: ${seen}`);
+      }
     }
     const label = `${it.route.replace(/deck_[0-9a-f-]+/, '{deck}').replace(/\/binders\/.*/, '/binders/{binder}')} (${it.name})`;
-    const rec = await record(label, { keyboard: !it.menu, allow: it.allow });
+    // The phone's touch floor is measured inside the overlay (`scope`, default:
+    // what proves it open); the page behind is the route walk's.
+    const rec = await record(label, {
+      keyboard: !it.menu,
+      scope: it.scope ?? it.ready,
+    });
     await assertPage(rec, `${it.name} opens`, async () => ({
       ok: !err,
       expected: it.ready,
       observed: err ?? it.ready,
     }));
-    if (it.allow) {
-      await assertPage(rec, `${it.name} still needs its allowance`, async () => ({
-        ok: rec.allowed > 0,
-        expected: `${it.allow.join(', ')} still fires (then keep the allowance)`,
-        observed: rec.allowed > 0 ? rec.allowed : 'it no longer fires: delete the allowance',
-      }));
-    }
     await page.keyboard.press('Escape');
     await sleep(400);
   }

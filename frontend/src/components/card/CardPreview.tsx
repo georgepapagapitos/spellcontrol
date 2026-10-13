@@ -972,6 +972,7 @@ export function CardPreview({
             keysEnabled={!shareOpen}
             className="card-preview-track"
             slideClassName="card-preview-slide"
+            label="Cards"
             renderSlide={renderSlide}
             // The card is for reading. On a phone with the sheet raised over
             // it, tapping the card lowers the sheet so the card shows again.

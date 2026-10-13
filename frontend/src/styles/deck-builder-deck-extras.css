@@ -120,6 +120,14 @@
   flex: none;
 }
 
+/* The info glyph's 44px ghost reaches ~13px past its box; with the bar's 8px
+   gap that bit into the last chip's right edge. */
+@media (pointer: coarse) {
+  .deck-role-bar > .info-tip {
+    margin-inline-start: var(--space-2);
+  }
+}
+
 /* Rounded-rects, not 999px pills: these chips are actionable filters
    (STYLE_GUIDE shape language). Shape/size/resting/hover/pressed/floor come
    from the shared `.filter-chip` (styles/search-controls.css); this file
@@ -348,6 +356,13 @@
     background var(--motion-fast) ease,
     border-color var(--motion-fast) ease,
     color var(--motion-fast) ease;
+}
+
+@media (pointer: coarse) {
+  .format-pill {
+    min-height: 44px;
+    align-items: center;
+  }
 }
 
 .format-pill:has(input:focus-visible) {

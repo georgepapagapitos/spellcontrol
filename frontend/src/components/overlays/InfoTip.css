@@ -89,4 +89,12 @@
   .info-tip-btn {
     position: relative;
   }
+
+  /* In a form label the field sits right under the glyph and would take the
+     ghost's lower half, so the ghost grows upward from the glyph's bottom edge. */
+  .form-field-label .info-tip-btn::after {
+    top: auto;
+    bottom: 0;
+    transform: translateX(-50%);
+  }
 }

@@ -34,6 +34,8 @@ interface Props {
   keysEnabled?: boolean;
   prevLabel?: string;
   nextLabel?: string;
+  /** The track's accessible name. The track is a focusable scroll region (axe: a scroller needs a keyboard stop). */
+  label?: string;
 }
 
 // The scroller is "quiet" once no scroll event has arrived for this long.
@@ -82,6 +84,7 @@ export const SnapCarousel = forwardRef<SnapCarouselHandle, Props>(function SnapC
     keysEnabled = true,
     prevLabel = 'Previous',
     nextLabel = 'Next',
+    label = 'Slides',
   },
   ref
 ) {
@@ -176,6 +179,30 @@ export const SnapCarousel = forwardRef<SnapCarouselHandle, Props>(function SnapC
     return () => window.clearTimeout(t);
   }, [index]);
 
+  // A tap on a slide centers it, and fires `onSlideClick` on top. Delegated on
+  // the track rather than per slide so a slide stays a plain group. It never
+  // stops the event: the controls inside a slide, and the sheet's own
+  // empty-space check, still see it.
+  const onSlideClickRef = useRef(onSlideClick);
+  onSlideClickRef.current = onSlideClick;
+  const scrollToRef = useRef(scrollTo);
+  scrollToRef.current = scrollTo;
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const onClick = (e: MouseEvent) => {
+      const t = e.target;
+      const slide = t instanceof Element ? t.closest<HTMLElement>('[data-slide]') : null;
+      if (!slide || !track.contains(slide)) return;
+      const i = Number(slide.dataset.slide);
+      const active = i === indexRef.current;
+      if (!active) scrollToRef.current(i);
+      onSlideClickRef.current?.(i, active);
+    };
+    track.addEventListener('click', onClick);
+    return () => track.removeEventListener('click', onClick);
+  }, [trackRef]);
+
   useEffect(() => {
     if (!keysEnabled) return;
     const onKey = (e: KeyboardEvent) => {
@@ -211,7 +238,7 @@ export const SnapCarousel = forwardRef<SnapCarouselHandle, Props>(function SnapC
 
   return (
     <>
-      <div className={className} ref={trackRef}>
+      <div className={className} ref={trackRef} role="region" aria-label={label} tabIndex={0}>
         <div className="snap-spacer" ref={beforeRef} aria-hidden="true" />
         {Array.from({ length: count }, (_, i) => {
           const active = i === index;
@@ -223,24 +250,15 @@ export const SnapCarousel = forwardRef<SnapCarouselHandle, Props>(function SnapC
                 slideRefs.current[i] = el;
               }}
               className={`${cls}${active ? ' is-active' : ''}`}
-              role="button"
-              // Roving tabindex: a collection preview can hold thousands of
-              // slides, so only the active one is a Tab stop — arrow keys
-              // (handled above, independent of DOM focus) move between them.
-              tabIndex={active ? 0 : -1}
+              // A slide holds the page's own controls (a binder page's tappable
+              // cards), so it is a group, not a button: a button cannot contain
+              // interactive content. Paging by keyboard is the arrow keys and
+              // the prev / next buttons; a tap on a slide is a pointer
+              // convenience, wired on the track below.
+              role="group"
+              aria-roledescription="slide"
+              data-slide={i}
               aria-label={`Slide ${i + 1} of ${count}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!active) scrollTo(i);
-                onSlideClick?.(i, active);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  if (!active) scrollTo(i);
-                  onSlideClick?.(i, active);
-                }
-              }}
             >
               {Math.abs(i - windowCenter) <= windowRadius ? renderSlide(i) : null}
             </div>

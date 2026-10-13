@@ -54,6 +54,12 @@
 @media (pointer: coarse) {
   .deck-saltiest-row {
     min-height: 44px;
+    padding-block: 0;
+  }
+
+  /* One nowrap line, so its line box is the whole 44px press. */
+  .deck-saltiest-row .deck-saltiest-name {
+    line-height: 44px;
   }
 }
 

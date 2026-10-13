@@ -18,14 +18,16 @@
     position: relative;
   }
 
+  /* Grows upward from the pill's bottom edge: the color buttons sit directly
+     under the toggle's row and would take a centered ghost's lower half. */
   .color-mode-toggle .chip-joiner::after {
     content: '';
     position: absolute;
-    top: 50%;
+    bottom: 0;
     left: 50%;
     width: max(100%, 44px);
     height: 44px;
-    transform: translate(-50%, -50%);
+    transform: translateX(-50%);
   }
 }
 
