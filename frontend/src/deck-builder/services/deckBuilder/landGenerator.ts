@@ -227,10 +227,10 @@ export async function generateLands(
     // E1003: gate first, then cut. The ranked candidates used to be sliced to 2x the
     // target before the price / rarity / Arena caps ran, so a tight cap that failed
     // the top of the page left the pool empty while cheap lands sat past the cut.
-    // Windows grow until 2x the target clear the same caps capsFilteredLands applies.
+    // More windows follow only while fewer than the target clear the caps capsFilteredLands applies.
     const landCardMap = await fetchPassingWindows(
       landCandidateNames,
-      nonBasicTarget * 2,
+      nonBasicTarget,
       nonBasicTarget * 2,
       fetchLandWindow,
       (card) =>
