@@ -10,6 +10,8 @@ import type { EnrichedCard } from '@/types/index';
 import { useRowSelection } from './card-list-table-selection';
 import { useCollectionRowActions } from './card-list-table-actions';
 import { useGroupedRows } from './card-list-table-layout';
+import { useAllocationsFor } from './card-list-table-hooks';
+import { buildRows } from './card-list-table-derive';
 import type { GroupKey, Row } from './card-list-table-config';
 
 function card(copyId: string, scryfallId: string, name: string, rarity = 'rare'): EnrichedCard {
@@ -200,5 +202,26 @@ describe('useCollectionRowActions', () => {
       'Mark as proxy',
       'Delete selected',
     ]);
+  });
+});
+
+describe('useAllocationsFor', () => {
+  const inDeck = { ownerKind: 'deck', ownerId: 'd1', ownerName: 'Burn' } as AllocationInfo;
+
+  it('keys a grouped stack by finish, the same key the rows group by', () => {
+    // An etched copy is foil: true with finish 'etched'. Keyed by foil alone it
+    // shared a bucket with the foil row of the same printing, so the foil tile
+    // wore the etched copy's deck mark.
+    const etched = { ...card('e1', 'p1', 'Bolt'), foil: true, finish: 'etched' } as EnrichedCard;
+    const foil = { ...card('f1', 'p1', 'Bolt'), foil: true, finish: 'foil' } as EnrichedCard;
+    const allCards = [etched, foil];
+    const rows = buildRows(allCards, new Map(), true);
+    expect(rows).toHaveLength(2);
+    const { result } = renderHook(() =>
+      useAllocationsFor(true, allCards, new Map([['e1', inDeck]]))
+    );
+    const byCopy = Object.fromEntries(rows.map((r) => [r.card.copyId, result.current(r.card)]));
+    expect(byCopy.e1).toEqual([inDeck]);
+    expect(byCopy.f1).toEqual([]);
   });
 });

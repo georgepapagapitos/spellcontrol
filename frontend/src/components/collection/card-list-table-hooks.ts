@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { EnrichedCard } from '@/types/index';
 import type { AllocationInfo } from '@/lib/collection/allocations';
+import { printingFinishKey } from '@spellcontrol/binder-routing';
 import { fetchTypeSuggestions } from '@/lib/cards/scryfall-catalog';
 import { isTypingTarget, useRegisterShortcuts } from '@/components/app-shell/shortcut-registry';
 import { collectSubtypeTokens, mergeSubtypeSuggestions } from './card-list-table-derive';
@@ -50,7 +51,7 @@ export function useSubtypeSuggestions(cards: EnrichedCard[]): string[] {
 }
 
 /** Allocations covering a card: per copy when ungrouped, per printing when
- *  grouped. Indexed by printing (scryfallId + foil) once so per-row lookups
+ *  grouped. Indexed by printing (scryfallId + finish, the row key) once so per-row lookups
  *  stay O(1); without it, every call would scan allCards, and the preview
  *  carousel calls it once per row. */
 export function useAllocationsFor(
@@ -64,7 +65,7 @@ export function useAllocationsFor(
     for (const c of allCards) {
       const a = allocations.get(c.copyId);
       if (!a) continue;
-      const key = `${c.scryfallId}:${c.foil ? 'foil' : 'nonfoil'}`;
+      const key = printingFinishKey(c);
       const bucket = map.get(key);
       if (bucket) bucket.push(a);
       else map.set(key, [a]);
@@ -77,7 +78,7 @@ export function useAllocationsFor(
         const a = allocations.get(c.copyId);
         return a ? [a] : [];
       }
-      const key = `${c.scryfallId}:${c.foil ? 'foil' : 'nonfoil'}`;
+      const key = printingFinishKey(c);
       return allocationsByPrinting?.get(key) ?? [];
     },
     [groupPrintings, allocations, allocationsByPrinting]
