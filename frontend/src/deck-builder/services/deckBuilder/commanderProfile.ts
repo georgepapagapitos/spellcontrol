@@ -90,6 +90,18 @@ export interface CommanderProfile {
 // ─── Text extraction ─────────────────────────────────────────────────
 
 /**
+ * The names oracle text uses for the card besides its full name: the part before
+ * the comma ("Gonti" for "Gonti, Night Minister"), or for a name with no comma the
+ * part before " the " / " of " ("Radagast" for "Radagast the Brown"), which is how
+ * "Whenever Radagast or another nontoken creature you control enters" is written.
+ */
+function shortNames(name: string): string[] {
+  if (name.includes(',')) return [name.split(',')[0].trim()];
+  const m = /^([A-Z][\w'-]+(?: [A-Z][\w'-]+)?) (?:the|of) /.exec(name);
+  return m && m[1].length >= 4 ? [m[1]] : [];
+}
+
+/**
  * Combine oracle text across the main card and every face (DFC, MDFC,
  * transform, split), strip reminder text in parentheses, and neutralize
  * the card's own name so generic patterns like "when ~ enters" still
@@ -107,12 +119,12 @@ export function getCombinedOracleText(card: ScryfallCard): string {
   const names = new Set<string>();
   if (card.name) {
     names.add(card.name);
-    if (card.name.includes(',')) names.add(card.name.split(',')[0].trim());
+    for (const n of shortNames(card.name)) names.add(n);
   }
   for (const face of card.card_faces ?? []) {
     if (face.name) {
       names.add(face.name);
-      if (face.name.includes(',')) names.add(face.name.split(',')[0].trim());
+      for (const n of shortNames(face.name)) names.add(n);
     }
   }
   for (const n of [...names].sort((a, b) => b.length - a.length)) {
@@ -130,14 +142,16 @@ export function getCombinedOracleText(card: ScryfallCard): string {
 /**
  * A creature commander whose back face is a land (the Ojer gods, "Temple of
  * Power") keeps only its creature face: the land face's "{T}: Add {R}" is a plain
- * land tap, not a mana engine the deck is built around.
+ * land tap, not a mana engine the deck is built around. The same goes for a
+ * disturb Aura back face (Dorothea's Retribution): its "Enchanted creature has ..."
+ * is the Aura it becomes, not a plan to build enchantments around.
  */
 function withoutLandFaces(card: ScryfallCard): ScryfallCard {
   const faces = card.card_faces;
   if (!faces || faces.length < 2 || /\bland\b/i.test(frontTypeLine(card))) return card;
   return {
     ...card,
-    card_faces: faces.filter((f, i) => i === 0 || !/\bland\b/i.test(f.type_line ?? '')),
+    card_faces: faces.filter((f, i) => i === 0 || !/\bland\b|\baura\b/i.test(f.type_line ?? '')),
   };
 }
 
@@ -147,6 +161,14 @@ function clauses(text: string): string[] {
     .split(/[.\n•;]+/)
     .map((c) => c.trim())
     .filter(Boolean);
+}
+
+/** The matched phrase of a pattern that spans clauses, capped for display. */
+function findAcross(text: string, pattern: RegExp): string | null {
+  const m = pattern.exec(text);
+  if (!m) return null;
+  const t = m[0].length > 160 ? m[0].slice(0, 157) + '…' : m[0];
+  return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
 /** First clause matching the pattern, capped for display. */
@@ -300,6 +322,13 @@ interface Detector {
   label: string;
   /** Recognizes the ability on the commander's own text. */
   commander: RegExp;
+  /**
+   * The same for a phrase that spans sentences ("Gain control of target creature.
+   * Untap it."), which `commander` cannot see because it is matched clause by clause.
+   */
+  commanderAcrossClauses?: RegExp;
+  /** A phrase anywhere in the text that rules the ability out (a gift that is goaded onto the receiver). */
+  unlessText?: RegExp;
   wants: string[];
   themes: string[];
   archetypeHint?: Archetype;
@@ -335,7 +364,7 @@ const DETECTORS: Detector[] = [
     keyword: 'creature-etb',
     label: 'Creature-enters trigger',
     commander:
-      /\b(?:whenever|when) (?!(?:(?!\benters?\b)[^.,])*?(?<!\bor )\b(?:lands?|permanents?|artifacts?|enchantments?|equipment|auras?|vehicles?|sagas?|planeswalkers?|battles?|(?<!creature )tokens?)\b(?! or\b)[^.,]*?\benters?\b)(?:~ (?:or|and\/or) )?(?:another|other|one or more|an?|each|every)\b[^.,]*?\benters?\b|\beach other [a-z ]*?you control enters\b|\b(?:each|every|another|other)\b[^.,]*?\bcreatures?\b[^.,]*?\benters? with (?:an? |\d+ |x )?(?:additional|extra)\b/,
+      /\b(?:whenever|when) (?!(?:(?!\benters?\b|\bcreatures?\b)[^.,])*?(?<!\b(?!(?:auras?|equipment|artifacts?|enchantments?|lands?|vehicles?|permanents?|sagas?)\b)\w+ or )\b(?:lands?|forests?|islands?|swamps?|mountains?|plains|deserts?|gates?|towns?|caves?|locus|lairs?|permanents?|artifacts?|enchantments?|equipment|auras?|vehicles?|sagas?|shrines?|curses?|planeswalkers?|battles?|tokens?)\b(?! or\b| creatures?\b)[^.,]*?\benters?\b)(?:~ (?:or|and\/or) )?(?:another|other|one or more|an?|each|every)\b[^.,]*?\benters?\b|\beach other [a-z ]*?you control enters\b|\bcreatures?\b[^.,]*?\benters? with (?:an? |\d+ |x |two |three |four |that many )?(?:additional|extra)\b|\bif (?:an? |another )?(?!permanents?\b|artifacts?\b|lands?\b)[a-z]+ you control entering causes\b|\bcreatures? entered the battlefield under your control\b|\bhad (?:another |an? |one or more )?(?:nontoken )?creatures? enter\b|\bcreatures? you had enter\b/,
     wants: ['Token makers and creature reanimation', 'Blink effects that re-enter creatures'],
     themes: ['tokens', 'reanimator', 'blink'],
   },
@@ -506,7 +535,7 @@ const DETECTORS: Detector[] = [
     keyword: 'enchantment-matters',
     label: 'Enchantment synergy',
     commander:
-      /\bconstellation\b|(?<!or )\benchantments? (?:you control|spells?|cards?)\b|\bother enchantments\b|\bnumber of enchantments\b|(?<!non-)\bauras?\b|\bsagas?\b|\benchanted or equipped\b/,
+      /\bconstellation\b|(?<!or )\benchantments? (?:you control|spells?|cards?)\b(?![^.]*\bcosts? \{[^}]*\} more)|\bother enchantments\b|\bnumber of enchantments\b|(?<!non-)(?<!target of )\bauras?\b(?! enchantment with enchant)|(?<!this )\bsagas?\b|\benchanted (?:or equipped|creatures?|permanents?)\b|(?:\bis|\bare|'s) enchanted\b|\bshrines?\b|\benchantment creature tokens?\b|\brole tokens?\b|\bwhenever you cast an? (?:[a-z]+ or )?enchantment\b|\bpermanents you control that are [^.]*\benchantments?\b/,
     wants: ['Cheap enchantments and auras', 'Constellation payoffs'],
     themes: ['enchantress', 'enchantments'],
     archetypeHint: Archetype.ENCHANTRESS,
@@ -539,7 +568,12 @@ const DETECTORS: Detector[] = [
   {
     keyword: 'untap-engine',
     label: 'Untap engine',
-    commander: /\buntap (?!~|it\b|this\b|during\b|that creature\b)[a-z{]/,
+    commander:
+      /\buntaps? (?!~|it\b|this\b|during\b|that creature\b|step|him\b|her\b|itself\b)[a-z{]|\buntap (?:it|~|this creature) and (?:all|each|another|other)\b|\b(?:whenever|when) (?!~)[^.,~]*?\b(?:attacks?|becomes? tapped|taps?)\b[^.,~]*,\s*untap (?:it|that creature|them)\b/,
+    // Gaining control of a creature and untapping it ("Threaten"), or untapping the
+    // permanent a sentence just named, is untapping something other than itself.
+    commanderAcrossClauses:
+      /\bgain control of [^.]*(?:\.\s*|, )untap (?:it|that creature|them)\b|\btarget [^.]*\b(?:creature|artifact|permanent)\b[^.]*\.\s*untap (?:it|that (?:creature|permanent))\b/,
     wants: ['Permanents worth untapping', 'Combo finishers'],
     themes: ['combo'],
     archetypeHint: Archetype.COMBO,
@@ -555,7 +589,8 @@ const DETECTORS: Detector[] = [
     keyword: 'group-hug',
     label: 'Group effects',
     commander:
-      /\beach player (?:draws|gains (?!control)|may|adds|creates|loses \d+ life and draws)\b|\b(?:you and )?(?:target|each) opponent (?:each draw|may draw)\b|\bthat (?:attacking )?player draws\b|\bits controller may draw\b/,
+      /\beach (?:other )?player (?:draws|gains (?!control)|may (?!discard)|adds|creates|who controls|loses \d+ life and draws)\b|\b(?:target|each) opponents? (?:each |may )?draws?\b|\b(?:target|each) opponents? (?:may |each )?(?:creates?|investigates?|puts?) [^.]*?\b(?:treasures?|clues?|foods?|goblin|legendary|permanent)\b|\b(?:target|each) opponents? may investigate\b|\band (?:that|target|another(?: target)?|each|the (?:damaged|attacking|defending)|defending) (?:other )?(?:player|opponent)s? each (?:draw|gain|get|create)\b(?![^.]*, then discard)|\bthat (?:attacking )?player (?:may )?(?:loses \d+ life and )?(?:draws?|adds?|creates? (?:an? |x |one |two |three ))\b|\bthe active player adds\b|\bits controller may (?:draw|pay)\b|\beach mode must target a different player\b|\b(?:target opponent gains? control of|(?:target|each|that) (?:player|opponent) gains? control of (?!~|all\b))|\btarget player other than\b|\bfor each player, put\b|\}[^:.]*: target player draws a card\b/,
+    unlessText: /\bgoaded\b/,
     wants: ['Payoffs that turn shared resources to your favor', 'Protection / pillowfort'],
     themes: ['group hug', 'politics'],
   },
@@ -697,8 +732,10 @@ export function buildCommanderProfile(
 
   for (const d of DETECTORS) {
     if (seen.has(d.keyword)) continue;
-    const evidence = findEvidence(text, d.commander);
-    if (!evidence) continue;
+    const evidence =
+      findEvidence(text, d.commander) ??
+      (d.commanderAcrossClauses ? findAcross(text, d.commanderAcrossClauses) : null);
+    if (!evidence || d.unlessText?.test(text)) continue;
     seen.add(d.keyword);
     abilities.push({
       keyword: d.keyword,

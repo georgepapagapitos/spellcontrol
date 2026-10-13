@@ -38,11 +38,15 @@ entering is creature-etb or landfall instead).
 
 ## creature-etb — "Creature-enters trigger"
 
-YES: triggers on or rewards creatures entering the battlefield ("whenever
-another creature enters", "whenever a nontoken creature you control enters", "one
-or more creatures enter"), including a tribe's creatures entering.
-NO: only its own enters trigger; lands entering; a creature entering only inside
-a "dies ... enters" sentence about something else.
+YES: triggers on, replaces, doubles or counts creatures entering the battlefield
+beyond its own entering ("whenever another creature enters", "whenever a nontoken
+creature you control enters", "one or more creatures enter", "whenever a Dragon
+enters"), including a tribe's creatures entering and creature spells that enter
+with extra counters (R6, R17).
+NO: only its own enters trigger; lands, artifacts, Auras, Equipment, Vehicles,
+tokens or "a permanent" entering unless the same trigger names creatures or a
+creature type (R17); a creature entering only inside a "dies ... enters" sentence
+about something else.
 
 ## attack-trigger — "Attack trigger"
 
@@ -162,9 +166,12 @@ creature.
 
 ## enchantment-matters — "Enchantment synergy"
 
-YES: creates, recurs, counts, tutors or pays off enchantments (Auras and Sagas
-count), constellation, enchantress triggers.
-NO: only removes enchantments; the commander merely being an enchantment creature.
+YES: creates, recurs, counts, tutors or pays off enchantments (Auras, Sagas,
+Classes, Rooms, Shrines, Curses, Cases, Roles and enchantment tokens count),
+constellation, enchantress triggers, bonuses for enchanted creatures (R18).
+NO: only removes, taxes or counters enchantments; the commander merely being an
+enchantment creature or having an Aura back face; "enchantment" only inside a list
+of card types for a one-shot (R18).
 
 ## landfall — "Landfall"
 
@@ -186,8 +193,9 @@ NO: skipping turns.
 ## untap-engine — "Untap engine"
 
 YES: untaps permanents other than itself (lands, creatures, artifacts), or
-untaps all of something.
-NO: untaps only itself (pseudo-vigilance); "doesn't untap" restrictions.
+untaps all of something, or grants an untap (R19).
+NO: untaps only itself (pseudo-vigilance); "doesn't untap" restrictions and
+"untap step" text.
 
 ## monarch — "Monarch"
 
@@ -196,11 +204,13 @@ NO: no monarch text.
 
 ## group-hug — "Group effects"
 
-YES: gives every player a benefit, including opponents (each player draws cards,
-gains life, may put a land onto the battlefield), a plan that turns shared
-resources to your favor.
+YES: gives another player or every player a benefit they want (each player draws
+cards, gains life, may put a land onto the battlefield; an opponent draws, gets a
+Treasure or takes a permanent you donate), a plan that turns shared resources to
+your favor (R13, R20).
 NO: symmetric drawbacks (each player sacrifices, loses life, discards); wheels
-(wheel-discard); benefits only for you.
+(wheel-discard) and symmetric looting; benefits only for you; a gift that is a
+burden to the receiver (goaded, forced to attack, a monarch or control trap).
 
 ## ramp — "Mana / cost engine"
 
@@ -317,3 +327,46 @@ Equipment, Aura or Vehicle entering is not a creature (Firion). spellcast covers
 "cast an Adventure spell" (Lozhan, Gorion). "Spirit or Arcane" casts stay unsettled:
 the two rating passes disagree (Bounteous Kirin no, Hikari yes), so the detector does
 not claim them.
+R17. (2026-10-13, 851 commanders rated for creature-etb, enchantment-matters,
+untap-engine and group-hug; see commander-profile.keywords4.fixture.json.)
+creature-etb: a trigger or doubler on "a permanent" entering (Yarok, Elesh Norn,
+Mother of Machines), on "a token" entering (Kambal) or on a noncreature type
+entering (a land, an Aura or Equipment, a Shrine) is etb, not creature-etb. Naming
+a creature type counts (Naban's Wizard, Kolodin's Mount, Kili's Dwarf, a Dragon),
+as does "creature" itself. A creature spell that enters with extra counters counts
+whether or not it is a standing trigger (Mikey & Don, Torgal, Yuna, Chorus of the
+Conclave). Lagrella's "an exiled card enters under your control" counts: the cards
+are creatures.
+R18. enchantment-matters: Shrines, Role tokens, enchantment creature tokens (Pharika),
+"is enchanted" bonuses (Krond, Rayne), "enchanted creature you control" payoffs
+(Syr Armont, Ellivere), "destroy enchanted creature" (Ramses Overdark: 70% of its
+EDHREC themes are enchantress) and enchantments granted ward (Callaphe) count. A
+commander that taxes or hates enchantments (Irini Sengir, Bartel Runeaxe, Glissa),
+whose Aura or Saga face is only the card it becomes (Dorothea, Jin-Gitaxias), or that
+names enchantment as one of two or more types in a one-shot (White Widow,
+Shattergang Brothers) does not. Digging or recurring enchantment cards as the main
+use does (Tameshi, Rick Jones).
+R19. untap-engine: gaining control of a creature and untapping it (The Beast,
+Yasova Dragonclaw, Zidane) untaps another permanent, so it counts, as does "untap
+target creature", "untap it and all Samurai" (Godo) and "that player untaps a land"
+(Hokori). "Untap up to one target Kraken" (The Watcher in the Water) is itself in
+practice and does not. "Doesn't untap during your untap step" and stun text never count.
+R20. group-hug: the receiver must get something they want. Cards, mana, life,
+lands, Treasure, Clue or Food, a free creature that is theirs to keep, a donated
+permanent (Zedruu, Iroh, Stiltzkin, Yes Man, Inniaz) all count, and so does a gift
+to whoever attacks or casts (Breena, Jolene, Ellie, Karazikar). A gift that is a
+burden does not: goaded creatures (Dack Fayden, Jon Irenicus, Rendmaw, Vislor), The
+Void (The Sentry), Walker tokens (Hansk), a monarch handed over to take their
+creatures (Garland, M'Baku), the commander itself given away to play it back (Abby,
+Xantcha, Kain). Looting (Cait, Mog) and a wholesale swap of every permanent
+(Aminatou) are symmetric but not gifts. "Target player draws" counts on a repeatable
+activation (Xira Arien, Kenrith) and not on a one-shot planeswalker mode (Will
+Kenrith).
+R21. Label check: after rating, the labels were compared with the EDHREC theme shares
+(enchantress + auras + sagas, tap-untap, group-hug) for every commander with a page of
+30 or more themed decks. A rated-true label under 1% share or a rated-false one over 4%
+(group-hug) or 8% (enchantress) was reread against the text, and 12 labels changed
+(group-hug: Dack Fayden, Hansk, The Beamtown Bullies, Varchild, Gonti Lord of Luxury,
+Garland, M'Baku, Vislor Turlough, Rendmaw to false; enchantment-matters: Ramses
+Overdark, Callaphe to true; creature-etb: Elesh Norn, Mother of Machines to false). The
+detector never reads EDHREC for these four keywords.
