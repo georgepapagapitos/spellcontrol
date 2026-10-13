@@ -379,6 +379,7 @@ fetch-errors, unresolved-names) after a single import — reference
 implementation is `components/import/UploadPanel.tsx`'s `.import-review` container
 and `UnresolvedNameRow`:
 
+- **The status region sits below the input card, never above it.** The progress strip and the review appear and grow while the card is on screen; above it they pushed the card down 190px on a phone (CLS 0.149 on a 49-card paste, E307 follow-up). Below it nothing already visible moves, and `UploadPanel` scrolls the region into view (`nearest`, smooth unless reduced motion) when an import starts and when its result lands. Guarded in `UploadPanel.test.tsx`.
 - **One container** (`.import-review`, `--radius-lg`, `--surface` bg) with a
   single header: a small title that reads `Import needs a look` if
   anything is still actionable (fetch errors to retry, names to fix) or

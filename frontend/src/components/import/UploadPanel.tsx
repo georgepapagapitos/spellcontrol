@@ -255,6 +255,17 @@ export function UploadPanel({ hideScanButton = false, onSeeFindings }: UploadPan
     unresolvedCount: hasCollection ? unresolvedNames.length : 0,
   });
 
+  // The status region sits below the input card (see its comment in the JSX), so
+  // on a phone it can start under the fold. Bring it into view when an import
+  // starts and when its result lands. `nearest` is a no-op when it is already
+  // visible; the scroll is a user-facing move, not a layout shift.
+  const statusRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!isLoading && !showImportReview) return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    statusRef.current?.scrollIntoView?.({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+  }, [isLoading, showImportReview]);
+
   const handlePickFile = async () => {
     if (isLoading) return;
     fileInputRef.current?.click();
@@ -665,155 +676,7 @@ export function UploadPanel({ hideScanButton = false, onSeeFindings }: UploadPan
   return (
     <div className="upload-panel">
       {confirmDialog}
-      {/* A progress strip at the top of the panel for each phase of an import:
-          1. Parsing — determinate per batch when the file was big enough to
-             be chunked, otherwise (a small upload) indeterminate.
-          2. Saving to the device — indeterminate; short.
-          3. Saving to the account — the server push. The panel has already
-             let go by then (the store returns once the rows are on the
-             device), so this strip stays up without blocking, advancing per
-             /api/sync round trip, and disappears when the push settles. */}
-      {isLoading ? (
-        <div className="upload-progress" role="status" aria-live="polite">
-          {savingLocally ? (
-            <ProgressBar indeterminate message="Saving your cards to this device…" />
-          ) : importProgress && importProgress.totalChunks > 1 ? (
-            <ProgressBar
-              percent={(importProgress.chunkIndex / importProgress.totalChunks) * 100}
-              message={formatImportProgressMessage(importProgress)}
-            />
-          ) : (
-            <ProgressBar indeterminate message="Importing your collection…" />
-          )}
-        </div>
-      ) : (
-        pushProgress && (
-          <div className="upload-progress" role="status" aria-live="polite">
-            <ProgressBar
-              percent={(pushProgress.done / pushProgress.total) * 100}
-              message={formatPushProgressMessage(pushProgress)}
-            />
-          </div>
-        )
-      )}
       {sealMoment}
-      {!error && showImportReview && (
-        <div className="import-review" role="status" aria-live="polite">
-          <div className="import-review-header">
-            <span className="import-review-title">{reviewHeadline}</span>
-            {(successMsg || routingSummary.entries.length > 0) && (
-              <IconButton
-                variant="quiet"
-                className="banner-dismiss"
-                onClick={handleDismissReviewSummary}
-                label="Dismiss import summary"
-                icon={<X width={16} height={16} strokeWidth={2} />}
-              />
-            )}
-          </div>
-
-          {successMsg && <p className="import-review-line">{successMsg}</p>}
-          {successMsg && findingsReady && onSeeFindings && (
-            <div>
-              <Button variant="link" onClick={onSeeFindings}>
-                See what we found
-              </Button>
-            </div>
-          )}
-
-          {(routingSummary.entries.length > 0 || routingSummary.unroutedCount > 0) && (
-            <div className="import-review-section import-review-section--routing">
-              <ImportRoutingSummary summary={routingSummary} />
-            </div>
-          )}
-
-          {fetchErrors.length > 0 && (
-            <div className="import-review-section import-review-section--warn" role="alert">
-              <div className="row-between">
-                <span>
-                  {fetchErrorMessage(
-                    fetchErrors.length,
-                    "Scryfall couldn't be reached, so they weren't imported. Try again."
-                  )}
-                </span>
-                <span className="fetch-error-actions">
-                  <Button variant="link" onClick={() => setShowFetchErrors((v) => !v)}>
-                    {showFetchErrors ? 'Hide list' : 'Show list'}
-                  </Button>
-                  <Button variant="primary" onClick={handleRetryFetchErrors} disabled={isLoading}>
-                    Retry
-                  </Button>
-                </span>
-              </div>
-              {showFetchErrors && (
-                <ul className="unresolved-list">
-                  {fetchErrors.map((r, i) => (
-                    <li key={i}>{(r.quantity ?? 1) > 1 ? `${r.quantity}× ${r.name}` : r.name}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-
-          {malformedRows.length > 0 && (
-            <div className="import-review-section import-review-section--warn" role="alert">
-              <div className="row-between">
-                <span>
-                  {malformedRows.length} row{malformedRows.length !== 1 ? 's' : ''} couldn't be read
-                  at all. They weren't imported.
-                </span>
-                <span className="fetch-error-actions">
-                  <Button variant="link" onClick={() => setShowMalformed((v) => !v)}>
-                    {showMalformed ? 'Hide list' : 'Show list'}
-                  </Button>
-                  <IconButton
-                    variant="quiet"
-                    className="banner-dismiss"
-                    onClick={() => setMalformedRows([])}
-                    label="Dismiss"
-                    icon={<X width={16} height={16} strokeWidth={2} />}
-                  />
-                </span>
-              </div>
-              {showMalformed && (
-                <ul className="unresolved-list">
-                  {malformedRows.map((line, i) => (
-                    <li key={i}>{line}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-
-          {hasCollection && unresolvedNames.length > 0 && (
-            <div className="import-review-section import-review-section--warn">
-              <div className="row-between">
-                <span>
-                  {unresolvedNames.length} card{unresolvedNames.length !== 1 ? 's' : ''} didn't
-                  match Scryfall. Fix them below, or leave them as bare entries with no image or
-                  price.
-                </span>
-                <Button variant="link" onClick={() => setShowUnresolved((v) => !v)}>
-                  {showUnresolved ? 'Hide list' : 'Show list'}
-                </Button>
-              </div>
-              {showUnresolved && (
-                <ul className="unresolved-repair-list">
-                  {unresolvedNames.map((n) => (
-                    <UnresolvedNameRow
-                      key={n}
-                      name={n}
-                      disabled={isLoading}
-                      onResolved={handleNameRepaired}
-                    />
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
       <div className="import-grid">
         <Surface
           as="div"
@@ -1077,6 +940,159 @@ export function UploadPanel({ hideScanButton = false, onSeeFindings }: UploadPan
             )}
           </div>
         </Surface>
+      </div>
+      {/* The status region (progress, then the review) sits BELOW the input card:
+          it appears and grows when an import runs, and anything above the card
+          would push the card down with it (CLS 0.15 at 390 on a 49-card paste).
+          Below it, nothing that was already on screen has to move. */}
+      <div className="import-status" ref={statusRef}>
+        {/* A progress strip at the top of the panel for each phase of an import:
+            1. Parsing — determinate per batch when the file was big enough to
+               be chunked, otherwise (a small upload) indeterminate.
+            2. Saving to the device — indeterminate; short.
+            3. Saving to the account — the server push. The panel has already
+               let go by then (the store returns once the rows are on the
+               device), so this strip stays up without blocking, advancing per
+               /api/sync round trip, and disappears when the push settles. */}
+        {isLoading ? (
+          <div className="upload-progress" role="status" aria-live="polite">
+            {savingLocally ? (
+              <ProgressBar indeterminate message="Saving your cards to this device…" />
+            ) : importProgress && importProgress.totalChunks > 1 ? (
+              <ProgressBar
+                percent={(importProgress.chunkIndex / importProgress.totalChunks) * 100}
+                message={formatImportProgressMessage(importProgress)}
+              />
+            ) : (
+              <ProgressBar indeterminate message="Importing your collection…" />
+            )}
+          </div>
+        ) : (
+          pushProgress && (
+            <div className="upload-progress" role="status" aria-live="polite">
+              <ProgressBar
+                percent={(pushProgress.done / pushProgress.total) * 100}
+                message={formatPushProgressMessage(pushProgress)}
+              />
+            </div>
+          )
+        )}
+        {!error && showImportReview && (
+          <div className="import-review" role="status" aria-live="polite">
+            <div className="import-review-header">
+              <span className="import-review-title">{reviewHeadline}</span>
+              {(successMsg || routingSummary.entries.length > 0) && (
+                <IconButton
+                  variant="quiet"
+                  className="banner-dismiss"
+                  onClick={handleDismissReviewSummary}
+                  label="Dismiss import summary"
+                  icon={<X width={16} height={16} strokeWidth={2} />}
+                />
+              )}
+            </div>
+
+            {successMsg && <p className="import-review-line">{successMsg}</p>}
+            {successMsg && findingsReady && onSeeFindings && (
+              <div>
+                <Button variant="link" onClick={onSeeFindings}>
+                  See what we found
+                </Button>
+              </div>
+            )}
+
+            {(routingSummary.entries.length > 0 || routingSummary.unroutedCount > 0) && (
+              <div className="import-review-section import-review-section--routing">
+                <ImportRoutingSummary summary={routingSummary} />
+              </div>
+            )}
+
+            {fetchErrors.length > 0 && (
+              <div className="import-review-section import-review-section--warn" role="alert">
+                <div className="row-between">
+                  <span>
+                    {fetchErrorMessage(
+                      fetchErrors.length,
+                      "Scryfall couldn't be reached, so they weren't imported. Try again."
+                    )}
+                  </span>
+                  <span className="fetch-error-actions">
+                    <Button variant="link" onClick={() => setShowFetchErrors((v) => !v)}>
+                      {showFetchErrors ? 'Hide list' : 'Show list'}
+                    </Button>
+                    <Button variant="primary" onClick={handleRetryFetchErrors} disabled={isLoading}>
+                      Retry
+                    </Button>
+                  </span>
+                </div>
+                {showFetchErrors && (
+                  <ul className="unresolved-list">
+                    {fetchErrors.map((r, i) => (
+                      <li key={i}>{(r.quantity ?? 1) > 1 ? `${r.quantity}× ${r.name}` : r.name}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {malformedRows.length > 0 && (
+              <div className="import-review-section import-review-section--warn" role="alert">
+                <div className="row-between">
+                  <span>
+                    {malformedRows.length} row{malformedRows.length !== 1 ? 's' : ''} couldn't be
+                    read at all. They weren't imported.
+                  </span>
+                  <span className="fetch-error-actions">
+                    <Button variant="link" onClick={() => setShowMalformed((v) => !v)}>
+                      {showMalformed ? 'Hide list' : 'Show list'}
+                    </Button>
+                    <IconButton
+                      variant="quiet"
+                      className="banner-dismiss"
+                      onClick={() => setMalformedRows([])}
+                      label="Dismiss"
+                      icon={<X width={16} height={16} strokeWidth={2} />}
+                    />
+                  </span>
+                </div>
+                {showMalformed && (
+                  <ul className="unresolved-list">
+                    {malformedRows.map((line, i) => (
+                      <li key={i}>{line}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {hasCollection && unresolvedNames.length > 0 && (
+              <div className="import-review-section import-review-section--warn">
+                <div className="row-between">
+                  <span>
+                    {unresolvedNames.length} card{unresolvedNames.length !== 1 ? 's' : ''} didn't
+                    match Scryfall. Fix them below, or leave them as bare entries with no image or
+                    price.
+                  </span>
+                  <Button variant="link" onClick={() => setShowUnresolved((v) => !v)}>
+                    {showUnresolved ? 'Hide list' : 'Show list'}
+                  </Button>
+                </div>
+                {showUnresolved && (
+                  <ul className="unresolved-repair-list">
+                    {unresolvedNames.map((n) => (
+                      <UnresolvedNameRow
+                        key={n}
+                        name={n}
+                        disabled={isLoading}
+                        onResolved={handleNameRepaired}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {error && (

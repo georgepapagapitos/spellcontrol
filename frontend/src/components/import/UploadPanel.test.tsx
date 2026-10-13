@@ -475,6 +475,26 @@ describe('UploadPanel import review surface (E130)', () => {
     expect(within(unresolvedSection).getByRole('button', { name: /Fix/ })).toBeTruthy();
   });
 
+  // CLS guard (E307 follow-up): the progress strip and the review arrive and grow
+  // when an import runs. Above the input card they pushed it down 190px on a
+  // phone (CLS 0.149); below it nothing already on screen moves.
+  it('renders the review and the progress strip after the input card, never above it', () => {
+    mockState.cards = [card(1)];
+    mockState.fetchErrors = [{ name: 'Foo', quantity: 2 }];
+    mockState.isLoading = true;
+    const { container } = render(<UploadPanel />);
+    const card_ = container.querySelector('.import-card') as HTMLElement;
+    for (const sel of ['.upload-progress', '.import-review']) {
+      const el = container.querySelector(sel) as HTMLElement;
+      expect(el, sel).toBeTruthy();
+      expect(
+        card_.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING,
+        sel
+      ).toBeTruthy();
+    }
+    mockState.isLoading = false;
+  });
+
   it('reads as a plain summary when nothing needs action', () => {
     mockState.cards = [card(1)];
     mockState.fetchErrors = [];

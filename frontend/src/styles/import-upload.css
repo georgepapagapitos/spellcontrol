@@ -13,11 +13,11 @@
    banners stacked on top of each other. See STYLE_GUIDE § Import review
    surface. */
 .import-review {
+  margin-top: var(--space-3);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: var(--space-3) var(--space-4);
-  margin-bottom: var(--space-3);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -735,7 +735,7 @@
    when the bar appears. (Moved here from the scanner sheet, which now
    only loads with the scanner / admin chunks — E265.) */
 .upload-progress {
-  margin-bottom: var(--space-3);
+  margin-top: var(--space-3);
 }
 
 /* The track/fill (incl. the indeterminate sweep) is the shared <MeterBar>
