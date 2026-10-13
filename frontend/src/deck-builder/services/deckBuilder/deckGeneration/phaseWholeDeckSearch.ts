@@ -310,17 +310,23 @@ const OWNED_PER_SLOT = 12;
 const OWNED_ANY_SLOT = 24;
 /** Owned nonbasic lands kept, the most played first. */
 const OWNED_LANDS = 30;
+/** Owned spells a collection build always weighs, the page's most played first,
+ *  then EDHREC's: the count Coach's Cuts lane scores (MAX_CANDIDATES in
+ *  lib/coach/coach-cut-swaps.ts), so Coach finds no owned card the search never saw. */
+export const OWNED_BROWSE = 150;
 
 /**
  * The owned cards the page doesn't rank, by name, that the search may seat
  * (E509). Lands are always resolved in a collection build: the generator meets
  * a land only through the page's land list, so an owned dual or utility land is
- * otherwise out of reach (the most played OWNED_LANDS are kept). Spells are
- * resolved only while the list breaks a rule the search repairs (an ownership
- * rule the generator left relaxed is not one, but a Game Changer ceiling in an
- * owned-only build is, and its replacement has to be owned): the most played
- * (EDHREC rank) of each slot the cards to replace fill (their counted role, a
- * protection piece), plus the most played of any slot.
+ * otherwise out of reach (the most played OWNED_LANDS are kept). Spells: while
+ * the list breaks a rule the search repairs (an ownership rule the generator left
+ * relaxed is not one, but a Game Changer ceiling in an owned-only build is, and
+ * its replacement has to be owned), the most played (EDHREC rank) of each slot the
+ * cards to replace fill (their counted role, a protection piece), plus the most
+ * played of any slot. Otherwise the OWNED_BROWSE most played, the cards Coach
+ * weighs: a Zo-Zu build seated Kiki-Jiki and never saw the owned Zealous
+ * Conscripts that completes it, then Coach offered it as the deck's best swap.
  */
 export async function ownedExtraCandidates(
   state: GenerationState,
@@ -340,13 +346,29 @@ export async function ownedExtraCandidates(
   // A land by its front face, as the search reads it (an MDFC spell is a spell).
   const isLandEntry = (c: { typeLine?: string }) =>
     /\bLand\b/.test((c.typeLine ?? '').split(' // ')[0]);
-  const rest = (collectionPool ?? []).filter(
+  const browse = broken.length === 0;
+  const inIdentity = (collectionPool ?? []).filter(
     (c) =>
       !known.has(c.name) &&
       !state.bannedCards.has(c.name) &&
-      c.colorIdentity.every((x) => colorIdentity.includes(x)) &&
-      (broken.length > 0 || isLandEntry(c))
+      c.colorIdentity.every((x) => colorIdentity.includes(x))
   );
+  const inclusion = (name: string) =>
+    ctx.edhrec.get(name)?.inclusion ?? ctx.edhrec.get(frontFaceName(name))?.inclusion ?? 0;
+  const rest = browse
+    ? [
+        ...inIdentity.filter(isLandEntry),
+        ...inIdentity
+          .filter((c) => !isLandEntry(c))
+          .sort(
+            (a, b) =>
+              inclusion(b.name) - inclusion(a.name) ||
+              (a.edhrecRank ?? Infinity) - (b.edhrecRank ?? Infinity) ||
+              (a.name < b.name ? -1 : 1)
+          )
+          .slice(0, OWNED_BROWSE),
+      ]
+    : inIdentity;
   if (rest.length === 0) return out;
   // The cards a repair takes out: the unowned ones a violation names, or,
   // under an owned share, every unowned spell.
@@ -380,7 +402,7 @@ export async function ownedExtraCandidates(
     const k = slotKey(c);
     const n = perSlot.get(k) ?? 0;
     const keepForSlot = needed.has(k) && n < OWNED_PER_SLOT;
-    const keepForAny = anySlot < OWNED_ANY_SLOT;
+    const keepForAny = anySlot < (browse ? OWNED_BROWSE : OWNED_ANY_SLOT);
     if (!keepForSlot && !keepForAny) continue;
     if (keepForSlot) perSlot.set(k, n + 1);
     else anySlot++;

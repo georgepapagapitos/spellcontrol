@@ -40,6 +40,9 @@ export interface SubstituteCandidate {
   scryfallId?: string;
   /** Oracle id (`EnrichedCard.oracleId`), checked against the resolved card. */
   oracleId?: string;
+  /** EDHREC's overall rank (`EnrichedCard.edhrecRank`): orders the owned cards the
+   *  whole-deck search fetches, before any is resolved. */
+  edhrecRank?: number;
 }
 
 /** A candidate fits when its whole color identity sits inside the deck's (mirrors `fitsColorIdentity`). */

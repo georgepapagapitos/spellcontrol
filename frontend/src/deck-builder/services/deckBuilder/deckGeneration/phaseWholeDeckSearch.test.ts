@@ -12,6 +12,7 @@ import {
   discoveryReason,
   landSeatedSpells,
   ownedExtraCandidates,
+  OWNED_BROWSE,
   reasonLine,
 } from './phaseWholeDeckSearch';
 import type { GenerationState } from './state';
@@ -57,7 +58,7 @@ describe('reasonLine', () => {
 // Meren cards; the list owns itself and two lands it doesn't play.
 describe('ownedExtraCandidates', () => {
   const LANDS = ["Gaea's Cradle", 'Phyrexian Tower'];
-  const SPELL = 'Eternal Witness';
+  const SPELL = 'Butcher of Malakir';
   const inList = new Set(BASELINE.cards.map((c) => c.name));
   const owned = new Set([...inList, ...LANDS, SPELL]);
   const ctx = merenCtx({
@@ -96,9 +97,54 @@ describe('ownedExtraCandidates', () => {
       new Set()
     );
 
-  it('keeps the owned lands the list does not hold, and no spell while no rule is broken', async () => {
+  // A Zo-Zu build seated Kiki-Jiki and never weighed the owned Zealous Conscripts
+  // that completes it; Coach then offered it as the deck's best swap. With no rule
+  // broken the search weighs the owned spells Coach weighs, not only the lands.
+  it('keeps the owned lands and spells the list does not hold, with no rule broken', async () => {
     const got = await run([...LANDS, SPELL]);
-    expect([...got.keys()].sort()).toEqual([...LANDS].sort());
+    expect([...got.keys()].sort()).toEqual([...LANDS, SPELL].sort());
+  });
+
+  it('fetches the OWNED_BROWSE most played owned spells, the page first, then EDHREC rank', async () => {
+    const filler = Array.from({ length: OWNED_BROWSE + 20 }, (_, i) => ({
+      name: `Owned Spell ${String(i).padStart(3, '0')}`,
+      colorIdentity: ['B'],
+      typeLine: 'Creature',
+      edhrecRank: 1000 + i,
+    }));
+    const browseState = {
+      ...state,
+      context: {
+        ...state.context,
+        collectionPool: [
+          ...filler,
+          // Unranked by EDHREC, but on this commander's page: fetched first.
+          { name: SPELL, colorIdentity: ['B'], typeLine: card(SPELL).type_line },
+        ],
+      },
+    } as unknown as GenerationState;
+    const asked: string[] = [];
+    await ownedExtraCandidates(
+      browseState,
+      BASELINE,
+      {
+        ...ctx,
+        edhrec: new Map([[SPELL, { name: SPELL, inclusion: 30 }]]),
+      } as unknown as typeof ctx,
+      {
+        resolveOwned: async (names: string[]) => {
+          asked.push(...names);
+          return new Map<string, ScryfallCard>();
+        },
+      } as never,
+      [],
+      () => true,
+      new Set()
+    );
+    expect(asked).toHaveLength(OWNED_BROWSE);
+    expect(asked[0]).toBe(SPELL);
+    expect(asked).toContain('Owned Spell 000');
+    expect(asked).not.toContain(`Owned Spell ${String(OWNED_BROWSE + 19).padStart(3, '0')}`);
   });
 });
 
