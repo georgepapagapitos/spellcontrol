@@ -42,7 +42,7 @@ export interface LandTopUpContext {
   // Prefer an Arena-legal basic printing over the cheapest paper one (E271).
   arenaOnly?: boolean;
   /** Basics the user has free ('available' strategy only; undefined = no limit).
-   *  Mirrors generateLands' availableCount, so the top-up cannot pad past the
+   *  The land-deficit top-up honors it; the last-resort pad does not. Mirrors generateLands' availableCount, so the top-up cannot pad past the
    *  copies the player can actually pull (E1005). */
   availableBasicCount?: (name: string) => number;
 }
@@ -187,6 +187,9 @@ export async function runLastResortLandFill(
   if (currentCount >= targetDeckSize) return 0;
   const remainingShortage = targetDeckSize - currentCount;
   logger.debug(`[DeckGen] Still need ${remainingShortage} more cards, adding basic lands`);
-  await addBasicLands(ctx, remainingShortage);
+  // Size beats availability here (E1005): every fill tier has run, and a deck
+  // short of its size is not a deck. The copies the player lacks are the
+  // honest cost, and the caller discloses them through the returned count.
+  await addBasicLands({ ...ctx, availableBasicCount: undefined }, remainingShortage);
   return remainingShortage;
 }

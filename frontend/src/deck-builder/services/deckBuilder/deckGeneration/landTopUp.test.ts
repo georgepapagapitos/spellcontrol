@@ -110,11 +110,11 @@ describe("the top-up respects the 'available' basic counts", () => {
     expect(categories.lands).toHaveLength(4);
   });
 
-  it('the last-resort pad obeys the same counts', async () => {
+  it('the last-resort pad still reaches the deck size: size beats availability', async () => {
     const categories = emptyCategories();
     const ctx: LandTopUpContext = { colorIdentity: ['U', 'B'], categories, availableBasicCount };
-    await runLastResortLandFill(ctx, 99, 90);
-    expect(categories.lands).toHaveLength(4);
+    expect(await runLastResortLandFill(ctx, 99, 90)).toBe(9);
+    expect(categories.lands).toHaveLength(9);
   });
 
   it('without the limit it pads the whole deficit', async () => {

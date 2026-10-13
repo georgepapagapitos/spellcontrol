@@ -366,6 +366,9 @@ interface RunSpec {
    *  deck). The harness has no user lists, so this is how a row asks for a
    *  must-include that is not in `overrides.mustIncludeCards`. */
   optimizeDeckCards?: string[];
+  /** E1005: free copies per card name ('available' strategy), e.g. the basics a
+   *  player has on hand. Absent = the harness passes none, as before. */
+  availableCounts?: Record<string, number>;
 }
 
 /** A row's themes in pick order: `themes`, else the single themeName/themeSlug. */
@@ -871,6 +874,9 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
           collectionNames,
           collectionPool: fixture ? fixture.pool : collectionNames ? COLLECTION_POOL : undefined,
           optimizeDeckCards: spec.optimizeDeckCards,
+          collectionAvailableCounts: spec.availableCounts
+            ? new Map(Object.entries(spec.availableCounts))
+            : undefined,
           // E638: the search ends on its evaluation cap, not the machine's clock,
           // so two runs of one commit build the same deck (liveGenSearch.ts).
           searchTimeBudgetMs: liveSearchBudgetMs(process.env),
