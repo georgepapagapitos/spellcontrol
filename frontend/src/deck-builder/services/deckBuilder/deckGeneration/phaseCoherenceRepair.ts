@@ -9,7 +9,7 @@ import type {
 } from '@/deck-builder/types';
 import { type GenerationState, markBanned } from './state';
 import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
-import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
+import { CHANNEL_LANDS, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import {
   getCardRole,
   readsAsProtection,
@@ -76,6 +76,11 @@ import { evictionKeeper } from './evictionKeeper';
 // (≥2 seeds — the #968 rule), game changers, and load-bearing engine cards.
 
 export const MAX_COHERENCE_SWAPS = 3;
+
+// A channel land flagged while a color is short is swapped only for a fixer, never a
+// basic, and the swap moves no spell, so it is not rationed with the spell swaps.
+const isChannelFinding = (f: { kind: string; card?: string }): boolean =>
+  f.kind === 'land-sanity' && !!f.card && f.card in CHANNEL_LANDS;
 
 export interface CoherenceRepairContext {
   /** name → ScryfallCard map built during generation (for swap-in lookups). */
@@ -155,6 +160,9 @@ export async function applyCoherenceRepair(
   // post-convergence deckScorePhase reads, available here without running it.
   const inclusionMap: Record<string, number> = {};
   for (const c of pool) inclusionMap[c.name] = c.inclusion ?? 0;
+  // Lands key the same map so the land findings can spare a staple.
+  for (const c of state.edhrecData?.cardlists.lands ?? [])
+    inclusionMap[c.name] ??= c.inclusion ?? 0;
 
   // Pool entries by name, for weakestCut's theme-tier lookup below.
   const poolByName = new Map<string, EDHRECCard>();
@@ -375,7 +383,8 @@ export async function applyCoherenceRepair(
     .sort((a, b) => (a.severity === 'warn' ? 0 : 1) - (b.severity === 'warn' ? 0 : 1));
 
   for (const f of actionable) {
-    if (swaps >= MAX_COHERENCE_SWAPS) break;
+    // A fixer-for-utility land swap moves no spell, so it is not rationed with them.
+    if (swaps >= MAX_COHERENCE_SWAPS && !isChannelFinding(f)) continue;
 
     if (f.kind === 'land-sanity') {
       if (!f.basicFixColor) continue; // typal findings are report-only
@@ -383,6 +392,18 @@ export async function applyCoherenceRepair(
       if (!basicName) continue;
       const idx = state.categories.lands.findIndex((l) => l.name === f.card);
       if (idx < 0 || state.categories.lands[idx].isMustInclude) continue;
+      // The finding is from before this pass's earlier swaps: swap a utility land
+      // for a fixer only while the color is still short on the deck as it stands.
+      if (
+        isChannelFinding(f) &&
+        !buildManabaseSummary(
+          state.categories.lands,
+          nonLands(),
+          new Set(colorIdentity)
+        ).lines.some((l) => l.color === f.basicFixColor && l.short)
+      ) {
+        continue;
+      }
       const cut = state.categories.lands[idx];
       // Refill from the next fixing nonbasic that makes the short color, so the deck
       // keeps its nonbasic count; a basic is the last resort.
@@ -399,9 +420,10 @@ export async function applyCoherenceRepair(
           ctx.budgetTracker?.deductCard(spare);
         }
         repairs.push({ cut: cut.name, added: spare.name, reason: f.message });
-        swaps++;
+        if (!isChannelFinding(f)) swaps++;
         continue;
       }
+      if (isChannelFinding(f)) continue;
       const basic = await ctx.getBasicLand(basicName);
       if (!basic) continue;
       state.categories.lands[idx] = { ...basic };
