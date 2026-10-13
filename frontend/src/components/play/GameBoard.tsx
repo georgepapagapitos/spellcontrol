@@ -69,6 +69,8 @@ import { useRulesReferenceStore } from '../../store/rules-reference';
 import { GameRecap } from './GameRecap';
 import './BoardHighRoll.css';
 import { IconButton } from '@/components/shared/Button';
+import { DESKTOP_TABLE_QUERY } from '@/lib/play/desktop-table';
+import { useMediaQuery } from '@/lib/util/use-media-query';
 
 interface Props {
   game: GameState;
@@ -123,6 +125,11 @@ export function GameBoard({
 }: Props) {
   const total = game.players.length;
   const isShared = game.mode === 'local';
+  // Desktop (a wide window with a mouse): nobody sits across the laptop, so the
+  // far-side seats face the player like an online table's do. The tablet and
+  // phone board, laid flat between players, keeps its rotations.
+  const deskTable = useMediaQuery(DESKTOP_TABLE_QUERY);
+  const faces = isShared && !deskTable;
   // Resolve to a concrete layout (grid + per-seat slots). Unknown / legacy
   // layout ids fall back to the count's default.
   const board = resolveLayout(total, game.layout, turnOrderOf(game));
@@ -160,7 +167,7 @@ export function GameBoard({
   const keypadPlayer = keypadIndex >= 0 ? game.players[keypadIndex] : null;
   const keypadSlot =
     keypadIndex >= 0 ? (board.seats[keypadIndex] ?? board.seats[board.seats.length - 1]) : null;
-  const keypadRotation = isShared ? (keypadSlot?.rot ?? 0) : 0;
+  const keypadRotation = faces ? (keypadSlot?.rot ?? 0) : 0;
   const closeKeypad = useCallback(() => setKeypadSeat(null), []);
 
   // The hub's radial petal ring (Lotus's fan-out): open outside commander-
@@ -492,7 +499,7 @@ export function GameBoard({
                 // including commander-damage focus mode. Re-orienting the board
                 // under a mode reads as the seats moving, which is disorienting
                 // and looks broken — the panel stays where and how it sits.
-                rotation={isShared ? slot.rot : 0}
+                rotation={faces ? slot.rot : 0}
                 // Composed into gesture math only (tap zones, swipes) — never
                 // added to the panel's own CSS rotation above, which already
                 // picks this up for free by being nested inside the rotated

@@ -49,16 +49,19 @@
      so changing the registry never needs a CSS edit. */
 }
 
-/* On a wide desktop window the grid otherwise stretches edge to edge — a
-   2-player stack puts each panel's +/− steppers ~1300px apart and the board
-   reads as a splash screen rather than a table. Cap and center the grid; the
-   slate canvas showing through the side margins is the same breathing-room
-   treatment the gap already uses. The seam-positioned hub/undo buttons
-   resolve against the grid (position: relative above), so they stay on the
-   real row/column boundary after centering. */
-@media (min-width: 1280px) {
-  :where(.game-board-rotator:not([data-board-rot])) > .game-board-grid {
-    max-width: 75rem;
+/* Desktop (a wide window with a mouse): the board is scoped to phone and
+   tablet, and this is the one concession above 1024px. The whole board (seats,
+   clock strip, hub) becomes one device-sized table, centered on the black
+   canvas, instead of two stretched panels 1300px apart. It is the tablet
+   layout at tablet width, not a second layout: same preset grids, same panel
+   CSS. Seats also stop rotating (GameBoard.tsx reads the same query through
+   `DESKTOP_TABLE_QUERY`; keep the two textually identical), since nobody sits
+   across a laptop. A touch tablet is `pointer: coarse` and never matches, so
+   a tablet lying flat between players keeps its rotated seats at any width.
+   STYLE_GUIDE play-table.md "Play board: desktop is one device-sized table". */
+@media (min-width: 1025px) and (pointer: fine) {
+  :where(.game-board-rotator:not([data-board-rot])) {
+    max-width: 48rem;
     margin-inline: auto;
   }
 }
