@@ -24,6 +24,81 @@ import type { BracketGuard } from './bracketGuard';
 import { validateCardRole, type RoleKey } from '@/deck-builder/services/tagger/client';
 import { roleCapTolerance, ROLE_CAP_HATCH_MAX_PER_PASS } from './categorize';
 import { qualifiedPayoffMismatch } from './nonbo';
+import type { SubstituteCandidate } from './substituteFinder';
+
+/** Names per owned-pool search: a `!"A" or !"B"` clause stays well inside URL limits. */
+const OWNED_CHUNK = 30;
+/** Most chunks one fill walks: 20 × 30 = the 600 best-ranked owned candidates. */
+// ponytail: hard cap on owned candidates searched per fill — raise it if a fill
+// whose query names no type (so the type pre-filter drops nothing) comes up short.
+const OWNED_MAX_CHUNKS = 20;
+
+/** The type words a Scryfall type query asks for / excludes: `t:creature`,
+ *  `t:artifact -t:creature`, `(t:creature OR t:instant)`. Null when the query
+ *  names no type, so the pre-filter then drops nothing. */
+function queryTypeWords(query: string): { any: string[]; not: string[] } | null {
+  const any = [...query.matchAll(/(?<![-\w])t:(\w+)/g)].map((m) => m[1].toLowerCase());
+  const not = [...query.matchAll(/-t:(\w+)/g)].map((m) => m[1].toLowerCase());
+  return any.length > 0 || not.length > 0 ? { any, not } : null;
+}
+
+/**
+ * Owned-only fills draw from the collection itself. The global edhrec-ordered
+ * page (175 cards) holds a small slice of what the player owns, so filtering it
+ * by ownership afterward starved the owned backfill and the land fallback: they
+ * saw only the globally-top owned cards, then the deck reached outside the
+ * collection and said the collection had run out. This ranks the collection by
+ * the same scoring the fill applies (lift, then tag synergy with the deck so
+ * far), then asks Scryfall for chunks of those exact names under the full fill
+ * query, so rarity, price, Arena and the user's filter still apply, until enough
+ * survive.
+ */
+async function searchOwnedPool(
+  fullQuery: string,
+  pool: readonly SubstituteCandidate[],
+  colorIdentity: string[],
+  usedNames: Set<string>,
+  bannedCards: Set<string>,
+  want: number,
+  liftScoreOf?: (name: string) => number
+): Promise<ScryfallCard[]> {
+  const types = queryTypeWords(fullQuery);
+  const fingerprint = buildSynergyFingerprint(usedNames);
+  const ranked = pool
+    .map((e, i) => ({ e, i }))
+    .filter(({ e }) => {
+      if (usedNames.has(e.name) || usedNames.has(frontFaceName(e.name))) return false;
+      if (bannedCards.has(e.name)) return false;
+      if (!e.colorIdentity.every((c) => colorIdentity.includes(c))) return false;
+      const tl = e.typeLine?.toLowerCase();
+      if (types && tl) {
+        if (types.not.some((t) => tl.includes(t))) return false;
+        if (types.any.length > 0 && !types.any.some((t) => tl.includes(t))) return false;
+      }
+      return true;
+    })
+    .map(({ e, i }) => ({
+      name: e.name,
+      i,
+      l: liftScoreOf?.(e.name) ?? 0,
+      s: fingerprint.size > 0 ? synergyScore(e.name, fingerprint) : 0,
+    }))
+    .sort((a, b) => b.l - a.l || b.s - a.s || a.i - b.i);
+
+  const found = new Map<string, ScryfallCard>();
+  for (let c = 0; c < OWNED_MAX_CHUNKS && c * OWNED_CHUNK < ranked.length; c++) {
+    const names = ranked.slice(c * OWNED_CHUNK, (c + 1) * OWNED_CHUNK).map((r) => r.name);
+    const clause = names.map((n) => `!"${n.replace(/"/g, '')}"`).join(' or ');
+    const res = await searchCards(
+      `(${clause}) ${fullQuery}`,
+      commanderSearchIdentity(colorIdentity),
+      { order: 'edhrec' }
+    );
+    for (const card of res.data) found.set(card.name, card);
+    if (found.size >= want) break;
+  }
+  return [...found.values()];
+}
 
 /**
  * Same hard role-cap gate as the primary pick loop (cardPicking.ts's
@@ -69,6 +144,9 @@ export interface FillHardGates {
    *  than shipping the deck short (E111), so the build report can disclose
    *  it once, never silently. */
   qualifiedGateOverflowCount?: { value: number };
+  /** The collection's own cards (E1003): an owned-only fill draws its candidates
+   *  from these instead of the global edhrec page. */
+  ownedPool?: readonly SubstituteCandidate[];
 }
 
 /**
@@ -165,14 +243,30 @@ export async function fillWithScryfall(
   }
 
   try {
-    const response = await searchCards(fullQuery, commanderSearchIdentity(colorIdentity), {
-      order: 'edhrec',
-    });
+    const fromOwnedPool =
+      constrainsToCollection(collectionStrategy) &&
+      !!collectionNames?.size &&
+      !!gates?.ownedPool?.length;
+    const candidates = fromOwnedPool
+      ? await searchOwnedPool(
+          fullQuery,
+          gates!.ownedPool!,
+          colorIdentity,
+          usedNames,
+          bannedCards,
+          Math.max(count * 4, 40),
+          liftScoreOf
+        )
+      : (
+          await searchCards(fullQuery, commanderSearchIdentity(colorIdentity), {
+            order: 'edhrec',
+          })
+        ).data;
 
     // Pass 1: cards clearing the static gates, in Scryfall's global edhrec order.
     // Budget is applied in pass 2 since its cap moves as we deduct.
     const passing: ScryfallCard[] = [];
-    for (const card of response.data) {
+    for (const card of candidates) {
       if (usedNames.has(card.name)) continue; // Commander format is always singleton
       if (bannedCards.has(card.name)) continue; // Skip banned cards
       if (!(slot === 'land' ? fitsLandSlot(card) : fitsSpellSlot(card))) continue;

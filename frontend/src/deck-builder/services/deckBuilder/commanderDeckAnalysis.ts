@@ -562,6 +562,7 @@ export interface AnalyzeCommanderDeckParams {
   buildRemovals?: BuildRemovals;
   /** Lowercased names hidden with "Not for this deck" (E580); Coach never suggests them. */
   dismissedNames?: ReadonlySet<string>;
+  gapFit?: (gap: GapAnalysisCard) => boolean;
 }
 
 export { enrichRecommendationPrices } from './candidateCardData';
@@ -899,10 +900,9 @@ export async function analyzeCommanderDeck(
       liftSeedCount = 0;
     }
 
-    // Gap analysis dedupes against every card name in the list, commanders
-    // included. Ownership is intentionally left unset here — the UI marks
-    // `isOwned` later against the live collection.
-    const gapAnalysis = buildGapAnalysis(edhrecData, allCardNames, { liftIndex });
+    // Dedupes against every card name, commanders included; `gapFit` applies before the cut.
+    const { gapFit: fit } = params;
+    const gapAnalysis = buildGapAnalysis(edhrecData, allCardNames, { liftIndex, fit });
 
     // Hidden gems (E146): underrated candidates the ranking above missed, backed
     // by lift / similar / axis evidence. Best-effort: a failure yields an empty

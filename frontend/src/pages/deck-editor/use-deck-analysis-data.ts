@@ -2,7 +2,8 @@ import { useDeferredValue, useMemo } from 'react';
 import { useDecksStore, type Deck } from '@/store/decks';
 import { useBuildTimeNudge } from '@/lib/coach/use-build-time-nudge';
 import { buildNextBestMoves } from '@/deck-builder/services/deckBuilder/nextBestMove';
-import { type ChangeOwnership } from '@/lib/coach/deck-change';
+import { fromGapCard, type ChangeOwnership } from '@/lib/coach/deck-change';
+import type { GapAnalysisCard } from '@/deck-builder/types';
 import { useReplaceCuts } from '@/lib/coach/replace-cuts';
 import { onPlanCombos } from '@/lib/coach/coach-changes';
 import { combosThatFit, gapsThatFit, useCoachSettings } from '@/lib/coach/deck-settings-fit';
@@ -56,6 +57,15 @@ export function useDeckAnalysisData({
   // E162: also surfaces 'error' (EDHREC unreachable / commander not indexed /
   // stalled fetch) + retry() so a permanently failed first analysis doesn't
   // read as an endless skeleton — see analysisState below.
+  // Coach shows only moves the deck's saved settings allow (price, budget, rarity, …).
+  const coachSettings = useCoachSettings(deck, ownedNames, mainboardLimit);
+  // The analysis' "cards to consider" fits those settings before its top-30 cut.
+  const gapFit = useMemo(() => {
+    const fit = coachSettings.fit;
+    return fit
+      ? (gap: GapAnalysisCard) => fit(fromGapCard(gap, ownershipFor(gap.name)))
+      : undefined;
+  }, [coachSettings.fit, ownershipFor]);
   const bracketAnalysis = useCommanderBracketAnalysis({
     deck,
     comboData: mainboardComboData,
@@ -67,6 +77,7 @@ export function useDeckAnalysisData({
     // The user's target bracket drives the Bracket Fit plan; folding it into the
     // hook recomputes the plan when the target changes, not only when cards do.
     bracketOverride: deck?.bracketOverride,
+    gapFit,
   });
 
   // Build-time coach nudge (E169 Half B) — surfaces at most one combo/
@@ -157,8 +168,6 @@ export function useDeckAnalysisData({
     });
   }, [planOpen, deck, mainboardComboData, liveRoleCounts]);
 
-  // Coach shows only moves the deck's saved settings allow (price, budget, rarity, …).
-  const coachSettings = useCoachSettings(deck, ownedNames, mainboardLimit);
   const replaceCuts = useReplaceCuts(
     deck,
     mainboardComboData,

@@ -17,7 +17,6 @@ import type {
   ManaPhilosophy,
 } from '@/deck-builder/types';
 import {
-  getCardsByNames,
   upgradeCardPrintings,
   isChannelLand,
   isMdfcLand,
@@ -29,6 +28,7 @@ import { isTapland } from '@/deck-builder/services/tagger/client';
 import { BudgetTracker } from './budgetTracker';
 import { fetchMeritLands, landCandidatePrices } from './landBudgetReserve';
 import { pickFromPrefetched } from './cardPicking';
+import { fetchPassingWindows, windowFetcher } from './fetchPassingWindows';
 import { fillWithScryfall, type FillHardGates } from './scryfallFill';
 import {
   constrainsToCollection,
@@ -200,18 +200,18 @@ export async function generateLands(
     // top 12 of the page, the picker then threw away the unowned ones, and a
     // Zo-Zu build asked for 6 nonbasics seated 3 while owning more on the page.
     const ownedOnly = constrainsToCollection(collectionStrategy);
-    const landNamesToFetch = nonBasicEdhrecLands
+    const landCandidateNames = nonBasicEdhrecLands
       .filter((c) => !usedNames.has(c.name) && !bannedCards.has(c.name))
       .filter((c) => !ownedOnly || !notInCollection(c.name, collectionNames))
-      .slice(0, nonBasicTarget * 2)
       .map((c) => c.name);
 
     // Ensure channel lands for this color identity are always fetched and in
     // the candidate list, even if EDHREC doesn't recommend them for this commander
+    const channelNames: string[] = [];
     const edhrecLandNames = new Set(nonBasicEdhrecLands.map((c) => c.name));
     for (const [name, color] of Object.entries(CHANNEL_LANDS)) {
       if (!colorIdentity.includes(color) || usedNames.has(name) || bannedCards.has(name)) continue;
-      if (!landNamesToFetch.includes(name)) landNamesToFetch.push(name);
+      channelNames.push(name);
       if (!edhrecLandNames.has(name)) {
         nonBasicEdhrecLands.push({
           name,
@@ -223,15 +223,38 @@ export async function generateLands(
       }
     }
 
-    const landCardMap = await getCardsByNames(landNamesToFetch, undefined, preferredSet, {
-      arenaOnly,
-    });
-    if (preferredSet) {
-      for (const [name, card] of landCardMap) {
-        if (card.set !== preferredSet) landCardMap.delete(name);
-      }
+    const fetchLandWindow = windowFetcher(preferredSet, arenaOnly, scryfallQuery);
+    // E1003: gate first, then cut. The ranked candidates used to be sliced to 2x the
+    // target before the price / rarity / Arena caps ran, so a tight cap that failed
+    // the top of the page left the pool empty while cheap lands sat past the cut.
+    // More windows follow only while fewer than the target clear the caps capsFilteredLands applies.
+    const landCardMap = await fetchPassingWindows(
+      landCandidateNames,
+      nonBasicTarget,
+      nonBasicTarget * 2,
+      fetchLandWindow,
+      (card) =>
+        fitsLandSlot(card) &&
+        !violatesUserCaps(
+          card,
+          {
+            maxRarity,
+            maxCmc,
+            arenaOnly,
+            maxCardPrice,
+            currency,
+            mtgFormat,
+            ignoreOwnedRarity,
+            ignoreOwnedBudget,
+          },
+          collectionNames
+        )
+    );
+    const missingChannels = channelNames.filter((n) => !landCardMap.has(n));
+    if (missingChannels.length > 0) {
+      for (const [name, card] of await fetchLandWindow(missingChannels))
+        landCardMap.set(name, card);
     }
-    await upgradeCardPrintings(landCardMap, scryfallQuery, true);
 
     // Merit widen (E116): EDHREC's `lands` list can't yet include a strong
     // brand-new land, and the Scryfall fallback below only fires on a shortfall

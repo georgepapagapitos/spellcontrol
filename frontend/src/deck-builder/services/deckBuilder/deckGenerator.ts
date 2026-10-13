@@ -109,6 +109,7 @@ import {
   recordFillSeat,
   type FillHardGates,
 } from './scryfallFill';
+import { fetchPassingWindows, windowFetcher } from './fetchPassingWindows';
 import { isUnsupportedSynergyPayoff } from './synergyDependency';
 import {
   computePackageBoosts,
@@ -2087,6 +2088,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     // seated so far, across every fill call in this generation.
     deckCardsSoFar: () => Object.values(categories).flat(),
     qualifiedGateOverflowCount,
+    ownedPool: context.collectionPool,
   };
   // Aggregate, generation-wide count of role-cap escape-hatch admissions —
   // every gated path (pick loop, Scryfall fallback, shortage backfill, owned
@@ -2272,8 +2274,15 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     // Helper to add names from a pool
     // IMPORTANT: Fetch ALL typed cards first (they're from EDHREC's type-specific lists),
     // then add high synergy Unknown cards. This ensures we actually have cards of the right type.
+    // E1003: an owned-only build drops unowned rows BEFORE the cut below.
+    const poolOwnedOnly = constrainsToCollection(collectionStrategy) && !!context.collectionNames;
     const addPoolNames = (pool: EDHRECCard[], target: number) => {
-      const candidates = pool.filter((c) => !usedNames.has(c.name) && !bannedCards.has(c.name));
+      const candidates = pool.filter(
+        (c) =>
+          !usedNames.has(c.name) &&
+          !bannedCards.has(c.name) &&
+          !(poolOwnedOnly && notInCollection(c.name, context.collectionNames))
+      );
 
       // First, add ALL typed cards (these are confirmed to be the right type by EDHREC)
       const typedCards = candidates.filter((c) => c.primary_type !== 'Unknown');
@@ -3376,16 +3385,20 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         `[DeckGen] Found ${remainingEdhrecCards.length} remaining EDHREC cards to fill shortage`
       );
 
-      const namesToFetch = remainingEdhrecCards.slice(0, shortage * 3).map((c) => c.name);
-      const fillCardMap = await getCardsByNames(namesToFetch, undefined, preferredSet, {
-        arenaOnly,
-      });
-      if (preferredSet) {
-        for (const [name, card] of fillCardMap) {
-          if (card.set !== preferredSet) fillCardMap.delete(name);
-        }
-      }
-      await upgradeCardPrintings(fillCardMap, scryfallQuery, true);
+      const capped =
+        [maxCardPrice, maxRarity, maxCmc].some((c) => c !== null) || arenaOnly || ownedOnlyBuild;
+      const fillCardMap = await fetchPassingWindows(
+        remainingEdhrecCards.map((c) => c.name),
+        capped ? shortage : 0,
+        shortage * 3,
+        windowFetcher(preferredSet, arenaOnly, scryfallQuery),
+        (card) =>
+          fitsSpellSlot(card) &&
+          fitsColorIdentity(card, colorIdentity) &&
+          !exceedsMaxPrice(card, shortagePriceCap, currency) &&
+          !violatesUserCaps(card, userCapsWithoutPrice(state.cfg), context.collectionNames) &&
+          !exceedsFillCeilings(card, fillGates)
+      );
 
       // Calculate current type counts to prioritize types with the largest deficit
       const currentTypeCounts: Record<string, number> = {};

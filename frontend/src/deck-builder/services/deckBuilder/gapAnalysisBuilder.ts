@@ -24,6 +24,11 @@ export interface BuildGapAnalysisOptions {
    *  common case: no seeds fetched for this analysis) leaves ranking/output
    *  identical to before lift existed. */
   liftIndex?: Map<string, { clusterScore: number; liftedBy: string[] }>;
+  /** The deck's settings (budget, owned-only, bracket ceilings) as a keep-or-drop
+   *  test on a suggestion. Applied BEFORE the top-N cut: cutting first handed a
+   *  budget or owned-only deck the 30 most-included cards, none of which fit, and
+   *  the later settings filter left it "no gaps" while fitting cards ranked 31+. */
+  fit?: (gap: GapAnalysisCard) => boolean;
 }
 
 // 2026-07-23 (E126): EDHRECCard.prices is always undefined now (cardlist
@@ -53,7 +58,7 @@ export function buildGapAnalysis(
   deckCardNames: Set<string> | string[],
   opts: BuildGapAnalysisOptions = {}
 ): GapAnalysisCard[] {
-  const { limit = DEFAULT_GAP_LIMIT, collectionNames, liftIndex } = opts;
+  const { limit = DEFAULT_GAP_LIMIT, collectionNames, liftIndex, fit } = opts;
   if (limit <= 0) return [];
 
   // Expand the deck's names with DFC front-face variants so EDHREC's
@@ -64,7 +69,7 @@ export function buildGapAnalysis(
     if (name.includes(' // ')) inDeck.add(frontFaceName(name));
   }
 
-  return edhrecData.cardlists.allNonLand
+  const ranked = edhrecData.cardlists.allNonLand
     .filter((c) => !inDeck.has(c.name) && !isBasicLandName(c.name))
     .sort((a, b) => {
       const inclusionDiff = (b.inclusion ?? 0) - (a.inclusion ?? 0);
@@ -72,25 +77,29 @@ export function buildGapAnalysis(
       const la = liftIndex.get(a.name.toLowerCase())?.clusterScore ?? 0;
       const lb = liftIndex.get(b.name.toLowerCase())?.clusterScore ?? 0;
       return lb - la;
-    })
-    .slice(0, limit)
-    .map((c) => {
-      // A land fills a land slot, not a spell role, and a land search isn't
-      // card advantage (Elven Passage read as a "Card advantage staple").
-      const tagged = /\bland\b/i.test(c.primary_type ?? '') ? null : getCardRole(c.name);
-      const role = (tagged === 'cardDraw' && drawsOnlyLands(c.name) ? null : tagged) || undefined;
-      return {
-        name: c.name,
-        price: edhrecPrice(c),
-        inclusion: c.inclusion,
-        synergy: c.synergy ?? 0,
-        typeLine: c.primary_type ?? '',
-        cmc: c.cmc,
-        imageUrl: c.image_uris?.[0]?.normal,
-        isOwned: collectionNames ? collectionNames.has(c.name) : undefined,
-        role,
-        roleLabel: role ? ROLE_LABELS[role] : undefined,
-        liftedBy: liftIndex?.get(c.name.toLowerCase())?.liftedBy,
-      } satisfies GapAnalysisCard;
     });
+
+  const out: GapAnalysisCard[] = [];
+  for (const c of ranked) {
+    if (out.length >= limit) break;
+    // A land fills a land slot, not a spell role, and a land search isn't
+    // card advantage (Elven Passage read as a "Card advantage staple").
+    const tagged = /\bland\b/i.test(c.primary_type ?? '') ? null : getCardRole(c.name);
+    const role = (tagged === 'cardDraw' && drawsOnlyLands(c.name) ? null : tagged) || undefined;
+    const gap = {
+      name: c.name,
+      price: edhrecPrice(c),
+      inclusion: c.inclusion,
+      synergy: c.synergy ?? 0,
+      typeLine: c.primary_type ?? '',
+      cmc: c.cmc,
+      imageUrl: c.image_uris?.[0]?.normal,
+      isOwned: collectionNames ? collectionNames.has(c.name) : undefined,
+      role,
+      roleLabel: role ? ROLE_LABELS[role] : undefined,
+      liftedBy: liftIndex?.get(c.name.toLowerCase())?.liftedBy,
+    } satisfies GapAnalysisCard;
+    if (!fit || fit(gap)) out.push(gap);
+  }
+  return out;
 }
