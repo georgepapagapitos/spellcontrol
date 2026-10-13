@@ -110,10 +110,11 @@ export async function fetchDeckEdhrecPage(
  * effort: a failed fetch leaves the text reading to decide.
  */
 export async function pageThemesFor(
-  page: EDHRECCommanderData,
+  page: EDHRECCommanderData | null | undefined,
   commander: ScryfallCard,
   partner: ScryfallCard | null | undefined
 ): Promise<EDHRECCommanderData['themes'] | undefined> {
+  if (!page) return undefined;
   if (page.themes?.length > 0) return page.themes;
   try {
     const base = await (partner
