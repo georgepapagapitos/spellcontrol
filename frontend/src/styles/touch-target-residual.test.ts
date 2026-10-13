@@ -38,10 +38,23 @@ describe('E1000 residual touch targets', () => {
     expect(css).toMatch(/\.deck-section-collapse::after\s*\{[^}]*top:\s*calc\(50% - 3px\)/);
   });
 
+  it('inline text buttons and links take the shared .text-link ghost, not a copy', () => {
+    // The nightly phone walk read "Fit & cut" 57x27 and a context pill 121x42.
+    // `.text-link::after` is the one 44px ghost for a control inside a line of
+    // text; the duplicate-block ratchet refuses a second copy of it.
+    const src = (f: string) => readFileSync(join(here, f), 'utf8');
+    const panel = src('../components/deck/CardSearchPanel.tsx');
+    expect(panel).toContain("'card-search-fit text-link'");
+    expect(panel).not.toMatch(/className="card-search-fit"/);
+    const preview = src('../components/card/CardPreview.tsx');
+    const pills = preview.match(/className="card-preview-context-pill[^"]*"/g) ?? [];
+    expect(pills.length).toBeGreaterThan(0);
+    for (const c of pills) expect(c).toContain('text-link');
+  });
+
   it('the card preview context row and pills reach 44 on touch', () => {
     const css = read('footer-card-preview.css');
     expect(css).toMatch(/\.card-preview-context\s*\{[^}]*min-height:\s*44px/);
-    expect(css).toMatch(/\.card-preview-context-pill::after\s*\{[^}]*inset:\s*-12px 0/);
     expect(css).toMatch(/\.card-preview-ext-link::after\s*\{[^}]*inset:\s*-9px -6px/);
   });
 

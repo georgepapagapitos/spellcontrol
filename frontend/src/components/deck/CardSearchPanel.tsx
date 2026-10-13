@@ -111,6 +111,8 @@ function isOffColor(cardCI: string[] | undefined, commanderCI: string[]): boolea
  *  W4) — a shared module-level constant rather than a fresh Map per render. */
 const EMPTY_CARD_COUNTS: Map<string, number> = new Map();
 
+const FIT_CLASS = 'card-search-fit text-link'; // `.text-link` is the 44px touch ghost
+
 export interface AddCardChoice {
   card: ScryfallCard;
   /** copyId of the collection copy claimed for this slot, or null if none. */
@@ -1257,7 +1259,7 @@ function CollectionResults({
     wantsTags && tagsError ? (
       <p className="card-search-tag-note" role="status">
         Couldn&apos;t load card tags. otag: filters are ignored.{' '}
-        <button type="button" className="card-search-fit" onClick={() => void ensureCardTags()}>
+        <button type="button" className={FIT_CLASS} onClick={() => void ensureCardTags()}>
           Retry
         </button>
       </p>
@@ -1278,7 +1280,7 @@ function CollectionResults({
           : `${blocked.length} cards you own match but can't go in the mainboard.`}{' '}
         <button
           type="button"
-          className="card-search-fit"
+          className={FIT_CLASS}
           aria-expanded={revealBlocked}
           onClick={() => setRevealedFor(revealBlocked ? null : revealKey)}
         >
@@ -1380,7 +1382,7 @@ function CollectionResults({
                   {' · '}
                   <button
                     type="button"
-                    className="card-search-fit"
+                    className={FIT_CLASS}
                     aria-label={`Preview how ${c.name} fits`}
                     title="Check the fit and what it would replace"
                     onClick={() => void previewFitAt(i)}
@@ -1670,7 +1672,7 @@ function SuggestionsResults({
             <span className="card-search-sep">{' · '}</span>
             <button
               type="button"
-              className="card-search-fit"
+              className={FIT_CLASS}
               aria-label={`Preview how ${row.name} fits`}
               title="Check the fit and what it would replace"
               onClick={() => void previewFitAt(i)}
@@ -1978,7 +1980,7 @@ function ScryfallResults({
                   {' · '}
                   <button
                     type="button"
-                    className="card-search-fit"
+                    className={FIT_CLASS}
                     aria-label={`Preview how ${c.name} fits`}
                     title="Check the fit and what it would replace"
                     onClick={() => onPreviewFit(c)}

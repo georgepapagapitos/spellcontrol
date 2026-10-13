@@ -2337,6 +2337,20 @@ gated, so the test is what holds the line — mirror of `radius-tokens.test.ts`)
   - **Text that must not scale is a glyph in a fixed box**, and is
     `aria-hidden` (the avatar initial). The probe doubles the root font size and
     flags any other text whose computed size does not move.
+  - **A text input in a wrapping row reports its intrinsic width as the row's
+    minimum.** `<input>` is about 20 characters wide however `min-width` is set,
+    so at a 24px font the shared `.search-pill` told the deck toolbar it needed
+    363px and the page scrolled sideways on a 390px phone (the toolbar pills,
+    hero totals and stat tiles then read as cut). The pill's input is
+    `width: 100%`, which contributes nothing to min-content. A bare `code` token
+    gets `overflow-wrap: anywhere` for the same reason.
+  - **A ghost needs slack inside a scroll body.** A 44px ghost on a control
+    whose glyph is 24px reaches 10px past each side; the scroller clips what
+    leaves its box, so a control at the end of a row needs a step of room after
+    it (`.suggestion-menu`) or the hit walk reads 42px.
+  - **The footer shortcuts chip is `(hover: hover) and (pointer: fine)` only,
+    and a headless Linux Chrome matches neither.** The journey opens the
+    shortcuts overlay with `?`, the keyboard path, not by clicking the chip.
   - **A measure-and-flip effect needs hysteresis.** `CardPreview` re-fits its
     action row on every render; a compact row is shorter, so the panel dropped
     its scrollbar, `room` grew, and the row flipped back, forever (React error

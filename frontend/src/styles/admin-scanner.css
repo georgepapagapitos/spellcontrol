@@ -17,6 +17,9 @@
   background: var(--surface-raised);
   padding: 0.05rem var(--space-1);
   border-radius: 4px;
+  /* `window.__debug.dumpDeck("mono-white")` is one unbreakable token: at a 24px
+     browser font it is wider than a phone and the page scrolls sideways. */
+  overflow-wrap: anywhere;
 }
 /* The admin section nav uses the shared <Tabs variant="scrollable"> primitive
    (.sc-tabs owns layout/keyboard/ARIA); this just adds the admin chrome. */

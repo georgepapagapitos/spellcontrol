@@ -65,4 +65,10 @@
   .suggestion-menu-trigger {
     position: relative;
   }
+  /* The ⋮ sits at the end of a row inside a scroll body, and the ghost is 10px
+     wider than the glyph on each side: with no room after it the scroller clips
+     the ghost (a 42px hit area on a phone). One step of slack keeps all 44. */
+  .suggestion-menu {
+    margin-inline-end: var(--space-1);
+  }
 }

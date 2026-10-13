@@ -1039,11 +1039,8 @@
     position: relative;
   }
 
-  .card-preview-context-pill::after {
-    content: '';
-    position: absolute;
-    inset: -12px 0;
-  }
+  /* The 44px ghost is the shared `.text-link::after`, set on the pill's class
+     list: a fixed bleed of 12px read 42 on a pill a pixel under 20px tall. */
 }
 
 .card-preview-context-pill > span {

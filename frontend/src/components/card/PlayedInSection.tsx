@@ -245,7 +245,9 @@ export function PlayedInSection({
         />
         Played in
         {!open && state.status === 'ok' && state.card && (
-          <span className="played-in-summary">{headlineText(state.card.pct)}</span>
+          <span className="played-in-summary" title={headlineText(state.card.pct)}>
+            {headlineText(state.card.pct)}
+          </span>
         )}
       </button>
 

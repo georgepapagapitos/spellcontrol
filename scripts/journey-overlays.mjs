@@ -112,6 +112,15 @@ function catalog({ deck, binder }) {
     };
   /** A control that lives somewhere else on the phone: `phone` opens it there. */
   const tiered = (desktop, phone) => (page, layout) => (layout === 'phone' ? phone : desktop)(page);
+  const pressQuestionMark = async (page) => {
+    // Focus a real control first, so Escape has somewhere to return focus to.
+    await page.evaluate(() => {
+      const el = document.querySelector('footer a[href]');
+      el.focus({ preventScroll: true });
+      (window.__kbOpeners ??= []).push(el);
+    });
+    await page.keyboard.type('?');
+  };
   const deckActions = click('button', /^Deck actions/);
   const editList = click('button.toolbar-pill', /^Edit the list/);
   const cardMenu = then(
@@ -168,9 +177,12 @@ function catalog({ deck, binder }) {
     {
       route: '/decks',
       name: 'keyboard shortcuts',
-      open: click('button.footer-shortcuts-chip', /shortcuts/),
+      open: pressQuestionMark,
       ready: '.shortcuts-overlay',
-      desktop: true, // the footer chip is a hardware-keyboard affordance
+      // The footer chip is a hardware-keyboard affordance shown under
+      // (hover: hover) and (pointer: fine); a headless Linux Chrome matches
+      // neither, so the walk opens it the way a keyboard user does, with `?`.
+      desktop: true,
     },
     // --- Deck editor (the generated deck: it has cards to act on)
     {
