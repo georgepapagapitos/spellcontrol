@@ -53,7 +53,7 @@ import { isUtilityLand } from './landUpgrades';
 import { roleIsIncidental } from './incidentalRole';
 import { dropSymmetricWipes, prefersOneSidedWipes } from './coachWipes';
 import { coachExclusions, dropExcluded, type BuildRemovals } from './coachExclusions';
-import { fetchDeckEdhrecPage, type DeckEdhrecSource } from './deckEdhrecSource';
+import { fetchDeckEdhrecPage, pageThemesFor, type DeckEdhrecSource } from './deckEdhrecSource';
 import {
   enrichRecommendationPrices,
   stampCandidateCardData,
@@ -772,7 +772,7 @@ export async function analyzeCommanderDeck(
 
     const { roleCounts } = computeRoleCounts(params.cards);
     const commanderProfile = buildCommanderProfile(params.commander, params.partnerCommander, {
-      edhrecThemes: edhrecData.themes,
+      edhrecThemes: await pageThemesFor(edhrecData, params.commander, params.partnerCommander),
     });
     const commanders = [params.commander, params.partnerCommander ?? []].flat();
     const { roleTargets, overridePacing, overrideLandTarget } = deriveAnalysisTargets({

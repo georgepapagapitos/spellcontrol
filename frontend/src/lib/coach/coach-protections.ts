@@ -40,7 +40,7 @@ import {
   premiumReason,
   type PremiumReason,
 } from '@/deck-builder/services/deckBuilder/premiumCards';
-import { buildCommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
+import { buildCommanderProfileFromCache } from '@/deck-builder/services/deckBuilder/commanderProfileCached';
 import { whyCardMatches } from '@/deck-builder/services/deckBuilder/whyCardMatches';
 import { isBasicLand } from '@/deck-builder/services/deckBuilder/deckObjective/context';
 import { isSurvivalPiece } from '@/deck-builder/services/deckBuilder/deckObjective/factsReading';
@@ -113,7 +113,7 @@ export type CoachProtection = (card: ScryfallCard) => Protection | null;
 export function createCoachProtections(inputs: CoachProtectionInputs): CoachProtection {
   const profile =
     inputs.commanders.length > 0
-      ? buildCommanderProfile(inputs.commanders[0], inputs.commanders[1])
+      ? buildCommanderProfileFromCache(inputs.commanders[0], inputs.commanders[1])
       : null;
   const feedsCommander = (card: ScryfallCard): boolean =>
     !!profile && whyCardMatches(card, profile).length > 0;

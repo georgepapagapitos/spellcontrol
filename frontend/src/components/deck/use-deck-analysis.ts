@@ -7,12 +7,12 @@ import {
   buildValidationChecklist,
   summarizeValidation,
 } from '@/deck-builder/services/deckBuilder/validationChecklist';
-import { buildCommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
 import {
   deriveDeckIdentity,
   resolveAutoArchetype,
 } from '@/deck-builder/services/deckBuilder/deckIdentity';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
+import { useCommanderProfile } from '@/lib/deck/use-commander-profile';
 import { useProducedMana } from './use-produced-mana';
 import { buildSynergyByName } from './deck-display-derive';
 import type { DeckDisplayCard, DeckDisplayProps } from './deck-display-types';
@@ -91,10 +91,7 @@ export function useDeckAnalysis({
 
   // The commander's parsed ability profile — shared by the per-card synergy
   // reasons and the deck-identity strip.
-  const commanderProfile = useMemo(
-    () => (commander ? buildCommanderProfile(commander, partnerCommander) : null),
-    [commander, partnerCommander]
-  );
+  const commanderProfile = useCommanderProfile(commander, partnerCommander);
 
   // Live-computed deck identity (archetype + pacing + themes). On Auto the
   // archetype follows the deck's own engine when one clearly leads, the same

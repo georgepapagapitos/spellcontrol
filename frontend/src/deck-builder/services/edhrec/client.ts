@@ -97,6 +97,14 @@ const commanderCache = new Map<string, { data: EDHRECCommanderData; timestamp: n
 const partnerPopularityCache = new Map<string, { data: Map<string, number>; timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+// Listeners told when a commander's own page lands in the cache, so a surface that
+// only reads the cache (peekCommanderThemes) can re-read once another surface fetched it.
+const commanderPageListeners = new Set<() => void>();
+export function onCommanderPageCached(listener: () => void): () => void {
+  commanderPageListeners.add(listener);
+  return () => void commanderPageListeners.delete(listener);
+}
+
 // Raw EDHREC response types
 // Note: EDHREC cardlist cards have limited fields - they're pre-categorized by tag
 interface RawEDHRECCard {
@@ -481,6 +489,7 @@ export function parseEdhrecResponse(
 
   // Cache the result
   commanderCache.set(cacheKey, { data, timestamp: Date.now() });
+  for (const notify of commanderPageListeners) notify();
 
   return data;
 }
@@ -781,6 +790,7 @@ export async function fetchPartnerCommanderData(
       similarCommanders: data1.similarCommanders,
     };
     commanderCache.set(slugA, { data: mergedData, timestamp: Date.now() });
+    for (const notify of commanderPageListeners) notify();
     return mergedData;
   }
 
@@ -790,6 +800,28 @@ export async function fetchPartnerCommanderData(
   throw new Error(
     `EDHREC has no data for ${commander1} or ${commander2}. Try a different commander.`
   );
+}
+
+/**
+ * The themes of a commander's (or pair's) own page when it is already cached, else
+ * undefined. Never requests: for the surfaces that describe a commander without
+ * having fetched its page. The default page only; a bracket or budget slice has
+ * different theme shares.
+ */
+export function peekCommanderThemes(
+  commanderName: string,
+  partnerName?: string | null
+): EDHRECTheme[] | undefined {
+  const keys = partnerName
+    ? getPartnerSlugs(commanderName, partnerName)
+    : [formatCommanderNameForUrl(commanderName)];
+  for (const key of keys) {
+    const cached = commanderCache.get(key);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL && cached.data.themes.length > 0) {
+      return cached.data.themes;
+    }
+  }
+  return undefined;
 }
 
 /**

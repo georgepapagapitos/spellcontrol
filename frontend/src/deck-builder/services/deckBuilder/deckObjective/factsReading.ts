@@ -22,7 +22,9 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { CardFacts, Resource } from '@/deck-builder/services/cardFacts';
 import { readsAsProtection } from '@/deck-builder/services/tagger/client';
-import { buildCommanderProfile, getCombinedOracleText } from '../commanderProfile';
+import { peekCommanderThemes } from '../../edhrec/client';
+import { getCombinedOracleText } from '../commanderProfile';
+import { buildCommanderProfileFromCache } from '../commanderProfileCached';
 import {
   keepsPermanentText,
   protectionSentencesOf,
@@ -142,10 +144,13 @@ const mustSurviveCache = new Map<string, boolean>();
  */
 export function commanderMustSurvive(commanders: readonly ScryfallCard[]): boolean {
   if (commanders.length === 0) return false;
-  const key = commanders.map((c) => c.name).join('|');
+  // The page's themes can veto voltron, and they land after first use: key on whether they had.
+  const key = `${commanders.map((c) => c.name).join('|')}|${
+    peekCommanderThemes(commanders[0].name, commanders[1]?.name) ? 'page' : 'text'
+  }`;
   let v = mustSurviveCache.get(key);
   if (v === undefined) {
-    const profile = buildCommanderProfile(commanders[0], commanders[1] ?? null);
+    const profile = buildCommanderProfileFromCache(commanders[0], commanders[1] ?? null);
     v =
       profile.abilities.some(
         (a) =>

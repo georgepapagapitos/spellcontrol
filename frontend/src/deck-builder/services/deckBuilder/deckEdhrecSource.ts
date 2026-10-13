@@ -102,3 +102,25 @@ export async function fetchDeckEdhrecPage(
     return base();
   }
 }
+
+/**
+ * The themes the Voltron veto reads. A theme page carries none (its themes list is
+ * empty), so a deck built from one reads the commander's base page for them; that
+ * page is cached for the session, so it is one request per commander at most. Best
+ * effort: a failed fetch leaves the text reading to decide.
+ */
+export async function pageThemesFor(
+  page: EDHRECCommanderData,
+  commander: ScryfallCard,
+  partner: ScryfallCard | null | undefined
+): Promise<EDHRECCommanderData['themes'] | undefined> {
+  if (page.themes.length > 0) return page.themes;
+  try {
+    const base = await (partner
+      ? fetchPartnerCommanderData(commander.name, partner.name)
+      : fetchCommanderData(commander.name));
+    return base.themes;
+  } catch {
+    return undefined;
+  }
+}

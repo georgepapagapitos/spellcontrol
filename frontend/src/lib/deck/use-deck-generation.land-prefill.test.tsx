@@ -25,7 +25,8 @@ const fetchCommanderData = vi.fn(async (name: string) =>
   name === 'Clara Oswald' ? landsFor(35, 10) : landsFor(39, 15)
 );
 const fetchPartnerCommanderData = vi.fn(async (..._a: unknown[]) => landsFor(36, 12));
-vi.mock('@/deck-builder/services/edhrec/client', () => ({
+vi.mock('@/deck-builder/services/edhrec/client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/deck-builder/services/edhrec/client')>()),
   fetchCommanderData: (name: string) => fetchCommanderData(name),
   fetchPartnerCommanderData: (...a: unknown[]) => fetchPartnerCommanderData(...a),
 }));
