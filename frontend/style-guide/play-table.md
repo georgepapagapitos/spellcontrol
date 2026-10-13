@@ -361,6 +361,12 @@ every seat, and a reload mid-game, rebuilds the identical board.
   is back wins). The host, spectators and a present host never see it. If the
   E430 successor is the one who left, the same strip appears for the rest of the
   table.
+- **A host change is announced once to every seated player.** The claimant
+  hears "You're the host now."; a returning old host hears "Maya took over as
+  host."; everyone else seated hears "Maya is the host now." One info toast,
+  compared against the host this device last saw for that game (kept in
+  localStorage so it survives a reload). A game never seen before is silent,
+  and spectators hear nothing.
 - **A rail entry's status tag is glance information, not a second source of
   truth.** `OpponentSeat.status` ("Playing" / "Done" / "Offline") is folded
   into the same entry the rest of that seat's board already renders in, in

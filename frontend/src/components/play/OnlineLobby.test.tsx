@@ -158,6 +158,18 @@ describe('OnlineLobby — the host leaving', () => {
   });
 });
 
+// E451: after a takeover the host-only controls follow hostUserId, not the seat.
+describe('OnlineLobby — a new host', () => {
+  it('gives Start to the new host and takes it from the old one', () => {
+    const game = { ...table(2), hostUserId: 'u1' };
+    renderLobby(game, 'u1');
+    expect(screen.getByRole('button', { name: 'Start game' })).toBeTruthy();
+    cleanup();
+    renderLobby(game, 'u0');
+    expect(screen.queryByRole('button', { name: 'Start game' })).toBeNull();
+  });
+});
+
 describe('OnlineLobby', () => {
   it('titles the lobby with the format when the table has no name', () => {
     renderLobby(table());
