@@ -222,7 +222,9 @@ export function TagsPage() {
                           <span className="tags-row-count">{count.toLocaleString()} cards</span>
                         </span>
                         {describeOtag(slug) && (
-                          <span className="tags-row-desc">{describeOtag(slug)}</span>
+                          <span className="tags-row-desc" title={describeOtag(slug)}>
+                            {describeOtag(slug)}
+                          </span>
                         )}
                       </button>
                     </li>

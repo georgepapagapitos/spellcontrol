@@ -236,6 +236,9 @@ function isEmptySpace(el: EventTarget): boolean {
   );
 }
 
+/** Width a compact action row must regain before it goes back to words: more than a scrollbar. */
+const ACTIONS_REFIT_SLACK = 24;
+
 export function CardPreview({
   cards,
   index,
@@ -299,7 +302,11 @@ export function CardPreview({
         : full.offsetWidth + (parseFloat(getComputedStyle(b).columnGap) || 0);
     }
     const room = row.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-    setActionsCompact(need > room);
+    // A compact row is shorter, which can drop the panel's vertical scrollbar
+    // and widen `room` by its 15 to 17px; judged against the same `room` the
+    // row flips every render (React error #185 in a 360px-tall window, 200%
+    // zoom). So leaving compact asks for a scrollbar's width of slack.
+    setActionsCompact((was) => need > (was ? room - ACTIONS_REFIT_SLACK : room));
   }, []);
   useLayoutEffect(fitActions);
   useEffect(() => {

@@ -151,7 +151,11 @@ export function WelcomeHero({ onTrySamples, samplesLoading }: WelcomeHeroProps) 
         </div>
       </div>
 
-      {art && <p className="welcome-hero-caption">{heroCardName} · art via Scryfall</p>}
+      {art && (
+        <p className="welcome-hero-caption" title={`${heroCardName} · art via Scryfall`}>
+          {heroCardName} · art via Scryfall
+        </p>
+      )}
     </header>
   );
 }

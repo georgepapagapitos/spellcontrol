@@ -1281,13 +1281,15 @@ i.ss.set-symbol--mythic {
    z-index -1 inside the cell's stacking context) so the caption lines read as
    part of the tile above them, not text floating between rows. Geometry
    contract with CardListTable.tsx: the plate's NET added height is exactly
-   GRID_CAPTION_H (20px) per enabled line + GRID_CAPTION_PLATE_PAD (4px) —
-   the -10px margin-top cancels the 10px padding-top, and the grid virtualizer
-   is measureElement-free, so any drift here becomes scroll drift. */
+   GRID_CAPTION_H (1.25rem) per enabled line + GRID_CAPTION_PLATE_PAD (0.25rem)
+   — the negative margin-top cancels the padding-top, and the grid virtualizer
+   is measureElement-free, so any drift here becomes scroll drift. Every term is
+   rem so the plate grows with the browser's text size (WCAG 1.4.4); the
+   virtualizer scales its estimate by `remScale()`. */
 .collection-grid-captions {
   position: relative;
   z-index: -1;
-  margin-top: -10px;
+  margin-top: calc(-1 * var(--space-2-5));
   padding-top: var(--space-2-5);
   padding-bottom: var(--space-1);
   background: var(--surface);
@@ -1295,10 +1297,10 @@ i.ss.set-symbol--mythic {
 }
 
 .collection-grid-caption {
-  height: 20px;
+  height: 1.25rem;
   padding-top: var(--space-1);
   font-size: var(--text-xs);
-  line-height: 16px;
+  line-height: 1rem;
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
   text-align: center;
