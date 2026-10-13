@@ -1,16 +1,18 @@
+import {
+  collectAllocatedCopyIds,
+  computeSpareCopyIds,
+  type EnrichedCard,
+} from '@spellcontrol/binder-routing';
 import { asRecord } from '../shares/projections';
 
-/**
- * Copies a card keeps back before the rest of its free stock counts as spare.
- * Mirrors `SURPLUS_KEEP_COPIES` in `frontend/src/lib/allocations.ts`, the
- * definition behind the owner's own "N free" chip and the trade radar's
- * "spare" — so "spare" on a friend's collection means exactly what it means
- * on yours. Change both or neither.
- */
-const KEEP_COPIES = 1;
-
 export interface CardUse {
-  /** At least one copy past the kept one that no deck or physical cube claims. */
+  /**
+   * At least one copy past the kept one that no deck or physical cube claims.
+   * The one shared rule, `computeSpareCopyIds` in `@spellcontrol/binder-routing`:
+   * the same function behind the owner's own "N free" chip, the trade radar and
+   * the cube pool's Spares filter, so "spare" on a friend's collection means
+   * exactly what it means on yours.
+   */
   spare: boolean;
   /** Visible decks (to this viewer) whose list includes the card. */
   deckIds: string[];
@@ -27,35 +29,17 @@ function oracleOf(card: unknown): string {
 }
 
 /**
- * Ids of the owner's copies that a deck slot, a commander slot or a physical
- * cube pick claims (`allocatedCopyId`). Private decks count: a copy sleeved in
- * one is not free. Shared by `summarizeCardUse` and the profile collection.
+ * Ids of the owner's copies that a deck slot (any zone, considering included),
+ * a commander slot or a physical cube pick claims (`allocatedCopyId`). Private
+ * decks count: a copy sleeved in one is not free. The one shared claim list
+ * (`collectAllocatedCopyIds`); `summarizeCardUse` and the profile collection
+ * both read it.
  */
 export function claimedCopyIds(decks: Row[], cubes: Row[]): Set<string> {
-  const claimed = new Set<string>();
-  for (const row of decks) {
-    const d = asRecord(row.data);
-    if (!d) continue;
-    for (const key of ['commanderAllocatedCopyId', 'partnerCommanderAllocatedCopyId']) {
-      if (typeof d[key] === 'string') claimed.add(d[key] as string);
-    }
-    for (const zone of ['cards', 'sideboard', 'considering'] as const) {
-      const slots = Array.isArray(d[zone]) ? (d[zone] as unknown[]) : [];
-      for (const raw of slots) {
-        const slot = asRecord(raw);
-        if (slot && typeof slot.allocatedCopyId === 'string') claimed.add(slot.allocatedCopyId);
-      }
-    }
-  }
-  for (const row of cubes) {
-    const cube = asRecord(row.data);
-    if (!cube || cube.isPhysical !== true || !Array.isArray(cube.picks)) continue;
-    for (const raw of cube.picks) {
-      const pick = asRecord(raw);
-      if (pick && typeof pick.allocatedCopyId === 'string') claimed.add(pick.allocatedCopyId);
-    }
-  }
-  return claimed;
+  return collectAllocatedCopyIds(
+    decks.map((r) => r.data),
+    cubes.map((r) => r.data)
+  );
 }
 
 /**
@@ -65,8 +49,9 @@ export function claimedCopyIds(decks: Row[], cubes: Row[]): Set<string> {
  * ones included, because a copy sleeved in a private deck is still not free.
  * It travels as a boolean only: a count is the privacy line on friend
  * surfaces ("contents yes, value no"), and "has one to spare" is all a friend
- * needs before asking. Same exclusions as the client's surplus: basic lands
- * (fungible, never worth flagging) and proxies (a proxy is not the card).
+ * needs before asking. Same exclusions as the client's surplus, because it is
+ * the same function: basic lands (fungible, never worth flagging) and proxies
+ * (a proxy is not the card).
  *
  * `deckIds` names only decks in `visibleDeckIds`, i.e. ones the viewer can
  * already open. Membership is by the deck's LIST (commander, partner, main,
@@ -108,22 +93,33 @@ export function summarizeCardUse(
     }
   }
 
-  const free = new Map<string, number>();
+  // Spare copies by the shared rule, then folded to a per-oracle flag. The
+  // rule keys on card name, as every other surface does.
+  const copies: EnrichedCard[] = [];
+  const oracleOfCopy = new Map<string, string>();
   const owned = new Set<string>();
   for (const row of cards) {
     const c = asRecord(row.data);
     if (!c || typeof c.oracleId !== 'string' || !c.oracleId) continue;
     owned.add(c.oracleId);
-    if (c.proxy === true) continue;
-    if (typeof c.typeLine === 'string' && /\bBasic\b/.test(c.typeLine)) continue;
-    if (claimed.has(row.id)) continue;
-    free.set(c.oracleId, (free.get(c.oracleId) ?? 0) + 1);
+    oracleOfCopy.set(row.id, c.oracleId);
+    copies.push({
+      copyId: row.id,
+      name: typeof c.name === 'string' ? c.name : c.oracleId,
+      finish: typeof c.finish === 'string' ? c.finish : 'nonfoil',
+      proxy: c.proxy === true,
+    } as EnrichedCard);
+  }
+  const spareOracles = new Set<string>();
+  for (const copyId of computeSpareCopyIds(copies, claimed)) {
+    const oracleId = oracleOfCopy.get(copyId);
+    if (oracleId) spareOracles.add(oracleId);
   }
 
   const out = new Map<string, CardUse>();
   for (const oracleId of owned) {
     out.set(oracleId, {
-      spare: (free.get(oracleId) ?? 0) > KEEP_COPIES,
+      spare: spareOracles.has(oracleId),
       deckIds: [...(inDecks.get(oracleId) ?? [])],
     });
   }

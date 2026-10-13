@@ -196,9 +196,9 @@ export function buildAllocationMap(
     for (const c of deck.sideboard ?? []) {
       if (c.allocatedCopyId) claim(c.allocatedCopyId, deckClaim(deck, c.card.name));
     }
-    // Considering (E122) claims too — passive bookkeeping only (no donor/steal
-    // participation), but still must count as "checked out" so a card parked
-    // here can't be double-bound to a slot in another deck.
+    // Considering (E122) claims like every other zone: "checked out" so a card
+    // parked here can't be double-bound to a slot in another deck, and a donor
+    // for findStealableCopy.
     for (const c of deck.considering ?? []) {
       if (c.allocatedCopyId) claim(c.allocatedCopyId, deckClaim(deck, c.card.name));
     }

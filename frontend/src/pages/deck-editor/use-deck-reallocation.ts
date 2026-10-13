@@ -26,6 +26,8 @@ export function useDeckReallocation({
   const removeCard = useDecksStore((s) => s.removeCard);
   const addSideboardCard = useDecksStore((s) => s.addSideboardCard);
   const removeSideboardCard = useDecksStore((s) => s.removeSideboardCard);
+  const addConsideringCard = useDecksStore((s) => s.addConsideringCard);
+  const removeConsideringCard = useDecksStore((s) => s.removeConsideringCard);
   const setCommander = useDecksStore((s) => s.setCommander);
   const setPartnerCommander = useDecksStore((s) => s.setPartnerCommander);
   const decks = useDecksStore((s) => s.decks);
@@ -98,6 +100,17 @@ export function useDeckReallocation({
     if (zone === 'commander') return void setCommander(donorDeckId, donorCard, null);
     if (zone === 'partner') return void setPartnerCommander(donorDeckId, donorCard, null);
     if (!slotId) return;
+    if (zone === 'considering') {
+      // A maybe-card has no replacement to offer: remove it, or keep it listed
+      // without the copy (re-seated unowned, as the sideboard does below).
+      const slot = useDecksStore
+        .getState()
+        .decks.find((d) => d.id === donorDeckId)
+        ?.considering?.find((c) => c.slotId === slotId);
+      removeConsideringCard(donorDeckId, slotId);
+      if (slot && outcome !== 'remove') addConsideringCard(donorDeckId, slot.card, null);
+      return;
+    }
     if (outcome === 'remove') {
       if (zone === 'sideboard') removeSideboardCard(donorDeckId, slotId);
       else removeCard(donorDeckId, slotId);

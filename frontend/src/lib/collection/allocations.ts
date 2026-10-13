@@ -338,7 +338,7 @@ export type DonorOutcome = 'leave-gap' | 'replace' | 'remove';
  * the donor deck; `cube` means a physical-cube pick (released by copyId, not a
  * slot — a cube's only donor outcome is leave-gap).
  */
-export type DonorZone = 'main' | 'sideboard' | 'commander' | 'partner' | 'cube';
+export type DonorZone = 'main' | 'sideboard' | 'considering' | 'commander' | 'partner' | 'cube';
 
 /**
  * A physical copy that can be pulled out of another deck OR a physical cube to
@@ -364,7 +364,7 @@ export interface StealableCopy {
   /** Donor accent color (the shared cube color for a cube donor). */
   donorDeckColor: string;
   donorZone: DonorZone;
-  /** Slot id for `main`/`sideboard`; `null` for commander/partner and cube. */
+  /** Slot id for `main`/`sideboard`/`considering`; `null` for commander/partner and cube. */
   donorSlotId: string | null;
   /**
    * The donor deck slot's card payload — for the replace-suggestion target and
@@ -389,6 +389,10 @@ function locateCopyInDeck(
   if (main) return { zone: 'main', slotId: main.slotId, card: main.card };
   const side = (deck.sideboard ?? []).find((c) => c.allocatedCopyId === copyId);
   if (side) return { zone: 'sideboard', slotId: side.slotId, card: side.card };
+  // Considering claims a copy like every other zone (buildAllocationMap), so a
+  // copy parked there is a donor too: pulling it leaves the maybe-card listed.
+  const maybe = (deck.considering ?? []).find((c) => c.allocatedCopyId === copyId);
+  if (maybe) return { zone: 'considering', slotId: maybe.slotId, card: maybe.card };
   return null;
 }
 

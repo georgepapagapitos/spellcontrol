@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   anyBinderUsesSpareCopies,
+  availableCountsByName,
   collectAllocatedCopyIds,
   computeSpareCopyIds,
   decorateWithSpareCopies,
@@ -51,10 +52,20 @@ describe('computeSpareCopyIds', () => {
     expect(spare).toEqual(new Set([plain.copyId, plain2.copyId]));
   });
 
-  it('keeps a real card over a proxy, even a foil proxy', () => {
+  it('never counts a proxy: not spare, and not the copy kept either', () => {
     const proxy = card('Sol Ring', { proxy: true, finish: 'foil', foil: true });
     const real = card('Sol Ring');
-    expect(computeSpareCopyIds([proxy, real], new Set())).toEqual(new Set([proxy.copyId]));
+    expect(computeSpareCopyIds([proxy, real], new Set())).toEqual(new Set());
+    // Two real copies beside a proxy: one spare, and it is never the proxy.
+    const real2 = card('Sol Ring');
+    expect(computeSpareCopyIds([proxy, real, real2], new Set())).toEqual(new Set([real2.copyId]));
+  });
+
+  it('a claimed copy of any kind is not available, so it is never spare', () => {
+    const a = card('Sol Ring');
+    const b = card('Sol Ring');
+    const c = card('Sol Ring');
+    expect(computeSpareCopyIds([a, b, c], new Set([b.copyId]))).toEqual(new Set([c.copyId]));
   });
 
   it('never reads price, so a price refresh cannot change which copy is kept', () => {
@@ -180,5 +191,22 @@ describe('collectAllocatedCopyIds', () => {
     expect(collectAllocatedCopyIds([null, 3, { cards: 'x' }], [{ picks: null }])).toEqual(
       new Set()
     );
+  });
+});
+
+describe('availableCountsByName', () => {
+  it('counts copies no deck or cube claims, basics and proxies included', () => {
+    const a = card('Sol Ring');
+    const b = card('Sol Ring', { proxy: true });
+    const c = card('Sol Ring');
+    const f = card('Forest');
+    const counts = availableCountsByName([a, b, c, f], new Set([c.copyId]));
+    expect(counts.get('Sol Ring')).toBe(2);
+    expect(counts.get('Forest')).toBe(1);
+  });
+
+  it('omits a name whose every copy is claimed', () => {
+    const a = card('Sol Ring');
+    expect(availableCountsByName([a], new Set([a.copyId])).has('Sol Ring')).toBe(false);
   });
 });

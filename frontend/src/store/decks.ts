@@ -1324,10 +1324,9 @@ export const useDecksStore = create<DecksState>()(
               });
             }
             // Considering claims a physical copy too (mirrors sideboard) so a
-            // card parked here can't be double-bound by another deck's slot —
-            // but it never participates in the cross-deck steal/donor system
-            // (see lib/collection/allocations.ts DonorZone), which stays mainboard/sideboard
-            // only. This loop is the passive bookkeeping half only.
+            // card parked here can't be double-bound by another deck's slot.
+            // It is also a donor zone (lib/collection/allocations.ts DonorZone),
+            // like every other claiming zone.
             for (const c of deck.considering ?? []) {
               if (c.proxy) continue;
               const slotId = c.slotId;

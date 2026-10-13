@@ -4,6 +4,7 @@ import { APIUserAbortError } from '@anthropic-ai/sdk';
 import { logger } from '../logger';
 import { loadAuthedUser, readSessionCookie, requireAuth } from '../auth';
 import { getPool } from '../db';
+import { loadOwnedNames } from '../ai/owned-names';
 import { testAwareLimiter } from '../route-utils';
 import { getScryfallCache } from '../scryfall-cache';
 import type { PriceCeiling } from '../cache';
@@ -645,46 +646,6 @@ async function scopeSearch(
   if (scope === 'unowned') return { notOwnedNames: await loadOwnedNames(userId, 'owned', deckId) };
   if (scope === 'budget') return { maxPrice: { amount: BUDGET_CEILING, currency } };
   return {};
-}
-
-/**
- * The names the AI may search under a restricted scope (T112). `owned` is the
- * collection; `uncommitted` subtracts, per name, the copies already sitting in
- * the user's OTHER decks (mainboard plus commanders), so a card whose every
- * copy is spoken for is not offered. Exported for its route test — the
- * subtraction is the part worth pinning against real rows.
- */
-export async function loadOwnedNames(
-  userId: string,
-  scope: 'owned' | 'uncommitted',
-  deckId: string
-): Promise<string[]> {
-  const pool = getPool();
-  const owned = await pool.query<{ name: string; qty: number }>(
-    `SELECT data->>'name' AS name, SUM(COALESCE((data->>'quantity')::numeric, 1))::int AS qty
-       FROM user_cards
-      WHERE user_id = $1 AND deleted_at IS NULL AND data->>'name' IS NOT NULL
-      GROUP BY 1`,
-    [userId]
-  );
-  if (scope === 'owned') return owned.rows.map((r) => r.name);
-
-  // jsonb_path_query is set-returning: one row per card slot / commander.
-  const committed = await pool.query<{ name: string; qty: number }>(
-    `SELECT name, COUNT(*)::int AS qty FROM (
-       SELECT jsonb_path_query(data, '$.cards[*].card.name') #>> '{}' AS name
-         FROM user_decks WHERE user_id = $1 AND deleted_at IS NULL AND id <> $2
-       UNION ALL
-       SELECT jsonb_path_query(data, '$.commander.name') #>> '{}'
-         FROM user_decks WHERE user_id = $1 AND deleted_at IS NULL AND id <> $2
-       UNION ALL
-       SELECT jsonb_path_query(data, '$.partnerCommander.name') #>> '{}'
-         FROM user_decks WHERE user_id = $1 AND deleted_at IS NULL AND id <> $2
-     ) slots WHERE name IS NOT NULL GROUP BY name`,
-    [userId, deckId]
-  );
-  const taken = new Map(committed.rows.map((r) => [r.name, r.qty]));
-  return owned.rows.filter((r) => r.qty > (taken.get(r.name) ?? 0)).map((r) => r.name);
 }
 
 /**

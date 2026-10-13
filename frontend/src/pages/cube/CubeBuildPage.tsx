@@ -143,7 +143,7 @@ function PoolFilterRow({
         <InfoTip
           label="Draw from"
           ariaLabel="How Cards, Price and Rarity work"
-          text="Available skips copies held by a deck or physical cube. Spares needs two or more copies. Price uses your cheapest copy; rarity uses the printing you own."
+          text="Available skips copies held by a deck or physical cube. Spares needs a copy beyond the one your collection keeps. Price uses your cheapest copy; rarity uses the printing you own."
         />
       </div>
 
@@ -528,7 +528,7 @@ export function CubeBuildPage() {
                 hidden.committed > 0 &&
                   `${hidden.committed.toLocaleString()} committed to a deck or cube`,
                 hidden.singles > 0 &&
-                  `${hidden.singles.toLocaleString()} left out with only one copy`,
+                  `${hidden.singles.toLocaleString()} left out with no spare copy`,
                 hidden.commanderOnly > 0 &&
                   `${hidden.commanderOnly.toLocaleString()} Commander-only cards left out`,
                 hidden.politics > 0 &&

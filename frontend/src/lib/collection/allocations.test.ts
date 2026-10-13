@@ -748,6 +748,36 @@ describe('findStealableCopy', () => {
     expect(res).toMatchObject({ donorZone: 'sideboard', donorSlotId: 'sb-1' });
   });
 
+  it('locates a copy parked in another deck considering zone (a claim like any other)', () => {
+    const donorDeck = deck({
+      id: 'd2',
+      name: 'Donor',
+      considering: [dc('maybe-1', 'Sol Ring', 'maybe-copy')],
+    });
+    const collection = [card({ copyId: 'maybe-copy', name: 'Sol Ring' })];
+    const res = findStealableCopy('Sol Ring', collection, [deck({ id: 'd1' }), donorDeck], 'd1');
+    expect(res).toMatchObject({
+      copyId: 'maybe-copy',
+      donorKind: 'deck',
+      donorZone: 'considering',
+      donorSlotId: 'maybe-1',
+      donorDeckId: 'd2',
+    });
+    // The same copy makes the card contested for an unbound slot in the current deck.
+    const current = deck({
+      id: 'd1',
+      name: 'Current',
+      cards: [
+        {
+          slotId: 'want',
+          card: { name: 'Sol Ring', id: 'sf-1' } as ScryfallCard,
+          allocatedCopyId: null,
+        },
+      ],
+    });
+    expect(listContestedCards(current, collection, [current, donorDeck], [])).toHaveLength(1);
+  });
+
   it('prefers a non-foil stealable copy over a foil one', () => {
     const decks = [
       deck({ id: 'd1', name: 'Current' }),
@@ -1317,7 +1347,7 @@ describe('computeSurplusByName', () => {
     const expected = new Map<string, number>();
     const unallocated = new Map<string, number>();
     for (const c of cards) {
-      if (allocations.has(c.copyId) || c.name === 'Forest') continue;
+      if (allocations.has(c.copyId) || c.name === 'Forest' || c.proxy) continue;
       unallocated.set(c.name, (unallocated.get(c.name) ?? 0) + 1);
     }
     for (const [name, n] of unallocated) if (n > 1) expected.set(name, n - 1);
@@ -1326,9 +1356,10 @@ describe('computeSurplusByName', () => {
       Object.fromEntries(expected)
     );
     // And which copies: the foil Sol Ring is kept over the two loose nonfoils,
-    // the real Signet over its proxy, and nothing in the deck is spare.
+    // the proxy Signet is never spare (nor is the real one, now alone), and
+    // nothing in the deck is spare.
     expect(computeSpareCopyIds(cards, new Set(allocations.keys()))).toEqual(
-      new Set(['ring-3', 'ring-4', 'signet-2'])
+      new Set(['ring-3', 'ring-4'])
     );
   });
 });
