@@ -237,11 +237,11 @@ describe('stapleManaRocksPhase', () => {
 // Krenko's Skirk Prospector combo) out of the Krenko $50 deck. The rocks seat once,
 // after the lands, as they always did; the gate, not the order, guarantees Sol Ring.
 describe('stapleManaRocksPhase call site', () => {
-  it('runs once, after generateLands', () => {
+  it('runs once, after the land pass (landsFor wraps generateLands)', () => {
     const src = readFileSync(resolve(__dirname, '../deckGenerator.ts'), 'utf8');
     const calls = [...src.matchAll(/await stapleManaRocksPhase\(/g)].map((m) => m.index!);
     expect(calls).toHaveLength(1);
-    const lastLands = src.lastIndexOf('await generateLands(');
+    const lastLands = src.lastIndexOf('await landsFor(');
     expect(lastLands).toBeGreaterThan(0);
     expect(calls[0]).toBeGreaterThan(lastLands);
   });

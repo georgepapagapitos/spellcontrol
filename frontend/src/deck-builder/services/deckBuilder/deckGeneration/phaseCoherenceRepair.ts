@@ -33,6 +33,7 @@ import {
   OWNED_PRIORITY_BOOST,
   OWNED_PRIORITY_BOOST_THEME_TIER,
 } from '../cardPicking';
+import { producedManaColors } from '@/lib/deck-analysis/mana-sources';
 import { qualifiedPayoffMismatch } from '../nonbo';
 import type { BudgetTracker } from '../budgetTracker';
 import type { BracketGuard } from '../bracketGuard';
@@ -102,6 +103,9 @@ export interface CoherenceRepairContext {
   ignoreOwnedRarity: boolean;
   /** Basic-land card lookup, injected so tests never touch the network. */
   getBasicLand: (name: string) => Promise<ScryfallCard | null>;
+  /** Gate-cleared fixing nonbasics the land pass did not pick, best first. A colorless
+   *  land given up for a short color is replaced by one of these before a basic. */
+  landSpares?: ScryfallCard[];
 }
 
 export interface CoherenceRepairResult {
@@ -379,9 +383,27 @@ export async function applyCoherenceRepair(
       if (!basicName) continue;
       const idx = state.categories.lands.findIndex((l) => l.name === f.card);
       if (idx < 0 || state.categories.lands[idx].isMustInclude) continue;
+      const cut = state.categories.lands[idx];
+      // Refill from the next fixing nonbasic that makes the short color, so the deck
+      // keeps its nonbasic count; a basic is the last resort.
+      const identity = new Set(state.context.colorIdentity);
+      const spare = ctx.landSpares?.find(
+        (s) =>
+          !state.usedNames.has(s.name) && producedManaColors(s, identity).includes(f.basicFixColor!)
+      );
+      if (spare) {
+        state.categories.lands[idx] = spare;
+        state.usedNames.delete(cut.name);
+        state.usedNames.add(spare.name);
+        if (!isOwnedBudgetExempt(spare.name, collectionNames, ctx.ignoreOwnedBudget)) {
+          ctx.budgetTracker?.deductCard(spare);
+        }
+        repairs.push({ cut: cut.name, added: spare.name, reason: f.message });
+        swaps++;
+        continue;
+      }
       const basic = await ctx.getBasicLand(basicName);
       if (!basic) continue;
-      const cut = state.categories.lands[idx];
       state.categories.lands[idx] = { ...basic };
       state.usedNames.delete(cut.name);
       state.usedNames.add(basic.name);

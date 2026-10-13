@@ -1,4 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 
 // Tagger reads bundled JSON keyed by card name — mock for determinism (roles
@@ -476,6 +479,42 @@ describe('applyCoherenceRepair', () => {
     expect(state.categories.lands).toHaveLength(1);
     expect(state.categories.lands[0].name).toBe(repairs[0].added);
     expect(state.usedNames.has('Flooded Strand')).toBe(false);
+  });
+
+  it('refills a given-up land from the next fixing nonbasic before a basic (E1004)', async () => {
+    const fx = JSON.parse(
+      readFileSync(
+        resolve(
+          dirname(fileURLToPath(import.meta.url)),
+          '..',
+          '__fixtures__',
+          'edgar-lands.fixture.json'
+        ),
+        'utf8'
+      )
+    ) as { cards: ScryfallCard[] };
+    const real = (n: string) => structuredClone(fx.cards.find((c) => c.name === n)!);
+    const state = makeState();
+    state.context.colorIdentity = ['W', 'B'];
+    state.categories.synergy.push(
+      scryfallCard('White Spell', { mana_cost: '{W}{W}', color_identity: ['W'] })
+    );
+    state.usedNames.add('White Spell');
+    state.edhrecData!.cardlists.allNonLand.push(edhrecCard('White Spell', 25));
+    state.categories.lands = [
+      scryfallCard('Flooded Strand', {
+        type_line: 'Land',
+        oracle_text:
+          '{T}, Pay 1 life, Sacrifice Flooded Strand: Search your library for a Plains or Island card, put it onto the battlefield, then shuffle.',
+      }),
+    ];
+    const { repairs } = await applyCoherenceRepair(
+      state,
+      makeCtx(state, { landSpares: [real('Godless Shrine'), real('Isolated Chapel')] })
+    );
+    expect(repairs.map((r) => [r.cut, r.added])).toEqual([['Flooded Strand', 'Godless Shrine']]);
+    expect(state.categories.lands.map((l) => l.name)).toEqual(['Godless Shrine']);
+    expect(state.usedNames.has('Godless Shrine')).toBe(true);
   });
 
   it('never proposes a cut for a card that was not actually in the pre-repair deck (C3)', async () => {

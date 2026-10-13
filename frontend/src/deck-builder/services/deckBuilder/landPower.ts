@@ -143,3 +143,38 @@ export function landPowerScore(
 
   return Math.min(100, score);
 }
+
+const ALL_COLORS: ReadonlySet<string> = new Set(COLOR_KEYS);
+
+/**
+ * A land that taps for {C} and nothing colored, read the way the coherence audit
+ * reads it (unconditional abilities only, so Unclaimed Territory and Voldaren
+ * Estate, whose colors are spend-restricted, are colorless here). `allAbilities`
+ * is the staple reading (a 40%+ page staple keeps the slot its paid color earned,
+ * E585). Fetches make
+ * no mana of their own and are not colorless.
+ */
+export function isColorlessOnlyLand(
+  card: ScryfallCard,
+  opts: { allAbilities?: boolean } = {}
+): boolean {
+  if (!isLandCard(card) || isBasicLand(card) || fetchedBasicRequirement(card)) return false;
+  const produced = producedManaColors(card, ALL_COLORS, opts);
+  return produced.includes('C') && !produced.some((c) => c !== 'C');
+}
+
+const LAND_WORDS = /\b(plains|island|swamp|mountain|forest|lands?|basic)\b/;
+
+/**
+ * An "enters tapped unless ..." clause the deck's own lands cannot meet: it asks
+ * for a creature, a revealed card or a life total rather than a land, so the land
+ * is a tapland in practice (a land check like Isolated Chapel's is met by basics).
+ */
+export function untappedConditionOutOfReach(card: ScryfallCard): boolean {
+  const ot = (card.oracle_text ?? card.card_faces?.[0]?.oracle_text ?? '').toLowerCase();
+  const m = /enters (?:the battlefield )?tapped unless ([^.\n]*)/.exec(ot);
+  if (!m) return false;
+  const cond = m[1];
+  if (/opponents?|life|turn/.test(cond)) return false; // the table or a payment, not the deck
+  return /\b(control|reveal)/.test(cond) && !LAND_WORDS.test(cond);
+}
