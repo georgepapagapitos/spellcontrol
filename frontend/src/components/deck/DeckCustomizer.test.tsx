@@ -123,6 +123,19 @@ describe('DeckCustomizer — More settings fold', () => {
   });
 });
 
+describe('DeckCustomizer — owned-card budget toggle', () => {
+  it('names both effects: the deck budget and the per-card price cap', () => {
+    render(<DeckCustomizer customization={baseCustomization()} update={vi.fn()} />);
+    // The previous test leaves "More settings" open (it is remembered).
+    if (!screen.queryByText('Lands')) {
+      fireEvent.click(screen.getByRole('button', { name: /More settings/ }));
+    }
+    fireEvent.click(screen.getByRole('button', { name: /Budget/ }));
+    expect(screen.getByText('Owned cards skip the budget and price cap')).toBeTruthy();
+    expect(screen.queryByText("Owned cards don't count toward budget")).toBeNull();
+  });
+});
+
 describe('DeckCustomizer — collection controls', () => {
   it('hides the strategy selector until collection mode is on', () => {
     render(

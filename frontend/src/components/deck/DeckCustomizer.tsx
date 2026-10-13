@@ -824,7 +824,7 @@ function BudgetGroup({ customization, update }: DeckCustomizerProps) {
         />
       </Field>
       <SwitchRow
-        label="Owned cards don't count toward budget"
+        label="Owned cards skip the budget and price cap"
         checked={customization.ignoreOwnedBudget}
         onChange={(v) => update({ ignoreOwnedBudget: v })}
       />
