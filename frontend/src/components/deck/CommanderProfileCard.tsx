@@ -13,7 +13,7 @@ interface CommanderProfileCardProps {
  * the same line-by-line breakdown the guided process teaches.
  */
 export function CommanderProfileCard({ profile }: CommanderProfileCardProps) {
-  const { abilities, summary, primaryArchetype } = profile;
+  const { abilities, summary, primaryArchetype, voltronVetoed } = profile;
 
   // Default to expanded — the commander breakdown is a discovery feature.
   const [collapsed, setCollapsed] = useCollapsedPref('spellcontrol-game-plan-collapsed', false);
@@ -62,7 +62,8 @@ export function CommanderProfileCard({ profile }: CommanderProfileCardProps) {
         )}
 
         <p className="cmdr-profile-footer">
-          Reads as: <strong>{ARCHETYPE_LABEL[primaryArchetype]}</strong>, from card text.
+          Reads as: <strong>{ARCHETYPE_LABEL[primaryArchetype]}</strong>,{' '}
+          {voltronVetoed ? 'from card text and EDHREC deck data.' : 'from card text.'}
         </p>
       </div>
     </section>

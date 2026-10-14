@@ -443,3 +443,78 @@ describe('the picked commander', () => {
     expect(onSelect).toHaveBeenCalledWith(null);
   });
 });
+
+describe('the Voltron veto (golden R11) reaches every Plays like chip and the Voltron filter', () => {
+  const GISELA = card(
+    'Gisela, Blade of Goldnight',
+    ['R', 'W'],
+    'Flying, first strike\nIf a source would deal damage to an opponent or a permanent an opponent controls, that source deals double that damage to that player or permanent instead.\nIf a source would deal damage to you or a permanent you control, prevent half that damage, rounded up.',
+    'Legendary Creature — Angel'
+  );
+  GISELA.keywords = ['Flying', 'First strike'];
+  const BEAST = card(
+    'Questing Beast',
+    ['G'],
+    "Vigilance, deathtouch, haste\nQuesting Beast can't be blocked by creatures with power 2 or less.\nCombat damage that would be dealt by creatures you control can't be prevented.\nWhenever Questing Beast deals combat damage to an opponent, it deals that much damage to target planeswalker that player controls.",
+    'Legendary Creature — Beast'
+  );
+  BEAST.keywords = ['Vigilance', 'Deathtouch', 'Haste'];
+
+  beforeEach(async () => {
+    const { resetVoltronVetoForTests } = await import('@/lib/deck/commander-voltron-veto');
+    resetVoltronVetoForTests();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ names: ['gisela, blade of goldnight'] }),
+      }))
+    );
+  });
+
+  it('shows no Voltron chip on a vetoed pick, and keeps it on a true voltron pick', async () => {
+    const { unmount } = render(<CommanderSearch value={GISELA} onSelect={vi.fn()} />);
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(document.querySelector('.commander-pick-playstyles')?.textContent ?? '').not.toContain(
+        'Voltron'
+      )
+    );
+    unmount();
+    render(<CommanderSearch value={BEAST} onSelect={vi.fn()} />);
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    expect(document.querySelector('.commander-pick-playstyles')?.textContent ?? '').toContain(
+      'Voltron'
+    );
+  });
+
+  it('leaves a vetoed commander out of the Voltron filter over every commander', async () => {
+    searchCommanderFinder.mockResolvedValueOnce({ cards: [GISELA, BEAST], total: 2 });
+    render(<CommanderSearch value={null} onSelect={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Voltron' }));
+    await screen.findByText('Questing Beast');
+    expect(screen.queryByText('Gisela, Blade of Goldnight')).toBeNull();
+  });
+
+  it('leaves a vetoed commander out of the Voltron filter over your own', async () => {
+    collectionCards = [
+      owned(
+        'Gisela, Blade of Goldnight',
+        ['R', 'W'],
+        'flying, first strike\nif a source would deal damage to an opponent or a permanent an opponent controls, that source deals double that damage to that player or permanent instead.',
+        'Legendary Creature — Angel'
+      ),
+      owned(
+        'Danitha Capashen, Paragon',
+        ['W'],
+        'first strike, vigilance, lifelink\naura spells you cast cost {1} less to cast.\nequipment spells you cast cost {1} less to cast.\nequip costs you pay cost {1} less.',
+        'Legendary Creature — Human Knight'
+      ),
+      ...filler(20),
+    ];
+    localStorage.setItem('commander-search-owned-only', 'true');
+    render(<CommanderSearch value={null} onSelect={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Voltron' }));
+    await waitFor(() => expect(results()).toEqual(['Danitha Capashen, Paragon']));
+  });
+});

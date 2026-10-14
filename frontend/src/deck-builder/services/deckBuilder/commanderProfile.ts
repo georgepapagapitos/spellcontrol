@@ -15,6 +15,7 @@
  * No network, no store, no React — fully unit-testable and reused by both
  * the one-shot generator and the guided builder.
  */
+import { voltronVetoed, type CommanderProfileTheme } from './voltronVeto';
 import { Archetype } from '@/deck-builder/types';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { creatureTypePlurals, resolveCreatureType } from '@/deck-builder/services/synergy/text';
@@ -85,6 +86,11 @@ export interface CommanderProfile {
   summary: string;
   /** Detected creature subtypes (tribes), e.g. ["spirit"]. */
   tribes: string[];
+  /**
+   * The card text reads as a Voltron plan and EDHREC's deck data overruled it (golden R11), so
+   * the reading came from the text AND the deck data. Absent when nothing was overruled.
+   */
+  voltronVetoed?: boolean;
 }
 
 // ─── Text extraction ─────────────────────────────────────────────────
@@ -663,37 +669,18 @@ export const VOLTRON_KEYWORDS = new Set([
   'deathtouch',
 ]);
 
-// The community half of the voltron rule (golden R11). EDHREC's Voltron theme
-// share is the Voltron tag's count over the sum of the page's theme counts.
-// Under 4% on a page with 30 or more themed decks the commander is not voltron
-// even when its text fits (Gisela, Emrakul and Gishath carry the keywords, not
-// the deck). The share only vetoes: it never makes a commander voltron, and a
-// thin or missing page leaves the text rule alone.
-const VOLTRON_MIN_THEMED_DECKS = 30;
-const VOLTRON_MIN_THEME_SHARE = 0.04;
-
-/** The slice of EDHREC's commander-page themes the profile reads (an `EDHRECTheme` fits). */
-export interface CommanderProfileTheme {
-  name: string;
-  slug?: string;
-  count: number;
-}
+export type { CommanderProfileTheme };
+export { voltronVetoed };
 
 export interface CommanderProfileOptions {
   /** The commander's EDHREC page themes, when the page was fetched. Absent = text decides. */
   edhrecThemes?: ReadonlyArray<CommanderProfileTheme>;
-}
-
-function voltronVetoed(themes: ReadonlyArray<CommanderProfileTheme> | undefined): boolean {
-  if (!themes) return false;
-  let total = 0;
-  let voltron = 0;
-  for (const t of themes) {
-    if (!(t.count > 0)) continue;
-    total += t.count;
-    if (t.slug === 'voltron' || t.name.toLowerCase() === 'voltron') voltron += t.count;
-  }
-  return total >= VOLTRON_MIN_THEMED_DECKS && voltron / total < VOLTRON_MIN_THEME_SHARE;
+  /**
+   * The Voltron veto already decided elsewhere: the shipped snapshot of commanders whose EDHREC
+   * page vetoes Voltron (`public/voltron-veto.json`), for the surfaces that list many commanders
+   * and fetch no page. Same rule as `edhrecThemes`; either one vetoes.
+   */
+  voltronVetoed?: boolean;
 }
 
 // ─── Profile builder ─────────────────────────────────────────────────
@@ -794,9 +781,9 @@ export function buildCommanderProfile(
     'graveyard-recursion',
   ];
   const hasEngine = abilities.some((a) => engineKeywords.includes(a.keyword));
+  let textReadsVoltronButVetoed = false;
   if (
     !seen.has('voltron') &&
-    !voltronVetoed(options?.edhrecThemes) &&
     frontTypeLine(commander).toLowerCase().includes('creature') &&
     (suitsUp ||
       (!hasEngine &&
@@ -806,31 +793,37 @@ export function buildCommanderProfile(
           (voltronHits.length >= 1 && SELF_COMBAT.test(text) && !PAYS_OTHER_CREATURES.test(text)) ||
           (voltronHits.length >= 2 && !LENDS_OUTWARD.test(text)))))
   ) {
-    abilities.push({
-      keyword: 'voltron',
-      label: 'Voltron threat',
-      evidence: voltronHits.length ? `Has ${voltronHits.join(', ')}` : 'Suits up one threat',
-      wants: [
-        'Equipment and auras to suit it up',
-        'Protection (hexproof, shroud, totem armor)',
-        'Evasion to push damage',
-      ],
-      themes: ['voltron', 'equipment', 'auras'],
-      archetypeHint: Archetype.VOLTRON,
-      // Scale confidence with the evidence: a commander stacking 3-4 evasion/
-      // protection keywords (flying + vigilance + deathtouch + lifelink, e.g.
-      // Atraxa) is a much stronger voltron signal than the 2-keyword floor
-      // that triggers this branch at all, and shouldn't lose the archetype
-      // vote to a couple of incidental weight-2 oracle-text detectors
-      // (e.g. extra-combat) just because they total the same as voltron's old
-      // flat weight of 2. Capped so it can't run away on a keyword-heavy but
-      // otherwise unfocused commander. Conversely, a text-only hit (zero
-      // evasion/protection keywords — an equipment or "commander you control"
-      // clause) is the weakest evidence this branch accepts and must not tie a
-      // genuine signal like tribal, so it votes at weight 1 and only wins when
-      // nothing else fired.
-      archWeight: voltronHits.length ? Math.min(4, 2 + Math.max(0, voltronHits.length - 2)) : 1,
-    });
+    // The text reads voltron. The community half of R11 may overrule it; the profile says so
+    // (`voltronVetoed`) so the screen can name EDHREC as part of where its reading came from.
+    if (options?.voltronVetoed || voltronVetoed(options?.edhrecThemes)) {
+      textReadsVoltronButVetoed = true;
+    } else {
+      abilities.push({
+        keyword: 'voltron',
+        label: 'Voltron threat',
+        evidence: voltronHits.length ? `Has ${voltronHits.join(', ')}` : 'Suits up one threat',
+        wants: [
+          'Equipment and auras to suit it up',
+          'Protection (hexproof, shroud, totem armor)',
+          'Evasion to push damage',
+        ],
+        themes: ['voltron', 'equipment', 'auras'],
+        archetypeHint: Archetype.VOLTRON,
+        // Scale confidence with the evidence: a commander stacking 3-4 evasion/
+        // protection keywords (flying + vigilance + deathtouch + lifelink, e.g.
+        // Atraxa) is a much stronger voltron signal than the 2-keyword floor
+        // that triggers this branch at all, and shouldn't lose the archetype
+        // vote to a couple of incidental weight-2 oracle-text detectors
+        // (e.g. extra-combat) just because they total the same as voltron's old
+        // flat weight of 2. Capped so it can't run away on a keyword-heavy but
+        // otherwise unfocused commander. Conversely, a text-only hit (zero
+        // evasion/protection keywords — an equipment or "commander you control"
+        // clause) is the weakest evidence this branch accepts and must not tie a
+        // genuine signal like tribal, so it votes at weight 1 and only wins when
+        // nothing else fired.
+        archWeight: voltronHits.length ? Math.min(4, 2 + Math.max(0, voltronHits.length - 2)) : 1,
+      });
+    }
   }
 
   const primaryArchetype = pickPrimaryArchetype(abilities);
@@ -881,6 +874,7 @@ export function buildCommanderProfile(
     suggestedThemes,
     summary,
     tribes,
+    ...(textReadsVoltronButVetoed ? { voltronVetoed: true } : {}),
   };
 }
 

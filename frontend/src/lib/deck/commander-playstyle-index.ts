@@ -316,6 +316,14 @@ export function playstyleScryfallClause(p: Playstyle): string | null {
 const PLAYSTYLE_BY_ID = new Map(PLAYSTYLES.map((p) => [p.id, p]));
 const PLAYSTYLE_ORDER = new Map(PLAYSTYLES.map((p, i) => [p.id, i]));
 
+export interface PlaystyleOptions {
+  /**
+   * EDHREC's deck data vetoes Voltron for this commander (the shipped snapshot, or its cached
+   * page): the profile's R11 answer, which the playstyle must not contradict.
+   */
+  voltronVetoed?: boolean;
+}
+
 export interface PlaystyleMatch {
   playstyle: Playstyle;
   /** Higher = stronger fit. Theme overlap counts 1 each; a primary-archetype
@@ -333,8 +341,11 @@ export function playstyleById(id: string): Playstyle | undefined {
  * Returns only playstyles with a non-zero signal (empty for a commander whose
  * text matches nothing — e.g. a vanilla beater with no keywords).
  */
-export function classifyCommanderPlaystyles(card: ScryfallCard): PlaystyleMatch[] {
-  const profile = buildCommanderProfile(card);
+export function classifyCommanderPlaystyles(
+  card: ScryfallCard,
+  opts: PlaystyleOptions = {}
+): PlaystyleMatch[] {
+  const profile = buildCommanderProfile(card, null, { voltronVetoed: opts.voltronVetoed });
   const oracleText = getCombinedOracleText(card).toLowerCase();
   const themes = new Set(profile.suggestedThemes);
   // All archetype signals the profile carries: the chosen primary, plus every
@@ -347,6 +358,8 @@ export function classifyCommanderPlaystyles(card: ScryfallCard): PlaystyleMatch[
 
   const matches: PlaystyleMatch[] = [];
   for (const playstyle of PLAYSTYLES) {
+    // Golden R11: EDHREC's deck data overrules a Voltron reading of the text, here as in the profile.
+    if (opts.voltronVetoed && playstyle.id === 'voltron') continue;
     let score = 0;
     for (const theme of playstyle.themeSignals) {
       if (themes.has(theme)) score += 1;
@@ -414,14 +427,20 @@ function keywordsFromOracleText(oracleText: string): string[] {
  * collection — that's the weakest branch of the signal (archWeight 1) and would
  * need a schema change to fix.
  */
-export function classifyOwnedCommanderPlaystyles(card: EnrichedCard): PlaystyleMatch[] {
-  return classifyCommanderPlaystyles({
-    name: card.name,
-    oracle_text: card.oracleText,
-    type_line: card.typeLine,
-    color_identity: card.colorIdentity,
-    keywords: keywordsFromOracleText(card.oracleText ?? ''),
-  } as ScryfallCard);
+export function classifyOwnedCommanderPlaystyles(
+  card: EnrichedCard,
+  opts: PlaystyleOptions = {}
+): PlaystyleMatch[] {
+  return classifyCommanderPlaystyles(
+    {
+      name: card.name,
+      oracle_text: card.oracleText,
+      type_line: card.typeLine,
+      color_identity: card.colorIdentity,
+      keywords: keywordsFromOracleText(card.oracleText ?? ''),
+    } as ScryfallCard,
+    opts
+  );
 }
 
 /** Does a commander fit a given playstyle id? */
