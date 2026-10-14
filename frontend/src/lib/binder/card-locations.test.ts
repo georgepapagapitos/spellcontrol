@@ -53,7 +53,7 @@ function layout(
   binders: BinderDef[],
   allocated: string[] = []
 ): BinderLayoutInputs {
-  return { cards, binders, allocatedCopyIds: new Set(allocated), setMap: undefined };
+  return { cards, binders, allocatedCopyIds: new Set(allocated), setMap: undefined, settled: true };
 }
 
 describe('buildCardLocationIndex', () => {

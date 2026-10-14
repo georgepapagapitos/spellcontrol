@@ -45,7 +45,7 @@ export function BinderPage() {
   // allocatedCopyIds + setMap — the exact chain this page materializes from,
   // shared with the Add-list row prediction and the post-import routing
   // summary so neither can drift from what this page actually renders.
-  const { cards, binders, allocatedCopyIds, setMap } = useBinderLayoutInputs();
+  const { cards, binders, allocatedCopyIds, setMap, settled } = useBinderLayoutInputs();
   const hydrating = useCollectionStore((s) => s.hydrating);
   // A signed-in device that has never cached this account still has an EMPTY
   // local store when `hydrating` flips false — that flag only covers reading
@@ -223,9 +223,21 @@ export function BinderPage() {
         asked
       );
     if (holds(active)) return 'shown';
+    // A copy missing mid-load isn't gone yet: hold the verdict until the cards
+    // are in and the tag and drop data the binder's rules match on has loaded.
+    if (hydrating || awaitingFirstPull || !settled) return null;
     if (activeUnfiltered && holds(activeUnfiltered)) return 'hidden';
     return 'gone';
-  }, [locateCopyId, active, activeUnfiltered, routeId, cards]);
+  }, [
+    locateCopyId,
+    active,
+    activeUnfiltered,
+    routeId,
+    cards,
+    hydrating,
+    awaitingFirstPull,
+    settled,
+  ]);
 
   // The link is spent once it opens the copy's page, or once the copy is
   // gone from the binder. A search that hides it keeps the link, so clearing
