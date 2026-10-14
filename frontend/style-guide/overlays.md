@@ -44,13 +44,25 @@ calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
   adding a sibling: Add cards 1180 · Test hand 1180 · CardGroup 960 ·
   NewArrivals / PullList 720 · ConflictPanel 720 · DeckSizePrompt /
   CardFitPanel 42rem ·
-  BuildReport / DeckTokens 640 · BuyList / DeckPrimer
+  BuildReport / DeckTokens 640 · BuyList / DeckPrimer / MoveToDeck
   ≈560. A new overlay whose body is rows, a diff, images, or anything you
   _work in_ picks from this table — it does not ship on the 480px default.
   Playtest's sheets are on it too: opening hand 1180 · zone viewer 900 ·
   scry 720 · token creator 640 · stats 600; its three short pickers
   (designations, life adjust, takeback mode) stay on the 480px default
   deliberately — that width IS right for a brief exclusive choice.
+- **A sheet that picks one of your decks searches, sorts and filters it.**
+  A list of every deck you own outgrows one screen fast, and a scroll-only
+  wall of tiles was the reported failure (`MoveToDeckSheet`, 2026-10-14).
+  Past one deck, the header carries a `SearchPill` (name or commander) and a
+  `SortMenu` on the decks index's own fields and wording
+  (`lib/deck/deck-sort.ts`, minus Value, which needs prices loaded), plus
+  multi-select format filter chips once the decks span two formats. Rows are flat and
+  hairline-separated in the shell's `.card-picker-list`, never a stack of
+  bordered tiles: thumb with the deck color as its left edge, name and color
+  pips, then commander (or format) and card count. A row says when that
+  deck already runs the card. A long list keeps its height while you search
+  it, so the sheet doesn't jump per keystroke.
 - **Add cards is a bottom sheet up to 1024px, then a two-pane workbench
   (T153 phase 4, 2026-09-27).** It moved onto `<Modal>` (was a hand-rolled
   `.modal-backdrop` — exit animation, focus trap and topmost-only Escape now

@@ -53,7 +53,6 @@ const CEILINGS: Record<string, number> = {
   'lib/cube/generate.ts': 1100,
   'lib/sync/index.ts': 2100,
   'pages/AdminPage.tsx': 1100,
-  'pages/DecksIndexPage.tsx': 1100,
   'playtest/store.ts': 1500,
   'store/collection.ts': 2100,
   'store/decks.ts': 1700,
