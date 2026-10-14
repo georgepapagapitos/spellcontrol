@@ -30,7 +30,7 @@ import { exceedsCmcCap } from '../deckFilters';
 import { createObjectiveContext } from '../deckObjective';
 import { cardIneligibility, checkConstraints } from '../deckObjective/constraints';
 import { isBasicLand, isLandCard } from '../deckObjective/context';
-import { MAX_SWAPS, repairSlotOf, type AppliedSwap } from '../deckObjective/optimizer';
+import { MAX_SWAPS, fastGains, repairSlotOf, type AppliedSwap } from '../deckObjective/optimizer';
 import { optimizeDeckAsync } from '../deckObjective/optimizerAsync';
 import { discover, type DiscoveryPick } from '../deckObjective/discovery';
 import { countRoles } from '../deckObjective/trustRegion';
@@ -307,7 +307,7 @@ export function applySearchSwaps(
 /** Owned replacements per slot a repair needs, and for any slot: enough to
  *  choose from, few enough that the search stays quick. */
 const OWNED_PER_SLOT = 12;
-const OWNED_ANY_SLOT = 24;
+export const OWNED_ANY_SLOT = 24;
 /** Owned nonbasic lands kept, the most played first. */
 const OWNED_LANDS = 30;
 /** Owned spells a collection build always weighs, the page's most played first,
@@ -324,8 +324,9 @@ export const OWNED_BROWSE = 150;
  * relaxed is not one, but a Game Changer ceiling in an owned-only build is, and
  * its replacement has to be owned), the most played (EDHREC rank) of each slot the
  * cards to replace fill (their counted role, a protection piece), plus the most
- * played of any slot. Otherwise the OWNED_BROWSE most played, the cards Coach
- * weighs: a Zo-Zu build seated Kiki-Jiki and never saw the owned Zealous
+ * played of any slot. Otherwise it fetches the OWNED_BROWSE most played, the
+ * cards Coach weighs, and keeps the ones that add most here plus every combo
+ * piece: a Zo-Zu build seated Kiki-Jiki and never saw the owned Zealous
  * Conscripts that completes it, then Coach offered it as the deck's best swap.
  */
 export async function ownedExtraCandidates(
@@ -389,6 +390,25 @@ export async function ownedExtraCandidates(
       (a, b) =>
         (a.edhrec_rank ?? Infinity) - (b.edhrec_rank ?? Infinity) || (a.name < b.name ? -1 : 1)
     );
+  // Browsing, the search re-scores every candidate each step, so it is handed
+  // the OWNED_ANY_SLOT spells that add the most to this list (the optimizer's
+  // own estimate, once) and every piece of a combo the context names: a piece
+  // gains little alone (Zealous Conscripts comes in beside Kiki-Jiki, as a pair).
+  // All OWNED_BROWSE cost a deck score each per step: 14 of the 33 coll33 rows
+  // ran out of the app's search clock, against 2.
+  const comboPieces = new Set((ctx.combos ?? []).flatMap((x) => x.cards));
+  const browseKeep = browse
+    ? (() => {
+        const spells = fits.filter((c) => !isLandCard(c) && !comboPieces.has(c.name));
+        const gain = fastGains(seed, spells, ctx);
+        return new Set(
+          spells
+            .sort((a, b) => gain.get(b.name)! - gain.get(a.name)! || (a.name < b.name ? -1 : 1))
+            .slice(0, OWNED_ANY_SLOT)
+            .map((c) => c.name)
+        );
+      })()
+    : null;
   const perSlot = new Map<string, number>();
   let anySlot = 0;
   let lands = 0;
@@ -399,10 +419,14 @@ export async function ownedExtraCandidates(
       out.set(c.name, c);
       continue;
     }
+    if (browseKeep) {
+      if (browseKeep.has(c.name) || comboPieces.has(c.name)) out.set(c.name, c);
+      continue;
+    }
     const k = slotKey(c);
     const n = perSlot.get(k) ?? 0;
     const keepForSlot = needed.has(k) && n < OWNED_PER_SLOT;
-    const keepForAny = anySlot < (browse ? OWNED_BROWSE : OWNED_ANY_SLOT);
+    const keepForAny = anySlot < OWNED_ANY_SLOT;
     if (!keepForSlot && !keepForAny) continue;
     if (keepForSlot) perSlot.set(k, n + 1);
     else anySlot++;
