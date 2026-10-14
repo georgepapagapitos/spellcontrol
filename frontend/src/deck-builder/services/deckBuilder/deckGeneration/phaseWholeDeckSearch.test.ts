@@ -6,12 +6,16 @@
 import { describe, expect, it } from 'vitest';
 import type { AppliedSwap } from '../deckObjective/optimizer';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { BASELINE, card, merenCtx } from '../deckObjective/__fixtures__/objectiveFixture';
+import { isLandCard } from '../deckObjective/context';
+import { fastGains } from '../deckObjective/optimizer';
+import { BASELINE, FIX, card, merenCtx } from '../deckObjective/__fixtures__/objectiveFixture';
 import {
   applySearchSwaps,
   discoveryReason,
   landSeatedSpells,
   ownedExtraCandidates,
+  OWNED_ANY_SLOT,
+  OWNED_BROWSE,
   reasonLine,
 } from './phaseWholeDeckSearch';
 import type { GenerationState } from './state';
@@ -57,7 +61,7 @@ describe('reasonLine', () => {
 // Meren cards; the list owns itself and two lands it doesn't play.
 describe('ownedExtraCandidates', () => {
   const LANDS = ["Gaea's Cradle", 'Phyrexian Tower'];
-  const SPELL = 'Eternal Witness';
+  const SPELL = 'Butcher of Malakir';
   const inList = new Set(BASELINE.cards.map((c) => c.name));
   const owned = new Set([...inList, ...LANDS, SPELL]);
   const ctx = merenCtx({
@@ -96,9 +100,112 @@ describe('ownedExtraCandidates', () => {
       new Set()
     );
 
-  it('keeps the owned lands the list does not hold, and no spell while no rule is broken', async () => {
+  // A Zo-Zu build seated Kiki-Jiki and never weighed the owned Zealous Conscripts
+  // that completes it; Coach then offered it as the deck's best swap. With no rule
+  // broken the search weighs the owned spells Coach weighs, not only the lands.
+  it('keeps the owned lands and spells the list does not hold, with no rule broken', async () => {
     const got = await run([...LANDS, SPELL]);
-    expect([...got.keys()].sort()).toEqual([...LANDS].sort());
+    expect([...got.keys()].sort()).toEqual([...LANDS, SPELL].sort());
+  });
+
+  it('fetches the OWNED_BROWSE most played owned spells, the page first, then EDHREC rank', async () => {
+    const filler = Array.from({ length: OWNED_BROWSE + 20 }, (_, i) => ({
+      name: `Owned Spell ${String(i).padStart(3, '0')}`,
+      colorIdentity: ['B'],
+      typeLine: 'Creature',
+      edhrecRank: 1000 + i,
+    }));
+    const browseState = {
+      ...state,
+      context: {
+        ...state.context,
+        collectionPool: [
+          ...filler,
+          // Unranked by EDHREC, but on this commander's page: fetched first.
+          { name: SPELL, colorIdentity: ['B'], typeLine: card(SPELL).type_line },
+        ],
+      },
+    } as unknown as GenerationState;
+    const asked: string[] = [];
+    await ownedExtraCandidates(
+      browseState,
+      BASELINE,
+      {
+        ...ctx,
+        edhrec: new Map([[SPELL, { name: SPELL, inclusion: 30 }]]),
+      } as unknown as typeof ctx,
+      {
+        resolveOwned: async (names: string[]) => {
+          asked.push(...names);
+          return new Map<string, ScryfallCard>();
+        },
+      } as never,
+      [],
+      () => true,
+      new Set()
+    );
+    expect(asked).toHaveLength(OWNED_BROWSE);
+    expect(asked[0]).toBe(SPELL);
+    expect(asked).toContain('Owned Spell 000');
+    expect(asked).not.toContain(`Owned Spell ${String(OWNED_BROWSE + 19).padStart(3, '0')}`);
+  });
+
+  // Every candidate costs the search a deck score per step: handing it all
+  // OWNED_BROWSE ran 14 of 33 coll33 rows out of the app's search clock (2 before).
+  it('hands the search the OWNED_ANY_SLOT spells that add the most, and every combo piece', async () => {
+    const inBaseline = new Set(BASELINE.cards.map((c) => c.name));
+    const spells = (FIX.cards as { name: string; type_line: string; color_identity: string[] }[])
+      .filter(
+        (c) =>
+          !inBaseline.has(c.name) &&
+          c.name !== 'Meren of Clan Nel Toth' &&
+          !isLandCard(card(c.name)) &&
+          c.color_identity.every((x) => x === 'B' || x === 'G')
+      )
+      .map((c) => c.name);
+    const browseState = {
+      ...state,
+      context: {
+        ...state.context,
+        collectionPool: spells.map((name) => ({
+          name,
+          colorIdentity: card(name).color_identity,
+          typeLine: card(name).type_line,
+        })),
+      },
+    } as unknown as GenerationState;
+    const ownedCtx = merenCtx({
+      ownedNames: new Set([...inBaseline, ...spells]),
+      customization: {
+        deckFormat: 99,
+        currency: 'USD',
+        collectionMode: true,
+        collectionStrategy: 'prefer',
+      },
+    });
+    const got = await ownedExtraCandidates(
+      browseState,
+      BASELINE,
+      ownedCtx,
+      {
+        resolveOwned: async (names: string[]) =>
+          new Map<string, ScryfallCard>(names.map((n) => [n, card(n)])),
+      } as never,
+      [],
+      () => true,
+      new Set()
+    );
+    const pieces = new Set((ownedCtx.combos ?? []).flatMap((x) => x.cards));
+    expect(spells.length).toBeGreaterThan(OWNED_ANY_SLOT + 10);
+    // Walking Ballista and Phyrexian Altar each finish a combo with the seated Mikaeus.
+    for (const piece of spells.filter((n) => pieces.has(n))) expect(got.has(piece)).toBe(true);
+    const rest = spells.filter((n) => !pieces.has(n));
+    const gain = fastGains(BASELINE, rest.map(card), ownedCtx);
+    const kept = rest.filter((n) => got.has(n));
+    expect(kept).toHaveLength(OWNED_ANY_SLOT);
+    const floor = Math.min(...kept.map((n) => gain.get(n)!));
+    for (const n of rest.filter((n) => !got.has(n)))
+      expect(gain.get(n)!).toBeLessThanOrEqual(floor);
   });
 });
 

@@ -30,12 +30,13 @@ import { exceedsCmcCap } from '../deckFilters';
 import { createObjectiveContext } from '../deckObjective';
 import { cardIneligibility, checkConstraints } from '../deckObjective/constraints';
 import { isBasicLand, isLandCard } from '../deckObjective/context';
-import { MAX_SWAPS, repairSlotOf, type AppliedSwap } from '../deckObjective/optimizer';
+import { MAX_SWAPS, fastGains, repairSlotOf, type AppliedSwap } from '../deckObjective/optimizer';
 import { optimizeDeckAsync } from '../deckObjective/optimizerAsync';
 import { discover, type DiscoveryPick } from '../deckObjective/discovery';
 import { countRoles } from '../deckObjective/trustRegion';
 import type { ObjectiveContext, ObjectiveDeck } from '../deckObjective/types';
 import { edhrecRowsFrom } from '../deckObjective/panelDump';
+import { combosEarn } from '../deckObjective/terms/combos';
 import { markBanned, type GenerationState } from './state';
 import {
   SEARCH_PROGRESS_MESSAGE,
@@ -307,20 +308,27 @@ export function applySearchSwaps(
 /** Owned replacements per slot a repair needs, and for any slot: enough to
  *  choose from, few enough that the search stays quick. */
 const OWNED_PER_SLOT = 12;
-const OWNED_ANY_SLOT = 24;
+export const OWNED_ANY_SLOT = 24;
 /** Owned nonbasic lands kept, the most played first. */
 const OWNED_LANDS = 30;
+/** Owned spells a collection build always weighs, the page's most played first,
+ *  then EDHREC's: the count Coach's Cuts lane scores (MAX_CANDIDATES in
+ *  lib/coach/coach-cut-swaps.ts), so Coach finds no owned card the search never saw. */
+export const OWNED_BROWSE = 150;
 
 /**
  * The owned cards the page doesn't rank, by name, that the search may seat
  * (E509). Lands are always resolved in a collection build: the generator meets
  * a land only through the page's land list, so an owned dual or utility land is
- * otherwise out of reach (the most played OWNED_LANDS are kept). Spells are
- * resolved only while the list breaks a rule the search repairs (an ownership
- * rule the generator left relaxed is not one, but a Game Changer ceiling in an
- * owned-only build is, and its replacement has to be owned): the most played
- * (EDHREC rank) of each slot the cards to replace fill (their counted role, a
- * protection piece), plus the most played of any slot.
+ * otherwise out of reach (the most played OWNED_LANDS are kept). Spells: while
+ * the list breaks a rule the search repairs (an ownership rule the generator left
+ * relaxed is not one, but a Game Changer ceiling in an owned-only build is, and
+ * its replacement has to be owned), the most played (EDHREC rank) of each slot the
+ * cards to replace fill (their counted role, a protection piece), plus the most
+ * played of any slot. Otherwise it fetches the OWNED_BROWSE most played, the
+ * cards Coach weighs, and keeps the ones that add most here plus every combo
+ * piece: a Zo-Zu build seated Kiki-Jiki and never saw the owned Zealous
+ * Conscripts that completes it, then Coach offered it as the deck's best swap.
  */
 export async function ownedExtraCandidates(
   state: GenerationState,
@@ -340,13 +348,29 @@ export async function ownedExtraCandidates(
   // A land by its front face, as the search reads it (an MDFC spell is a spell).
   const isLandEntry = (c: { typeLine?: string }) =>
     /\bLand\b/.test((c.typeLine ?? '').split(' // ')[0]);
-  const rest = (collectionPool ?? []).filter(
+  const browse = broken.length === 0;
+  const inIdentity = (collectionPool ?? []).filter(
     (c) =>
       !known.has(c.name) &&
       !state.bannedCards.has(c.name) &&
-      c.colorIdentity.every((x) => colorIdentity.includes(x)) &&
-      (broken.length > 0 || isLandEntry(c))
+      c.colorIdentity.every((x) => colorIdentity.includes(x))
   );
+  const inclusion = (name: string) =>
+    ctx.edhrec.get(name)?.inclusion ?? ctx.edhrec.get(frontFaceName(name))?.inclusion ?? 0;
+  const rest = browse
+    ? [
+        ...inIdentity.filter(isLandEntry),
+        ...inIdentity
+          .filter((c) => !isLandEntry(c))
+          .sort(
+            (a, b) =>
+              inclusion(b.name) - inclusion(a.name) ||
+              (a.edhrecRank ?? Infinity) - (b.edhrecRank ?? Infinity) ||
+              (a.name < b.name ? -1 : 1)
+          )
+          .slice(0, OWNED_BROWSE),
+      ]
+    : inIdentity;
   if (rest.length === 0) return out;
   // The cards a repair takes out: the unowned ones a violation names, or,
   // under an owned share, every unowned spell.
@@ -367,6 +391,28 @@ export async function ownedExtraCandidates(
       (a, b) =>
         (a.edhrec_rank ?? Infinity) - (b.edhrec_rank ?? Infinity) || (a.name < b.name ? -1 : 1)
     );
+  // Browsing, the search re-scores every candidate each step, so it is handed
+  // the OWNED_ANY_SLOT spells that add the most to this list (the optimizer's
+  // own estimate, once) and every piece of a combo the context names: a piece
+  // gains little alone (Zealous Conscripts comes in beside Kiki-Jiki, as a pair).
+  // All OWNED_BROWSE cost a deck score each per step: 14 of the 33 coll33 rows
+  // ran out of the app's search clock, against 2.
+  // Pieces ride along only where a finished combo earns something (combosEarn).
+  const comboPieces = new Set(
+    combosEarn(ctx.customization) ? (ctx.combos ?? []).flatMap((x) => x.cards) : []
+  );
+  const browseKeep = browse
+    ? (() => {
+        const spells = fits.filter((c) => !isLandCard(c) && !comboPieces.has(c.name));
+        const gain = fastGains(seed, spells, ctx);
+        return new Set(
+          spells
+            .sort((a, b) => gain.get(b.name)! - gain.get(a.name)! || (a.name < b.name ? -1 : 1))
+            .slice(0, OWNED_ANY_SLOT)
+            .map((c) => c.name)
+        );
+      })()
+    : null;
   const perSlot = new Map<string, number>();
   let anySlot = 0;
   let lands = 0;
@@ -375,6 +421,10 @@ export async function ownedExtraCandidates(
       if (isBasicLand(c) || lands >= OWNED_LANDS) continue;
       lands++;
       out.set(c.name, c);
+      continue;
+    }
+    if (browseKeep) {
+      if (browseKeep.has(c.name) || comboPieces.has(c.name)) out.set(c.name, c);
       continue;
     }
     const k = slotKey(c);

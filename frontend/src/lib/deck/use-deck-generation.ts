@@ -337,6 +337,7 @@ export function useDeckGeneration({
             // look-alike name (ownedCardResolution.ts).
             scryfallId: c.scryfallId || undefined,
             oracleId: c.oracleId,
+            edhrecRank: c.edhrecRank,
           });
         }
         if (byName.size > 0) collectionPool = [...byName.values()];

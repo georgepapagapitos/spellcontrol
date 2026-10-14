@@ -48,6 +48,7 @@ import { isBasicLand, isLandCard } from '@/deck-builder/services/deckBuilder/dec
 import {
   judgeMove,
   MIN_GAIN,
+  ownGain,
   type MoveJudgement,
 } from '@/deck-builder/services/deckBuilder/deckObjective/judge';
 import { SLICE_MS } from '@/deck-builder/services/deckBuilder/deckObjective/optimizerAsync';
@@ -158,10 +159,8 @@ export interface CoachMoveScoreOptions {
   maxCandidates?: number;
 }
 
-/** Terms an off-page card earns by being a card of a kind or by a theme read, not by the commander's data. */
 /** Off-page pairs judged per cut. */
 const OFF_PAGE_JUDGED = 2;
-const GENERIC_GAIN = ['roles', 'synergy', 'engines', 'lift'] as const;
 type Pair = { out: ScryfallCard; in: ScryfallCard; j: MoveJudgement };
 const DEFAULT_FULL_TOP = 12;
 const DEFAULT_PAIRS = 6;
@@ -333,7 +332,7 @@ function* scoreSteps(
   const grounded = (j: MoveJudgement, c: ScryfallCard): MoveJudgement => {
     const off = opts.offPage;
     if (!off || !j.accepted || !off.is(c)) return j;
-    const own = j.delta - GENERIC_GAIN.reduce((sum, k) => sum + (j.terms[k] ?? 0), 0);
+    const own = ownGain(j.terms, j.delta);
     return own >= off.bar
       ? j
       : {

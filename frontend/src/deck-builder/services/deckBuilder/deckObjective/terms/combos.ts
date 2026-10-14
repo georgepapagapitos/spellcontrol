@@ -11,7 +11,9 @@
  * The decay: a second win line is worth half the first, and so on. Combos
  * earn nothing under a target bracket of 3 or lower: a counted combo floors
  * the deck above it (@spellcontrol/deck-metrics), so there it is a liability
- * the bracket convergence exists to remove, not a payoff. Under
+ * the bracket convergence exists to remove, not a payoff. Nor under a combo
+ * setting of 0, the user's "None": a High Perfect Morcant build set to it took
+ * Sanguine Bond + Exquisite Blood for two cards that did their own jobs. Under
  * `ctx.comboCredit === 'wins'` (Coach, E540 S7) only lines that end the game
  * (`comboEndsGame`) count: a loop that only makes mana or draws earns nothing,
  * unless a payoff the deck holds converts it (E578: infinite untap + Lathril).
@@ -35,11 +37,22 @@ export function combosCountAtBracket(target: number | string | undefined): boole
   return !(typeof target === 'number' && target <= 3);
 }
 
+/** Whether a combo earns anything under these settings: the bracket allows it and the user didn't ask for none. */
+export function combosEarn(customization: {
+  targetBracket?: number | string;
+  comboCount?: number;
+}): boolean {
+  return customization.comboCount !== 0 && combosCountAtBracket(customization.targetBracket);
+}
+
 export const combosTerm: TermFn = (deck, ctx) => {
   const combos = ctx.combos ?? [];
   const target = ctx.customization.targetBracket;
   if (!combosCountAtBracket(target)) {
     return { value: 0, summary: `combos earn nothing at target bracket ${target}`, cards: [] };
+  }
+  if (!combosEarn(ctx.customization)) {
+    return { value: 0, summary: 'combos earn nothing with combos set to none', cards: [] };
   }
   const seen = new Set<string>();
   // The deck's own payoffs (commander first) turn a mana/untap/ETB loop into a win (E578).

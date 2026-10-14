@@ -30,6 +30,7 @@ import {
   swapSentences,
 } from '@/deck-builder/services/deckBuilder/deckGeneration/swapCopy';
 import type { SwapReason } from '@/deck-builder/services/deckBuilder/deckObjective/swapReasons';
+import { OFF_PAGE_MIN_GAIN } from '@/deck-builder/services/deckBuilder/deckObjective/judge';
 import { buildSwapAlternativeFactors } from './why-factors';
 import { fromSwap, type Change, type ChangeOwnership } from './deck-change';
 import {
@@ -42,12 +43,6 @@ import type { CoachObjectiveResult } from './coach-objective';
 import type { RankedMove } from './coach-rank';
 import type { SettingsBreak } from './deck-settings-fit';
 
-/**
- * What a replacement the commander's page has no row for must gain beyond filling a
- * role (twice the objective's 0.3 margin): the swap has to improve the deck by what
- * the card itself does, not by a role count or an incidental theme read.
- */
-export const OFF_PAGE_MIN_GAIN = 0.6;
 /** Replacement candidates scored per pairing, the page's most played first. */
 export const MAX_CANDIDATES = 150;
 
