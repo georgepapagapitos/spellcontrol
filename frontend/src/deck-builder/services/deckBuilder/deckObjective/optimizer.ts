@@ -63,7 +63,7 @@ import {
   requiresOwnedCards,
 } from './constraints';
 import { isBasicLand, isLandCard } from './context';
-import { MIN_GAIN, OFF_PAGE_MIN_GAIN, applyMove, memoRoleOf, ownGain } from './judge';
+import { MIN_GAIN, OFF_PAGE_MIN_GAIN, applyMove, memoRoleOf, offPageGain } from './judge';
 import {
   MAX_LAND_EVALUATIONS,
   MAX_LAND_UPGRADES,
@@ -679,18 +679,17 @@ export function* optimizeSteps(
       }
       if (!isRepair && opts.repairOnly && move.in.some((c) => opts.repairOnly!.has(c.name)))
         continue;
-      // An owned spell the page never ranked takes the place of an owned card
-      // its players play only by what it does itself: Coach's off-page bar. An
+      // An owned spell the page never ranked takes the place of a card its
+      // players play only by what it does itself: Coach's off-page bar. An
       // "available only" deck is all owned page cards, so a flat refusal kept
       // every off-page owned card out (Zo-Zu's Zealous Conscripts beside Kiki-Jiki).
+      // Owning it is not play: a "prefer" Isshin took Goblin King for an
+      // unowned Relentless Assault on the ownership term alone.
       const offPageBar =
         !isRepair &&
         !!opts.offPageOwned &&
         move.in.some((c) => opts.offPageOwned!.has(c.name) && !isLandCard(c)) &&
-        move.out.some((i) => {
-          const o = current.cards[i];
-          return isOwnedCard(o, ctx) && ctx.qualityOf(o).source === 'page';
-        });
+        move.out.some((i) => ctx.qualityOf(current.cards[i]).source === 'page');
       let required = opts.minGain;
       if (trust) {
         const verdict = judgeOf(move, false);
@@ -733,7 +732,7 @@ export function* optimizeSteps(
       if (bestRepair || forced.length > 0) continue;
       if (
         offPageBar &&
-        ownGain(termDeltas(score, currentScore), score.total - currentScore.total) <
+        offPageGain(termDeltas(score, currentScore), score.total - currentScore.total) <
           OFF_PAGE_MIN_GAIN
       )
         continue;

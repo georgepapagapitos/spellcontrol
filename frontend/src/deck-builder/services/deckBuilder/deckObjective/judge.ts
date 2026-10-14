@@ -92,6 +92,11 @@ export function ownGain(terms: Partial<Record<TermKey, number>>, delta: number):
   return delta - GENERIC_GAIN.reduce((sum, k) => sum + (terms[k] ?? 0), 0);
 }
 
+/** What a search swap's off-page card earns in play: its own gain less owning it, which is no play. */
+export function offPageGain(terms: Partial<Record<TermKey, number>>, delta: number): number {
+  return ownGain(terms, delta) - (terms.ownership ?? 0);
+}
+
 export interface SwapJudgement {
   /** Full score change, the library in `deck`'s slots. */
   delta: number;

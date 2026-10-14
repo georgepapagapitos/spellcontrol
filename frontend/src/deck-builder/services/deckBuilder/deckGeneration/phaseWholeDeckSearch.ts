@@ -36,6 +36,7 @@ import { discover, type DiscoveryPick } from '../deckObjective/discovery';
 import { countRoles } from '../deckObjective/trustRegion';
 import type { ObjectiveContext, ObjectiveDeck } from '../deckObjective/types';
 import { edhrecRowsFrom } from '../deckObjective/panelDump';
+import { combosEarn } from '../deckObjective/terms/combos';
 import { markBanned, type GenerationState } from './state';
 import {
   SEARCH_PROGRESS_MESSAGE,
@@ -396,7 +397,10 @@ export async function ownedExtraCandidates(
   // gains little alone (Zealous Conscripts comes in beside Kiki-Jiki, as a pair).
   // All OWNED_BROWSE cost a deck score each per step: 14 of the 33 coll33 rows
   // ran out of the app's search clock, against 2.
-  const comboPieces = new Set((ctx.combos ?? []).flatMap((x) => x.cards));
+  // Pieces ride along only where a finished combo earns something (combosEarn).
+  const comboPieces = new Set(
+    combosEarn(ctx.customization) ? (ctx.combos ?? []).flatMap((x) => x.cards) : []
+  );
   const browseKeep = browse
     ? (() => {
         const spells = fits.filter((c) => !isLandCard(c) && !comboPieces.has(c.name));
