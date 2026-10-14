@@ -71,6 +71,8 @@ import {
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { SuggestionsHandoff, suggestionPreviewEntries } from './suggestions-results-parts';
 import type { CardPreviewAction } from '@/components/card/CardPreview';
+import { InDeckCount, NotLegalBadge, OffColorBadge } from './row-badges';
+import { rowAnnouncement, rowStatuses, useLiveAnnouncer } from '@/lib/search/row-announcement';
 
 import { userMessage } from '@/lib/util/user-error';
 import { printedName } from '@spellcontrol/binder-routing';
@@ -349,6 +351,7 @@ function SearchResultRow({
     <li
       id={`card-search-result-${resultIndex}`}
       data-result-name={name}
+      data-at-limit={addDisabled || undefined}
       aria-current={active ? 'true' : undefined}
       className={`inline-card-search-item${warn ? ' is-off-color' : ''}`}
       onMouseEnter={onHover}
@@ -508,7 +511,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   const [mode, setMode] = useState<Mode>(() => (enableSuggestions ? 'suggestions' : 'collection'));
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<AddSort>('default');
-  const [announce, setAnnounce] = useState('');
+  const { message: announce, announce: handleAnnounce } = useLiveAnnouncer();
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -674,13 +677,6 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
     setActiveIndex(0);
   }
 
-  const handleAnnounce = (msg: string) => {
-    // Cycle the live region by emptying first; some screen readers ignore
-    // re-announcements of the same string.
-    setAnnounce('');
-    window.setTimeout(() => setAnnounce(msg), 30);
-  };
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     const max = visibleResultsRef.current.length;
     if (e.key === 'Escape') {
@@ -700,9 +696,21 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
       const row = document.getElementById(`card-search-result-${next}`);
       row?.scrollIntoView({ block: 'nearest' });
       // The rows are list items holding their own buttons, not options, so the
-      // input cannot point at the row with aria-activedescendant: say it instead.
+      // input cannot point at the row with aria-activedescendant: say it instead,
+      // with the same badges the row shows (off-color, in deck, ...).
       const rowName = row?.dataset.resultName;
-      if (rowName) handleAnnounce(`${rowName}, ${next + 1} of ${max}. Enter adds it.`);
+      if (rowName) {
+        handleAnnounce(
+          rowAnnouncement({
+            name: rowName,
+            statuses: rowStatuses(row),
+            index: next,
+            total: max,
+            atCopyLimit: row.dataset.atLimit !== undefined,
+            edge: next === activeIndex ? (delta > 0 ? 'last' : 'first') : undefined,
+          })
+        );
+      }
     };
     if (e.key === 'ArrowDown') {
       if (max === 0) return;
@@ -1344,21 +1352,9 @@ function CollectionResults({
               onPreview={() => carousel.open(previewEntries, c.name)}
               manaCost={c.manaCost}
             >
-              {offColor && (
-                <Chip
-                  className="card-search-badge"
-                  tone="warn"
-                  title="Outside your commander's color identity"
-                >
-                  Off-color
-                </Chip>
-              )}
-              {notLegal && (
-                <Chip className="card-search-badge" tone="warn" title="Not legal in this format">
-                  Not legal
-                </Chip>
-              )}
-              owned {ownedCount}
+              {offColor && <OffColorBadge />}
+              {notLegal && <NotLegalBadge />}
+              <span data-status={`owned ${ownedCount}`}>owned {ownedCount}</span>
               {binders.length > 0 && (
                 <BinderBadge
                   binders={binders}
@@ -1367,12 +1363,7 @@ function CollectionResults({
                   }
                 />
               )}
-              {inDeck > 0 && (
-                <>
-                  {' · '}
-                  <span className="card-search-indeck">in deck × {inDeck}</span>
-                </>
-              )}
+              {inDeck > 0 && <InDeckCount count={inDeck} />}
               <FitSignal
                 gap={gapByName.get(nameKey)}
                 produces={comboProducesByName.get(nameKey)}
@@ -1614,7 +1605,9 @@ function SuggestionsResults({
         onDismiss={dismissFor(row.name)}
         flowMeta={problems.length > 0}
       >
-        <span className={badge.className}>{badgeLabel}</span>
+        <span className={badge.className} data-status={badge.label}>
+          {badgeLabel}
+        </span>
         {row.kind === 'staple' ? (
           <>
             {' · '}
@@ -1946,22 +1939,11 @@ function ScryfallResults({
               onPreview={() => carousel.open(previewEntries, c.name)}
               manaCost={c.mana_cost}
             >
-              {offColor && (
-                <Chip
-                  className="card-search-badge"
-                  tone="warn"
-                  title="Outside your commander's color identity"
-                >
-                  Off-color
-                </Chip>
-              )}
-              <span className={badge.className}>{badge.label}</span>
-              {inDeck > 0 && (
-                <>
-                  {' · '}
-                  <span className="card-search-indeck">in deck × {inDeck}</span>
-                </>
-              )}
+              {offColor && <OffColorBadge />}
+              <span className={badge.className} data-status={badge.label}>
+                {badge.label}
+              </span>
+              {inDeck > 0 && <InDeckCount count={inDeck} />}
               <FitSignal
                 gap={gapByName.get(nameKey)}
                 produces={comboProducesByName.get(nameKey)}

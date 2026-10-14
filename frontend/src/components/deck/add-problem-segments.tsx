@@ -19,6 +19,7 @@ export function castSegment(
     <span
       key="cast"
       className="card-search-problem"
+      data-status={`Short on ${color} in ${share}%`}
       title={`In ${share}% of games where the mana for ${name} is there on time, ${color} is missing.`}
     >
       <span aria-hidden="true">▾ </span>
@@ -38,6 +39,7 @@ function chanceSegment(name: string, problems: AddProblems): React.ReactElement 
     <span
       key="chance"
       className="card-search-problem"
+      data-status={problem.text}
       title="Exact odds for the cards in this deck."
     >
       <span aria-hidden="true">▾ </span>
