@@ -1051,7 +1051,11 @@
   gap: var(--space-2);
   font-size: var(--text-sm);
   color: var(--text-primary);
-  padding: var(--space-1) var(--space-1);
+  /* --space-1-5 above and below, not --space-1: at --space-1 a desktop row
+     was ~25px and the list read as cramped (user report, 2026-10-13). The
+     inline padding stays put so prices keep lining up under the section
+     subtotal. */
+  padding: var(--space-1-5) var(--space-1);
   border-radius: var(--radius);
   /* FLIP glide: the hook inverts the position then clears transform so this
      transition takes over. Compose with any existing row hover — don't clobber. */
@@ -1242,11 +1246,19 @@
 /* Mana cost is a fixed-width, right-aligned slot in the deck row (a plain
    trailing cell elsewhere — see collection.css). 3.9rem holds four pips,
    which covers all but a handful of cards; a longer cost simply grows the
-   slot on its own row. Empty placeholders (no cost: lands) keep the slot. */
+   slot on its own row. */
 .deck-row .mana-cost-row {
   display: inline-flex;
   justify-content: flex-end;
   min-width: 3.9rem;
+}
+
+/* A row with no cost (lands) hands its empty slot to the name. Price is
+   pinned to the trailing edge, so the price and mana columns stay aligned on
+   every other row; reserving 3.9rem of blank space cut "Sokenzan, Crucible
+   of Defiance" to "Sokenzan, Crucible o…" with room to spare (2026-10-13). */
+.deck-row .mana-cost-row:empty {
+  display: none;
 }
 
 /* The ⋮ kebab rests hidden on a fine pointer and shows on row hover/focus —
