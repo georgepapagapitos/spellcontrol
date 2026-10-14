@@ -9,6 +9,8 @@ export const STATIC_URLS: ReadonlyArray<{ path: string; priority: number }> = [
   { path: '/guides/', priority: 0.6 },
   { path: '/guides/organize-your-binder.html', priority: 0.6 },
   { path: '/guides/compare.html', priority: 0.6 },
+  { path: '/guides/manabox-vs-moxfield.html', priority: 0.6 },
+  { path: '/guides/moxfield-vs-archidekt-vs-manabox.html', priority: 0.6 },
   { path: '/guides/import-manabox.html', priority: 0.5 },
   { path: '/guides/import-moxfield.html', priority: 0.5 },
   { path: '/guides/import-archidekt.html', priority: 0.5 },
