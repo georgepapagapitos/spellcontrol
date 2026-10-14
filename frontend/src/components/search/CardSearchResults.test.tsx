@@ -129,6 +129,31 @@ describe('CardSearchResults keyboard nav handle', () => {
   });
 });
 
+describe('CardSearchResults announces the row it lands on (E1008)', () => {
+  it('says the name, what you own, the position and the action, and marks the end', async () => {
+    useCollectionStore.setState({
+      cards: [
+        { id: 'c1', name: 'Ash Barrens' },
+        { id: 'c2', name: 'Ash Barrens' },
+      ] as never,
+    });
+    const second: ScryfallCard = { ...RESULT, id: 'row-parity-2', name: 'Ash Barrens' };
+    const ref = {
+      current: null as import('@/lib/search/use-results-keys').CardSearchResultsHandle | null,
+    };
+    render(<CardSearchResults ref={ref} results={[RESULT, second]} />);
+    await act(async () => {});
+    const live = () => document.querySelector('[aria-live="polite"]')?.textContent;
+
+    act(() => ref.current?.moveActive(1));
+    await vi.waitFor(() => expect(live()).toBe('Ash Barrens, You own 2, 2 of 2. Enter adds it.'));
+    act(() => ref.current?.moveActive(1));
+    await vi.waitFor(() =>
+      expect(live()).toBe('Ash Barrens, You own 2, 2 of 2. Last result. Enter adds it.')
+    );
+  });
+});
+
 describe('CardSearchResults addToList (T153 Add-list target)', () => {
   afterEach(() => {
     useScanQueueStore.setState({ queue: [] });

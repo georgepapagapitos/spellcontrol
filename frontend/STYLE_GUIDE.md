@@ -1560,6 +1560,10 @@ e.currentTarget) close(); }}`. A full-screen viewer whose backdrop is covered by
   one focusable region. The search input still drives the highlighted row with
   the arrow keys and Enter, and says which row it is on through the live region
   instead of `aria-activedescendant` (the row is marked `aria-current`). The
+  announcement is the name, then the row's own warnings in its own order
+  (off-color, not legal, ownership, in deck, copy limit), then "N of M" and
+  the action: each badge carries `data-status` and `lib/search/row-announcement`
+  reads it back, so a new badge is marked or `row-announcement.test.ts` fails. The
   nightly overlay walk (`scripts/journey-overlays.mjs`) gates this at zero, with
   no allowance list.
 - **Labels label a control.** `<label>` sits on a real input via `htmlFor`,

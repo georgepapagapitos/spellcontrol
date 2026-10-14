@@ -12,6 +12,7 @@ import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import { imageFromCard } from '@/lib/cards/card-thumbs';
 import { availableFinishes } from '@/lib/scanner/scanner-feedback';
 import { haptics } from '@/lib/util/haptics';
+import { rowAnnouncement, rowStatuses, useLiveAnnouncer } from '@/lib/search/row-announcement';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '@/types/index';
 import { Button, IconButton } from '@/components/shared/Button';
@@ -128,6 +129,10 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
     // with no keyboard wiring at all, and a permanent ring around row 1 there
     // reads as a stray focus state nobody asked for.
     const [navigated, setNavigated] = useState(false);
+    // The list's arrow-key moves are spoken here: the host's input drives the
+    // highlight, so nothing else tells a screen reader which row it is on.
+    const { message: moveAnnouncement, announce: announceMove } = useLiveAnnouncer();
+    const listRef = useRef<HTMLUListElement>(null);
     const [openPrintingsId, setOpenPrintingsId] = useState<string | null>(null);
     const [visible, setVisible] = useState(pageSize ?? Infinity);
     const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -307,7 +312,21 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
       () => ({
         moveActive: (delta) => {
           setNavigated(true);
-          setActiveIndex((i) => Math.min(results.length - 1, Math.max(0, i + delta)));
+          const last = Math.min(results.length, visible) - 1;
+          const next = Math.min(last, Math.max(0, activeIndex + delta));
+          setActiveIndex(next);
+          const card = results[next];
+          if (!card) return;
+          announceMove(
+            rowAnnouncement({
+              name: card.name,
+              statuses: rowStatuses(listRef.current?.children[next] ?? null),
+              index: next,
+              total: last + 1,
+              edge:
+                delta !== 0 && next === activeIndex ? (delta > 0 ? 'last' : 'first') : undefined,
+            })
+          );
         },
         addActive: () => {
           const card = results[Math.min(activeIndex, results.length - 1)];
@@ -418,7 +437,12 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
             })}
           </ul>
         ) : (
-          <ul className="inline-card-search-list" role="listbox" aria-label="Search results">
+          <ul
+            ref={listRef}
+            className="inline-card-search-list"
+            role="listbox"
+            aria-label="Search results"
+          >
             {shown.map((c, idx) => {
               const owned = ownedCounts.get(c.name) ?? 0;
               const added = addedCounts[c.id] ?? 0;
@@ -510,7 +534,9 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
                           {c.set.toUpperCase()} #{c.collector_number}
                         </span>
                         {!addToList && added > 0 && (
-                          <span className="inline-card-search-added">Added ×{added}</span>
+                          <span className="inline-card-search-added" data-status={`Added ${added}`}>
+                            Added ×{added}
+                          </span>
                         )}
                         {!addToList && canUndo && (
                           <IconButton
@@ -521,7 +547,12 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
                           />
                         )}
                         {owned > 0 && (
-                          <span className="inline-card-search-owned">{ownedLabel(owned)}</span>
+                          <span
+                            className="inline-card-search-owned"
+                            data-status={ownedLabel(owned)}
+                          >
+                            {ownedLabel(owned)}
+                          </span>
                         )}
                       </span>
                       {!hideRowDisclosure && (
@@ -558,6 +589,11 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
             })}
           </ul>
         )}
+        {/* No role="status": a page can hold several, and that would make this
+            one match every bare getByRole('status') query (STYLE_GUIDE § Copy). */}
+        <div aria-live="polite" className="inline-card-search-sr-only">
+          {moveAnnouncement}
+        </div>
         {addToList && (
           <div role="status" aria-live="polite" className="inline-card-search-sr-only">
             {addListAnnouncement}
