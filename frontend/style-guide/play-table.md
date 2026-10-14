@@ -302,14 +302,16 @@ these are the rulings specific to sharing one board with a real, live game.
   bar's right end outside combat, so a phone can always hit back. The open
   strip reuses the same `HordeFelt` battlefield the desktop half does, at a
   smaller card density.
-- **In combat, the damage total moves INTO the band's bar — nothing ever
-  floats over either board on a phone.** The desktop equivalent
-  (`HordeAttackBanner`) sits in YOUR half's own `.playtest-banners` stack,
-  `position: static`, never centered over the screen the way the paper
-  table's copy floats — two boards share the screen, so a screen-centered
-  banner would sit on the seam between them. When any attacker's power is
-  variable (`*`), the field is not capped at the printed total and the copy
-  names the variable attackers, on the paper table too.
+- **In combat, the damage total moves into the horde's own chrome, never
+  over a card on either board.** On a phone it goes into the band's bar. On
+  desktop (`HordeAttackBanner` in `.horde-half-combat`) it is one row,
+  centered in the horde half's reserved bottom strip (`HORDE_RESERVED_BOTTOM`,
+  where `autoPlace` never puts a card), beside "Damage the horde". It used to
+  float at the top of YOUR half in `.playtest-banners` and covered your top
+  row, which is where your artifacts and enchantments land (T144, 2026-10-13);
+  `horde-combat-strip.test.ts` keeps it bottom-anchored and one row. When any
+  attacker's power is variable (`*`), the field is not capped at the printed
+  total and the copy names the variable attackers, on the paper table too.
 - **A (re-)load never leaves a blank half.** Whenever `hordeLoad.status` is
   `loading` or `error` — the setup sheet's own submit, or a Reset re-arming
   the same settings — the half/band shows a quiet "Loading the horde…" or an

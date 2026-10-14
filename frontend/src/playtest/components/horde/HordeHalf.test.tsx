@@ -1,13 +1,13 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRef } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { usePlaytestStore } from '@/playtest/store';
 import { buildTestHorde } from '@/playtest/lib/horde-solo.fixtures';
 import { HordeHalf } from './HordeHalf';
 
 beforeEach(() => {
-  usePlaytestStore.setState({ retryHordeLoad: vi.fn() });
+  usePlaytestStore.setState({ retryHordeLoad: vi.fn(), resolveHordeAttack: vi.fn() });
 });
 
 /** Real browser sequence for a click/tap — a bare `fireEvent.click` skips
@@ -127,5 +127,35 @@ describe('HordeHalf', () => {
     const cardEl = document.querySelector(`[data-card-id="${card.id}"]`) as HTMLElement;
     realPointerActivate(cardEl);
     expect(onCardMenu).not.toHaveBeenCalled();
+  });
+
+  // The combat total sits in the horde's own reserved bottom strip. It used
+  // to float at the top of YOUR half (`.playtest-banners`), right over your
+  // top row of artifacts and enchantments (T144).
+  it("puts the combat total in the horde's reserved bottom strip and takes the typed damage", () => {
+    renderHalf({
+      horde: buildTestHorde({
+        phase: 'combat',
+        pendingAttack: { attackers: 3, power: 9, groups: [] },
+      }),
+    });
+    const strip = document.querySelector('.horde-half > .horde-half-combat');
+    expect(strip?.textContent).toContain('3 creatures, 9 power');
+    fireEvent.click(screen.getByRole('button', { name: 'Take 9' }));
+    expect(usePlaytestStore.getState().resolveHordeAttack).toHaveBeenCalledWith(9);
+  });
+
+  it('shows no combat total outside combat, or to a spectator', () => {
+    renderHalf();
+    expect(document.querySelector('.horde-half-combat')).toBeNull();
+    cleanup();
+    renderHalf({
+      horde: buildTestHorde({
+        phase: 'combat',
+        pendingAttack: { attackers: 3, power: 9, groups: [] },
+      }),
+      readOnly: true,
+    });
+    expect(document.querySelector('.horde-half-combat')).toBeNull();
   });
 });
