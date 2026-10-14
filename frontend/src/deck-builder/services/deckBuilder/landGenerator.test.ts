@@ -1162,3 +1162,87 @@ describe('E1003: the caps run before the 2x candidate cut (partial / prefer)', (
     }
   });
 });
+
+// Ulamog, the Ceaseless Hunger, "available only", 2026-10-13: 6 free Wastes,
+// so 28 lands of 36 shipped and the gap went to spells, with 85 free colorless
+// lands unplayed. A basic held to its free copies hands its slots on.
+describe('basic slots the free copies can not fill', () => {
+  const ZOZU = new Map<string, ScryfallCard>(
+    (
+      JSON.parse(
+        readFileSync(
+          resolve(
+            dirname(fileURLToPath(import.meta.url)),
+            '__fixtures__',
+            'zozu-lands.fixture.json'
+          ),
+          'utf8'
+        )
+      ) as { cards: ScryfallCard[] }
+    ).cards.map((c) => [c.name, c])
+  );
+  const COLORLESS = ['Tectonic Edge', 'Ghost Quarter', 'Field of Ruin', 'Wasteland'];
+  const row = (name: string, inclusion: number): EDHRECCard => ({
+    name,
+    sanitized: name,
+    primary_type: 'Land',
+    inclusion,
+    num_decks: 100,
+  });
+  const available = (
+    identity: string[],
+    count: number,
+    basicCount: number,
+    free: Record<string, number>,
+    page: string[] = []
+  ) => {
+    vi.mocked(getCardsByNames).mockImplementationOnce(
+      async (names: string[]) =>
+        new Map(
+          names.flatMap((n) => (ZOZU.has(n) ? [[n, structuredClone(ZOZU.get(n)!)] as const] : []))
+        )
+    );
+    return generateLands(
+      page.map((n, i) => row(n, 60 - i)),
+      identity,
+      count,
+      new Set(),
+      basicCount,
+      99,
+      [],
+      undefined,
+      new Set(),
+      null,
+      null,
+      null,
+      null,
+      new Set(Object.keys(free)),
+      new Map(Object.entries(free)),
+      'USD',
+      false,
+      '',
+      undefined,
+      'available'
+    );
+  };
+
+  it('a colorless deck with one free Wastes seats more owned colorless lands, not fewer lands', async () => {
+    const free = { Wastes: 1, ...Object.fromEntries(COLORLESS.map((n) => [n, 1])) };
+    const lands = await available([], 5, 3, free, COLORLESS);
+    expect(lands).toHaveLength(5);
+    expect(lands.filter((c) => c.name === 'Wastes')).toHaveLength(1);
+    expect(lands.filter((c) => COLORLESS.includes(c.name))).toHaveLength(4);
+  });
+
+  it("a short color's basics go to another color with free copies", async () => {
+    const lands = await available(['R', 'G'], 4, 4, { Mountain: 1, Forest: 10 });
+    expect(lands).toHaveLength(4);
+    expect(lands.filter((c) => c.name === 'Mountain')).toHaveLength(1);
+    expect(lands.filter((c) => c.name === 'Forest')).toHaveLength(3);
+  });
+
+  it("'No nonbasics' stays the user's call: no nonbasic fills a basic slot", async () => {
+    const lands = await available([], 3, 3, { Wastes: 1, 'Tectonic Edge': 1 }, ['Tectonic Edge']);
+    expect(lands.map((c) => c.name)).toEqual(['Wastes']);
+  });
+});

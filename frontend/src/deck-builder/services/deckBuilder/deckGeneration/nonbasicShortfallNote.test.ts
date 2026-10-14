@@ -65,4 +65,17 @@ describe('withNonbasicShortfall', () => {
     expect(withNonbasicShortfall(undefined, lands, 7, {}, true)).toContain('in your collection');
     expect(withNonbasicShortfall(undefined, lands, 7, {})).toContain('for this deck');
   });
+
+  // Ulamog, "available only": 6 free Wastes, so owned colorless lands took the
+  // basic slots past the nonbasic target, and the note says why.
+  it('names basic slots an owned-only build gave to nonbasics', () => {
+    expect(withNonbasicShortfall(undefined, lands, 4, {}, true)).toBe(
+      '2 basic slots went to nonbasic lands: too few free basics in your collection.'
+    );
+    expect(withNonbasicShortfall(undefined, lands, 5, {}, true)).toContain(
+      '1 basic slot went to a nonbasic land'
+    );
+    // Past the target without an owned-only strategy is the user's own count.
+    expect(withNonbasicShortfall(undefined, lands, 4, {})).toBe(undefined);
+  });
 });

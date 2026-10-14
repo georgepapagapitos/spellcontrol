@@ -12,7 +12,9 @@ import { checkDeckInvariants, type InvariantCheck, type InvariantContext } from 
 import { constrainsToCollection, isOwnedBudgetExempt } from './deckFilters';
 import { isDefaultLandCount } from './targetCounts';
 import {
+  BASIC_SHORTFALL_CLAUSE,
   countRepairSwapsToBasic,
+  nonbasicOverage,
   nonbasicShortfall,
   nonbasicShortfallReason,
   REASON_CLAUSE,
@@ -131,6 +133,13 @@ export function computeTargetMisses(
         asked: Math.min(asked, lands.length),
         got: lands.filter((c) => !isBasic(c)).length,
         cause: REASON_CLAUSE[reason].replace(/\.$/, ''),
+      });
+    } else if (ownedOnly && nonbasicOverage(lands, asked) > 0) {
+      misses.push({
+        key: 'nonbasic',
+        asked,
+        got: lands.filter((c) => !isBasic(c)).length,
+        cause: BASIC_SHORTFALL_CLAUSE.replace(/\.$/, ''),
       });
     }
   }
