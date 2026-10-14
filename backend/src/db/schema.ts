@@ -141,6 +141,8 @@ export const aiReviews = pgTable(
     promptVersion: text('prompt_version'),
     /** The verbatim rules-qa question; NULL for the deck features. */
     question: text('question'),
+    /** The grounding checks' verdict on a fresh reading; NULL on rows predating the column. */
+    grounding: jsonb('grounding'),
   },
   (t) => [uniqueIndex('ai_reviews_key_idx').on(t.userId, t.feature, t.inputHash)]
 );

@@ -927,6 +927,11 @@ export async function ensureSchema(): Promise<void> {
     -- show it (the input_hash is normalised and unreadable). Nullable — the
     -- deck features have no free-text question.
     ALTER TABLE ai_reviews ADD COLUMN IF NOT EXISTS question TEXT;
+    -- The grounding checks' verdict on a fresh reading (unverified citations,
+    -- recalled/rejected tweak names, protected cuts, truncation), so a bad
+    -- reading can be found and counted per prompt version after the logs roll
+    -- off. Nullable: rows predating the column carry no verdict.
+    ALTER TABLE ai_reviews ADD COLUMN IF NOT EXISTS grounding JSONB;
     -- Cache-priced tokens (T116 spend readout). input_tokens is only the
     -- UNCACHED prefix; a write bills 1.25x and a read 0.1x, so without these
     -- the per-row cost is wrong in both directions. Rows before the column

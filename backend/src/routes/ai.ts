@@ -413,21 +413,7 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
   // The review's search honors the same deck-scoped sources contract as the
   // refine pass, so a restricted deck is never prescribed a card to buy.
   const scoped = await scopeSearch(userId, request.scope, request.deckId, request.currency);
-  const oracle: OracleEntry[] = [];
-  const seen = new Set<string>();
-  for (const card of [...commandZone(request).map((name) => ({ name })), ...request.cards]) {
-    if (seen.has(card.name)) continue;
-    seen.add(card.name);
-    const hit = cache.getCheapestByName(card.name);
-    if (hit) {
-      oracle.push({
-        name: hit.name,
-        manaCost: hit.mana_cost ?? undefined,
-        typeLine: hit.type_line ?? undefined,
-        oracleText: hit.oracle_text ?? undefined,
-      });
-    }
-  }
+  const oracle = hydrateOracle([...commandZone(request), ...request.cards.map((c) => c.name)]);
 
   // TWO PASSES: research, then write.
   //
@@ -527,6 +513,10 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
   }
 
   const fetchedNames = lookedUpNames(generation.fetched);
+  const grounding: Grounding = {
+    unverified,
+    ...(generation.truncated ? { truncated: true } : {}),
+  };
 
   const now = Date.now();
   // A forced re-read replaces the stored row in place (one row per key), so
@@ -535,8 +525,8 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
   // re-reads from both landing.
   await pool.query(
     `INSERT INTO ai_reviews
-       (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, cache_write_tokens, cache_read_tokens, created_at, deck_id, prompt_version, fetched_names)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+       (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, cache_write_tokens, cache_read_tokens, created_at, deck_id, prompt_version, fetched_names, grounding)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
      ON CONFLICT (user_id, feature, input_hash) ${
        refresh
          ? `DO UPDATE SET model = EXCLUDED.model, content = EXCLUDED.content,
@@ -544,8 +534,8 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
               cache_write_tokens = EXCLUDED.cache_write_tokens,
               cache_read_tokens = EXCLUDED.cache_read_tokens, created_at = EXCLUDED.created_at,
               deck_id = EXCLUDED.deck_id, prompt_version = EXCLUDED.prompt_version,
-              fetched_names = EXCLUDED.fetched_names
-            WHERE ai_reviews.created_at <= $15`
+              fetched_names = EXCLUDED.fetched_names, grounding = EXCLUDED.grounding
+            WHERE ai_reviews.created_at <= $16`
          : 'DO NOTHING'
      }`,
     [
@@ -563,6 +553,7 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
       request.deckId,
       DECK_REVIEW_PROMPT_VERSION,
       JSON.stringify(fetchedNames),
+      JSON.stringify(grounding),
       ...(refresh ? [now - REREAD_WINDOW_MS] : []),
     ]
   );
@@ -595,9 +586,32 @@ function lookedUpNames(fetched: { name: string }[] | undefined): string[] {
 }
 
 /**
+ * The grounding checks' verdict on one fresh reading, stored on its
+ * `ai_reviews` row. The checks used to end in a `logger.warn` only, which Fly
+ * keeps for days, so a bad reading couldn't be found after the fact or counted
+ * per prompt version. Same names the warnings carry; an empty list is a pass.
+ */
+interface Grounding {
+  /** Real cards the prose names that are neither in the deck nor looked up. */
+  unverified: string[];
+  /** Refine only: tweak adds the model never looked up (recalled, not read). */
+  recalled?: string[];
+  /** Refine only: tweak names the parser refused (illegal, off-identity, missing). */
+  rejected?: string[];
+  /** Refine only: engine pieces the model tried to cut. */
+  protectedCuts?: string[];
+  truncated?: true;
+}
+
+/**
  * Cache-only oracle hydration, shared by both features. A miss means the model
  * reasons about that card without its text (the prompts say how) — never a live
  * Scryfall call from the shared egress IP.
+ *
+ * Read at ORACLE_MAX_AGE_MS, not the cache's default 7-day TTL: that TTL exists
+ * because prices move, and rules text doesn't. Under the default, a deck card
+ * nobody had looked up for a week silently lost its text, and the model was
+ * left judging it by its name.
  */
 function hydrateOracle(names: string[]): OracleEntry[] {
   const cache = getScryfallCache();
@@ -606,7 +620,7 @@ function hydrateOracle(names: string[]): OracleEntry[] {
   for (const name of names) {
     if (seen.has(name)) continue;
     seen.add(name);
-    const hit = cache.getCheapestByName(name);
+    const hit = cache.getCheapestByName(name, ORACLE_MAX_AGE_MS);
     if (hit) {
       out.push({
         name: hit.name,
@@ -917,13 +931,40 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
         `(deckId=${request.deckId}, promptVersion=${DECK_REFINE_PROMPT_VERSION}): ${recalled.join(', ')}`
     );
   }
+  // The review's citation check, run over refine's prose too: the strategy and
+  // every "why". Until this ran, a "why" could name a card the deck doesn't run
+  // as if it did, and nothing looked.
+  const unverified = unverifiedCitations(
+    [out.strategy, ...out.tweaks.map((t) => t.why)].join('\n'),
+    [
+      ...commandZone(request),
+      ...request.cards.map((c) => c.name),
+      ...request.pool.map((c) => c.name),
+      ...(generation.fetched ?? []).map((f) => f.name),
+      ...out.tweaks.flatMap((t) => (t.cut ? [t.add, t.cut] : [t.add])),
+    ],
+    (name) => cache.getCheapestByName(name, ORACLE_MAX_AGE_MS) !== null
+  );
+  if (unverified.length > 0) {
+    logger.warn(
+      `[ai] deck refine cited ${unverified.length} unverified card(s) (deckId=${request.deckId}, ` +
+        `promptVersion=${DECK_REFINE_PROMPT_VERSION}): ${unverified.join(', ')}`
+    );
+  }
 
   const fetchedNames = lookedUpNames(generation.fetched);
+  const grounding: Grounding = {
+    unverified,
+    recalled,
+    rejected: out.rejected,
+    protectedCuts: out.protectedCuts,
+    ...(generation.truncated ? { truncated: true } : {}),
+  };
 
   await pool.query(
     `INSERT INTO ai_reviews
-       (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, cache_write_tokens, cache_read_tokens, created_at, deck_id, prompt_version, fetched_names)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+       (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, cache_write_tokens, cache_read_tokens, created_at, deck_id, prompt_version, fetched_names, grounding)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
      ON CONFLICT (user_id, feature, input_hash) DO NOTHING`,
     [
       crypto.randomUUID(),
@@ -940,6 +981,7 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
       request.deckId,
       DECK_REFINE_PROMPT_VERSION,
       JSON.stringify(fetchedNames),
+      JSON.stringify(grounding),
     ]
   );
 

@@ -1497,3 +1497,126 @@ describe('POST /api/ai/deck-refine', () => {
     expect(rows.rows.map((r) => r.feature)).toEqual(['deck-refine']);
   });
 });
+
+describe('grounding verdict on the stored row', () => {
+  const PROSE = 'Your deck grinds value out of the graveyard.';
+
+  /** Seed one printing, optionally as if it had been cached `ageDays` ago. */
+  function seedCard(id: string, name: string, oracleText: string, ageDays = 0): void {
+    const cache = getScryfallCache();
+    const at = vi.spyOn(Date, 'now').mockReturnValue(Date.now() - ageDays * 86_400_000);
+    try {
+      cache.setMany([
+        {
+          id,
+          oracle_id: `${id}-oracle`,
+          name,
+          rarity: 'common',
+          set: 'tst',
+          set_name: 'Test',
+          collector_number: '1',
+          oracle_text: oracleText,
+          prices: { usd: '1.00', eur: null },
+        },
+      ]);
+      cache.setLookups([{ key: `ns:${name.toLowerCase()}|tst`, scryfallId: id }]);
+    } finally {
+      at.mockRestore();
+    }
+  }
+
+  async function storedGrounding(username: string): Promise<Record<string, unknown> | null> {
+    const { getPool } = await import('../db');
+    const rows = await getPool().query<{ grounding: Record<string, unknown> | null }>(
+      `SELECT r.grounding FROM ai_reviews r JOIN users u ON u.id = r.user_id WHERE u.username = $1`,
+      [username]
+    );
+    expect(rows.rows).toHaveLength(1);
+    return rows.rows[0].grounding;
+  }
+
+  it('stores a refine reading’s verdict, flagging a "why" that names a card the deck does not run', async () => {
+    // The Zo-Zu refine (2026-10-14) argued from "your Young Pyromancer", a card
+    // not in the list. Refine's prose had no citation check at all, and every
+    // other check only logged, so nothing could find that reading afterwards.
+    seedCard(
+      'grounding-pyro',
+      'Grounding Test Pyromancer',
+      'Whenever you cast a spell, make a token.'
+    );
+    const cookie = await makeUser('ai-grounding-refine');
+    await optIn(cookie);
+    mockState.generate.mockImplementation(async () => ({
+      content: refineReply(PROSE, [
+        {
+          add: 'Eternal Witness',
+          cut: 'Sol Ring',
+          why: 'Feeds your Grounding Test Pyromancer more spells.',
+        },
+        { add: 'Mana Crypt', cut: null, why: 'Fast mana.' },
+      ]),
+      inputTokens: 1,
+      outputTokens: 1,
+      fetched: [],
+    }));
+
+    const res = await request(app)
+      .post('/api/ai/deck-refine')
+      .set('Cookie', cookie)
+      .send(refineBody());
+    expect(res.status).toBe(200);
+
+    expect(await storedGrounding('ai-grounding-refine')).toEqual({
+      unverified: ['Grounding Test Pyromancer'],
+      recalled: [],
+      rejected: ['Mana Crypt'],
+      protectedCuts: [],
+    });
+  });
+
+  it('stores a review’s unverified citations', async () => {
+    seedCard('grounding-island', 'Grounding Test Island', 'Tap: add one mana.');
+    const cookie = await makeUser('ai-grounding-review');
+    await optIn(cookie);
+    const prose = 'Add Grounding Test Island for fixing.';
+    mockState.generate.mockImplementation(
+      async (_s: string, _u: string, onDelta?: (t: string) => void) => {
+        onDelta?.(prose);
+        return { content: prose, inputTokens: 1, outputTokens: 1, fetched: [] };
+      }
+    );
+
+    await request(app).post('/api/ai/deck-review').set('Cookie', cookie).send(reviewBody());
+
+    expect(await storedGrounding('ai-grounding-review')).toEqual({
+      unverified: ['Grounding Test Island'],
+    });
+  });
+
+  it('gives the model the oracle text of a deck card cached more than a week ago', async () => {
+    // The 7-day cache TTL is for prices. Under it, a deck card nobody had
+    // looked up for a week reached the prompt with no rules text, and the
+    // model judged it by its name.
+    seedCard(
+      'grounding-stale',
+      'Grounding Stale Squelcher',
+      'Spells you control can’t be countered.',
+      30
+    );
+    const cookie = await makeUser('ai-grounding-stale');
+    await optIn(cookie);
+    const deck = {
+      cards: [
+        { name: 'Grounding Stale Squelcher', oracleId: 'o-s', qty: 1 },
+        { name: 'Swamp', oracleId: 'o-2', qty: 12 },
+      ],
+    };
+
+    await request(app).post('/api/ai/deck-refine').set('Cookie', cookie).send(refineBody(deck));
+    await request(app).post('/api/ai/deck-review').set('Cookie', cookie).send(reviewBody(deck));
+
+    const messages = mockState.generate.mock.calls.map((c) => c[1] as string);
+    expect(messages.length).toBeGreaterThanOrEqual(2);
+    for (const m of messages) expect(m).toContain('Spells you control can’t be countered.');
+  });
+});
