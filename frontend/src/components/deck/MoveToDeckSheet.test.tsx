@@ -94,11 +94,14 @@ describe('MoveToDeckSheet deck list', () => {
     expect(rowNames()).toEqual(['Zo-Zu']);
   });
 
-  it('filters by format, and a cleared filter brings every deck back', () => {
+  it('filters by format, and unpressing the chip brings every deck back', () => {
     renderSheet();
     fireEvent.click(screen.getByRole('button', { name: 'Modern' }));
     expect(rowNames()).toEqual(['Monster Tron']);
-    fireEvent.click(screen.getByRole('button', { name: 'All' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Commander' }));
+    expect(rowNames()).toHaveLength(3);
+    fireEvent.click(screen.getByRole('button', { name: 'Commander' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Modern' }));
     expect(rowNames()).toHaveLength(3);
   });
 

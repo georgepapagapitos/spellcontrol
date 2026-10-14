@@ -448,13 +448,6 @@
       "deck-builder/components/brew/BrewManabaseStep.css:.brew-land-name"
     ]
   },
-  "a7811121c7": {
-    "size": 2,
-    "locations": [
-      "components/deck/MoveToDeckSheet.css:.move-deck-list",
-      "components/deck/SharedCopiesSheet.css:.shared-copies-list"
-    ]
-  },
   "a942d3c8e3": {
     "size": 2,
     "locations": [

@@ -1,4 +1,3 @@
-import type { SortMenuOption } from '@/components/search/SortMenu';
 import type { SortDir } from '@/types/index';
 import type { Deck } from '@/store/decks';
 
@@ -11,7 +10,12 @@ export type DeckSortField = 'edited' | 'created' | 'name' | 'commander' | 'cards
 
 // Decks sort on their own keys, so the direction wording is authored here —
 // each phrased as what it does to the rows, never asc/desc.
-export const DECK_SORT_OPTIONS: SortMenuOption<DeckSortField>[] = [
+export const DECK_SORT_OPTIONS: {
+  value: DeckSortField;
+  label: string;
+  /** How the rows read `[ascending, descending]`, as SortMenu wants them. */
+  dirLabels: [string, string];
+}[] = [
   { value: 'edited', label: 'Date edited', dirLabels: ['Oldest first', 'Newest first'] },
   { value: 'created', label: 'Date created', dirLabels: ['Oldest first', 'Newest first'] },
   { value: 'name', label: 'Name', dirLabels: ['A → Z', 'Z → A'] },

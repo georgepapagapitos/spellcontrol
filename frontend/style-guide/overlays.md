@@ -57,7 +57,7 @@ calc(100vw - 4rem)) }`) — the two-class form outweighs the shell rule
   Past one deck, the header carries a `SearchPill` (name or commander) and a
   `SortMenu` on the decks index's own fields and wording
   (`lib/deck/deck-sort.ts`, minus Value, which needs prices loaded), plus
-  format filter chips once the decks span two formats. Rows are flat and
+  multi-select format filter chips once the decks span two formats. Rows are flat and
   hairline-separated in the shell's `.card-picker-list`, never a stack of
   bordered tiles: thumb with the deck color as its left edge, name and color
   pips, then commander (or format) and card count. A row says when that

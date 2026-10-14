@@ -159,9 +159,6 @@
 
 .move-deck-row-name {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-primary);

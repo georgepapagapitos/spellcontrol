@@ -82,7 +82,7 @@ export function MoveToDeckSheet({
   const [outcome, setOutcome] = useState<DonorOutcome>('leave-gap');
   const [replacement, setReplacement] = useState<{ name: string; card: ScryfallCard } | null>(null);
   const [query, setQuery] = useState('');
-  const [formatFilter, setFormatFilter] = useState<DeckFormat | null>(null);
+  const [formatFilter, setFormatFilter] = useState<ReadonlySet<DeckFormat>>(new Set());
   const { sortField, sortDir, toggleSort } = useStoredSort<DeckSortField>(
     'move-to-deck-sort',
     DECK_SORT_DEFAULT_DIR,
@@ -110,7 +110,8 @@ export function MoveToDeckSheet({
   const target = targetId ? (others.find((d) => d.id === targetId) ?? null) : null;
 
   // Format chips only appear when there's more than one format to tell apart,
-  // most-used format first.
+  // most-used format first. They toggle independently, like the decks
+  // index's format filter: none pressed shows every deck.
   const formats = useMemo(() => {
     const counts = new Map<DeckFormat, number>();
     for (const d of others) counts.set(d.format, (counts.get(d.format) ?? 0) + 1);
@@ -120,7 +121,7 @@ export function MoveToDeckSheet({
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     const filtered = others.filter((d) => {
-      if (formatFilter && d.format !== formatFilter) return false;
+      if (formatFilter.size > 0 && !formatFilter.has(d.format)) return false;
       if (!q) return true;
       return (
         d.name.toLowerCase().includes(q) ||
@@ -137,7 +138,7 @@ export function MoveToDeckSheet({
   };
 
   const confirmDisabled = outcome === 'replace' && !replacement;
-  const filtering = query.trim() !== '' || formatFilter !== null;
+  const filtering = query.trim() !== '' || formatFilter.size > 0;
   // A long list holds its height while you search it, so the sheet doesn't
   // collapse and jump with every keystroke that narrows it.
   const browsing = !target && others.length > 5;
@@ -211,19 +212,16 @@ export function MoveToDeckSheet({
               </div>
               {formats.length > 1 && (
                 <div className="move-deck-formats" role="group" aria-label="Filter by format">
-                  <Chip
-                    className="filter-chip"
-                    pressed={formatFilter === null}
-                    onClick={() => setFormatFilter(null)}
-                  >
-                    All
-                  </Chip>
                   {formats.map((f) => (
                     <Chip
                       key={f}
                       className="filter-chip"
-                      pressed={formatFilter === f}
-                      onClick={() => setFormatFilter(formatFilter === f ? null : f)}
+                      pressed={formatFilter.has(f)}
+                      onClick={() => {
+                        const next = new Set(formatFilter);
+                        if (!next.delete(f)) next.add(f);
+                        setFormatFilter(next);
+                      }}
                     >
                       {DECK_FORMAT_CONFIGS[f]?.label ?? f}
                     </Chip>
@@ -245,7 +243,7 @@ export function MoveToDeckSheet({
                   variant="link"
                   onClick={() => {
                     setQuery('');
-                    setFormatFilter(null);
+                    setFormatFilter(new Set());
                   }}
                 >
                   Clear search and filters
@@ -274,7 +272,7 @@ export function MoveToDeckSheet({
                       </span>
                       <span className="move-deck-row-text">
                         <span className="move-deck-row-title">
-                          <span className="move-deck-row-name">{d.name}</span>
+                          <span className="truncate-name move-deck-row-name">{d.name}</span>
                           {colors.length > 0 && (
                             <span className="move-deck-row-pips" aria-hidden>
                               {colors.map((c) => (
