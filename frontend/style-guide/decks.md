@@ -621,7 +621,12 @@ preview) and Archidekt's static-card panel, these rulings now hold:
   right-aligned slots at the trailing edge (`.deck-row .mana-cost-row`,
   `.deck-row-price`) so the eye runs down a column of names and a column of
   costs. Pips that float at a different x per row are what "crammed icons"
-  actually means.
+  actually means. A row with **no** cost (lands) drops its empty mana slot
+  (`.mana-cost-row:empty`) and hands the width to the name: price is pinned to
+  the trailing edge, so both columns stay aligned on every other row, and a
+  blank 3.9rem slot had cut "Sokenzan, Crucible of Defiance" short with room
+  to spare (2026-10-13). Rows pad `--space-1-5` top and bottom; the 36px touch
+  floor is unchanged. Guard: `styles/deck-row-room.test.ts`.
 - **At rest, a row is qty · name · mana · price.** Roles default off in
   `DEFAULT_SHOW_PREFS` (the Category lens's heading already says "Removal";
   the tap-to-reveal badge, the Key and Show → Roles all remain, and a stored
