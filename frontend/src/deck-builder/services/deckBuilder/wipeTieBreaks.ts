@@ -130,6 +130,49 @@ export function wipeQualityPenalty(
   return penalty;
 }
 
+// E1002: a planeswalker's sweep is a loyalty ability its controller chooses, and
+// the card stays a card without it (Ugin, the Spirit Dragon: +2 deals 3 damage,
+// -X exiles each colored permanent, -10 wins the game). The symmetric and
+// collateral tiers above price a wipe that FIRES: a Wrath in hand torches the
+// deck's own board the turn it resolves. A walker's -X is declined, or set small,
+// when the board is the deck's own, so a staple walker is not a surplus sweeper.
+// Gated on the page's staple bar so a walker nobody plays does not outrank a
+// sweeper the deck does (a 4% walker never beat a 43% Toxic Deluge). The surplus
+// pass judged Ugin (50.6% of Emrakul's Eldrazi decks) as one more symmetric
+// wipe against a cap of 2 and converted it, being the lowest-included of three.
+export function isOptionalSweep(card: ScryfallCard): boolean {
+  return /\bPlaneswalker\b/.test(card.card_faces?.[0]?.type_line ?? card.type_line ?? '');
+}
+
+/** What the surplus pass knows about the deck when it prices a wipe to keep. */
+export interface WipeKeepContext {
+  /** Inclusion (%) at which a card is a staple of the commander's page. */
+  stapleBar: number;
+  /** The commander's color identity is empty, so every spell in the deck is colorless. */
+  colorlessDeck: boolean;
+  isOneSidedWipe: (card: ScryfallCard) => boolean;
+  isColoredOnlyWipe: (card: ScryfallCard) => boolean;
+  getWipeScope: (card: ScryfallCard) => WipeScope;
+  deckTypeTargets: Record<string, number> | undefined;
+}
+
+/**
+ * wipeQualityPenalty for a card whose standing on the page is known:
+ *  - a staple planeswalker pays none (isOptionalSweep above);
+ *  - a sweep of colored permanents only (All Is Dust, Ugin's -X) is one-sided in a
+ *    colorless deck: Emrakul's Eldrazi are colorless, and the pass priced All Is
+ *    Dust (94%) as the worst wipe to keep, collateral on artifacts included.
+ */
+export function wipeKeepPenalty(
+  card: ScryfallCard,
+  inclusion: number | undefined,
+  kc: WipeKeepContext
+): number {
+  if (isOptionalSweep(card) && inclusion !== undefined && inclusion >= kc.stapleBar) return 0;
+  if (kc.colorlessDeck && kc.isColoredOnlyWipe(card)) return 0;
+  return wipeQualityPenalty(card, kc.isOneSidedWipe, kc.getWipeScope, kc.deckTypeTargets);
+}
+
 export function wipeScopeCollateralTieBreak(
   a: EDHRECCard,
   b: EDHRECCard,

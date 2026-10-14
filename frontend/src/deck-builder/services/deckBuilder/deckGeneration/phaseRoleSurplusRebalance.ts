@@ -12,6 +12,7 @@ import {
   getCardRole,
   readsAsProtection,
   isOneSidedWipe,
+  isColoredOnlyWipe,
   isFreeInteraction,
   getWipeScope,
   type RoleKey,
@@ -27,8 +28,9 @@ import {
   OWNED_PRIORITY_BOOST,
   OWNED_PRIORITY_BOOST_THEME_TIER,
   PRICE_SANITY_RATIO,
-  wipeQualityPenalty,
 } from '../cardPicking';
+import { wipeKeepPenalty, type WipeKeepContext } from '../wipeTieBreaks';
+import { STAPLE_INCLUSION_BAR } from '../roleCapAllowance';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { nonboFindings } from '../nonbo';
 import { getLiftIndex, liftersInDeck } from './liftPools';
@@ -472,6 +474,14 @@ export function applyRoleSurplusRebalance(
   // self-nuking one (Farewell/Austere Command), the exact opposite of what
   // E112 exists to prevent. See cardPicking.ts's wipeQualityPenalty doc for
   // why this is a dominant term, not a capped nudge.
+  const wipeKeep: WipeKeepContext = {
+    stapleBar: STAPLE_INCLUSION_BAR,
+    colorlessDeck: colorIdentity.length === 0,
+    isOneSidedWipe,
+    isColoredOnlyWipe,
+    getWipeScope,
+    deckTypeTargets: ctx.deckTypeTargets,
+  };
   const survivalScoreOf = (
     card: ScryfallCard,
     role: RoleKey,
@@ -481,10 +491,7 @@ export function applyRoleSurplusRebalance(
     const priority = ec
       ? calculateCardPriority(ec, state.cfg.brewLevel)
       : (roleAverageInclusion.get(role) ?? 0);
-    const quality =
-      role === 'boardwipe'
-        ? wipeQualityPenalty(card, isOneSidedWipe, getWipeScope, ctx.deckTypeTargets)
-        : 0;
+    const quality = role === 'boardwipe' ? wipeKeepPenalty(card, ec?.inclusion, wipeKeep) : 0;
     const ownedBoost = ownedBoostFor(card.name, !!ec && isHighSynergyCard(ec));
     return priority + (liftBoosts.get(card.name) ?? 0) - quality + ownedBoost;
   };
@@ -555,9 +562,7 @@ export function applyRoleSurplusRebalance(
       .map((ec) => {
         const role = poolRoleOf(ec.name);
         const scryfallCard = role === 'boardwipe' ? ctx.scryfallCardMap.get(ec.name) : undefined;
-        const quality = scryfallCard
-          ? wipeQualityPenalty(scryfallCard, isOneSidedWipe, getWipeScope, ctx.deckTypeTargets)
-          : 0;
+        const quality = scryfallCard ? wipeKeepPenalty(scryfallCard, ec.inclusion, wipeKeep) : 0;
         const ownedBoost = ownedBoostFor(ec.name, isHighSynergyCard(ec));
         return {
           ec,

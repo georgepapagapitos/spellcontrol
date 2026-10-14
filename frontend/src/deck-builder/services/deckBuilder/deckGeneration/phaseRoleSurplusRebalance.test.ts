@@ -10,6 +10,7 @@ const ROLE_OF = new Map<string, RoleKey>();
 // scope they carry, rather than depending on real oracle text (that's
 // tagger/client.test.ts's job).
 const ONE_SIDED_WIPE_NAMES = new Set<string>();
+const COLORED_ONLY_WIPE_NAMES = new Set<string>();
 interface MockWipeScope {
   creatures: boolean;
   artifacts: boolean;
@@ -47,6 +48,7 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   // behavior itself is under test (mirrors phaseCoherenceRepair.test.ts).
   readsAsProtection: vi.fn(() => false),
   isOneSidedWipe: vi.fn((card: { name: string }) => ONE_SIDED_WIPE_NAMES.has(card.name)),
+  isColoredOnlyWipe: vi.fn((card: { name: string }) => COLORED_ONLY_WIPE_NAMES.has(card.name)),
   getWipeScope: vi.fn((card: { name: string }) => WIPE_SCOPE_OF.get(card.name) ?? EMPTY_WIPE_SCOPE),
   isFreeInteraction: vi.fn((card: { name: string }) => FREE_INTERACTION_NAMES.has(card.name)),
 }));
@@ -240,6 +242,7 @@ describe('applyRoleSurplusRebalance', () => {
     ROLE_OF.clear();
     NONBO_FLAGGED.clear();
     ONE_SIDED_WIPE_NAMES.clear();
+    COLORED_ONLY_WIPE_NAMES.clear();
     WIPE_SCOPE_OF.clear();
     FREE_INTERACTION_NAMES.clear();
     VALIDATED_OF.clear();
@@ -1449,6 +1452,122 @@ describe('applyRoleSurplusRebalance', () => {
 
       expect(result.conversions).toEqual([]);
       expect(state.categories.synergy).toBe(before);
+    });
+  });
+
+  // E1002: Emrakul + Eldrazi on 2026-10-13. Three symmetric-reading wipes against
+  // a cap of 2, so the surplus pass cut the lowest-included one, Ugin, the Spirit
+  // Dragon (50.6%), for Eldritch Immunity (62.7%). Oracle text and inclusions below
+  // are the real ones (Scryfall bulk, EDHREC Emrakul Eldrazi page).
+  describe('a staple planeswalker is not the surplus sweeper (E1002)', () => {
+    const ALL_IS_DUST = 'All Is Dust';
+    const CALAMITY = 'Calamity of the Titans';
+    const UGIN = 'Ugin, the Spirit Dragon';
+
+    function seatWipes(state: GenerationState, specs: Array<{ name: string; type: string }>): void {
+      for (const spec of specs) {
+        const card = scryfallCard(spec.name, { type_line: spec.type });
+        ROLE_OF.set(spec.name, 'boardwipe');
+        state.usedNames.add(spec.name);
+        state.categories.boardWipes.push(card);
+      }
+    }
+
+    it('cuts the sorcery sweeper that costs the same, keeping the 50.6% walker', () => {
+      const state = makeState();
+      seatWipes(state, [
+        { name: ALL_IS_DUST, type: 'Kindred Sorcery — Eldrazi' },
+        { name: CALAMITY, type: 'Sorcery' },
+        { name: UGIN, type: 'Legendary Planeswalker — Ugin' },
+      ]);
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            edhrecCard(ALL_IS_DUST, 94),
+            edhrecCard(CALAMITY, 55.4),
+            edhrecCard(UGIN, 50.6),
+            edhrecCard('Eldritch Immunity', 62.7),
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 2, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(
+        state,
+        makeCtx(state, { roleTargets, isBoardCentricPlan: true })
+      );
+
+      expect(result.conversions.map((c) => c.cut)).toEqual([CALAMITY]);
+      const names = state.categories.boardWipes.map((c) => c.name);
+      expect(names).toContain(UGIN);
+      expect(names).toContain(ALL_IS_DUST);
+    });
+
+    // All Is Dust: "Each player sacrifices all permanents they control that are one
+    // or more colors." Scored as the worst wipe to keep in an artifact deck (-1244
+    // against Calamity's -915), though a colorless deck loses nothing to it.
+    function allIsDustVsCalamity(colorIdentity: string[]) {
+      const state = makeState();
+      state.context = { ...state.context, colorIdentity } as GenerationState['context'];
+      seatWipes(state, [
+        { name: ALL_IS_DUST, type: 'Kindred Sorcery — Eldrazi' },
+        { name: CALAMITY, type: 'Sorcery' },
+        { name: 'Toxic Deluge', type: 'Sorcery' },
+      ]);
+      COLORED_ONLY_WIPE_NAMES.add(ALL_IS_DUST);
+      WIPE_SCOPE_OF.set(ALL_IS_DUST, { ...EMPTY_WIPE_SCOPE, all: true });
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            edhrecCard(ALL_IS_DUST, 50),
+            edhrecCard(CALAMITY, 55.4),
+            edhrecCard('Toxic Deluge', 43),
+            edhrecCard('Eldritch Immunity', 80),
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 2, cardDraw: 0 };
+      return applyRoleSurplusRebalance(
+        state,
+        makeCtx(state, {
+          roleTargets,
+          isBoardCentricPlan: true,
+          deckTypeTargets: { artifact: 12, creature: 20 },
+        })
+      );
+    }
+
+    it('reads a colored-only sweep as clean in a colorless deck, so All Is Dust stays', () => {
+      expect(allIsDustVsCalamity([]).conversions.map((c) => c.cut)).toEqual(['Toxic Deluge']);
+    });
+
+    it('still bills the same sweep to its collateral in a colored deck', () => {
+      expect(allIsDustVsCalamity(['W']).conversions.map((c) => c.cut)).toEqual([ALL_IS_DUST]);
+    });
+
+    it('still cuts a walker the page does not play before a sweeper it does', () => {
+      const state = makeState();
+      seatWipes(state, [
+        { name: 'Toxic Deluge', type: 'Sorcery' },
+        { name: 'Damnation', type: 'Sorcery' },
+        { name: 'Chandra, Flamecaller', type: 'Legendary Planeswalker — Chandra' },
+      ]);
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            edhrecCard('Toxic Deluge', 43),
+            edhrecCard('Damnation', 41),
+            edhrecCard('Chandra, Flamecaller', 4),
+            edhrecCard('A Better Card', 80),
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 2, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(
+        state,
+        makeCtx(state, { roleTargets, isBoardCentricPlan: true })
+      );
+
+      expect(result.conversions.map((c) => c.cut)).toEqual(['Chandra, Flamecaller']);
     });
   });
 
