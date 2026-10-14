@@ -197,6 +197,9 @@ export async function generateLands(
 
   // First, get non-basic lands from EDHREC
   const nonBasicTarget = count - basicCount;
+  // More of the page's lands, by the same picker and gates, for basic slots the
+  // free copies can't fill (see the end of this function).
+  let morePageLands: ((n: number) => ScryfallCard[]) | undefined;
 
   // No EDHREC land list (oracle-role, art-theme and historical pools, or a
   // Scryfall-only fallback build): the merit widen below seeds the candidates
@@ -528,6 +531,34 @@ export async function generateLands(
       mtgFormat
     );
     lands.push(...nonBasics);
+    morePageLands = (n) =>
+      pickFromPrefetched(
+        capsFilteredLands,
+        landCardMap,
+        n,
+        usedNames,
+        colorIdentity,
+        bannedCards,
+        maxCardPrice,
+        gates?.maxGameChangers ?? Infinity,
+        gates?.gameChangerCount ?? { value: 0 },
+        maxRarity,
+        maxCmc,
+        budgetTracker,
+        collectionNames,
+        landPenalties.size > 0 ? landPenalties : undefined,
+        currency,
+        gates?.gameChangerNames ?? new Set(),
+        arenaOnly,
+        collectionStrategy,
+        collectionOwnedPercent,
+        ignoreOwnedBudget,
+        ignoreOwnedRarity,
+        gates?.isSaltBlocked ? (card) => !gates.isSaltBlocked!(card.name) : undefined,
+        undefined,
+        0.5,
+        mtgFormat
+      );
     if (spares) {
       const rank = (c: EDHRECCard) => (c.inclusion ?? 0) + (landPenalties.get(c.name) ?? 0);
       const picked = new Set(nonBasics.map((c) => c.name));
@@ -659,6 +690,7 @@ export async function generateLands(
   };
 
   const colorsWithBasics = colorIdentity.filter((c) => basicTypes[c]);
+  const fetchedBasics = new Map<string, ScryfallCard>();
 
   if (colorsWithBasics.length > 0 && basicsNeeded > 0) {
     onProgress?.('Adding basic lands', 92);
@@ -704,6 +736,7 @@ export async function generateLands(
       }
 
       fallbackBasic ??= { basicName, basicCard };
+      fetchedBasics.set(basicName, basicCard);
       // Split copies across the user's owned printings (largest group first)
       // so the deck pulls real stacks of their basics — 12 of one Forest
       // printing + 8 of another — instead of N copies of one default printing.
@@ -735,9 +768,52 @@ export async function generateLands(
       }
     }
     if (wastesCard) {
+      fetchedBasics.set('Wastes', wastesCard);
       const countForColor = Math.min(basicsNeeded, availableCount('Wastes'));
       const plan = planBasicPrintings(countForColor, basicPrintings?.get('Wastes') ?? []);
       for (const p of plan) lands.push(stampBasic(wastesCard, p));
+    }
+  }
+
+  // A basic held to its free copies ("available") left land slots empty, and
+  // the deck filled them with spells: Ulamog owned 6 free Wastes and shipped
+  // 28 lands of 36 with 85 free colorless lands unplayed. The slots go to the
+  // identity's other basics with free copies, then to more owned nonbasic
+  // lands, the page's first. 'No nonbasics' (nonBasicTarget 0) is the user's
+  // call and stays one.
+  for (const [name, card] of fetchedBasics) {
+    const room = availableCount(name) - lands.filter((l) => l.name === name).length;
+    for (let i = 0; i < Math.min(room, count - lands.length); i++) lands.push({ ...card });
+  }
+  if (lands.length < count && nonBasicTarget > 0) {
+    lands.push(...(morePageLands?.(count - lands.length) ?? []));
+    for (const query of fallbackQueries) {
+      if (lands.length >= count) break;
+      lands.push(
+        ...(await fillWithScryfall(
+          query,
+          colorIdentity,
+          count - lands.length,
+          usedNames,
+          bannedCards,
+          maxCardPrice,
+          maxRarity,
+          maxCmc,
+          budgetTracker,
+          collectionNames,
+          currency,
+          arenaOnly,
+          scryfallQuery,
+          collectionStrategy,
+          ignoreOwnedBudget,
+          ignoreOwnedRarity,
+          landAllowed,
+          undefined,
+          gates,
+          mtgFormat,
+          'land'
+        ))
+      );
     }
   }
 

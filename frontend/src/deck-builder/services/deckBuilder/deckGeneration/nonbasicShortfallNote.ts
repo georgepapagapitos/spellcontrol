@@ -68,6 +68,14 @@ export function nonbasicShortfall(lands: readonly ScryfallCard[], targetNonBasic
   return Math.max(0, Math.min(targetNonBasic, lands.length) - nonbasic);
 }
 
+/** Nonbasic lands past the target: basic slots an owned-only build had no free basic for. */
+export function nonbasicOverage(lands: readonly ScryfallCard[], targetNonBasic: number): number {
+  return Math.max(0, lands.filter((c) => !c.type_line.includes('Basic')).length - targetNonBasic);
+}
+
+/** Why an owned-only land base ran nonbasics past the target. */
+export const BASIC_SHORTFALL_CLAUSE = 'too few free basics in your collection.';
+
 /** `landCountNote` with the shortfall clause appended when there is one. */
 export function withNonbasicShortfall(
   landCountNote: string | undefined,
@@ -85,6 +93,11 @@ export function withNonbasicShortfall(
     // Without a spend figure a deck budget is taken as binding, as before.
     spend: what.spend ?? Number.POSITIVE_INFINITY,
   });
-  const note = buildNonbasicShortfallNote({ lands, targetNonBasic, reason });
+  const over = ownedOnly ? nonbasicOverage(lands, targetNonBasic) : 0;
+  const note =
+    buildNonbasicShortfallNote({ lands, targetNonBasic, reason }) ??
+    (over > 0
+      ? `${over === 1 ? '1 basic slot went to a nonbasic land' : `${over} basic slots went to nonbasic lands`}: ${BASIC_SHORTFALL_CLAUSE}`
+      : undefined);
   return note ? (landCountNote ? `${landCountNote} ${note}` : note) : landCountNote;
 }
