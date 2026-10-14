@@ -7,6 +7,7 @@ import { cardsUntilNextBoss, hordeLevelLabel, hordeStatusText } from '@/playtest
 import { useHordeActions } from './horde-actions';
 import { HordeFelt } from './HordeFelt';
 import { HordeDamageControl } from './HordeDamageControl';
+import { HordeAttackBanner } from '@/components/play/horde/HordeAttackBanner';
 import './HordeHalf.css';
 import { Button } from '@/components/shared/Button';
 
@@ -46,7 +47,7 @@ export function HordeHalf({
   blocked,
   readOnly,
 }: Props) {
-  const { retryLoad } = useHordeActions();
+  const { retryLoad, take } = useHordeActions();
 
   if (blocked) {
     return (
@@ -140,6 +141,21 @@ export function HordeHalf({
         attackingIds={attackingIds}
         onCardMenu={readOnly ? () => {} : onCardMenu}
       />
+
+      {/* The combat total sits in the horde's reserved bottom strip, which
+            no card is ever placed in, never floating over your board: your
+            top row is where your artifacts and enchantments sit. The phone
+            band's bar carries it the same way. */}
+      {horde.phase === 'combat' && horde.pendingAttack && !readOnly && (
+        <div className="horde-half-combat">
+          <HordeAttackBanner
+            attackers={horde.pendingAttack.attackers}
+            power={horde.pendingAttack.power}
+            groups={horde.pendingAttack.groups}
+            onTake={take}
+          />
+        </div>
+      )}
 
       {horde.phase !== 'ended' && !readOnly && (
         <div className="horde-table-actions">

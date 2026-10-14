@@ -6,7 +6,7 @@ import { usePlaytestStore } from '@/playtest/store';
  * One shape for "do a horde thing" — solo dispatches straight to the
  * playtest store, an online table (lane F2's `PlaytestBoard`) provides a
  * value that dispatches game-core actions instead (`useOnlineHorde`'s
- * `actions`). HordeHalf/HordeBand/HordeSoloBanner/HordeOverlays call only
+ * `actions`). HordeHalf/HordeBand/HordeOverlays call only
  * this, so their solo behavior is unchanged when nothing is provided.
  */
 export interface HordeActions {

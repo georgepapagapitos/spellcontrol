@@ -19,7 +19,6 @@ import { CardHoverPreview } from '../CardHoverPreview';
 import { Hand } from '../Hand';
 import { HordeBand } from '../horde/HordeBand';
 import { HordeHalf } from '../horde/HordeHalf';
-import { HordeSoloBanner } from '../horde/HordeSoloBanner';
 import { LifeStrip } from '../LifeStrip';
 import { OpenSeatQuadrant, OpponentQuadrant } from '../OpponentQuadrant';
 import { OpponentRail } from '../OpponentRail';
@@ -459,11 +458,6 @@ export function BoardMain({
                   battlefieldCount={state.battlefield.length}
                   isChoosingHand={isChoosingHand}
                 />
-                {!isNarrow &&
-                  (onlineTable
-                    ? onlineHordeView &&
-                      withHordeActions(<HordeSoloBanner horde={onlineHordeView} />)
-                    : horde && <HordeSoloBanner horde={horde} />)}
               </div>
               {trackers}
               {cornerActions}
