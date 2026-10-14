@@ -151,11 +151,43 @@ describe('CopyPlaces list', () => {
     const links = within(panel).getAllByRole('link');
     expect(links.map((l) => [l.getAttribute('href'), l.getAttribute('aria-label')])).toEqual([
       ['/decks/d1', 'Mono-Red Burn, Deck · its pocket is Red Spells · p. 4 · slot 2, 1 copy'],
-      ['/collection/binders/b1', 'Red Spells, Binder · p. 4 · slots 3–4, 2 copies'],
-      ['/collection/binders/b2', 'Modern Staples, Binder · p. 2 · slot 7, 1 copy'],
+      ['/collection/binders/b1?copy=c2', 'Red Spells, Binder · p. 4 · slots 3–4, 2 copies'],
+      ['/collection/binders/b2?copy=c4', 'Modern Staples, Binder · p. 2 · slot 7, 1 copy'],
     ]);
     expect(within(panel).getByText('Not in a deck or binder')).toBeTruthy();
     expect(within(panel).getByText('1 copy')).toBeTruthy();
+  });
+
+  it("opens a binder at its earliest pocket, whatever the copies' order", () => {
+    stubViewport(false);
+    render(
+      <MemoryRouter>
+        <CopyPlaces
+          card={card}
+          breakdown={breakdownCopies(
+            ['c7', 'c8', 'c9'],
+            new Map(),
+            new Map([
+              ['c7', red],
+              ['c8', red],
+              ['c9', red],
+            ])
+          )}
+          locations={
+            new Map([
+              ['c7', at('b1', 'Red Spells', 9, 1)],
+              ['c8', at('b1', 'Red Spells', 3, 6)],
+              ['c9', at('b1', 'Red Spells', 3, 2)],
+            ])
+          }
+          placement="art"
+        />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Where your copies are/ }));
+    expect(screen.getByRole('link', { name: /^Red Spells/ }).getAttribute('href')).toBe(
+      '/collection/binders/b1?copy=c9'
+    );
   });
 
   it('closes when a place is followed', () => {

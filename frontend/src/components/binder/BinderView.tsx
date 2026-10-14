@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import '@/styles/binder-grid-slots.css';
 import { useCollectionStore } from '@/store/collection';
 import type {
@@ -28,7 +28,9 @@ import {
 import { BinderPagePreview } from './BinderPagePreview';
 import { hasMultipleVolumes, pageVolume, type Volume } from '@/lib/binder/binder-volumes';
 import { useBinderCardPreview } from './use-binder-card-preview';
+import { findCopyPage } from '@/lib/binder/locate-copy';
 import { BinderDriftBanner } from './BinderDriftBanner';
+import { BinderEmptyState } from './BinderEmptyState';
 import { BinderSummaryBar, type BinderViewControls } from './BinderSummaryBar';
 import { useAllocations } from '@/lib/collection/allocations';
 import { useToastsStore } from '@/store/toasts';
@@ -72,6 +74,13 @@ interface Props {
    * drops pages, which would renumber them). Labels the page viewer's pages.
    */
   volumes?: Volume[] | null;
+  /**
+   * A "where is my copy" link: open the page viewer at this copy's page in
+   * this binder, with its pocket marked. `onLocated` reports whether it was
+   * found, once per link.
+   */
+  locate?: { binderId: string; copyId: string } | null;
+  onLocated?: (found: boolean) => void;
 }
 
 export function BinderView({
@@ -81,10 +90,11 @@ export function BinderView({
   qtyByCopyId,
   showImages,
   volumes = null,
+  locate = null,
+  onLocated,
 }: Props) {
   const activeTab = useCollectionStore((s) => s.activeTab);
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
-  const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
   const updateBinder = useCollectionStore((s) => s.updateBinder);
 
   // The Uncategorized bucket is no longer a tab in this view — it lives in the
@@ -110,23 +120,13 @@ export function BinderView({
     );
   }
 
-  if (active.totalCards === 0) {
-    return (
-      <EmptyState
-        tagline="No cards match this binder's rules."
-        hint="Loosen a rule to catch more cards."
-        actions={
-          <Button variant="primary" onClick={() => setEditingBinder(active.def.id)}>
-            Binder rules
-          </Button>
-        }
-      />
-    );
-  }
-
   // Drift reads full membership; fall back to the (filtered) active binder when
   // no search-free set was supplied (e.g. no query active).
   const driftActive = driftBinders?.find((b) => b.def.id === activeTab) ?? active;
+
+  if (active.totalCards === 0) {
+    return <BinderEmptyState binderId={active.def.id} holdsCards={driftActive.totalCards > 0} />;
+  }
 
   return (
     <>
@@ -150,6 +150,8 @@ export function BinderView({
         getCardActions={cardPreview.getCardActions}
         renderCardMeta={cardPreview.renderCardMeta}
         volumes={volumes}
+        locateCopyId={locate?.binderId === active.def.id ? locate.copyId : undefined}
+        onLocated={onLocated}
       />
       {cardPreview.sheet}
     </>
@@ -175,6 +177,8 @@ function SectionList({
   getCardActions,
   renderCardMeta,
   volumes,
+  locateCopyId,
+  onLocated,
 }: {
   viewKey: string;
   binderName: string;
@@ -196,6 +200,8 @@ function SectionList({
   /** The preview panel's lead section for a card (why it is in this binder). */
   renderCardMeta?: (card: EnrichedCard | undefined) => ReactNode;
   volumes: Volume[] | null;
+  locateCopyId?: string;
+  onLocated?: (found: boolean) => void;
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
@@ -215,6 +221,8 @@ function SectionList({
   const [pagesStartIndex, setPagesStartIndex] = useState<number | null>(null);
 
   const [editingCard, setEditingCard] = useState<EnrichedCard | null>(null);
+  // The pocket a "where is my copy" link marked; cleared with the viewer.
+  const [locatedCopyId, setLocatedCopyId] = useState<string | undefined>();
   const allocations = useAllocations();
 
   // A pocket's ⋮ and right-click: the menu the list view gives the same card
@@ -276,6 +284,7 @@ function SectionList({
     setCollapsed(new Set());
     setPreview(null);
     setPagesStartIndex(null);
+    setLocatedCopyId(undefined);
   }
 
   const toggle = useCallback((key: string) => {
@@ -318,6 +327,30 @@ function SectionList({
         : undefined,
     [volumes, flatPages]
   );
+
+  // A "where is my copy" link: open the viewer at the copy's page, once per
+  // link. BinderPage only asks when the copy is on a page this view shows.
+  const [locateHandled, setLocateHandled] = useState<{ copyId: string; found: boolean } | null>(
+    null
+  );
+  // Forget a handled link once it leaves the URL, so the same link works again.
+  if (!locateCopyId && locateHandled) setLocateHandled(null);
+  if (locateCopyId && locateHandled?.copyId !== locateCopyId) {
+    const asked = allCards.find((c) => c.copyId === locateCopyId);
+    const at = findCopyPage(flatPages, locateCopyId, asked);
+    setLocateHandled({ copyId: locateCopyId, found: !!at });
+    if (at) {
+      setPreview(null);
+      setPagesStartIndex(at.pageIndex);
+      setLocatedCopyId(at.copyId);
+    }
+  }
+  const reportedLocate = useRef<typeof locateHandled>(null);
+  useEffect(() => {
+    if (!locateHandled || reportedLocate.current === locateHandled) return;
+    reportedLocate.current = locateHandled;
+    onLocated?.(locateHandled.found);
+  }, [locateHandled, onLocated]);
 
   // Cumulative page-offset per section, for translating section-local page
   // indices (from p{N} clicks) into the global flat-pages index.
@@ -508,9 +541,14 @@ function SectionList({
           qtyByCopyId={qtyByCopyId}
           getCardActions={getCardActions}
           renderCardMeta={renderCardMeta}
-          onClose={() => setPagesStartIndex(null)}
+          locatedCopyId={locatedCopyId}
+          onClose={() => {
+            setPagesStartIndex(null);
+            setLocatedCopyId(undefined);
+          }}
           onEditCard={(c) => {
             setPagesStartIndex(null);
+            setLocatedCopyId(undefined);
             setEditingCard(c);
           }}
         />
