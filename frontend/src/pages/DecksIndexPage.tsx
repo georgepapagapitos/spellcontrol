@@ -36,7 +36,13 @@ import { ProductSearchDialog } from '@/components/import/ProductSearchDialog';
 import { DeckPickerDialog } from '../components/play/DeckPickerDialog';
 import { deckBoardPath } from '@/lib/play/starter-decks';
 import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
-import { SortMenu, type SortMenuOption } from '@/components/search/SortMenu';
+import { SortMenu } from '@/components/search/SortMenu';
+import {
+  DECK_SORT_DEFAULT_DIR,
+  DECK_SORT_OPTIONS,
+  sortDecks,
+  type DeckSortField,
+} from '@/lib/deck/deck-sort';
 import { ColorIdentityBar } from '../components/shared/ColorIdentityBar';
 import { ColorPip } from '../components/shared/ManaSymbol';
 import { colorSelectionMatches, type ColorMatchMode } from '@spellcontrol/binder-routing';
@@ -90,29 +96,6 @@ import { Surface } from '@/components/shared/Surface';
 // fresh Set every render for a case that never has any public decks.
 const EMPTY_PUBLIC_IDS: ReadonlySet<string> = new Set();
 
-type DeckSortField = 'edited' | 'created' | 'name' | 'commander' | 'cards' | 'value';
-type SortDir = 'asc' | 'desc';
-
-// Decks sort on their own keys, so the direction wording is authored here —
-// each phrased as what it does to the rows, never asc/desc.
-const DECK_SORT_OPTIONS: SortMenuOption<DeckSortField>[] = [
-  { value: 'edited', label: 'Date edited', dirLabels: ['Oldest first', 'Newest first'] },
-  { value: 'created', label: 'Date created', dirLabels: ['Oldest first', 'Newest first'] },
-  { value: 'name', label: 'Name', dirLabels: ['A → Z', 'Z → A'] },
-  { value: 'commander', label: 'Commander', dirLabels: ['A → Z', 'Z → A'] },
-  { value: 'cards', label: 'Card count', dirLabels: ['Fewest', 'Most'] },
-  { value: 'value', label: 'Value', dirLabels: ['Cheapest', 'Priciest'] },
-];
-
-const DECK_SORT_DEFAULT_DIR: Record<DeckSortField, SortDir> = {
-  edited: 'desc',
-  created: 'desc',
-  name: 'asc',
-  commander: 'asc',
-  cards: 'desc',
-  value: 'desc',
-};
-
 const FILTERS_KEY = 'decks-index-filters';
 
 type StoredFilters = {
@@ -164,27 +147,6 @@ function persistFilters(
 }
 
 type DecksViewMode = 'grid' | 'list' | 'compact';
-
-function deckSortValue(
-  deck: Deck,
-  field: DeckSortField,
-  values: ReadonlyMap<string, number>
-): number | string {
-  switch (field) {
-    case 'edited':
-      return deck.updatedAt;
-    case 'created':
-      return deck.createdAt;
-    case 'name':
-      return deck.name.toLowerCase();
-    case 'commander':
-      return (deck.commander?.name ?? '').toLowerCase();
-    case 'cards':
-      return (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0) + deck.cards.length;
-    case 'value':
-      return values.get(deck.id) ?? 0;
-  }
-}
 
 export function DecksIndexPage() {
   const decks = useDecksStore((s) => s.decks);
@@ -342,13 +304,7 @@ export function DecksIndexPage() {
       }
       return true;
     });
-    return [...filtered].sort((a, b) => {
-      const va = deckSortValue(a, sortField, deckValues);
-      const vb = deckSortValue(b, sortField, deckValues);
-      if (va < vb) return sortDir === 'desc' ? 1 : -1;
-      if (va > vb) return sortDir === 'desc' ? -1 : 1;
-      return 0;
-    });
+    return sortDecks(filtered, sortField, sortDir, deckValues);
   }, [
     decks,
     sortField,
