@@ -626,7 +626,13 @@ preview) and Archidekt's static-card panel, these rulings now hold:
   the trailing edge, so both columns stay aligned on every other row, and a
   blank 3.9rem slot had cut "Sokenzan, Crucible of Defiance" short with room
   to spare (2026-10-13). Rows pad `--space-1-5` top and bottom; the 36px touch
-  floor is unchanged. Guard: `styles/deck-row-room.test.ts`.
+  floor is unchanged. A name too long for its column takes a second line
+  (`-webkit-line-clamp: 2`), never an ellipsis at one: only long-name rows
+  grow (about 14px), which beat fewer, wider columns for every deck
+  (2026-10-14). The row aligns on `first baseline`, so qty, mana and price
+  ride the name's first line and the columns still read straight down; the
+  icon-only ⋮ has no baseline, so it centers on the row. Guard:
+  `styles/deck-row-room.test.ts`.
 - **At rest, a row is qty · name · mana · price.** Roles default off in
   `DEFAULT_SHOW_PREFS` (the Category lens's heading already says "Removal";
   the tap-to-reveal badge, the Key and Show → Roles all remain, and a stored

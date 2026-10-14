@@ -14,6 +14,11 @@ import { dirname, join } from 'node:path';
  *   alone so prices stay under the section subtotal);
  * - an empty mana placeholder drops out, handing its width to the name. Price
  *   sits at the trailing edge, so both columns stay aligned on other rows.
+ *
+ * Long names (user ruling, 2026-10-14): a name that doesn't fit a 330px
+ * desktop column takes a second line instead of an ellipsis, capped at two;
+ * the row aligns on the first baseline so qty, mana and price ride the name's
+ * first line, and the icon-only menu centers on the row (it has no baseline).
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const css = readFileSync(join(here, 'deck-builder-card-list.css'), 'utf8').replace(
@@ -30,6 +35,19 @@ function rule(selector: string): string {
 describe('deck row room', () => {
   it('pads the row --space-1-5 top and bottom', () => {
     expect(rule('.deck-row')).toMatch(/padding:\s*var\(--space-1-5\)\s+var\(--space-1\);/);
+  });
+
+  it('lets a long name take a second line, and no more', () => {
+    const name = rule('.deck-row-name-text');
+    expect(name).toMatch(/white-space:\s*normal/);
+    expect(name).toMatch(/-webkit-line-clamp:\s*2/);
+    expect(name).not.toMatch(/white-space:\s*nowrap/);
+  });
+
+  it("keeps qty, mana and price on the name's first line", () => {
+    expect(rule('.deck-row')).toMatch(/align-items:\s*first baseline/);
+    expect(rule('.deck-row-name')).toMatch(/align-items:\s*first baseline/);
+    expect(rule('.deck-row > .deck-row-menu')).toMatch(/align-self:\s*center/);
   });
 
   it('drops an empty mana slot so the name can use it', () => {

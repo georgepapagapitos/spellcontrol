@@ -1045,9 +1045,13 @@
    the icon count did. Everything else about a card (foil, combos, where the
    copy lives, synergy, EDHREC %) is hover-revealed in .deck-row-hovermeta or
    lives in the pinned rail / card preview. */
+/* first baseline, not center: a long name may take two lines (below), and
+   the qty, mana cost and price ride its first line so the cost and price
+   columns still read straight down the list (2026-10-14). On a one-line row
+   it lands where center did. */
 .deck-row {
   display: flex;
-  align-items: center;
+  align-items: first baseline;
   gap: var(--space-2);
   font-size: var(--text-sm);
   color: var(--text-primary);
@@ -1095,24 +1099,35 @@
   /* Row of identity + trailing chips (partner/legality/alloc/foil/synergy/
      inclusion). min-width: 0 lets it shrink below min-content so a long name
      doesn't push the row past the viewport; the name-text child absorbs the
-     shrink by ellipsizing, leaving the chips intact at a fixed gap. */
+     shrink by wrapping, leaving the chips intact at a fixed gap. */
   min-width: 0;
   display: flex;
-  align-items: center;
+  align-items: first baseline;
   /* The chip cluster below sizes itself against this cell, not the viewport:
      the same screen runs one wide column or four narrow ones. */
   container: deck-row-name / inline-size;
 }
 
-/* The card name truncates with an ellipsis so the trailing chips never get
-   pushed off or forced to wrap; the full name stays available via title +
-   the tap-to-open preview. The chip tiers below keep ~7rem of it readable. */
+/* A name that doesn't fit takes a second line instead of an ellipsis, so
+   "Kiki-Jiki, Mirror Breaker" reads in full in a 330px desktop column
+   (2026-10-14, user ruling; it used to end "Kiki-Jiki, Mirror Bre…"). Only
+   rows whose name is long grow, which beat dropping to fewer columns for
+   every deck. Past two lines it still ellipsizes, so one odd name can't make
+   a tall row; the full name stays in the title and the tap-to-open preview.
+   The chips keep their slots: the chip tiers below keep ~7rem for the name. */
 .deck-row-name-text {
   flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow-wrap: anywhere;
+  /* The cell (.deck-row-name, further down) is nowrap for its chips. */
+  white-space: normal;
+  /* A tighter leading than the row's, so a second line adds ~18px, not ~23. */
+  line-height: 1.3;
 }
 
 /* Trailing secondary metadata (allocation chip / synergy / EDHREC %). On a
@@ -1241,6 +1256,10 @@
    and open plate read as a tab stuck to the row. */
 .deck-row > .deck-row-menu {
   width: 24px;
+  /* An icon-only button has no text baseline, so first-baseline alignment
+     would hang it by its bottom edge (2.5px high, and 2px taller rows on
+     touch). It acts on the whole row, so it centers on the row instead. */
+  align-self: center;
 }
 
 /* Mana cost is a fixed-width, right-aligned slot in the deck row (a plain
