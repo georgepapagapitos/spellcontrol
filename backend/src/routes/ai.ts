@@ -5,6 +5,7 @@ import { logger } from '../logger';
 import { loadAuthedUser, readSessionCookie, requireAuth } from '../auth';
 import { getPool } from '../db';
 import { loadOwnedNames } from '../ai/owned-names';
+import type { Grounding } from '../ai/grounding';
 import { testAwareLimiter } from '../route-utils';
 import { getScryfallCache } from '../scryfall-cache';
 import type { PriceCeiling } from '../cache';
@@ -583,24 +584,6 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
  */
 function lookedUpNames(fetched: { name: string }[] | undefined): string[] {
   return [...new Set((fetched ?? []).map((f) => f.name))];
-}
-
-/**
- * The grounding checks' verdict on one fresh reading, stored on its
- * `ai_reviews` row. The checks used to end in a `logger.warn` only, which Fly
- * keeps for days, so a bad reading couldn't be found after the fact or counted
- * per prompt version. Same names the warnings carry; an empty list is a pass.
- */
-interface Grounding {
-  /** Real cards the prose names that are neither in the deck nor looked up. */
-  unverified: string[];
-  /** Refine only: tweak adds the model never looked up (recalled, not read). */
-  recalled?: string[];
-  /** Refine only: tweak names the parser refused (illegal, off-identity, missing). */
-  rejected?: string[];
-  /** Refine only: engine pieces the model tried to cut. */
-  protectedCuts?: string[];
-  truncated?: true;
 }
 
 /**
