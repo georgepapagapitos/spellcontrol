@@ -1,7 +1,12 @@
 import { useMemo } from 'react';
 import { useCollectionStore } from '@/store/collection';
-import { useCardsWithTags, bindersUseTags } from '@/lib/cards/card-tags';
-import { useCardsWithSldDrops, bindersUseSldDrops } from '@/lib/cards/sld-drops';
+import {
+  useCardsWithTags,
+  bindersUseTags,
+  useCardTagsReady,
+  useCardTagsError,
+} from '@/lib/cards/card-tags';
+import { useCardsWithSldDrops, bindersUseSldDrops, useSldDrops } from '@/lib/cards/sld-drops';
 import { useCardsWithReleaseDates, bindersUseReleaseDates } from '@/lib/cards/card-release-dates';
 import { useCardsWithSpareCopies, bindersUseSpareCopies } from './spare-copies';
 import { useAllocations } from '@/lib/collection/allocations';
@@ -29,6 +34,10 @@ export interface BinderLayoutInputs {
   /** Scryfall set metadata, for a binder sorted by release date. Undefined
    *  until it resolves (same as BinderPage's own first render). */
   setMap: SetMap | undefined;
+  /** False while a rule's reference data (oracle tags, Secret Lair drops) is
+   *  still loading. Until then a tag or drop rule matches nothing, so a binder
+   *  can look emptier than it is: don't conclude a card isn't in it. */
+  settled: boolean;
 }
 
 /**
@@ -45,7 +54,8 @@ export function useBinderLayoutInputs(): BinderLayoutInputs {
 
   // No-op (returns its input by reference) unless a binder actually uses the
   // corresponding rule/sort — each decoration only costs what it's for.
-  const taggedCards = useCardsWithTags(rawCards, bindersUseTags(binders));
+  const usesTags = bindersUseTags(binders);
+  const taggedCards = useCardsWithTags(rawCards, usesTags);
   // Dates BEFORE drops: a Secret Lair number sold in several drops picks the one
   // closest to the printing's own date, so `releasedAt` must already be stamped.
   // Hence dates also decorate for a Set sort, which needs drops but not dates.
@@ -64,11 +74,17 @@ export function useBinderLayoutInputs(): BinderLayoutInputs {
 
   const setMap = useSetMap();
 
+  // Until the tag and drop snapshots load, a tag or drop rule matches nothing.
+  const tagsReady = useCardTagsReady(usesTags);
+  const tagsFailed = useCardTagsError();
+  const dropsLoading = useSldDrops() === undefined;
+  const settled = (!usesTags || tagsReady || tagsFailed) && (!usesDrops || !dropsLoading);
+
   // Stable reference when nothing changed, so a caller that memoizes on the
   // whole object (rather than destructuring each field into its own
   // dependency, the way BinderPage does) doesn't recompute every render.
   return useMemo(
-    () => ({ cards, binders, allocatedCopyIds, setMap }),
-    [cards, binders, allocatedCopyIds, setMap]
+    () => ({ cards, binders, allocatedCopyIds, setMap, settled }),
+    [cards, binders, allocatedCopyIds, setMap, settled]
   );
 }

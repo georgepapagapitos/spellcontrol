@@ -13,10 +13,14 @@ import type { MaterializedBinder } from '@/types/index';
  * BinderView.locate.test.tsx.
  */
 
+const sync = vi.hoisted(() => ({ state: 'ready', listeners: new Set<() => void>() }));
 vi.mock('@/lib/sync', () => ({
-  getSyncState: () => 'ready',
+  getSyncState: () => sync.state,
   hasSyncError: () => false,
-  onSyncedChange: () => () => {},
+  onSyncedChange: (fn: () => void) => {
+    sync.listeners.add(fn);
+    return () => sync.listeners.delete(fn);
+  },
 }));
 vi.mock('@/lib/collection/allocations', () => ({ useAllocations: () => new Map() }));
 
@@ -44,10 +48,33 @@ const binderWith = (slots: unknown[]) =>
     totalPages: 1,
     effectivePocketSize: 9,
   }) as unknown as MaterializedBinder;
-// A search for anything but the Bolt leaves the binder empty.
+// The binder holds the Bolt by a tag rule, so it's empty until the tag data
+// loads (`layout.settled`), until the Bolt itself has arrived, and under a
+// search for anything else.
+const layout = vi.hoisted(() => ({ settled: true }));
+vi.mock('@/lib/binder/use-binder-layout-inputs', async () => {
+  const { useCollectionStore } = await import('../store/collection');
+  return {
+    useBinderLayoutInputs: () => ({
+      cards: useCollectionStore((s) => s.cards),
+      binders: useCollectionStore((s) => s.binders),
+      allocatedCopyIds: new Set(),
+      setMap: undefined,
+      settled: layout.settled,
+    }),
+  };
+});
 vi.mock('@/lib/binder/materialize', () => ({
-  materializeBinders: (_cards: unknown, _defs: unknown, opts: { search: string }) => ({
-    binders: [binderWith(opts.search && !/bolt/i.test(opts.search) ? [] : [bolt])],
+  materializeBinders: (cards: unknown[], _defs: unknown, opts: { search: string }) => ({
+    binders: [
+      binderWith(
+        !layout.settled ||
+          !cards.some((c) => (c as { copyId: string }).copyId === 'c1') ||
+          (opts.search && !/bolt/i.test(opts.search))
+          ? []
+          : [bolt]
+      ),
+    ],
   }),
 }));
 const toastShow = vi.hoisted(() => vi.fn());
@@ -110,6 +137,9 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  sync.state = 'ready';
+  sync.listeners.clear();
+  layout.settled = true;
   localStorage.clear();
   toastShow.mockClear();
   viewProps.last = null;
@@ -157,6 +187,40 @@ describe('binder page: a link to one copy', () => {
     expect(useCollectionStore.getState().search).toBe('');
     await waitFor(() => expect(viewProps.last?.locate).toEqual({ binderId: 'b1', copyId: 'c1' }));
     expect(toastShow).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for the first pull before calling the copy gone', () => {
+    // A cold tab: the binder and some cards came down before the Bolt did.
+    useAuth.setState({ status: 'authed', user: { id: 'u1', username: 'tester' } as never });
+    useCollectionStore.setState({ cards: [{ ...bolt, copyId: 'c9' }] as never });
+    sync.state = 'syncing';
+    renderAt('/collection/binders/b1?copy=c1');
+    expect(toastShow).not.toHaveBeenCalled();
+    expect(where()).toBe('/collection/binders/b1?copy=c1');
+
+    act(() => {
+      useCollectionStore.setState({ cards: [bolt] as never });
+      sync.state = 'ready';
+      sync.listeners.forEach((fn) => fn());
+    });
+    expect(viewProps.last?.locate).toEqual({ binderId: 'b1', copyId: 'c1' });
+    expect(toastShow).not.toHaveBeenCalled();
+  });
+
+  it("waits for a tag rule's data before calling the copy gone", () => {
+    // A cold tab: every card is in, but the tag snapshot the binder's rule
+    // matches on is still loading, so the binder looks empty for a moment.
+    layout.settled = false;
+    renderAt('/collection/binders/b1?copy=c1');
+    expect(toastShow).not.toHaveBeenCalled();
+    expect(where()).toBe('/collection/binders/b1?copy=c1');
+
+    act(() => {
+      layout.settled = true;
+      useCollectionStore.setState({ cards: [bolt] as never });
+    });
+    expect(viewProps.last?.locate).toEqual({ binderId: 'b1', copyId: 'c1' });
+    expect(toastShow).not.toHaveBeenCalled();
   });
 
   it('opens the remembered view on a plain visit', () => {

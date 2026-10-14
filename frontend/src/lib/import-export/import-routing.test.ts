@@ -63,6 +63,7 @@ function makeLayout(
     binders,
     allocatedCopyIds: new Set(),
     setMap: undefined,
+    settled: true,
     ...overrides,
   };
 }
