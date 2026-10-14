@@ -20,6 +20,7 @@ export function withViewerOwnership(rows: Row[], owned: (name: string) => boolea
           proxyQty: 0,
           releasedQty: 0,
           ownedProxyQty: 0,
+          proxyPrice: 0,
           claimedBy: undefined,
         }
       : r

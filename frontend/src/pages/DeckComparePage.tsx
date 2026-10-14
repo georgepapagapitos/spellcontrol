@@ -12,6 +12,9 @@ import { Chip } from '../components/shared/Chip';
 import { InfoTip } from '@/components/overlays/InfoTip';
 import { DiffGroup } from '../components/deck/DiffCardRow';
 import { diffDecks, type DeckDiff } from '@/lib/deck/deck-diff';
+import { ownDeckValue } from '@/lib/deck/deck-value';
+import { useProxyCopyIds } from '@/lib/deck/use-proxy-copy-ids';
+import { useDeckPrices } from '@/components/deck/use-deck-prices';
 import { deckPickerMeta } from '@/lib/deck/compare-picker-meta';
 import { buildManaData, type DeckManaData } from '@/lib/deck-analysis/build-mana-data';
 import { gradeCurve, type CurveGrading } from '@/deck-builder/services/deckBuilder/curveGrading';
@@ -321,9 +324,35 @@ export function DeckComparePage() {
       { replace: true }
     );
 
+  // Price is each deck's own value (proxies left out), the number its hero
+  // shows; the prices hook re-runs it as fresher prices land.
+  const proxyCopyIds = useProxyCopyIds();
+  const pricesVersion = useDeckPrices(
+    [deckA, deckB].flatMap((d) =>
+      d ? [d.commander, d.partnerCommander, ...d.cards.map((c) => c.card)] : []
+    )
+  );
   const diff = useMemo(
-    () => (deckA && deckB ? diffDecks(deckA, deckB, taggerReady, currency) : null),
-    [deckA, deckB, taggerReady, currency]
+    () =>
+      deckA && deckB
+        ? (void pricesVersion,
+          diffDecks(
+            deckA,
+            deckB,
+            taggerReady,
+            currency,
+            (d) => ownDeckValue(d, proxyCopyIds, currency).value
+          ))
+        : null,
+    [deckA, deckB, taggerReady, currency, proxyCopyIds, pricesVersion]
+  );
+  // What each deck's proxies would add, said under its price like the hero does.
+  const proxied = useMemo(
+    () => (
+      void pricesVersion,
+      [deckA, deckB].map((d) => (d ? ownDeckValue(d, proxyCopyIds, currency).proxied : 0))
+    ),
+    [deckA, deckB, currency, proxyCopyIds, pricesVersion]
   );
   const manaA = useMemo(
     () =>
@@ -391,6 +420,8 @@ export function DeckComparePage() {
               deckA={deckA}
               deckB={deckB}
               diff={diff}
+              proxiedA={proxied[0]}
+              proxiedB={proxied[1]}
               manaA={manaA}
               manaB={manaB}
               phasesA={phasesA}
@@ -409,6 +440,8 @@ function CompareBody({
   deckA,
   deckB,
   diff,
+  proxiedA,
+  proxiedB,
   manaA,
   manaB,
   phasesA,
@@ -418,6 +451,9 @@ function CompareBody({
   deckA: Deck;
   deckB: Deck;
   diff: DeckDiff;
+  /** What each deck's proxies would add; left out of its price. */
+  proxiedA: number;
+  proxiedB: number;
   manaA: DeckManaData;
   manaB: DeckManaData;
   phasesA: CurveGrading;
@@ -724,12 +760,17 @@ function CompareBody({
 
         <div className="deck-compare-price-panel">
           {[
-            { deck: deckA, name: nameA, total: diff.price.aTotal },
-            { deck: deckB, name: nameB, total: diff.price.bTotal },
-          ].map(({ deck, name, total }) => (
+            { deck: deckA, name: nameA, total: diff.price.aTotal, proxied: proxiedA },
+            { deck: deckB, name: nameB, total: diff.price.bTotal, proxied: proxiedB },
+          ].map(({ deck, name, total, proxied }) => (
             <div key={deck.id} className="deck-compare-price-col">
               <span className="deck-compare-price-name">{name}</span>
               <span className="deck-compare-price-amount">{money(total)}</span>
+              {proxied > 0 && (
+                <span className="deck-compare-price-note">
+                  {money(proxied)} in proxies not counted
+                </span>
+              )}
               <MeterBar value={total} max={Math.max(diff.price.aTotal, diff.price.bTotal, 1)} />
             </div>
           ))}

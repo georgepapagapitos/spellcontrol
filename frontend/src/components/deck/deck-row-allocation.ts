@@ -1,4 +1,6 @@
 import type { Row } from './deck-display-rows';
+import { formatMoney } from '@/lib/collection/format-money';
+import type { Currency } from '@/lib/collection/currency';
 
 // Plain-language description of how this row's slots map to owned copies.
 // Used as the screen-reader label and hover title for the qty pill, so the
@@ -64,4 +66,29 @@ export function allocationTitle(row: Row, opts: { editable: boolean }): string {
  *  collection copy flagged as one. The deck reads both kinds the same way. */
 export function proxyMarkQty(row: Row): number {
   return row.proxyQty + row.ownedProxyQty;
+}
+
+/** What the row adds to the deck's value: its price less its proxies'. */
+export function countedPrice(row: Row): number {
+  return row.price - row.proxyPrice;
+}
+
+/** What the row's proxies would cost and that the deck's value leaves them
+ *  out, or undefined when the row has no priced proxy. */
+export function proxyPriceNote(row: Row, currency: Currency): string | undefined {
+  if (row.proxyPrice <= 0) return undefined;
+  const money = formatMoney(row.proxyPrice, { currency });
+  return proxyMarkQty(row) === row.qty
+    ? `Proxy, ${money} at market, not counted`
+    : `${money} in proxies not counted`;
+}
+
+/** The price cell's title: the unit price on a stack, then the proxy note,
+ *  since the cell itself leaves proxies out. */
+export function priceCellTitle(row: Row, currency: Currency): string | undefined {
+  const parts: string[] = [];
+  if (row.qty > 1) parts.push(`${formatMoney(row.price / row.qty, { currency })} each`);
+  const note = proxyPriceNote(row, currency);
+  if (note) parts.push(note);
+  return parts.length > 0 ? parts.join(' · ') : undefined;
 }

@@ -371,6 +371,10 @@
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
+.deck-compare-price-note {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
 .deck-compare-price-delta {
   margin-top: var(--space-2);
   font-size: var(--text-sm);

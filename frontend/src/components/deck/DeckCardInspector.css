@@ -227,6 +227,7 @@
 
 .deck-card-inspector-price {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-2);
@@ -239,6 +240,10 @@
 
 .deck-card-inspector-unit {
   color: var(--text-muted);
+  /* A proxy note can outrun the price on one line; it wraps under it, still
+     at the trailing edge. */
+  margin-left: auto;
+  text-align: right;
 }
 
 /* ── Actions ───────────────────────────────────────────────────────────── */

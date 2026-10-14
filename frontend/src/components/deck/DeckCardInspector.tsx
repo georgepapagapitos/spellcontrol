@@ -8,7 +8,12 @@ import { formatMoney } from '@/lib/collection/format-money';
 import { ROLE_TITLES } from '@/lib/deck-analysis/role-badges';
 import type { CurrencyCode, Row } from './deck-display-rows';
 import { cardAllRoles, frontFaceMana } from './deck-display-rows';
-import { allocationSummary, proxyMarkQty } from './deck-row-allocation';
+import {
+  allocationSummary,
+  countedPrice,
+  proxyMarkQty,
+  proxyPriceNote,
+} from './deck-row-allocation';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
@@ -188,10 +193,16 @@ export function DeckCardInspector({
 
       {row.price > 0 && (
         <p className="deck-card-inspector-price">
-          <span>{formatMoney(row.price, { currency })}</span>
-          {row.qty > 1 && (
+          {/* What the card adds to the deck's value, as on its list row. */}
+          <span>{formatMoney(countedPrice(row), { currency })}</span>
+          {(row.qty > 1 || row.proxyPrice > 0) && (
             <span className="deck-card-inspector-unit">
-              {row.qty} × {formatMoney(row.price / row.qty, { currency })}
+              {[
+                row.qty > 1 && `${row.qty} × ${formatMoney(row.price / row.qty, { currency })}`,
+                proxyPriceNote(row, currency),
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             </span>
           )}
         </p>

@@ -2,7 +2,8 @@ import { useCallback, useMemo } from 'react';
 import { deckCoverArt } from '@/lib/deck/deck-cover';
 import { pickDeckCover } from '@spellcontrol/deck-metrics';
 import { useDecksStore, type Deck } from '@/store/decks';
-import { deckValue } from '@/lib/deck/deck-value';
+import { ownDeckValue } from '@/lib/deck/deck-value';
+import { useProxyCopyIds } from '@/lib/deck/use-proxy-copy-ids';
 import { useDeckPrices } from '@/components/deck/use-deck-prices';
 import { useCurrency } from '@/lib/collection/currency';
 import { useToastsStore } from '@/store/toasts';
@@ -20,15 +21,20 @@ export function useDeckHeroData({ deck, deckCards }: { deck: Deck; deckCards: Sc
   // considering" maybe-pile right next to it — E183) so the hero doesn't
   // claim "104 cards" on a 100-card deck.
   const pricesVersion = useDeckPrices([deck?.commander, deck?.partnerCommander, ...deckCards]);
+  // The value leaves proxies out (lib/deck/deck-value ownDeckValue); `proxied`
+  // is what they would add, so the hero can say what it left out.
+  const proxyCopyIds = useProxyCopyIds();
   const heroTotals = useMemo(() => {
-    if (!deck) return { count: 0, value: 0, sideboard: 0, considering: 0 };
+    if (!deck) return { count: 0, value: 0, proxied: 0, sideboard: 0, considering: 0 };
+    const { value, proxied } = (void pricesVersion, ownDeckValue(deck, proxyCopyIds, currency));
     return {
       count: (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0) + deck.cards.length,
-      value: (void pricesVersion, deckValue(deck, currency)),
+      value,
+      proxied,
       sideboard: deck.sideboard.length,
       considering: (deck.considering ?? []).length,
     };
-  }, [deck, currency, pricesVersion]);
+  }, [deck, currency, pricesVersion, proxyCopyIds]);
 
   // The deck's cover behind the hero, the same face its index tile wears
   // (lib/deck/deck-cover). Undefined only for a deck with no art at all; the hero

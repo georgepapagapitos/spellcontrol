@@ -18,7 +18,14 @@ import { Link } from 'react-router-dom';
 import type { DeckCategory } from '@/deck-builder/types';
 import { ManaSymbol } from '../shared/ManaSymbol';
 import { type Row } from './deck-display-rows';
-import { allocationSummary, proxyMarkQty } from './deck-row-allocation';
+import {
+  allocationSummary,
+  countedPrice,
+  priceCellTitle,
+  proxyMarkQty,
+} from './deck-row-allocation';
+import { formatMoney } from '@/lib/collection/format-money';
+import type { Currency } from '@/lib/collection/currency';
 import { CircleAlert } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { LegalityIssue } from '@/lib/deck/deck-validation';
@@ -91,6 +98,19 @@ export function SectionIcon({ icon }: { icon: string }) {
     );
   }
   return <ManaSymbol symbol={icon} />;
+}
+
+// The row's price cell: what the row adds to the deck's value, so the cells
+// sum to the section subtotal. A proxy shows $0 beside its "proxy" tag, and the
+// title carries its market price. An unknown price keeps an empty cell so the
+// menu column stays aligned (mirrors the empty mana-cost placeholder).
+export function RowPrice({ row, currency }: { row: Row; currency: Currency }) {
+  if (row.price <= 0) return <span className="deck-row-price" aria-hidden />;
+  return (
+    <span className="deck-row-price" title={priceCellTitle(row, currency)}>
+      {formatMoney(countedPrice(row), { currency })}
+    </span>
+  );
 }
 
 // "proxy" right after the card name, at rest and in every column width (it
