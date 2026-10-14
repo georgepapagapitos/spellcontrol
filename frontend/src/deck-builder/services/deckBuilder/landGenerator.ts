@@ -503,34 +503,6 @@ export async function generateLands(
       const seats = Math.min(nonBasicTarget, prices.length);
       if (seats > 0) budgetTracker.planLandPhase(seats, prices[seats - 1]);
     }
-    const nonBasics = pickFromPrefetched(
-      capsFilteredLands,
-      landCardMap,
-      nonBasicTarget,
-      usedNames,
-      colorIdentity,
-      bannedCards,
-      maxCardPrice,
-      gates?.maxGameChangers ?? Infinity,
-      gates?.gameChangerCount ?? { value: 0 },
-      maxRarity,
-      maxCmc,
-      budgetTracker,
-      collectionNames,
-      landPenalties.size > 0 ? landPenalties : undefined,
-      currency,
-      gates?.gameChangerNames ?? new Set(),
-      arenaOnly,
-      collectionStrategy,
-      collectionOwnedPercent,
-      ignoreOwnedBudget,
-      ignoreOwnedRarity,
-      gates?.isSaltBlocked ? (card) => !gates.isSaltBlocked!(card.name) : undefined,
-      undefined,
-      0.5,
-      mtgFormat
-    );
-    lands.push(...nonBasics);
     morePageLands = (n) =>
       pickFromPrefetched(
         capsFilteredLands,
@@ -559,6 +531,8 @@ export async function generateLands(
         0.5,
         mtgFormat
       );
+    const nonBasics = morePageLands(nonBasicTarget);
+    lands.push(...nonBasics);
     if (spares) {
       const rank = (c: EDHRECCard) => (c.inclusion ?? 0) + (landPenalties.get(c.name) ?? 0);
       const picked = new Set(nonBasics.map((c) => c.name));
