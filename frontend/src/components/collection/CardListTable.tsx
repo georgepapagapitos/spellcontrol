@@ -267,7 +267,9 @@ export function CardListTable({
   // stable, matching how BinderView feeds its memoized flat arrays.
   const previewCards = useMemo(() => displayRows.map((r) => r.card), [displayRows]);
   const previewSectionLabels = useMemo(
-    () => displayRows.map((r) => (r.binders.length === 0 ? 'Uncategorized' : '')),
+    // Uncategorized is a counted pill from the stack's breakdown (getStackPlaces),
+    // not a section word: the word only showed when no copy had a binder.
+    () => displayRows.map(() => ''),
     [displayRows]
   );
   const previewPageNumbers = useMemo(() => displayRows.map(() => 0), [displayRows]);
