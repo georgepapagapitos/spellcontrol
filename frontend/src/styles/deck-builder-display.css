@@ -564,14 +564,6 @@
   color: var(--text-muted);
 }
 
-.deck-role-legend-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-sm);
-  color: var(--text-primary);
-}
-
 .deck-role-legend-item .deck-row-role-badge {
   width: 1.7rem;
   flex: 0 0 auto;
@@ -720,16 +712,6 @@
 @media (pointer: coarse) {
   .role-badge-btn {
     position: relative;
-  }
-
-  .role-badge-btn::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44px;
-    height: 36px;
-    transform: translate(-50%, -50%);
   }
 
   /* …EXCEPT on a deck-list row, where it collides with the quantity editor's

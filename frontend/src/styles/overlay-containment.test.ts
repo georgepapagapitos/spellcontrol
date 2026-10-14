@@ -34,10 +34,10 @@ import { dirname, join } from 'node:path';
 const srcRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel: string) => readFileSync(join(srcRoot, rel), 'utf8');
 
-/** Declaration bodies of every rule whose selector is exactly `selector`. */
+/** Declaration bodies of every rule whose selector list holds `selector`. */
 function blocks(css: string, selector: string): string[] {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(`(?:^|[\\s,}])${escaped}\\s*\\{([^}]*)\\}`, 'g');
+  const re = new RegExp(`(?:^|[\\s,}])${escaped}\\s*(?:,[^{}]*)?\\{([^}]*)\\}`, 'g');
   const out: string[] = [];
   let m: RegExpExecArray | null;
   while ((m = re.exec(css)) !== null) out.push(m[1]);
@@ -234,7 +234,7 @@ describe('coarse-pointer touch floor', () => {
     // clips its own ::after, which is a silent way for a ghost to do nothing.
     ['components/deck/DeckCardRow.css', '.deck-card-row-out::after'],
     ['components/deck/DeckCardRow.css', '.deck-card-row-secondary-act::after'],
-    ['styles/deck-builder-card-list.css', '.deck-row-menu-trigger::after'],
+    ['styles/forms-banners.css', '.deck-row-menu-trigger::after'],
     ['styles/auth.css', '.auth-reveal'],
     ['components/trade/TradeComposer.tsx', '.trade-stepper-btn::after'],
     ['components/trade/TradeComposer.tsx', '.trade-picked-remove::after'],
@@ -358,7 +358,7 @@ describe('coarse-pointer touch floor', () => {
     ['styles/binder-card-management.css', '.add-to-binder-btn'],
     ['components/deck/DeckSizePrompt.css', '.deck-size-prompt-showall'],
     ['components/deck/NextBestMove.css', '.next-best-move-add'],
-    ['styles/deck-builder-display.css', '.role-badge-btn::after'],
+    ['styles/forms-banners.css', '.role-badge-btn::after'],
     ['styles/deck-builder-row-qty.css', '.deck-row-qty-edit::after'],
     // B3-01: collection/deck row "Card actions" kebab — 20px glyph, ghosted
     // rather than inflated (the row is 32-66px tall).

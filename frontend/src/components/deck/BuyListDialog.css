@@ -13,14 +13,6 @@
   gap: var(--space-3);
 }
 
-.buy-list-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  flex: 0 0 auto;
-}
-
 .buy-list-title {
   font-family: var(--font-serif);
   font-size: var(--text-xl);

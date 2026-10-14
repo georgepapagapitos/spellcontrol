@@ -53,18 +53,6 @@
 /* The word sits in a line of text, so the 44px floor is a centered ghost
    rather than a min-height that would push the lines apart
    (inline-control-touch-floor.test.ts). */
-@media (pointer: coarse) {
-  .keyword-term::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 100%;
-    min-width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
-}
 
 /* The popover is portaled to <body> and placed by useAnchoredPanel; it can
    open from inside the card preview, so it clears the overlay layer. */

@@ -24,6 +24,8 @@ const CASES: Array<[file: string, selector: string]> = [
   ['styles/forms-banners.css', '.text-link'],
   // A keyword in a card's rules text, which opens what the rule says.
   ['components/card/RulesText.css', '.keyword-term'],
+  // A rename control inside a heading.
+  ['components/shared/InlineRename.css', '.inline-rename-btn'],
 ];
 
 describe('inline controls meet the coarse touch floor', () => {
@@ -31,10 +33,12 @@ describe('inline controls meet the coarse touch floor', () => {
     it(`${selector} carries a 44px ghost under a coarse pointer`, () => {
       const css = read(file);
       const sel = escape(selector);
+      // The ghost is one selector list in the shared sheet (forms-banners.css),
+      // so the host is found inside the list, not in its own file.
       const ghost = new RegExp(
-        `@media \\(pointer: coarse\\)\\s*\\{\\s*${sel}::after\\s*\\{([^}]*)\\}`
-      ).exec(css)?.[1];
-      expect(ghost, `no coarse ${selector}::after ghost in ${file}`).toBeTruthy();
+        `@media \\(pointer: coarse\\)\\s*\\{[^@]*?(?:^|[\\s,{])${sel}::after\\s*(?:,[^{}]*)?\\{([^}]*)\\}`
+      ).exec(read('styles/forms-banners.css'))?.[1];
+      expect(ghost, `no coarse ${selector}::after ghost in styles/forms-banners.css`).toBeTruthy();
       expect(ghost).toContain('position: absolute');
       expect(ghost).toContain('height: 44px');
       expect(ghost).toMatch(/min-width:\s*44px/);

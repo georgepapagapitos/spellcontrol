@@ -896,17 +896,6 @@
   .player-panel-name {
     position: relative;
   }
-
-  .player-panel-name::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 100%;
-    min-width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
 }
 
 .player-panel-winner-tag,

@@ -7,6 +7,8 @@ import { dirname, join } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (f: string) => readFileSync(join(here, f), 'utf8');
 const board = read('play-board.css');
+// The seat-name ghost is a member of the shared inline-control ghost list.
+const shared = read('forms-banners.css');
 const counters = read('play-counters-panel.css');
 const enhancements = read('play-enhancements.css');
 const setup = read('play-setup.css');
@@ -26,7 +28,9 @@ const sheets = read('../components/play/BoardSheets.css');
  */
 function ruleBody(css: string, selector: string): string | null {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const bodies = [...css.matchAll(new RegExp(`${escaped}\\s*\\{([^}]*)\\}`, 'g'))].map((m) => m[1]);
+  const bodies = [...css.matchAll(new RegExp(`${escaped}\\s*(?:,[^{}]*)?\\{([^}]*)\\}`, 'g'))].map(
+    (m) => m[1]
+  );
   return bodies.length > 0 ? bodies.join('\n') : null;
 }
 
@@ -53,7 +57,7 @@ describe('play board touch targets', () => {
   });
 
   it('the seat-name button carries a ghost hit area at least 44px on both axes', () => {
-    const body = ruleBody(board, '.player-panel-name::after');
+    const body = ruleBody(shared, '.player-panel-name::after');
     expect(
       body,
       '.player-panel-name is a text label styled as a button (~23px tall). Without a ghost, a miss falls through to the ±1 tap zone and silently changes life.'
@@ -64,7 +68,7 @@ describe('play board touch targets', () => {
 
   it('a ghost hit area is positioned, or it collapses onto the page', () => {
     for (const sel of ['.player-panel-name::after']) {
-      const body = ruleBody(board, sel)!;
+      const body = ruleBody(shared, sel)!;
       expect(body, `${sel} needs position: absolute`).toContain('position: absolute');
       expect(body, `${sel} needs a centring transform`).toContain('translate(-50%, -50%)');
     }
@@ -140,8 +144,8 @@ describe('play board touch targets', () => {
     // a mouse needs no 44px. Each of these selectors must appear only after a
     // `@media (pointer: coarse)` opener.
     for (const sel of ['.player-panel-name::after']) {
-      const at = board.indexOf(sel);
-      const coarseBefore = board.lastIndexOf('@media (pointer: coarse)', at);
+      const at = shared.indexOf(sel);
+      const coarseBefore = shared.lastIndexOf('@media (pointer: coarse)', at);
       expect(coarseBefore, `${sel} is not inside a coarse-pointer block`).toBeGreaterThan(-1);
     }
   });

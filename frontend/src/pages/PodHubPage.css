@@ -68,18 +68,6 @@
 
 /* The rename control is the pod's name inside its <h1>: a min-height would
    change the heading's line, so the coarse floor is a centered ghost. */
-@media (pointer: coarse) {
-  .pod-hub-name-btn::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 100%;
-    min-width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
-}
 
 .pod-hub-name-btn svg {
   flex-shrink: 0;

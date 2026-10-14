@@ -52,7 +52,10 @@ describe('deck row — the qty editor and the role badge do not both ghost', () 
 
   it('keeps the ghost for the generic badge, so grid tiles are unaffected', () => {
     // The base ghost still has to be there — the fix narrows it, not removes it.
-    const base = css.match(/\.role-badge-btn::after\s*\{([^}]*)\}/);
+    // …now one entry in the shared row-ghost selector list (forms-banners.css).
+    const base = read('forms-banners.css').match(
+      /(?:^|[\s,])\.role-badge-btn::after\s*(?:,[^{}]*)?\{([^}]*)\}/
+    );
     expect(base, 'the base .role-badge-btn ghost was removed entirely').toBeTruthy();
     expect(base![1]).toMatch(/width:\s*44px/);
   });

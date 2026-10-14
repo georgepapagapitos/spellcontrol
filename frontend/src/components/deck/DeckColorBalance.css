@@ -138,16 +138,6 @@
 /* 44px tap target via a centered ghost; the two counts stack, so the ghost
    is taller than the line and wider than the words, never the layout. */
 @media (pointer: coarse) {
-  .deck-color-balance-value-btn::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: max(100%, 44px);
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
-
   /* The two counts sit side by side: stacked, their press targets share one
      ~25px pitch and cannot both reach 44. A row is then one 44px line, so the
      ghosts of the rows above and below clear each other too. */
