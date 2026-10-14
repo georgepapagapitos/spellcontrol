@@ -163,16 +163,6 @@
     position: relative;
     min-height: 0;
   }
-
-  .deck-identity-card-archetype-menu .toolbar-pill::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: max(100%, 44px);
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
 }
 
 .deck-identity-card-lead {

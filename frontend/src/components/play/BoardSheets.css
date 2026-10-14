@@ -243,15 +243,6 @@
   .board-sheet .board-sheet-note-fix {
     position: relative;
   }
-  .board-sheet .board-sheet-note-fix::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: max(100%, 44px);
-    height: 44px;
-    transform: translate(-50%, -50%);
-  }
 }
 
 .board-sheet-divider {

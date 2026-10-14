@@ -80,8 +80,29 @@
   position: relative;
 }
 
+/* The inline-control ghosts (STYLE_GUIDE § Responsive, "44px touch targets"):
+   a centered, invisible ::after box under a coarse pointer, for a control in a
+   line of text or a dense row that cannot take a min-height without pushing its
+   neighbors apart. Three sizes, one rule each; a host joins by adding its
+   selector to the matching list (never a copy of the block, which
+   styles/duplicate-block-ratchet.test.ts fails) and gives itself
+   `position: relative`. The host keeps its own override where one is needed
+   (.deck-identity-card-check .btn-link drops it, .role-badge-btn.deck-row-role-badge
+   narrows it). Every list is a plain selector list, so each member keeps the
+   specificity it had in its own sheet. The guards that read these
+   (inline-control-touch-floor, play-touch-targets, overlay-containment,
+   touch-ghost-clearance, deck-row-ghost-collision) resolve a host through
+   the selector list, not by file.
+
+   Fit: as wide as the control, at least 44, 44 tall. */
 @media (pointer: coarse) {
-  .text-link::after {
+  .btn-link::after,
+  .text-link::after,
+  .keyword-term::after,
+  .inline-rename-btn::after,
+  .pod-hub-name-btn::after,
+  .player-panel-name::after,
+  .playtest-life-table__details::after {
     content: '';
     position: absolute;
     top: 50%;
@@ -91,17 +112,37 @@
     height: 44px;
     transform: translate(-50%, -50%);
   }
-}
 
-@media (pointer: coarse) {
-  .btn-link::after {
+  /* Fit, written as max(): the same box for hosts nested under another class. */
+  .deck-color-balance-value-btn::after,
+  .deck-castability-card:not(.is-static)::after,
+  .deck-identity-card-archetype-menu .toolbar-pill::after,
+  .board-sheet .board-sheet-note-fix::after {
     content: '';
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 100%;
-    min-width: 44px;
+    width: max(100%, 44px);
     height: 44px;
+    transform: translate(-50%, -50%);
+  }
+
+  /* Row: 44 wide, 36 tall. Height is capped at the dense row's own coarse
+     min-height (not 44px) so two vertically adjacent ghosts can't overlap and
+     steal each other's taps. */
+  .role-badge-btn::after,
+  .deck-row-menu-trigger::after,
+  .deck-row-select-check::after,
+  .deck-row-drag-handle::after,
+  .deck-ai-tweak-reroll::after,
+  .deck-ai-tweak-dismiss::after,
+  .deck-ai-tweak-reset::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 36px;
     transform: translate(-50%, -50%);
   }
 }

@@ -50,7 +50,7 @@ function px(expr: string): number {
 
 /** A declaration's value in the first `selector { … }` rule after `from`. */
 function decl(css: string, selector: string, prop: string, from = 0): string {
-  const rule = new RegExp(`(?:^|\\n)\\s*${escape(selector)}\\s*\\{([^}]*)\\}`, 'g');
+  const rule = new RegExp(`(?:^|\\n)\\s*${escape(selector)}\\s*(?:,[^{}]*)?\\{([^}]*)\\}`, 'g');
   rule.lastIndex = from;
   for (let m = rule.exec(css); m; m = rule.exec(css)) {
     const v = new RegExp(`(?:^|;|\\s)${escape(prop)}:\\s*([^;]+);`).exec(m[1]);

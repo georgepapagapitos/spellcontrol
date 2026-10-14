@@ -601,6 +601,31 @@ select {
   --accent-hover: var(--accent-hover-tint);
 }
 
+/* Two more shared blocks (E598). A dialog or sheet header: title left, close
+   or action right, never shrinking. A one-line readout row: a label and its
+   value on one line in the body size. A new header or row of either kind joins
+   its list; a copy of the block fails styles/duplicate-block-ratchet.test.ts. */
+.buy-list-header,
+.export-dialog-header,
+.life-keypad-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+
+.playtest-log-entry,
+.playtest-stats-row,
+.deck-role-legend-item,
+.breakdown-row-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
 /* A column of text lines (name over meta) that fills its row and can shrink. */
 .text-stack {
   display: flex;

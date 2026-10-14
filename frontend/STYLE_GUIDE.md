@@ -2243,6 +2243,16 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
   centered `::after` ghost (`position: absolute; width/height: 44px;
 transform: translate(-50%, -50%)` on a `position: relative` parent) rather
   than inflating the visible control — reference `.set-filter-chip-x`.
+  **A ghost is a selector-list member, not a copy.** `.touch-ghost` (44×44) is
+  the class to add; a control whose ghost must follow its own size takes one of
+  three lists in the coarse block of `styles/forms-banners.css`: _fit_ (as wide
+  as the control, at least 44, 44 tall), _fit as `max()`_ (the same box for a
+  host nested under another class) or _row_ (44 wide, 36 tall, so adjacent dense
+  rows don't steal each other's taps). Add the selector to that list and give
+  the host `position: relative`; never re-declare the block in a component sheet
+  (`styles/duplicate-block-ratchet.test.ts` fails it). A host that needs a
+  different box overrides at higher specificity, as `.role-badge-btn.deck-row-role-badge`
+  does.
 - **⚠️ `min-height` does nothing on `display: inline`** — the trap that made
   this floor silently inert on every `<a class="btn">`. **FIXED AT THE ROOT:
   `.btn` now declares `display: inline-flex` (+ centering) in `tabs.css`**, so
