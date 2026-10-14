@@ -925,8 +925,8 @@ export async function ensureSchema(): Promise<void> {
     ALTER TABLE ai_reviews ADD COLUMN IF NOT EXISTS fetched_names JSONB;
     -- The question a rules-qa row answered, verbatim, so the history list can
     -- show it (the input_hash is normalised and unreadable). Nullable — the
-    -- deck features have no free-text question.
-    ALTER TABLE ai_reviews ADD COLUMN IF NOT EXISTS question TEXT;
+    -- deck features have no free-text question. grounding: the checks' verdict (ai/grounding.ts).
+    ALTER TABLE ai_reviews ADD COLUMN IF NOT EXISTS question TEXT, ADD COLUMN IF NOT EXISTS grounding JSONB;
     -- Cache-priced tokens (T116 spend readout). input_tokens is only the
     -- UNCACHED prefix; a write bills 1.25x and a read 0.1x, so without these
     -- the per-row cost is wrong in both directions. Rows before the column
