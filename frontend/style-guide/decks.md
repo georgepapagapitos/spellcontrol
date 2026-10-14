@@ -563,6 +563,36 @@ and Release are two different statements and both now stick:
   and both seats), `components/deck/deck-display-rows.released.test.ts`, and
   `pages/deck-editor/use-deck-reallocation.test.tsx` (the sideboard handlers).
 
+### A deck's value leaves its proxies out (2026-10-13)
+
+The user's ruling: a proxy adds nothing to what a deck is worth, and a real card
+counts at market whether it's owned or still to buy, since the deck calls for
+it. One definition, `ownDeckValue` in `lib/deck/deck-value.ts`, behind every
+place the owner reads a deck's money:
+
+- **Hero** value, the **decks index** value and its Value sort, the deck's
+  **section subtotals** (list and grid), and **Compare**'s Price.
+- **A proxy is either kind:** a slot marked as one, or a slot or commander seat
+  holding a collection copy flagged as one.
+- **Say what was left out, beside the number.** The hero reads
+  "$372 · $240 in proxies not counted"; non-breaking spaces keep that note one
+  unit when the line wraps on a phone. Compare puts the same note under each
+  deck's price, and the index value carries it as its title. A deck that
+  dropped in value when a card was marked would otherwise read as a bug.
+- **A row's price cell is what the row adds**, so the cells sum to the section
+  subtotal: a proxy shows $0.00 beside its `proxy` word, and the cell's title
+  and the inspector carry its market price ("Proxy, $40.56 at market, not
+  counted"). A printing sub-row follows its row.
+- **Public surfaces stay at list value**: the shared deck page, Discover's
+  tiles and price band, and the commander rollup. The public projection
+  withholds slot fields, so a visitor can't know which cards are proxies, and
+  the owner's proxy choices stay private. `deckValue` is that list value.
+- **Missing and the buy list were already proxy-free** (a proxy is covered,
+  never missing).
+- Guard: `lib/deck/deck-value.test.ts`, `components/deck/deck-display-rows.proxy-price.test.ts`
+  (the cells sum to the owner value), `pages/DecksIndexPage.value.test.tsx`,
+  `pages/DeckComparePage.test.tsx` and `pages/deck-editor/DeckEditorHero.proxy-value.test.tsx`.
+
 ### No "also in your other decks" banner (2026-10-09)
 
 The deck list had a banner above it, "N cards here are also in your other

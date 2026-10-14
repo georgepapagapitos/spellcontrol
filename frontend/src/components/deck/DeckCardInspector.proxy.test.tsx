@@ -23,6 +23,7 @@ const row = (over: Partial<Row>): Row =>
     proxyQty: 1,
     releasedQty: 0,
     ownedProxyQty: 0,
+    proxyPrice: 0,
     card: { id: 'sf-dryad', name: 'Dryad of the Ilysian Grove' } as ScryfallCard,
     ...over,
   }) as Row;

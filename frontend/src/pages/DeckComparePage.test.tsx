@@ -185,4 +185,27 @@ describe('DeckComparePage', () => {
     fireEvent.click(showMoreBtn);
     expect(screen.getByRole('button', { name: /show fewer/i })).toBeTruthy();
   });
+
+  // Price is each deck's own value (proxies count 0), the number its hero
+  // shows, and the deck with proxies says what was left out.
+  it('prices each deck without its proxies and says what was left out', () => {
+    const crypt = { id: 'sf-crypt', name: 'Mana Crypt', prices: { usd: '400.00' } };
+    const ring = { id: 'sf-ring', name: 'Sol Ring', prices: { usd: '2.00' } };
+    const proxied = {
+      ...deckB,
+      cards: [
+        { slotId: 'p', card: crypt, allocatedCopyId: null, proxy: true },
+        { slotId: 'r', card: ring, allocatedCopyId: null },
+      ],
+    };
+    mockUseDecksStore.mockImplementation(
+      (sel: (s: { decks: unknown[]; hydrated: boolean }) => unknown) =>
+        sel({ decks: [deckA, proxied], hydrated: true })
+    );
+    renderPage('?a=a&b=b');
+    const totalOf = mockDiffDecks.mock.calls.at(-1)?.[4] as (d: unknown) => number;
+    expect(totalOf(proxied)).toBe(2);
+    expect(screen.getByText('$400.00 in proxies not counted')).toBeTruthy();
+    expect(screen.getAllByText(/in proxies not counted/)).toHaveLength(1);
+  });
 });

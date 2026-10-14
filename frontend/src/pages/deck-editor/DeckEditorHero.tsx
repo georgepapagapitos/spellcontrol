@@ -19,7 +19,14 @@ interface DeckEditorHeroProps {
   deck: Deck;
   art: ComponentProps<typeof DeckHero>['art'];
   formatConfig: (typeof DECK_FORMAT_CONFIGS)[Deck['format']] | null;
-  heroTotals: { count: number; value: number; sideboard: number; considering: number };
+  heroTotals: {
+    count: number;
+    value: number;
+    /** What the deck's proxies would add; left out of `value`. */
+    proxied: number;
+    sideboard: number;
+    considering: number;
+  };
   bracketValue: number | undefined;
   heroBracket: ReturnType<typeof heroBracketReadout> | undefined;
   commanderColorIdentity: ComponentProps<typeof DeckVisibilityChip>['colorIdentity'];
@@ -124,6 +131,11 @@ export function DeckEditorHero({
             {heroTotals.count === 1 ? 'card' : 'cards'}
             {'\u00A0· '}
             {formatMoney(heroTotals.value)}
+            {/* The value leaves proxies out, and says so right beside it: a
+                deck that lost value when a card was marked would otherwise
+                read as wrong. The note wraps as one unit on a phone. */}
+            {heroTotals.proxied > 0 &&
+              `\u00A0· ${formatMoney(heroTotals.proxied)}\u00A0in\u00A0proxies\u00A0not\u00A0counted`}
             {heroTotals.sideboard > 0 && (
               <>
                 {'\u00A0· '}

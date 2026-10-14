@@ -267,6 +267,8 @@ export interface PrintingGroup {
   qty: number;
   slotIds: string[];
   price: number;
+  /** Of `price`, the proxy slots' part (see `Row.proxyPrice`). */
+  proxyPrice: number;
   setCode: string;
   setName?: string;
   collectorNumber: string;
@@ -314,6 +316,9 @@ export interface Row {
    * proxy slot, so a deck shows its stand-ins wherever they are tracked.
    */
   ownedProxyQty: number;
+  /** Of `price`, the part the row's proxy slots (either kind) make up. Left
+   *  out of the deck's value and its section subtotals (lib/deck/deck-value). */
+  proxyPrice: number;
   /** First deck claiming a copy of this card (for the badge link/color). Only set when claimedElsewhereQty > 0. */
   claimedBy?: AllocationInfo;
   /**
@@ -469,6 +474,7 @@ export function buildRows(
     if (pg) {
       pg.qty += 1;
       pg.price += priceOf(card, currency);
+      if (dc.proxy || ownedProxy) pg.proxyPrice += priceOf(card, currency);
       if (dc.slotId) pg.slotIds.push(dc.slotId);
       if (matchOwned?.foil) {
         pg.foil = true;
@@ -481,6 +487,7 @@ export function buildRows(
         qty: 1,
         slotIds: dc.slotId ? [dc.slotId] : [],
         price: priceOf(card, currency),
+        proxyPrice: dc.proxy || ownedProxy ? priceOf(card, currency) : 0,
         setCode: matchOwned?.setCode || card.set || '',
         setName: matchOwned?.setName || card.set_name,
         collectorNumber: matchOwned?.collectorNumber || card.collector_number || '',
@@ -507,6 +514,7 @@ export function buildRows(
       if (dc.allocatedCopyId) existing.allocatedCopyIds.push(dc.allocatedCopyId);
       existing.releasedQty += released;
       existing.ownedProxyQty += ownedProxy;
+      if (dc.proxy || ownedProxy) existing.proxyPrice += priceOf(card, currency);
       if (dc.proxy) existing.proxyQty += 1;
       else if (status === 'allocated') existing.allocatedQty += 1;
       else if (status === 'orphan') existing.orphanQty += 1;
@@ -558,6 +566,7 @@ export function buildRows(
       proxyQty: dc.proxy ? 1 : 0,
       releasedQty: released,
       ownedProxyQty: ownedProxy,
+      proxyPrice: dc.proxy || ownedProxy ? priceOf(card, currency) : 0,
       claimedBy: status === 'claimed-elsewhere' ? claimedByFor(card.name) : undefined,
       imageNormal: owned?.imageNormal ?? frontFaceImage(card),
       imageNormalBack: owned?.imageNormalBack ?? backFaceImage(card),

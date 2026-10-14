@@ -62,7 +62,8 @@ import { useAllocations } from '@/lib/collection/allocations';
 import { useSetMap } from '@/lib/api';
 import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
 import { useDeckPullCounts } from '@/lib/collection/use-deck-pull-counts';
-import { deckValue } from '@/lib/deck/deck-value';
+import { ownDeckValue, type OwnDeckValue } from '@/lib/deck/deck-value';
+import { useProxyCopyIds } from '@/lib/deck/use-proxy-copy-ids';
 import { useDeckPrices } from '@/components/deck/use-deck-prices';
 import { useCurrency } from '@/lib/collection/currency';
 import { formatMoney } from '@/lib/collection/format-money';
@@ -208,10 +209,19 @@ export function DecksIndexPage() {
   const pricesVersion = useDeckPrices(
     decks.flatMap((d) => [d.commander, d.partnerCommander, ...d.cards.map((c) => c.card)])
   );
-  const deckValues = useMemo(
-    () => new Map(decks.map((d) => [d.id, deckValue(d, currency)])),
+  // Proxies count 0 (ownDeckValue), the same number the deck's own hero shows.
+  const proxyCopyIds = useProxyCopyIds();
+  const deckValueParts = useMemo(
+    () =>
+      new Map<string, OwnDeckValue>(
+        decks.map((d) => [d.id, ownDeckValue(d, proxyCopyIds, currency)])
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [decks, currency, pricesVersion]
+    [decks, currency, pricesVersion, proxyCopyIds]
+  );
+  const deckValues = useMemo(
+    () => new Map([...deckValueParts].map(([id, v]) => [id, v.value])),
+    [deckValueParts]
   );
   // Gate for the "From my binder" door — mirrors the tab's own empty state.
   const canBuildFromBinder = rawCollectionCards.length >= MIN_COLLECTION_SIZE;
@@ -780,6 +790,7 @@ export function DecksIndexPage() {
                 const flaggedCount = countFlaggedCards(issues);
                 const pull = pullCounts?.get(deck.id);
                 const value = deckValues.get(deck.id) ?? 0;
+                const proxied = deckValueParts.get(deck.id)?.proxied ?? 0;
                 const selected = sel.selected.has(deck.id);
                 return (
                   <Surface
@@ -914,7 +925,14 @@ export function DecksIndexPage() {
                               {detail}
                             </span>
                             {value > 0 && (
-                              <span className="decks-index-card-value">
+                              <span
+                                className="decks-index-card-value"
+                                title={
+                                  proxied > 0
+                                    ? `${formatMoney(proxied)} in proxies not counted`
+                                    : undefined
+                                }
+                              >
                                 {formatMoney(value, { wholeDollars: value >= 10 })}
                               </span>
                             )}

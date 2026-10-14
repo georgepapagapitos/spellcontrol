@@ -104,4 +104,20 @@ describe('DecksIndexPage — deck value', () => {
     );
     expect(valueOf('Empty Deck')).toBeNull();
   });
+
+  // A proxy counts 0, the number the deck's own hero shows, and the value's
+  // title says what was left out.
+  it('leaves a proxy out of the value and names it in the title', () => {
+    const deck = makeDeck('proxied', 'Proxied Deck', [priced('400.00', '350.00')]);
+    mockDecks = [{ ...deck, cards: deck.cards.map((s) => ({ ...s, proxy: true })) }];
+    render(
+      <MemoryRouter>
+        <DecksIndexPage />
+      </MemoryRouter>
+    );
+    const value = screen.getByText('Proxied Deck').closest('li')!;
+    const cell = value.querySelector('.decks-index-card-value')!;
+    expect(cell.textContent).toBe('$20');
+    expect(cell.getAttribute('title')).toBe('$400.00 in proxies not counted');
+  });
 });

@@ -127,6 +127,7 @@ export function buildCommanderRows(args: {
       proxyQty: 0,
       releasedQty: isReleasedOwned(released, status, c.name, crossDeck) ? 1 : 0,
       ownedProxyQty: status === 'allocated' && owned?.proxy ? 1 : 0,
+      proxyPrice: status === 'allocated' && owned?.proxy ? priceOf(c, currency) : 0,
       claimedBy: status === 'claimed-elsewhere' ? claimedByForName(c.name) : undefined,
       imageNormal: owned?.imageNormal ?? frontFaceImage(c),
       imageNormalBack: owned?.imageNormalBack ?? backFaceImage(c),

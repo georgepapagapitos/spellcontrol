@@ -30,7 +30,7 @@ import {
   type Row,
   type TypedGroup,
 } from './deck-display-rows';
-import { allocationSummary, proxyMarkQty } from './deck-row-allocation';
+import { allocationSummary, countedPrice, proxyMarkQty } from './deck-row-allocation';
 import { SectionIcon } from './deck-display-icons';
 import { FoilShimmer } from '../shared/FoilShimmer';
 import { PartnerHeaderButton, LegalityBadge, RoleBadge } from './deck-display-icons';
@@ -236,7 +236,8 @@ export function DeckCardGrid({
     const emptyLine = g.rows.length === 0 ? g.empty : undefined;
     if (g.rows.length === 0 && g.target === undefined && !emptyLine) return null;
     const count = g.rows.reduce((s, r) => s + r.qty, 0);
-    const subtotal = g.rows.reduce((s, r) => s + r.price, 0);
+    // Proxies left out, like the deck's value (lib/deck/deck-value).
+    const subtotal = g.rows.reduce((s, r) => s + countedPrice(r), 0);
     // Stacks never collapse. A stack is already its own collapse — the
     // column shows one strip per card and opens one at a time — so a
     // chevron that hides the whole column is a second, redundant control

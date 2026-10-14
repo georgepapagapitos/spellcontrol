@@ -135,12 +135,21 @@ export interface PriceDiff {
 
 /** Total per deck (all copies incl. commanders) and the B − A delta, in the
  *  given display currency. */
-export function diffDeckPrice(a: Deck, b: Deck, currency: 'USD' | 'EUR' = 'USD'): PriceDiff {
-  const total = (deck: Deck) => {
-    let sum = 0;
-    for (const { card, qty } of countCards(deck).values()) sum += cardPrice(card, currency) * qty;
-    return sum;
-  };
+export function diffDeckPrice(
+  a: Deck,
+  b: Deck,
+  currency: 'USD' | 'EUR' = 'USD',
+  /** The page passes the owner's deck value (lib/deck/deck-value), so Compare
+   *  reads the number each deck's hero shows. Default: the decks' own snapshots. */
+  totalOf?: (deck: Deck) => number
+): PriceDiff {
+  const total =
+    totalOf ??
+    ((deck: Deck) => {
+      let sum = 0;
+      for (const { card, qty } of countCards(deck).values()) sum += cardPrice(card, currency) * qty;
+      return sum;
+    });
   const aTotal = total(a);
   const bTotal = total(b);
   return { aTotal, bTotal, delta: bTotal - aTotal };
@@ -292,12 +301,13 @@ export function diffDecks(
   a: Deck,
   b: Deck,
   taggerReady: boolean,
-  currency: 'USD' | 'EUR' = 'USD'
+  currency: 'USD' | 'EUR' = 'USD',
+  priceTotalOf?: (deck: Deck) => number
 ): DeckDiff {
   return {
     cards: diffDeckCards(a, b),
     stats: diffDeckStats(a, b, taggerReady),
-    price: diffDeckPrice(a, b, currency),
+    price: diffDeckPrice(a, b, currency, priceTotalOf),
     bracket: diffDeckBracket(a, b),
   };
 }

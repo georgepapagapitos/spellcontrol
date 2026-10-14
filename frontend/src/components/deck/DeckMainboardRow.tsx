@@ -53,9 +53,9 @@ import {
   type CurrencyCode,
   type ShowPrefs,
 } from './deck-display-rows';
-import { allocationAriaLabel, allocationTitle } from './deck-row-allocation';
+import { allocationAriaLabel, allocationTitle, countedPrice } from './deck-row-allocation';
 import { qtyOwnershipClass } from './deck-display-derive';
-import { SectionIcon, AllocationChip, ProxyTag } from './deck-display-icons';
+import { SectionIcon, AllocationChip, ProxyTag, RowPrice } from './deck-display-icons';
 import { RoleBadge, LegalityBadge } from './deck-display-icons';
 import { CardName } from '@/components/shared/CardName';
 import { IconButton } from '@/components/shared/Button';
@@ -227,7 +227,8 @@ export function CategorySection({
   // gap story) — see groupByCategory. Type-mode buckets never set `target`,
   // so this is a no-op there — byte-identical to the pre-E124 early return.
   if (rows.length === 0 && target === undefined && !empty) return null;
-  const subtotal = rows.reduce((sum, r) => sum + r.price, 0);
+  // Proxies left out, like the deck's value (lib/deck/deck-value).
+  const subtotal = rows.reduce((sum, r) => sum + countedPrice(r), 0);
   const count = rows.reduce((sum, r) => sum + r.qty, 0);
 
   const listEl = (
@@ -886,21 +887,7 @@ ${row.card.type_line}`}
           ) : (
             <span className="mana-cost-row" aria-hidden />
           ))}
-        {showPrefs.price &&
-          (row.price > 0 ? (
-            <span
-              className="deck-row-price"
-              title={
-                row.qty > 1 ? `${formatMoney(row.price / row.qty, { currency })} each` : undefined
-              }
-            >
-              {formatMoney(row.price, { currency })}
-            </span>
-          ) : (
-            // Unknown/zero price — keep the cell so the menu column stays
-            // aligned across rows (mirrors the empty mana-cost placeholder).
-            <span className="deck-row-price" aria-hidden />
-          ))}
+        {showPrefs.price && <RowPrice row={row} currency={currency} />}
         {hasMenu ? (
           <ToolbarPopover
             wrapperClassName="deck-row-menu"
@@ -985,7 +972,7 @@ ${row.card.type_line}`}
                 <span className="deck-printing-sub-spacer" />
                 {p.price > 0 && (
                   <span className="deck-printing-sub-price">
-                    {formatMoney(p.price, { currency })}
+                    {formatMoney(p.price - p.proxyPrice, { currency })}
                   </span>
                 )}
               </li>
