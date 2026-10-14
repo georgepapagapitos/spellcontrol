@@ -72,6 +72,49 @@ describe('PreviewContextLine', () => {
     expect(pill.textContent).toBe('Red Spells');
   });
 
+  it('counts the copies in no place, so the pills add up to the stack', () => {
+    renderLine({ places });
+    const loose = screen.getByRole('link', { name: 'Uncategorized, 1 copy' });
+    expect(loose.getAttribute('href')).toBe('/collection?binder=__uncategorized');
+  });
+
+  it('splits one printing across two decks and a loose copy', () => {
+    const pauper = makeDeckAllocationInfo('d2', 'Pauper Burn', '#c0392b', 'Lightning Bolt');
+    const split = breakdownCopies(
+      ['c1', 'c2', 'c3', 'c4'],
+      new Map([
+        ['c1', pauper],
+        ['c2', pauper],
+        ['c3', burn],
+      ]),
+      new Map()
+    );
+    renderLine({ places: split, qty: 4, binders: [], allocations: [pauper, pauper, burn] });
+    expect(screen.getByRole('link', { name: 'In deck: Pauper Burn, 2 copies' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'In deck: Mono-Red Burn, 1 copy' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Uncategorized, 1 copy' })).toBeTruthy();
+  });
+
+  it('shows no Uncategorized pill when every copy has a place', () => {
+    const filed = breakdownCopies(
+      ['c1', 'c2', 'c3'],
+      new Map([['c1', burn]]),
+      new Map([
+        ['c2', red],
+        ['c3', red],
+      ])
+    );
+    renderLine({ places: filed, qty: 3, binders: [red] });
+    expect(screen.getByRole('link', { name: 'Red Spells, 2 copies' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /Uncategorized/ })).toBeNull();
+  });
+
+  it('names a single loose copy without a count', () => {
+    const one = breakdownCopies(['c1'], new Map(), new Map());
+    renderLine({ places: one, qty: 1, binders: [], allocations: [] });
+    expect(screen.getByRole('link', { name: 'Uncategorized' }).textContent).toBe('Uncategorized');
+  });
+
   it('keeps the uncounted pills where no breakdown is given', () => {
     renderLine({});
     expect(screen.getByRole('link', { name: 'Red Spells' })).toBeTruthy();

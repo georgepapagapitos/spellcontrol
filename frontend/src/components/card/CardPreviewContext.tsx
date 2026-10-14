@@ -18,8 +18,9 @@ const PILL_COUNT_STYLE: CSSProperties = { flexShrink: 0, fontVariantNumeric: 'ta
  * Split out of CardPreview (file-size ratchet).
  *
  * Given `places` (the collection), binder pills name only binders that hold a
- * copy now, and on a stack of more than one every pill carries its count:
- * the same numbers as the tile's marks. Without it (binder, deck and list
+ * copy now, an Uncategorized pill holds the copies in no place, and on a
+ * stack of more than one every pill carries its count, so the counts add up
+ * to the stack: the same numbers as the tile's marks. Without it (binder, deck and list
  * views), the pills are the stack's binders and claims, uncounted.
  */
 export function PreviewContextLine({
@@ -127,6 +128,33 @@ export function PreviewContextLine({
         </Link>
       );
     }),
+    // The copies in no deck, cube or binder, so the counts add up to the
+    // stack. Hollow and dashed like the Uncategorized outline elsewhere: it
+    // is no container, so it takes no color.
+    ...(places && places.unplaced > 0
+      ? [
+          <Link
+            key="unplaced"
+            to="/collection?binder=__uncategorized"
+            className="card-preview-context-pill text-link card-preview-context-pill--listed"
+            style={{ '--pill-color': 'var(--text-secondary)' } as CSSProperties}
+            onClick={onClose}
+            title="Not in a deck or binder"
+            aria-label={
+              qty > 1
+                ? `Uncategorized, ${places.unplaced} ${places.unplaced === 1 ? 'copy' : 'copies'}`
+                : undefined
+            }
+          >
+            <span>Uncategorized</span>
+            {qty > 1 && (
+              <span style={PILL_COUNT_STYLE} aria-hidden>
+                {places.unplaced}
+              </span>
+            )}
+          </Link>,
+        ]
+      : []),
     // A cube that only lists the card: same pill, hollow and dashed, since
     // it holds no copy (DeckBadge's listed badge, the same ruling).
     ...listings
