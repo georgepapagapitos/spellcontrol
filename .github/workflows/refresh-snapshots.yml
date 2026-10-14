@@ -102,6 +102,12 @@ jobs:
         working-directory: frontend
         run: node scripts/refresh-daily-cards.mjs
 
+      # About 2,200 EDHREC pages 120 ms apart plus the Scryfall commander list: roughly 5 minutes.
+      # Age-gated like the rest, so most weeks it does nothing.
+      - name: Refresh Voltron veto (EDHREC themes)
+        working-directory: frontend
+        run: node scripts/refresh-voltron-veto.mjs
+
       - name: Refresh flavor names (Scryfall)
         working-directory: packages/binder-routing
         run: node scripts/refresh-flavor-names.mjs
@@ -127,6 +133,7 @@ jobs:
               ["../backend/data/daily/cards.json", (d) => (d.cards || []).length > 25000],
               ["../backend/data/daily/pool.json", (d) => (d.cards || []).length >= 500],
               ["public/daily-names.json", (d) => (d.names || []).length > 25000],
+              ["public/voltron-veto.json", (d) => !!d.generatedAt && (d.names || []).length > 300],
             ];
             let bad = 0;
             for (const [file, ok] of checks) {
@@ -175,6 +182,7 @@ jobs:
               ["public/cube-signal-pauper.json", "scripts/refresh-cube-signal-budget.mjs"],
               ["public/cube-signal-peasant.json", "scripts/refresh-cube-signal-budget.mjs"],
               ["../backend/data/daily/cards.json", "scripts/refresh-daily-cards.mjs"],
+              ["public/voltron-veto.json", "scripts/refresh-voltron-veto.mjs"],
             ];
             let stale = 0;
             for (const [file, script] of targets) {
@@ -223,6 +231,7 @@ jobs:
             frontend/public/cube-signal-pauper.json
             frontend/public/cube-signal-peasant.json
             frontend/public/daily-names.json
+            frontend/public/voltron-veto.json
             backend/data/daily/cards.json
             backend/data/daily/pool.json
             packages/binder-routing/src/flavor-names.ts

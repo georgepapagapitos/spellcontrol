@@ -12,6 +12,7 @@ import {
   buildCommanderProfile,
   type CommanderProfile,
 } from '@/deck-builder/services/deckBuilder/commanderProfile';
+import { isVoltronVetoedByName, useVoltronVeto } from './commander-voltron-veto';
 
 /**
  * The commander's profile for a screen. It reads the oracle text, plus the EDHREC page's
@@ -29,9 +30,19 @@ export function useCommanderProfile(
     [name, partnerName]
   );
   const edhrecThemes = useSyncExternalStore(onCommanderPageCached, read, () => undefined);
+  // The shipped snapshot stands in until (or unless) the page is cached, so this profile and the
+  // finder's playstyle chips never disagree. A pair has its own page, so only a lone commander.
+  const veto = useVoltronVeto();
+  const snapshotVetoed = !partner && !!name && isVoltronVetoedByName(veto, name);
   return useMemo(
-    () => (commander ? buildCommanderProfile(commander, partner, { edhrecThemes }) : null),
-    [commander, partner, edhrecThemes]
+    () =>
+      commander
+        ? buildCommanderProfile(commander, partner, {
+            edhrecThemes,
+            voltronVetoed: snapshotVetoed,
+          })
+        : null,
+    [commander, partner, edhrecThemes, snapshotVetoed]
   );
 }
 

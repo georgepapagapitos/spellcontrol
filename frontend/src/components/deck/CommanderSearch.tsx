@@ -32,6 +32,12 @@ import {
   PLAYSTYLES,
 } from '@/lib/deck/commander-playstyle-index';
 import {
+  isVoltronVetoedByName,
+  loadVoltronVeto,
+  useVoltronVeto,
+} from '@/lib/deck/commander-voltron-veto';
+import { useCommanderProfile } from '@/lib/deck/use-commander-profile';
+import {
   buildScryfallQuery,
   colorComboName,
   colorIdentityMatches,
@@ -255,7 +261,13 @@ export function CommanderSearch({
   const pdh = format === 'paupercommander';
   const isPhone = useMediaQuery('(max-width: 599px)');
   const baseId = useId();
+  // EDHREC's Voltron veto (golden R11) for every commander listed here: the shipped snapshot, so
+  // "Plays like" and the Voltron filter agree with the commander profile.
+  const voltronVeto = useVoltronVeto();
   const filtersId = `${baseId}-filters`;
+  // The picked commander's own page, once any surface cached it, vetoes too: the profile card
+  // below this chip reads the same cache.
+  const pickedProfile = useCommanderProfile(value);
 
   // ── Collection ────────────────────────────────────────────────────────
   const collectionCards = useCollectionStore((s) => s.cards);
@@ -380,11 +392,13 @@ export function CommanderSearch({
     for (const legend of collectionLegends) {
       map.set(
         legend.name,
-        classifyOwnedCommanderPlaystyles(legend).map((m) => m.playstyle.id)
+        classifyOwnedCommanderPlaystyles(legend, {
+          voltronVetoed: isVoltronVetoedByName(voltronVeto, legend.name),
+        }).map((m) => m.playstyle.id)
       );
     }
     return map;
-  }, [collectionLegends]);
+  }, [collectionLegends, voltronVeto]);
 
   const ownedEntries = useMemo<Entry[]>(() => {
     if (activeSource !== 'owned') return [];
@@ -458,6 +472,10 @@ export function CommanderSearch({
         }
         const regex = commanderFinderSupportsRegex();
         const selected = q.playstyleIds;
+        const veto = await loadVoltronVeto();
+        // Only the Voltron filter is emptied by the veto: a vetoed commander has no other reason
+        // to be listed under it.
+        const onlyVoltron = selected.length > 0 && selected.every((id) => id === 'voltron');
         const [page, tagLists] = await Promise.all([
           searchCommanderFinder(buildScryfallQuery(q, regex), { pdh }),
           // EDHREC's crowd list for each chosen playstyle ranks first.
@@ -482,11 +500,17 @@ export function CommanderSearch({
         }
         const entries: Entry[] = page.cards.flatMap((card, i) => {
           const k = card.name.toLowerCase();
-          let ids = classifyCommanderPlaystyles(card).map((m) => m.playstyle.id);
-          for (const id of tagStyles.get(k) ?? []) if (!ids.includes(id)) ids = [id, ...ids];
+          const vetoed = isVoltronVetoedByName(veto, card.name);
+          if (vetoed && onlyVoltron) return [];
+          let ids = classifyCommanderPlaystyles(card, { voltronVetoed: vetoed }).map(
+            (m) => m.playstyle.id
+          );
+          for (const id of tagStyles.get(k) ?? []) {
+            if (!ids.includes(id) && !(vetoed && id === 'voltron')) ids = [id, ...ids];
+          }
           // Scryfall already applied a lone playstyle's clause (typal rides on
           // otag:typal, which the local reader can't always see), so trust it.
-          if (regex && selected.length === 1 && !ids.includes(selected[0])) {
+          if (regex && selected.length === 1 && !ids.includes(selected[0]) && !vetoed) {
             ids = [selected[0], ...ids];
           }
           // Offline, the query had no playstyle clause: filter here instead.
@@ -515,12 +539,16 @@ export function CommanderSearch({
             for (const c of list) {
               const k = c.name.toLowerCase();
               if (seen.has(k) || c.name.includes('//')) continue;
+              const vetoed = isVoltronVetoedByName(veto, c.name);
+              if (vetoed && onlyVoltron) continue;
               if (c.colorsUnknown && q.colors.size > 0) continue;
               if (!colorIdentityMatches(c.colorIdentity, q.colors, q.colorMode)) continue;
               seen.add(k);
               entries.push({
                 ...popularEntry(c, 100_000 + entries.length),
-                playstyleIds: tagStyles.get(k) ?? [],
+                playstyleIds: (tagStyles.get(k) ?? []).filter(
+                  (id) => !(vetoed && id === 'voltron')
+                ),
                 tagRank: tagRank.get(k),
               });
             }
@@ -806,7 +834,10 @@ export function CommanderSearch({
     const power = value.power ?? front?.power;
     const toughness = value.toughness ?? front?.toughness;
     const loyalty = value.loyalty;
-    const playstyleMatches = classifyCommanderPlaystyles(value).slice(0, 3);
+    const playstyleMatches = classifyCommanderPlaystyles(value, {
+      voltronVetoed:
+        isVoltronVetoedByName(voltronVeto, value.name) || !!pickedProfile?.voltronVetoed,
+    }).slice(0, 3);
     return (
       <div className="commander-pick">
         <CommanderPickArt card={value} label="Commander" />

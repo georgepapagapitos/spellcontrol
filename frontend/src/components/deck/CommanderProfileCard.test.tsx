@@ -30,6 +30,18 @@ describe('CommanderProfileCard', () => {
     expect(footer).not.toMatch(/Detected archetype/);
   });
 
+  // The reading is only "from card text" when nothing but the text decided it. When EDHREC's
+  // deck data overruled a Voltron reading (golden R11), the footer says so.
+  it('names EDHREC as a source when its deck data overruled the text', () => {
+    const { container } = render(
+      <CommanderProfileCard
+        profile={makeProfile({ primaryArchetype: Archetype.GOODSTUFF, voltronVetoed: true })}
+      />
+    );
+    const footer = container.querySelector('.cmdr-profile-footer')?.textContent ?? '';
+    expect(footer).toBe('Reads as: Goodstuff, from card text and EDHREC deck data.');
+  });
+
   it('title-cases the archetype label instead of the raw enum value', () => {
     render(
       <CommanderProfileCard profile={makeProfile({ primaryArchetype: Archetype.GOODSTUFF })} />
