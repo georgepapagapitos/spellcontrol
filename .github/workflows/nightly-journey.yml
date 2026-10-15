@@ -37,21 +37,6 @@ jobs:
     # the resize-text walk (four tiers, about 25 minutes).
     timeout-minutes: 90
 
-    services:
-      postgres:
-        image: public.ecr.aws/docker/library/postgres:16-alpine
-        env:
-          POSTGRES_USER: spellcontrol
-          POSTGRES_PASSWORD: spellcontrol
-          POSTGRES_DB: spellcontrol
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U spellcontrol -d spellcontrol"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
-
     env:
       DATABASE_URL: postgres://spellcontrol:spellcontrol@localhost:5432/spellcontrol
       JWT_SECRET: nightly-journey-jwt-secret-not-a-secret
@@ -75,6 +60,10 @@ jobs:
       # the matcher logs a warning and disables the scanner endpoint when it
       # is missing (scanner/matcher.ts). The journey never scans a card.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The runner's own server, not a pulled service image (see the action).
+      - name: Start Postgres
+        uses: ./.github/actions/postgres
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -176,6 +165,7 @@ jobs:
       # sees a 409 and signs in, exactly as it already does on any re-run
       # against a warm database.
       - name: Seed the journey's admin account
+        id: seed
         env:
           PGPASSWORD: spellcontrol
         run: |
@@ -193,12 +183,16 @@ jobs:
       # text, text or a control past the edge, overlapping lines, or px-sized text;
       # it fails the run, and the per-check counts in the log show what each check
       # inspected.
+      #
+      # These two run after a red Chrome walk, so one failure doesn't hide the
+      # rest, but not after a failed setup: with no server they only add
+      # "Cannot find module" noise under the real error (2026-10-15).
       - name: Journey at 200% zoom and large text (Chrome)
-        if: always()
+        if: ${{ !cancelled() && steps.seed.outcome == 'success' }}
         run: node scripts/journey.mjs --base http://localhost:3737 --browser chrome --viewports zoom,reflow,text,phone-text --username journeyadmin --out journey-zoom
 
       - name: Journey in Firefox (desktop)
-        if: always()
+        if: ${{ !cancelled() && steps.seed.outcome == 'success' }}
         run: node scripts/journey.mjs --base http://localhost:3737 --browser firefox --viewports desktop --username journeyadmin --out journey-firefox
 
       - name: Upload screenshots and reports

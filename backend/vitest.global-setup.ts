@@ -44,8 +44,8 @@
 import { Pool } from 'pg';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 
-// Pin to match CI, which pulls the same tag from Amazon's public mirror to
-// dodge Docker Hub's pull limit (guard: src/ci-postgres-image.test.ts).
+// The major CI runs: CI starts the runner's own PostgreSQL of this major
+// rather than pulling an image (guard: src/ci-postgres-image.test.ts).
 const CONTAINER_IMAGE = 'postgres:16-alpine';
 
 function redact(url: string): string {

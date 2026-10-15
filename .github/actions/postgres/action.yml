@@ -1,0 +1,61 @@
+name: Postgres on the runner
+description: >-
+  Starts a PostgreSQL server on the runner itself, on localhost:5432, with the
+  spellcontrol role and database. No image is pulled.
+
+  A `services:` container pulled its image anonymously, and both public
+  registries cap anonymous pulls per shared runner IP. Docker Hub's pull rate
+  limit failed Backend CI on 2026-10-09 (#2799 moved to public.ecr.aws), then
+  ECR's "toomanyrequests: Data limit exceeded" failed it on 2026-10-13 and
+  twice on 2026-10-15: the Backend job on main, which skipped the Fly deploy
+  of #2952, and the nightly journey. GitHub's Ubuntu images ship PostgreSQL
+  installed and stopped, so the server comes off the disk. If the image ever
+  ships a different major, the version comes from the PGDG apt repository
+  (apt mirrors, not a registry), so the major stays the one the local
+  testcontainer pins.
+
+  Guard: backend/src/ci-postgres-image.test.ts.
+
+inputs:
+  version:
+    description: >-
+      PostgreSQL major. Must match the tag of CONTAINER_IMAGE in
+      backend/vitest.global-setup.ts (the guard checks it).
+    required: false
+    default: '16'
+
+runs:
+  using: composite
+  steps:
+    - name: Start PostgreSQL ${{ inputs.version }}
+      shell: bash
+      env:
+        PG_MAJOR: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        if [ ! -x "/usr/lib/postgresql/$PG_MAJOR/bin/postgres" ]; then
+          echo "PostgreSQL $PG_MAJOR is not on this image; installing it from PGDG"
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y --no-install-recommends "postgresql-$PG_MAJOR"
+        fi
+        if ! sudo pg_lsclusters -h | awk -v v="$PG_MAJOR" '$1 == v && $2 == "main"' | grep -q .; then
+          sudo pg_createcluster "$PG_MAJOR" main
+        fi
+        # Another major's cluster may claim 5432 when two are installed.
+        sudo pg_conftool "$PG_MAJOR" main set port 5432
+        sudo pg_ctlcluster "$PG_MAJOR" main start
+        for _ in $(seq 1 30); do
+          pg_isready -h localhost -p 5432 -q && break
+          sleep 1
+        done
+        pg_isready -h localhost -p 5432
+        sudo -u postgres psql -v ON_ERROR_STOP=1 -q <<'SQL'
+        CREATE ROLE spellcontrol LOGIN PASSWORD 'spellcontrol' CREATEDB;
+        CREATE DATABASE spellcontrol OWNER spellcontrol;
+        SQL
+        server=$(PGPASSWORD=spellcontrol psql -h localhost -U spellcontrol -d spellcontrol -tAc 'SHOW server_version_num')
+        if [ "$((server / 10000))" != "$PG_MAJOR" ]; then
+          echo "::error::expected PostgreSQL $PG_MAJOR on localhost:5432, got server_version_num $server"
+          exit 1
+        fi
+        echo "PostgreSQL $server ready on localhost:5432"
