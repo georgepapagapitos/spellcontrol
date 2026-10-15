@@ -120,6 +120,35 @@ describe('PlaytestCardFace — the token ribbon', () => {
     expect(ribbon).toContain('right: 0');
     expect(ribbon).not.toContain('left: 0');
   });
+
+  // A card-wide band nudged by a fixed percentage cut "TOKEN" off at the
+  // card's edge (2026-10-15). Each ribbon is as wide as its word and turns
+  // about its inner top corner, so its top edge spans the corner exactly and
+  // the word fits at every card size.
+  it('keeps the whole word inside its corner', () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const playtestCss = join(here, '../../styles/playtest.css');
+    const ribbons = [
+      { file: playtestCss, cls: 'playtest-card__token-ribbon', right: true },
+      { file: playtestCss, cls: 'playtest-card__stack-ribbon', right: false },
+      {
+        file: join(here, 'CardHoverPreview.css'),
+        cls: 'playtest-hover-preview__token',
+        right: true,
+      },
+    ];
+    for (const { file, cls, right } of ribbons) {
+      const css = readFileSync(file, 'utf8');
+      const body = new RegExp(String.raw`\.${cls}\s*\{([^}]*)\}`).exec(css)?.[1] ?? '';
+      expect(body, cls).toMatch(
+        right
+          ? /transform-origin:\s*0 0;\s*transform:\s*translate\(29\.29%\) rotate\(45deg\)/
+          : /transform-origin:\s*100% 0;\s*transform:\s*translate\(-29\.29%\) rotate\(-45deg\)/
+      );
+      expect(body, cls).not.toMatch(/width:\s*100%/);
+      expect(body, cls).toMatch(/border-image:[^;]*fill 0 \/ 0 \/ 0 100vmax;/);
+    }
+  });
 });
 
 describe('PlaytestCardFace — art that fails to load', () => {
