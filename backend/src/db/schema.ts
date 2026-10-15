@@ -114,9 +114,8 @@ export const users = pgTable('users', {
 });
 
 /**
- * AI review cache / quota meter / cost audit (T96 "Read the deck"). One row
- * per generated review, unique per (user, feature, input hash) — a re-request
- * of an unedited deck is a cache hit and spends nothing. Never synced.
+ * AI review cache / quota meter / cost audit (T96 "Read the deck"). One row per generated review,
+ * unique per (user, feature, input hash); an unedited re-request is a cache hit. Never synced.
  */
 export const aiReviews = pgTable(
   'ai_reviews',
@@ -141,8 +140,7 @@ export const aiReviews = pgTable(
     promptVersion: text('prompt_version'),
     /** The verbatim rules-qa question; NULL for the deck features. */
     question: text('question'),
-    /** The deck the reading was written for (`DeckSnapshot`, ai/grounding.ts); NULL on rows predating the column. */
-    deckSnapshot: jsonb('deck_snapshot'),
+    deckSnapshot: jsonb('deck_snapshot'), // DeckSnapshot (ai/grounding.ts); NULL before the column
   },
   (t) => [uniqueIndex('ai_reviews_key_idx').on(t.userId, t.feature, t.inputHash)]
 );
