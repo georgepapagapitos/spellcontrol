@@ -122,6 +122,25 @@ describe('add-cards keyboard announcement carries the row status (E1008)', () =>
     await said('Sol Ring, Unowned, in deck, 1 copy, 1 of 2. First result. Enter adds it.');
   });
 
+  it('the first arrow press is announced even if it lands the instant the rows appear', async () => {
+    // A passive effect would publish the list to the Arrow handler a task after
+    // the rows hit the DOM; a press in that gap (a MutationObserver callback
+    // runs in it) was dropped silently. The publish must be in the commit.
+    renderPanel();
+    fireEvent.click(screen.getByRole('tab', { name: /Scryfall/ }));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'sol' } });
+    await new Promise<void>((resolve) => {
+      const observer = new MutationObserver(() => {
+        if (!document.querySelector('[data-result-name]')) return;
+        observer.disconnect();
+        arrow('ArrowDown');
+        resolve();
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    });
+    await said('Solemn Offering, Off-color, Unowned, 2 of 2. Enter adds it.');
+  });
+
   it('a row at its copy limit says Enter will not add it', async () => {
     renderPanel({ counts: [['Sol Ring', 1]], limit: ['Sol Ring'] });
     fireEvent.click(screen.getByRole('tab', { name: /Scryfall/ }));

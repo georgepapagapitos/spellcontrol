@@ -1,4 +1,12 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { ArrowUpDown, Check, Notebook, Plus } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import {
@@ -1242,10 +1250,11 @@ function CollectionResults({
     if (full) onPreviewFit(full);
   };
 
-  // Publish visible results so the parent's Enter handler can add the
+  // Publish visible results (in the commit, not a passive effect, so an arrow
+  // press the instant the rows appear already sees them) so the parent's Enter handler can add the
   // currently-active row. We can't drive the parent input from here directly,
   // so we hand it a closure.
-  useEffect(() => {
+  useLayoutEffect(() => {
     // Convert EnrichedCards to a thin ScryfallCard-ish list; we only need the
     // length / order on the parent side.
     publishVisible(
@@ -1507,7 +1516,7 @@ function SuggestionsResults({
     if (full) onPreviewFit(full);
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     // While analysis is pending we show a loading message, not rows — clear the
     // parent's visible list so Enter can't add from a stale result set.
     if (pending) {
@@ -1884,7 +1893,7 @@ function ScryfallResults({
     card: c,
   }));
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     publishVisible(display, addAtIndex);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [display]);
