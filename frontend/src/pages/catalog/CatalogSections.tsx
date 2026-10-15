@@ -52,6 +52,24 @@ import { SortDirArrow } from '@/components/shared/SortDirArrow';
 import { ViewModeToggle } from '@/components/shared/ViewModeToggle';
 import { ZoomControl } from '@/components/shared/ZoomControl';
 import { makeDeckAllocationInfo } from '@/lib/collection/allocations-core';
+import {
+  ChoiceChips,
+  FilterSection,
+  ManaColorPicker,
+  ManaSymbolPad,
+  PresetRange,
+  ShowResultsButton,
+  ValueStrip,
+  EMPTY_MANA_COST,
+  EMPTY_VALUE_STRIP,
+  colorModeHint,
+  colorModeOptions,
+  manaCostCount,
+  valueStripCount,
+  type ManaCostFilter,
+  type PresetRangeValue,
+  type ValueStripValue,
+} from '@/components/filter-kit';
 import { Tabs } from '@/components/overlays/Tabs';
 import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { OverflowMenu } from '@/components/overlays/OverflowMenu';
@@ -473,6 +491,107 @@ function FormSpecimen() {
   );
 }
 
+const CATALOG_RARITIES = [
+  { value: 'common', label: 'Common' },
+  { value: 'uncommon', label: 'Uncommon' },
+  { value: 'rare', label: 'Rare' },
+  { value: 'mythic', label: 'Mythic' },
+];
+const CATALOG_PRICES = [
+  { label: 'Under $1', max: 1 },
+  { label: '$1–$5', min: 1, max: 5 },
+  { label: '$5–$20', min: 5, max: 20 },
+  { label: '$20+', min: 20 },
+];
+const CATALOG_COLOR_MODES = colorModeOptions(['any', 'all', 'within']);
+
+function FilterKitSpecimen() {
+  const [rarities, setRarities] = useState<string[]>(['rare', 'mythic']);
+  const [budget, setBudget] = useState('');
+  const [colors, setColors] = useState<string[]>(['U', 'G']);
+  const [mode, setMode] = useState('any');
+  const [mv, setMv] = useState<ValueStripValue>({ values: [2, 3], atLeast: 7 });
+  const [price, setPrice] = useState<PresetRangeValue>({ min: 1, max: 5 });
+  const [cost, setCost] = useState<ManaCostFilter>({ ...EMPTY_MANA_COST, counts: { B: 2 } });
+  return (
+    <Specimen id="filter-kit" title="Filter kit">
+      <div className="catalog-form">
+        <FilterSection label="Rarity" count={rarities.length}>
+          <ChoiceChips
+            multiple
+            ariaLabel="Filter by rarity"
+            options={CATALOG_RARITIES}
+            value={rarities}
+            onChange={setRarities}
+          />
+        </FilterSection>
+        <FilterSection label="Budget">
+          <ChoiceChips
+            ariaLabel="Budget"
+            anyLabel="Any"
+            options={[
+              { value: '50', label: 'Under $50' },
+              { value: '400', label: '$400+' },
+            ]}
+            value={budget}
+            onChange={setBudget}
+          />
+        </FilterSection>
+        <FilterSection label="Color" count={colors.length}>
+          <ManaColorPicker
+            includeMulticolor
+            colors={colors}
+            onColorsChange={setColors}
+            mode={mode}
+            modes={CATALOG_COLOR_MODES}
+            onModeChange={setMode}
+            hint={colorModeHint(colors, mode)}
+          />
+        </FilterSection>
+        <FilterSection label="Mana value" count={valueStripCount(mv)}>
+          <ValueStrip
+            value={mv}
+            onChange={setMv}
+            ariaLabel="Filter by mana value"
+            valueLabel="Mana value"
+          />
+        </FilterSection>
+        <FilterSection
+          label="Price"
+          count={price.min !== undefined || price.max !== undefined ? 1 : 0}
+        >
+          <PresetRange
+            value={price}
+            onChange={setPrice}
+            presets={CATALOG_PRICES}
+            ariaLabel="Filter by price"
+            valueLabel="Price"
+            prefix="$"
+            step={0.01}
+          />
+        </FilterSection>
+        <FilterSection label="Mana cost" count={manaCostCount(cost)}>
+          <ManaSymbolPad value={cost} onChange={setCost} />
+        </FilterSection>
+        <Row label="ShowResultsButton">
+          <ShowResultsButton count={412} onClick={noop} />
+          <ShowResultsButton count={1} onClick={noop} />
+          <ShowResultsButton count={0} onClick={noop} />
+        </Row>
+        <Row label="Empty value strip">
+          <ValueStrip
+            value={EMPTY_VALUE_STRIP}
+            onChange={noop}
+            ariaLabel="Filter by power"
+            valueLabel="Power"
+            top={5}
+          />
+        </Row>
+      </div>
+    </Specimen>
+  );
+}
+
 function NavSpecimen() {
   const [tab, setTab] = useState('one');
   const [sel, setSel] = useState('recent');
@@ -704,6 +823,7 @@ export function CatalogSections() {
       <SymbolSpecimen />
       <DisplayPiecesSpecimen />
       <FormSpecimen />
+      <FilterKitSpecimen />
       <NavSpecimen />
       <StateSpecimen />
       <CardSpecimen />

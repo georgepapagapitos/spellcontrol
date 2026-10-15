@@ -570,6 +570,48 @@ to anything new that edits a predicate.
   only once a structured filter is set — a search-only draft has nothing a
   binder rule can express.
 
+## Filter kit (E1019)
+
+`components/filter-kit/` is the one set of filter controls. Every surface that
+filters (the collection dialog, deck, discover and combo popovers, the binder
+rule rows) builds from it, so the same kind of value is the same control
+everywhere. Catalog specimen: `Filter kit`.
+
+- **One control per kind of value.** A list of up to about ten values is
+  `ChoiceChips` (several: `aria-pressed` toggle chips; one: real radios painted
+  as chips, with a leading "Any" that is the reset). Colors are
+  `ManaColorPicker`: mana-font pips that are 44px toggles, plus a segmented
+  mode control, which is always present. A small whole number (mana value,
+  power, toughness) is `ValueStrip`: chips 0 to 6 and 7+, the 7+ chip opens a
+  second row to narrow, and Custom… holds the comparator (exactly, at most, at
+  least, between). An open-ended number (price, EDHREC rank) is `PresetRange`.
+  A mana cost is built on `ManaSymbolPad`. A long list (sets, subtypes, tags)
+  is a search field with removable chips, not chips of every value. Never a
+  dropdown for a short list, and never a free-text box where chips can say it.
+- **Mana value, mana cost and color are three separate questions** and get
+  three separate controls. Do not fold a cost into a mana-value field or a
+  color into a cost.
+- **One section label.** `FilterSection` heads every group: the `--font-label`
+  stamp, uppercase, with a count of what is on. This is a deliberate exception
+  to sentence-case section labels (E595): it is chrome that stamps a filter
+  group, set in `--font-label`, which the `uppercase-role` guard allows. A
+  surface does not restyle it.
+- **Popover = live; dialog or sheet = draft.** When the list stays visible, the
+  filters are a popover and apply as you tap, with a live count and "Clear
+  filters" in the footer. When the panel covers the list (the dialog on
+  desktop, a sheet on phones), changes are a draft until the primary button:
+  `ShowResultsButton`, "Show N cards", which reads "No cards match" in the
+  danger tone at zero and is never primary then. Closing a draft discards it.
+  Either way the page shows the active-filter row (`FilterChipsRow`, exported
+  from the kit as `ActiveFilterStrip`) so what is on is always visible.
+- **Hints say what the picks match.** Under the color mode, the sentence from
+  `colorModeHint` ("Cards that are blue or green, including multicolor
+  cards."), `aria-live="polite"`. Each surface sets its own default mode; the
+  kit never decides it.
+- **Targets and width.** Every control has a 44px target on a coarse pointer
+  and wraps rather than scrolls, so a section holds at 320px and in a narrow
+  popover.
+
 ## Config surfaces (T139)
 
 Every dialog that creates or edits a thing (a binder, a list rule, filters, a

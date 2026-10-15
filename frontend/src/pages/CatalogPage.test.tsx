@@ -17,6 +17,7 @@ const SECTIONS = [
   'symbols',
   'display-pieces',
   'form',
+  'filter-kit',
   'nav',
   'states',
   'cards',
