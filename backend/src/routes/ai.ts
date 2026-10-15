@@ -5,7 +5,7 @@ import { logger } from '../logger';
 import { loadAuthedUser, readSessionCookie, requireAuth } from '../auth';
 import { getPool } from '../db';
 import { loadOwnedNames } from '../ai/owned-names';
-import type { Grounding } from '../ai/grounding';
+import { deckSnapshot, type Grounding } from '../ai/grounding';
 import { testAwareLimiter } from '../route-utils';
 import { getScryfallCache } from '../scryfall-cache';
 import type { PriceCeiling } from '../cache';
@@ -490,8 +490,8 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
   // re-reads from both landing.
   await pool.query(
     `INSERT INTO ai_reviews
-       (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, cache_write_tokens, cache_read_tokens, created_at, deck_id, prompt_version, fetched_names, grounding)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+       (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, cache_write_tokens, cache_read_tokens, created_at, deck_id, prompt_version, fetched_names, grounding, deck_snapshot)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
      ON CONFLICT (user_id, feature, input_hash) ${
        refresh
          ? `DO UPDATE SET model = EXCLUDED.model, content = EXCLUDED.content,
@@ -499,8 +499,9 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
               cache_write_tokens = EXCLUDED.cache_write_tokens,
               cache_read_tokens = EXCLUDED.cache_read_tokens, created_at = EXCLUDED.created_at,
               deck_id = EXCLUDED.deck_id, prompt_version = EXCLUDED.prompt_version,
-              fetched_names = EXCLUDED.fetched_names, grounding = EXCLUDED.grounding
-            WHERE ai_reviews.created_at <= $16`
+              fetched_names = EXCLUDED.fetched_names, grounding = EXCLUDED.grounding,
+              deck_snapshot = EXCLUDED.deck_snapshot
+            WHERE ai_reviews.created_at <= $17`
          : 'DO NOTHING'
      }`,
     [
@@ -519,6 +520,7 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
       DECK_REVIEW_PROMPT_VERSION,
       JSON.stringify(fetchedNames),
       JSON.stringify(grounding),
+      JSON.stringify(deckSnapshot(request)),
       ...(refresh ? [now - REREAD_WINDOW_MS] : []),
     ]
   );
@@ -912,8 +914,8 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
 
   await pool.query(
     `INSERT INTO ai_reviews
-       (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, cache_write_tokens, cache_read_tokens, created_at, deck_id, prompt_version, fetched_names, grounding)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+       (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, cache_write_tokens, cache_read_tokens, created_at, deck_id, prompt_version, fetched_names, grounding, deck_snapshot)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
      ON CONFLICT (user_id, feature, input_hash) DO NOTHING`,
     [
       crypto.randomUUID(),
@@ -931,6 +933,7 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
       DECK_REFINE_PROMPT_VERSION,
       JSON.stringify(fetchedNames),
       JSON.stringify(grounding),
+      JSON.stringify(deckSnapshot(request)),
     ]
   );
 

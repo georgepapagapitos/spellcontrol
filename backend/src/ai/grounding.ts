@@ -17,3 +17,32 @@ export interface Grounding {
   suggestedAsDeck?: string[];
   truncated?: true;
 }
+
+/**
+ * The deck a reading was written for, stored on its `ai_reviews` row
+ * (`deck_snapshot`). The row carries only a `deck_id`, and decks get deleted or
+ * edited afterwards (a 2026-10-15 probe could grade 1 of 60 readings), so a
+ * reading is only gradable if it keeps the list it read. Names and counts only,
+ * never card objects, so rows stay small. NULL on rows predating the column.
+ */
+export interface DeckSnapshot {
+  /** Command zone, one name or a partner pair. */
+  commanders: string[];
+  /** The main deck as the model was given it. */
+  cards: { name: string; qty: number }[];
+  /** Refine only: the candidate pool the model was offered, after any budget/owned trim. */
+  pool?: string[];
+}
+
+export function deckSnapshot(req: {
+  commander: string;
+  partnerCommander?: string;
+  cards: { name: string; qty: number }[];
+  pool?: { name: string }[];
+}): DeckSnapshot {
+  return {
+    commanders: req.partnerCommander ? [req.commander, req.partnerCommander] : [req.commander],
+    cards: req.cards.map((c) => ({ name: c.name, qty: c.qty })),
+    ...(req.pool ? { pool: req.pool.map((c) => c.name) } : {}),
+  };
+}

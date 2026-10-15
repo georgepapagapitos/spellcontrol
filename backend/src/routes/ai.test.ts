@@ -1624,6 +1624,84 @@ describe('grounding verdict on the stored row', () => {
   });
 });
 
+describe('deck snapshot on the stored row', () => {
+  // A reading carries only a deck_id, and decks get edited or deleted, so the
+  // row keeps the list the model read (names + counts) for later grading.
+  async function storedSnapshot(username: string): Promise<unknown> {
+    const { getPool } = await import('../db');
+    const rows = await getPool().query<{ deck_snapshot: unknown }>(
+      `SELECT r.deck_snapshot FROM ai_reviews r JOIN users u ON u.id = r.user_id WHERE u.username = $1`,
+      [username]
+    );
+    expect(rows.rows).toHaveLength(1);
+    return rows.rows[0].deck_snapshot;
+  }
+
+  async function plantSentinel(username: string): Promise<void> {
+    const { getPool } = await import('../db');
+    await getPool().query(
+      `UPDATE ai_reviews SET deck_snapshot = '{"sentinel":true}'::jsonb
+        WHERE user_id = (SELECT id FROM users WHERE username = $1)`,
+      [username]
+    );
+  }
+
+  it('stores the commander and the decklist with a fresh review, and a replay leaves it alone', async () => {
+    const cookie = await makeUser('ai-snap-review');
+    await optIn(cookie);
+    mockState.generate.mockImplementation(
+      async (_s: string, _u: string, onDelta?: (t: string) => void) => {
+        onDelta?.(REVIEW_TEXT);
+        return { content: REVIEW_TEXT, inputTokens: 1, outputTokens: 1, fetched: [] };
+      }
+    );
+
+    await request(app).post('/api/ai/deck-review').set('Cookie', cookie).send(reviewBody());
+    expect(await storedSnapshot('ai-snap-review')).toEqual({
+      commanders: ['Meren of Clan Nel Toth'],
+      cards: [
+        { name: 'Sol Ring', qty: 1 },
+        { name: 'Swamp', qty: 12 },
+      ],
+    });
+
+    await plantSentinel('ai-snap-review');
+    const replay = await request(app)
+      .post('/api/ai/deck-review')
+      .set('Cookie', cookie)
+      .send(reviewBody());
+    expect(parseStream(replay.text).done).toMatchObject({ cached: true });
+    expect(await storedSnapshot('ai-snap-review')).toEqual({ sentinel: true });
+  });
+
+  it('stores the partner pair, the decklist and the offered pool with a fresh refine, and a replay leaves it alone', async () => {
+    const cookie = await makeUser('ai-snap-refine');
+    await optIn(cookie);
+    mockState.generate.mockImplementation(async () => ({
+      content: refineReply('Your deck grinds value.', []),
+      inputTokens: 1,
+      outputTokens: 1,
+      fetched: [],
+    }));
+    const body = refineBody({ partnerCommander: 'Tymna the Weaver' });
+
+    await request(app).post('/api/ai/deck-refine').set('Cookie', cookie).send(body);
+    expect(await storedSnapshot('ai-snap-refine')).toEqual({
+      commanders: ['Meren of Clan Nel Toth', 'Tymna the Weaver'],
+      cards: [
+        { name: 'Sol Ring', qty: 1 },
+        { name: 'Swamp', qty: 12 },
+      ],
+      pool: ['Eternal Witness', 'Viscera Seer'],
+    });
+
+    await plantSentinel('ai-snap-refine');
+    const replay = await request(app).post('/api/ai/deck-refine').set('Cookie', cookie).send(body);
+    expect(parseStream(replay.text).done).toMatchObject({ cached: true });
+    expect(await storedSnapshot('ai-snap-refine')).toEqual({ sentinel: true });
+  });
+});
+
 describe('per-feature model', () => {
   // Refine moved to its own tier (E1017) while the review stays on AI_MODEL
   // until its own gate passes. A refine call that silently fell back to
