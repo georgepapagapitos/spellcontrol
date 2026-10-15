@@ -204,23 +204,15 @@ interface Props {
   setManaSymbols?: (v: BinderFilter['manaSymbols']) => void;
 
   /**
-   * "Group printings" toggle is collection-page-only — the deck editor
-   * doesn't render rows per printing, so the option is meaningless and
-   * the section just disappears when these are absent.
-   */
-  groupPrintings?: boolean;
-  setGroupPrintings?: (next: boolean) => void;
-
-  /**
    * Tradeable-surplus filter — collection-page-only (needs deck/cube
    * allocation data the deck-editor card search doesn't have). Omit both
-   * props to hide the section entirely, same convention as groupPrintings.
+   * props to hide the section entirely, same convention as proxyOnly.
    */
   surplusOnly?: boolean;
   setSurplusOnly?: (next: boolean) => void;
 
   /**
-   * Proxy filter — same optional-pair convention as surplusOnly/groupPrintings:
+   * Proxy filter — same optional-pair convention as surplusOnly:
    * omit both props to hide the section entirely.
    */
   proxyOnly?: boolean;
@@ -367,7 +359,6 @@ function DialogBody(props: Props & { onClose: () => void }) {
   const showBinder = props.binderExpr !== undefined && !hideBinderFilter;
   const showOracleTags = props.oracleTagExpr !== undefined;
   const showScryfallQuery = props.setScryfallQuery !== undefined;
-  const showOptions = props.groupPrintings !== undefined;
   const showSurplus = props.setSurplusOnly !== undefined;
   const showProxy = props.setProxyOnly !== undefined;
   const showFinish = props.finishExpr !== undefined;
@@ -406,7 +397,6 @@ function DialogBody(props: Props & { onClose: () => void }) {
     cmcMax: props.cmcMax,
     manaValues: props.manaValues,
     manaSymbols: props.manaSymbols,
-    group: props.groupPrintings ?? true,
     surplusOnly: props.surplusOnly ?? false,
     proxyOnly: props.proxyOnly ?? false,
   }));
@@ -439,8 +429,7 @@ function DialogBody(props: Props & { onClose: () => void }) {
     (showLanguage ? exprCount(d.language) : 0) +
     (showBinder ? exprCount(d.binder) : 0) +
     (showSurplus && d.surplusOnly ? 1 : 0) +
-    (showProxy && d.proxyOnly ? 1 : 0) +
-    (showOptions && !d.group ? 1 : 0);
+    (showProxy && d.proxyOnly ? 1 : 0);
   // Opens itself when the dialog opens onto something already set in it.
   const [moreOpenAtStart] = useState(moreCount > 0);
 
@@ -530,7 +519,6 @@ function DialogBody(props: Props & { onClose: () => void }) {
     }
     if (showMv) props.setManaValues?.(normalizeManaValues(d.manaValues));
     if (showManaCost) props.setManaSymbols?.(normalizeManaSymbolQuery(d.manaSymbols));
-    if (showOptions) props.setGroupPrintings?.(d.group);
     if (showSurplus) props.setSurplusOnly?.(d.surplusOnly);
     if (showProxy) props.setProxyOnly?.(d.proxyOnly);
     onClose();
@@ -589,8 +577,7 @@ function DialogBody(props: Props & { onClose: () => void }) {
 
   const colors = [...d.color];
   const typeCount = exprCount(d.types) + exprCount(d.supertype) + exprCount(d.subtype);
-  const hasCopyGroup =
-    showCondition || showLanguage || showBinder || showSurplus || showProxy || showOptions;
+  const hasCopyGroup = showCondition || showLanguage || showBinder || showSurplus || showProxy;
 
   return (
     // The shared Modal supplies the backdrop, entrance/exit motion, focus
@@ -792,8 +779,7 @@ function DialogBody(props: Props & { onClose: () => void }) {
                   (showLanguage ? exprCount(d.language) : 0) +
                   (showBinder ? exprCount(d.binder) : 0) +
                   (showSurplus && d.surplusOnly ? 1 : 0) +
-                  (showProxy && d.proxyOnly ? 1 : 0) +
-                  (showOptions && !d.group ? 1 : 0)
+                  (showProxy && d.proxyOnly ? 1 : 0)
                 }
               >
                 {showCondition && (
@@ -848,13 +834,6 @@ function DialogBody(props: Props & { onClose: () => void }) {
                     label="Proxies only"
                     checked={d.proxyOnly}
                     onChange={(proxyOnly) => patch({ proxyOnly })}
-                  />
-                )}
-                {showOptions && (
-                  <SwitchRow
-                    label="Group printings"
-                    checked={d.group}
-                    onChange={(group) => patch({ group })}
                   />
                 )}
               </FilterSection>

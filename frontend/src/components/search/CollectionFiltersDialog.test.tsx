@@ -64,7 +64,6 @@ function Harness({
   const [setFilter, setSetFilter] = useState<Set<string>>(seed.setFilter ?? new Set());
   const [surplusOnly, setSurplusOnly] = useState(false);
   const [proxyOnly, setProxyOnly] = useState(false);
-  const [groupPrintings, setGroupPrintings] = useState(true);
   const [cmcMin, setCmcMin] = useState<number | undefined>(seed.cmcMin);
   const [cmcMax, setCmcMax] = useState<number | undefined>(seed.cmcMax);
   const [manaValues, setManaValues] = useState<BinderFilter['manaValues']>(seed.manaValues);
@@ -124,8 +123,6 @@ function Harness({
             setSurplusOnly,
             proxyOnly,
             setProxyOnly,
-            groupPrintings,
-            setGroupPrintings,
             cmcMin,
             setCmcMin,
             cmcMax,
@@ -217,15 +214,16 @@ describe('CollectionFiltersDialog', () => {
     expect(screen.queryByText('This copy')).toBeNull();
   });
 
-  it('merges Surplus, Proxy and Options under one "This copy" heading of switches', () => {
+  it('merges Surplus and Proxy under one "This copy" heading of switches', () => {
     render(<Harness />);
     openDialog();
     openMore();
     const thisCopy = screen.getByText('This copy').closest('section') as HTMLElement;
-    expect(within(thisCopy).getAllByRole('switch')).toHaveLength(3);
+    expect(within(thisCopy).getAllByRole('switch')).toHaveLength(2);
     expect(within(thisCopy).getByRole('switch', { name: 'Tradeable surplus only' })).toBeTruthy();
     expect(within(thisCopy).getByRole('switch', { name: 'Proxies only' })).toBeTruthy();
-    expect(within(thisCopy).getByRole('switch', { name: 'Group printings' })).toBeTruthy();
+    // Copy stacking is a layout choice and lives in the Group menu, not here.
+    expect(screen.queryByRole('switch', { name: /stack|group printings/i })).toBeNull();
     expect(within(thisCopy).queryByRole('checkbox')).toBeNull();
   });
 

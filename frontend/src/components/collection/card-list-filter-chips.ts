@@ -41,7 +41,6 @@ export interface ActiveFilterChipsInput {
   manaSymbols?: BinderFilter['manaSymbols'];
   surplusOnly: boolean;
   proxyOnly: boolean;
-  groupPrintings: boolean;
   /** The shared empty expression the chip clears reset to. */
   EMPTY_EXPR: ChipExpression;
   setSearch: (v: string) => void;
@@ -68,7 +67,6 @@ export interface ActiveFilterChipsInput {
   setCmcMax: (v: number | undefined) => void;
   setManaValues?: (v: BinderFilter['manaValues']) => void;
   setManaSymbols?: (v: BinderFilter['manaSymbols']) => void;
-  setGroupPrintings: (v: boolean) => void;
   setSurplusOnly: (v: boolean) => void;
   setProxyOnly: (v: boolean) => void;
 }
@@ -102,7 +100,6 @@ export function buildActiveFilterChips(input: ActiveFilterChipsInput): FilterChi
     manaSymbols,
     surplusOnly,
     proxyOnly,
-    groupPrintings,
     EMPTY_EXPR,
     setSearch,
     setColorFilter,
@@ -128,7 +125,6 @@ export function buildActiveFilterChips(input: ActiveFilterChipsInput): FilterChi
     setCmcMax,
     setManaValues,
     setManaSymbols,
-    setGroupPrintings,
     setSurplusOnly,
     setProxyOnly,
   } = input;
@@ -368,13 +364,6 @@ export function buildActiveFilterChips(input: ActiveFilterChipsInput): FilterChi
   const msLabel = manaSymbolsLabel(manaSymbols);
   if (msLabel) {
     chips.push({ id: 'manaSymbols', label: msLabel, onClear: () => setManaSymbols?.(undefined) });
-  }
-  if (!groupPrintings) {
-    chips.push({
-      id: 'groupPrintings',
-      label: 'All copies shown',
-      onClear: () => setGroupPrintings(true),
-    });
   }
   if (surplusOnly) {
     chips.push({

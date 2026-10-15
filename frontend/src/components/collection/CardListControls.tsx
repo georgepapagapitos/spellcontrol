@@ -7,6 +7,7 @@ import { ZoomControl } from '@/components/shared/ZoomControl';
 import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { SortMenu } from '@/components/search/SortMenu';
 import { Button } from '@/components/shared/Button';
+import { SwitchRow } from '@/components/shared/form';
 import { GridCaptionList, type GridCaptionPrefs } from '@/components/shared/CardGridCell';
 import { ToolbarPopover } from '@/components/shared/ToolbarPopover';
 import { ViewPopoverPanel } from '@/components/shared/ViewPopoverPanel';
@@ -30,6 +31,9 @@ interface Props {
   isNarrow: boolean;
   groupKey: GroupKey;
   setGroupKey: (g: GroupKey) => void;
+  /** Roll identical copies (same printing and finish) into one ×N row. */
+  stackCopies: boolean;
+  setStackCopies: (on: boolean) => void;
   hasSections: boolean;
   allCollapsed: boolean;
   toggleAllCollapsed: () => void;
@@ -58,6 +62,8 @@ export function CardListControls({
   isNarrow,
   groupKey,
   setGroupKey,
+  stackCopies,
+  setStackCopies,
   hasSections,
   allCollapsed,
   toggleAllCollapsed,
@@ -111,6 +117,17 @@ export function CardListControls({
           }))}
           onChange={setGroupKey}
           leadingIcon={<Layers width={14} height={14} strokeWidth={2} aria-hidden />}
+          // Stacking lives here, not in Filters: like the sections above it, it
+          // changes how the rows are laid out, never which cards are shown. Next
+          // to "No grouping" it also says what that option leaves alone.
+          footer={
+            <SwitchRow
+              label="Stack identical copies"
+              hint="One row per printing and finish, with a count"
+              checked={stackCopies}
+              onChange={setStackCopies}
+            />
+          }
         />
         {groupKey !== 'none' && hasSections && (
           <Button

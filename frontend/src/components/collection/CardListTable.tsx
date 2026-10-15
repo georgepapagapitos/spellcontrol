@@ -113,9 +113,13 @@ export function CardListTable({
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [groupKey, setGroupKey] = useState<GroupKey>('none');
+  // Default ON: a collection reads as "what printings do I own and how
+  // many?" — the rolled-up qty pill matches that mental model. Turning it
+  // off (the Group menu's footer switch) shows every physical copy.
+  const [groupPrintings, setGroupPrintings] = useState(true);
   const filters = useCollectionFilters(filterJump, onFilterJumpApplied);
   const { search, setSearch, debouncedSearch, activeFilterCount, activeFilterChips } = filters;
-  const { groupPrintings, surplusOnly, oracleTagExpr } = filters.fields;
+  const { surplusOnly, oracleTagExpr } = filters.fields;
   // Import history powers the "Date added" sort (timestamp keyed by importId).
   const importHistory = useCollectionStore((s) => s.importHistory);
   const isRefreshingPrices = useCollectionStore((s) => s.isRefreshingPrices);
@@ -464,6 +468,8 @@ export function CardListTable({
         isNarrow={isNarrow}
         groupKey={groupKey}
         setGroupKey={setGroupKey}
+        stackCopies={groupPrintings}
+        setStackCopies={setGroupPrintings}
         hasSections={allSectionKeys.length > 0}
         allCollapsed={allCollapsed}
         toggleAllCollapsed={toggleAllCollapsed}
