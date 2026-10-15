@@ -207,11 +207,12 @@ describe('GET /api/admin/ai-spend', () => {
   async function seedCall(
     userId: string,
     ageMs: number,
-    tokens: { in: number; out: number; cw?: number; cr?: number }
+    tokens: { in: number; out: number; cw?: number; cr?: number },
+    model = 'test-model'
   ) {
     await pool.query(
       `INSERT INTO ai_reviews (id, user_id, feature, input_hash, model, content, input_tokens, output_tokens, cache_write_tokens, cache_read_tokens, created_at)
-       VALUES ($1, $2, 'deck-review', $1, 'test-model', 'x', $3, $4, $5, $6, $7)`,
+       VALUES ($1, $2, 'deck-review', $1, $8, 'x', $3, $4, $5, $6, $7)`,
       [
         `spend_${Math.random().toString(36).slice(2)}`,
         userId,
@@ -220,6 +221,7 @@ describe('GET /api/admin/ai-spend', () => {
         tokens.cw ?? 0,
         tokens.cr ?? 0,
         Date.now() - ageMs,
+        model,
       ]
     );
   }
@@ -238,7 +240,10 @@ describe('GET /api/admin/ai-spend', () => {
     const day = 24 * hour;
     // Today (UTC): 1M in + 200k out + 100k cache write + 500k cache read
     //   = $1 + $1 + $0.125 + $0.05 = $2.175
+    // (an unlisted model like 'test-model' prices at the dearest known rate, Haiku 4.5's)
     await seedCall(aliceId, 0, { in: 1_000_000, out: 200_000, cw: 100_000, cr: 500_000 });
+    // Today: alice again, on refine's Haiku 5.5, 1M out at its own $0.50/MTok = $0.50
+    await seedCall(aliceId, 0, { in: 0, out: 1_000_000 }, 'claude-haiku-5-5');
     // 3 days ago: bob, 1M out = $5 (in the 7d and 30d windows only)
     await seedCall(bobId, 3 * day, { in: 0, out: 1_000_000 });
     // 20 days ago: alice, 2M in = $2 (30d only)
@@ -249,20 +254,20 @@ describe('GET /api/admin/ai-spend', () => {
     const res = await request(app).get('/api/admin/ai-spend').set('Cookie', cookie);
     expect(res.status).toBe(200);
     // admin.test.ts does not mock the AI client, so this is the real constant.
-    expect(res.body.model).toBe('claude-haiku-4-5');
+    expect(res.body.model).toBe('claude-haiku-4-5 and claude-haiku-5-5');
     const { today, d7, d30 } = res.body.windows;
-    expect(today).toMatchObject({ calls: 1, cacheWriteTokens: 100_000, cacheReadTokens: 500_000 });
-    expect(today.usd).toBeCloseTo(2.175, 6);
-    expect(d7.calls).toBe(2);
-    expect(d7.usd).toBeCloseTo(7.175, 6);
-    expect(d30.calls).toBe(3);
-    expect(d30.usd).toBeCloseTo(9.175, 6);
+    expect(today).toMatchObject({ calls: 2, cacheWriteTokens: 100_000, cacheReadTokens: 500_000 });
+    expect(today.usd).toBeCloseTo(2.675, 6);
+    expect(d7.calls).toBe(3);
+    expect(d7.usd).toBeCloseTo(7.675, 6);
+    expect(d30.calls).toBe(4);
+    expect(d30.usd).toBeCloseTo(9.675, 6);
 
     const byUser = Object.fromEntries(
       (res.body.users as { userId: string; calls: number; usd: number }[]).map((u) => [u.userId, u])
     );
-    expect(byUser[aliceId].calls).toBe(2);
-    expect(byUser[aliceId].usd).toBeCloseTo(4.175, 6);
+    expect(byUser[aliceId].calls).toBe(3);
+    expect(byUser[aliceId].usd).toBeCloseTo(4.675, 6);
     expect(byUser[bobId].calls).toBe(1);
     expect(byUser[bobId].usd).toBeCloseTo(5, 6);
   });

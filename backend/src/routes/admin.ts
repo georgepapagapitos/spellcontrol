@@ -8,7 +8,7 @@ import { invalidateDeckPublicationCache, invalidatePublicUserCache } from '../pu
 import { invalidateShareContext } from '../shares/context';
 import { purgeUserPublicCaches } from '../publications/purge';
 import { unpublishAllUserDecks } from '../publications/unpublish';
-import { AI_MODEL, estimateUsd, type AiTokenCounts } from '../ai/client';
+import { AI_MODEL, REFINE_MODEL, estimateUsd, type AiTokenCounts } from '../ai/client';
 import { logger } from '../logger';
 
 export const adminRouter: Router = Router();
@@ -17,6 +17,7 @@ export const adminRouter: Router = Router();
 const adminLimiter = testAwareLimiter({ windowMs: 60_000, max: 60 });
 
 interface SpendRow {
+  model: string;
   calls: string;
   input_tokens: string;
   output_tokens: string;
@@ -24,14 +25,31 @@ interface SpendRow {
   cache_read_tokens: string;
 }
 
-function spendWindow(r: SpendRow): AiTokenCounts & { calls: number; usd: number } {
-  const t: AiTokenCounts = {
-    inputTokens: Number(r.input_tokens),
-    outputTokens: Number(r.output_tokens),
-    cacheWriteTokens: Number(r.cache_write_tokens),
-    cacheReadTokens: Number(r.cache_read_tokens),
+/** One window's totals from its per-model rows, each priced at its own model's rate. */
+function spendWindow(rows: SpendRow[]): AiTokenCounts & { calls: number; usd: number } {
+  const total = {
+    calls: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheWriteTokens: 0,
+    cacheReadTokens: 0,
+    usd: 0,
   };
-  return { calls: Number(r.calls), ...t, usd: estimateUsd(t) };
+  for (const r of rows) {
+    const t: AiTokenCounts = {
+      inputTokens: Number(r.input_tokens),
+      outputTokens: Number(r.output_tokens),
+      cacheWriteTokens: Number(r.cache_write_tokens),
+      cacheReadTokens: Number(r.cache_read_tokens),
+    };
+    total.calls += Number(r.calls);
+    total.inputTokens += t.inputTokens;
+    total.outputTokens += t.outputTokens;
+    total.cacheWriteTokens += t.cacheWriteTokens;
+    total.cacheReadTokens += t.cacheReadTokens;
+    total.usd += estimateUsd(t, r.model);
+  }
+  return total;
 }
 
 /**
@@ -56,23 +74,30 @@ adminRouter.get('/ai-spend', requireAdmin, adminLimiter, async (_req: Request, r
      COALESCE(SUM(cache_write_tokens) FILTER (WHERE created_at >= $${alias}), 0)::text AS cache_write_tokens,
      COALESCE(SUM(cache_read_tokens) FILTER (WHERE created_at >= $${alias}), 0)::text AS cache_read_tokens`;
   const pool = getPool();
+  // Every query groups by model: review and refine run on different tiers.
+  const window = (start: number) =>
+    pool.query<SpendRow>(`SELECT model, ${sums('1')} FROM ai_reviews GROUP BY model`, [start]);
   const [today, d7, d30, perUser] = await Promise.all([
-    pool.query<SpendRow>(`SELECT ${sums('1')} FROM ai_reviews`, [since.today]),
-    pool.query<SpendRow>(`SELECT ${sums('1')} FROM ai_reviews`, [since.d7]),
-    pool.query<SpendRow>(`SELECT ${sums('1')} FROM ai_reviews`, [since.d30]),
+    window(since.today),
+    window(since.d7),
+    window(since.d30),
     pool.query<SpendRow & { user_id: string }>(
-      `SELECT user_id, ${sums('1')} FROM ai_reviews WHERE created_at >= $1 GROUP BY user_id`,
+      `SELECT user_id, model, ${sums('1')} FROM ai_reviews WHERE created_at >= $1
+        GROUP BY user_id, model`,
       [since.d30]
     ),
   ]);
+  const byUser = new Map<string, SpendRow[]>();
+  for (const r of perUser.rows) byUser.set(r.user_id, [...(byUser.get(r.user_id) ?? []), r]);
   res.json({
-    model: AI_MODEL,
+    // Read by the admin card's "at list price for …" hint.
+    model: [...new Set([AI_MODEL, REFINE_MODEL])].join(' and '),
     windows: {
-      today: spendWindow(today.rows[0]),
-      d7: spendWindow(d7.rows[0]),
-      d30: spendWindow(d30.rows[0]),
+      today: spendWindow(today.rows),
+      d7: spendWindow(d7.rows),
+      d30: spendWindow(d30.rows),
     },
-    users: perUser.rows.map((r) => ({ userId: r.user_id, ...spendWindow(r) })),
+    users: [...byUser].map(([userId, rows]) => ({ userId, ...spendWindow(rows) })),
   });
 });
 

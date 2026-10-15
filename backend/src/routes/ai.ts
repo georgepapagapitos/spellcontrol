@@ -9,7 +9,7 @@ import type { Grounding } from '../ai/grounding';
 import { testAwareLimiter } from '../route-utils';
 import { getScryfallCache } from '../scryfall-cache';
 import type { PriceCeiling } from '../cache';
-import { aiEnabled, estimateUsd, generateReview, AI_MODEL } from '../ai/client';
+import { aiEnabled, estimateUsd, generateReview, AI_MODEL, REFINE_MODEL } from '../ai/client';
 import {
   checkBracketTool,
   lookupCardsTool,
@@ -177,26 +177,36 @@ export function aiDailyUsdCap(): number {
 
 async function spentTodayUsd(): Promise<number> {
   const dayStartMs = new Date().setUTCHours(0, 0, 0, 0);
+  // Grouped by model: review and refine run on different tiers, priced apart.
   const res = await getPool().query<{
+    model: string;
     input_tokens: string;
     output_tokens: string;
     cache_write_tokens: string;
     cache_read_tokens: string;
   }>(
-    `SELECT COALESCE(SUM(input_tokens), 0)::text AS input_tokens,
-            COALESCE(SUM(output_tokens), 0)::text AS output_tokens,
-            COALESCE(SUM(cache_write_tokens), 0)::text AS cache_write_tokens,
-            COALESCE(SUM(cache_read_tokens), 0)::text AS cache_read_tokens
-       FROM ai_reviews WHERE created_at >= $1`,
+    `SELECT model,
+            SUM(input_tokens)::text AS input_tokens,
+            SUM(output_tokens)::text AS output_tokens,
+            SUM(cache_write_tokens)::text AS cache_write_tokens,
+            SUM(cache_read_tokens)::text AS cache_read_tokens
+       FROM ai_reviews WHERE created_at >= $1 GROUP BY model`,
     [dayStartMs]
   );
-  const r = res.rows[0];
-  return estimateUsd({
-    inputTokens: Number(r?.input_tokens ?? 0),
-    outputTokens: Number(r?.output_tokens ?? 0),
-    cacheWriteTokens: Number(r?.cache_write_tokens ?? 0),
-    cacheReadTokens: Number(r?.cache_read_tokens ?? 0),
-  });
+  return res.rows.reduce(
+    (usd, r) =>
+      usd +
+      estimateUsd(
+        {
+          inputTokens: Number(r.input_tokens),
+          outputTokens: Number(r.output_tokens),
+          cacheWriteTokens: Number(r.cache_write_tokens),
+          cacheReadTokens: Number(r.cache_read_tokens),
+        },
+        r.model
+      ),
+    0
+  );
 }
 
 /** Why a fresh generation can't run right now, or null when it can. */
@@ -863,6 +873,7 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
         // a suggestion, so it never enters the search results at all.
         tools: [lookupCardsTool(cache, searchContext), ...bracketTools(request, cache)],
         answerMarker: STRATEGY_MARK,
+        model: REFINE_MODEL,
       }
     );
   } catch (err) {
@@ -954,7 +965,7 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
       userId,
       DECK_REFINE_FEATURE,
       inputHash,
-      AI_MODEL,
+      REFINE_MODEL,
       generation.content,
       generation.inputTokens,
       generation.outputTokens,
@@ -973,7 +984,7 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
       content: out.strategy,
       tweaks: out.tweaks,
       cached: false,
-      model: AI_MODEL,
+      model: REFINE_MODEL,
       usage: { inputTokens: generation.inputTokens, outputTokens: generation.outputTokens },
       ...(generation.truncated ? { truncated: true } : {}),
       ...(fetchedNames.length ? { fetched: fetchedNames } : {}),

@@ -8,16 +8,50 @@ import { createMarkerGate, runTool, type AiTool, type FetchedCard } from './tool
  * caching, quota) lives in tested modules. Coverage-excluded alongside the
  * other thin API clients.
  *
- * Tier is a one-string change here; re-run the eval suite before changing it.
+ * Each tier is a one-string change here; re-run the eval suite before changing
+ * one, and add its price to AI_USD_PER_MTOK in the same change.
  */
+/** The deck review's model ("Read the deck"). */
 export const AI_MODEL = 'claude-haiku-4-5';
 
 /**
- * List price for AI_MODEL, USD per million tokens (Anthropic first-party
- * rates for claude-haiku-4-5). Change it together with AI_MODEL — the admin
- * spend readout multiplies stored per-row token counts by these.
+ * The refine pass's model. Split from AI_MODEL on 2026-10-15 (E1017): on the
+ * ai-prompt-eval blind critic, Haiku 5.5 cut refine's factual errors from 4.8 to
+ * 2.0 per reading and raised sound swaps from 31% to 64% across three fixtures,
+ * at a tenth of the price. The review stays on 4.5 until its own gate passes:
+ * there, adaptive thinking spent the writing pass's budget and 1 run in 6 came
+ * back empty.
  */
-export const AI_USD_PER_MTOK = { input: 1, output: 5, cacheWrite: 1.25, cacheRead: 0.1 };
+export const REFINE_MODEL = 'claude-haiku-5-5';
+
+/**
+ * List price per model, USD per million tokens (Anthropic first-party rates;
+ * cache writes at 1.25x input, reads at 0.1x). The spend readout and the daily
+ * cap multiply each stored row's tokens by the rate for that row's model.
+ */
+export const AI_USD_PER_MTOK: Record<string, AiRates> = {
+  'claude-haiku-4-5': { input: 1, output: 5, cacheWrite: 1.25, cacheRead: 0.1 },
+  'claude-haiku-5-5': { input: 0.1, output: 0.5, cacheWrite: 0.125, cacheRead: 0.01 },
+};
+
+export interface AiRates {
+  input: number;
+  output: number;
+  cacheWrite: number;
+  cacheRead: number;
+}
+
+/**
+ * A model missing from the table prices at the dearest known rate, so a row
+ * from a renamed or unlisted model can only overstate spend, never let the
+ * daily cap undercount it.
+ */
+function ratesFor(model: string | undefined): AiRates {
+  return (
+    (model && AI_USD_PER_MTOK[model]) ||
+    Object.values(AI_USD_PER_MTOK).reduce((a, b) => (b.output > a.output ? b : a))
+  );
+}
 
 export interface AiTokenCounts {
   inputTokens: number;
@@ -26,9 +60,9 @@ export interface AiTokenCounts {
   cacheReadTokens: number;
 }
 
-/** Estimated USD for a token bundle at AI_USD_PER_MTOK. */
-export function estimateUsd(t: AiTokenCounts): number {
-  const p = AI_USD_PER_MTOK;
+/** Estimated USD for a token bundle at `model`'s list price. */
+export function estimateUsd(t: AiTokenCounts, model?: string): number {
+  const p = ratesFor(model);
   return (
     (t.inputTokens * p.input +
       t.outputTokens * p.output +
@@ -141,7 +175,7 @@ export async function generateReview(
   user: string,
   onDelta?: (text: string) => void,
   signal?: AbortSignal,
-  options?: { tools?: AiTool[]; answerMarker?: string; endMarker?: string }
+  options?: { tools?: AiTool[]; answerMarker?: string; endMarker?: string; model?: string }
 ): Promise<AiGeneration> {
   if (!client) client = new Anthropic();
   const tools = options?.tools ?? [];
@@ -170,7 +204,7 @@ export async function generateReview(
     }
     const stream = client.messages.stream(
       {
-        model: AI_MODEL,
+        model: options?.model ?? AI_MODEL,
         max_tokens: MAX_OUTPUT_TOKENS,
         system,
         messages,
