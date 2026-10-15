@@ -189,6 +189,12 @@ shares a ribbon's corner, like the attachment link glyph, layers above it.
 Face-down hides the token ribbon along with the power/toughness and counters:
 the back of a card gives nothing away.
 
+The word always fits its corner (2026-10-15). A ribbon is a band as wide as its
+word, turned about its inner top corner so its top edge runs from one card edge
+to the other, with an outset border image carrying the color out to both edges. A
+card-wide band nudged by a fixed percentage cut the word off at the card's
+edge at most sizes.
+
 Everything else about a card — counters, stickers, phasing, attachment — is a
 badge, not a ribbon. If a third ribbon ever seems necessary, it is a badge.
 

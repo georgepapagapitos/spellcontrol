@@ -96,6 +96,15 @@ describe('the power/toughness plate', () => {
     );
   });
 
+  it('stays with its own card when another card lies over it', () => {
+    // The plates carry a z-index for ordering inside the slot. With no
+    // stacking context on the slot (or the card) that z-index climbed into
+    // the board's, and a card half under another painted its power/toughness
+    // over the card on top (2026-10-15).
+    expect(rule('.playtest-card-slot')).toMatch(/isolation:\s*isolate/);
+    expect(rule('.playtest-card')).toMatch(/isolation:\s*isolate/);
+  });
+
   it('rides a tapped card’s corner, not the slot’s', () => {
     // The card rotates inside a portrait slot; the badges are pinned to the
     // slot. Left at the slot's bottom-right they hung below a tapped card,
