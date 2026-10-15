@@ -19,7 +19,7 @@ export interface CardPreviewCtx {
    */
   isPreviewOpen: boolean;
   /**
-   * When the binder is in "group printings" mode the materializer feeds
+   * When the binder is in "stack identical copies" mode the materializer feeds
    * one card per unique (scryfallId × foil); the qty for each surviving
    * copy lives here keyed by copyId. Slots with qty > 1 paint a small
    * ×N badge in the corner — same affordance the collection grid uses.

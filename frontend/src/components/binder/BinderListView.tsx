@@ -176,7 +176,7 @@ export function BinderListView({
   // seven "Mountain SLD #2418" rows say nothing seven times. Identical
   // printings always sort adjacent (they tie on every field), so a run is
   // exactly one printing's stack; the row keeps the first copy's page. When
-  // the page grid's "Group printings" mode is on the materializer has
+  // the page grid's "Stack identical copies" mode is on the materializer has
   // already collapsed to one card per (scryfallId × foil) and `qtyByCopyId`
   // carries the totals instead.
   const flat = useMemo(() => {

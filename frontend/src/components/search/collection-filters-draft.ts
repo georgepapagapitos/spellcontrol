@@ -47,7 +47,7 @@ export interface FilterDraft {
 
 export const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
 
-/** A draft with nothing set (and Group printings at its default, on). */
+/** A draft with nothing set. */
 export function emptyDraft(): FilterDraft {
   return {
     supertype: EMPTY_EXPR,
