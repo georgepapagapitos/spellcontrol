@@ -592,11 +592,10 @@ everywhere. Catalog specimen: `Filter kit`.
 - **Mana value, mana cost and color are three separate questions** and get
   three separate controls. Do not fold a cost into a mana-value field or a
   color into a cost.
-- **One section label.** `FilterSection` heads every group: the `--font-label`
-  stamp, uppercase, with a count of what is on. This is a deliberate exception
-  to sentence-case section labels (E595): it is chrome that stamps a filter
-  group, set in `--font-label`, which the `uppercase-role` guard allows. A
-  surface does not restyle it.
+- **One section label.** `FilterSection` heads every group with the shared
+  section heading (`.form-section-heading`: sentence case, weight 600, E595),
+  followed by a count of what is on. It is not a stamp: no caps, no
+  `--font-label`. A surface does not restyle it.
 - **Popover = live; dialog or sheet = draft.** When the list stays visible, the
   filters are a popover and apply as you tap, with a live count and "Clear
   filters" in the footer. When the panel covers the list (the dialog on

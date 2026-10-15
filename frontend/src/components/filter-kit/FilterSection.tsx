@@ -1,10 +1,11 @@
 import { useId, type ReactNode } from 'react';
 import { Count } from '@/components/shared/Count';
+import '@/components/shared/form.css';
 import './filter-kit.css';
 
 /**
  * One heading style for every filter surface (STYLE_GUIDE § Filter kit): the
- * label stamp (`--font-label`, uppercase) plus a count of how many values in
+ * section heading (`.form-section-heading`, sentence case, E595) plus a count of how many values in
  * the section are on, so what is set reads without opening anything. The
  * section is a labelled region; the count is spoken as part of the heading
  * ("Rarity, 2 selected").
@@ -22,7 +23,7 @@ export function FilterSection({
   const id = useId();
   return (
     <section className="filter-kit-section" aria-labelledby={id}>
-      <h3 id={id} className="filter-kit-label">
+      <h3 id={id} className="form-section-heading filter-kit-label">
         {label}
         <Count
           className="filter-kit-count"
