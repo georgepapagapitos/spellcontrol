@@ -254,7 +254,7 @@ describe('GET /api/admin/ai-spend', () => {
     const res = await request(app).get('/api/admin/ai-spend').set('Cookie', cookie);
     expect(res.status).toBe(200);
     // admin.test.ts does not mock the AI client, so this is the real constant.
-    expect(res.body.model).toBe('claude-haiku-4-5 and claude-haiku-5-5');
+    expect(res.body.model).toBe('claude-haiku-5-5');
     const { today, d7, d30 } = res.body.windows;
     expect(today).toMatchObject({ calls: 2, cacheWriteTokens: 100_000, cacheReadTokens: 500_000 });
     expect(today.usd).toBeCloseTo(2.675, 6);
