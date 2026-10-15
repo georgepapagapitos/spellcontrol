@@ -167,7 +167,9 @@ export function countActiveSharedFilters(s: SharedFilterState): number {
     (isExpressionEmpty(s.finishExpr) ? 0 : 1) +
     s.setFilter.size +
     (s.priceMin !== undefined || s.priceMax !== undefined ? 1 : 0) +
-    (s.cmcMin !== undefined || s.cmcMax !== undefined ? 1 : 0)
+    (s.cmcMin !== undefined || s.cmcMax !== undefined ? 1 : 0) +
+    (normalizeManaValues(s.manaValues) ? 1 : 0) +
+    (normalizeManaSymbolQuery(s.manaSymbols) ? 1 : 0)
   );
 }
 

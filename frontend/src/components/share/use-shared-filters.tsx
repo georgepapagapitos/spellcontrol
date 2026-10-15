@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import type { PublicCard } from '@/lib/social/shared-types';
-import type { ChipExpression } from '../../types';
+import type { BinderFilter, ChipExpression } from '../../types';
 import type { SetMap } from '@/lib/api';
 import { CollectionFiltersDialog } from '@/components/search/CollectionFiltersDialog';
 import { useCardTagsReady } from '@/lib/cards/card-tags';
@@ -13,15 +13,6 @@ import {
 } from '@/lib/social/shared-filter';
 
 const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
-
-const COLOR_OPTIONS: Array<{ key: string; label: string }> = [
-  { key: 'W', label: 'White' },
-  { key: 'U', label: 'Blue' },
-  { key: 'B', label: 'Black' },
-  { key: 'R', label: 'Red' },
-  { key: 'G', label: 'Green' },
-  { key: 'C', label: 'Colorless' },
-];
 
 const RARITIES = ['mythic', 'rare', 'uncommon', 'common'] as const;
 
@@ -110,6 +101,8 @@ export function useSharedFilters(
   const [setFilter, setSetFilter] = useState<Set<string>>(new Set());
   const [cmcMin, setCmcMin] = useState<number | undefined>(undefined);
   const [cmcMax, setCmcMax] = useState<number | undefined>(undefined);
+  const [manaValues, setManaValues] = useState<BinderFilter['manaValues']>(undefined);
+  const [manaSymbols, setManaSymbols] = useState<BinderFilter['manaSymbols']>(undefined);
   const [priceMin, setPriceMin] = useState<number | undefined>(undefined);
   const [priceMax, setPriceMax] = useState<number | undefined>(undefined);
 
@@ -137,6 +130,8 @@ export function useSharedFilters(
     setFilter,
     cmcMin,
     cmcMax,
+    manaValues,
+    manaSymbols,
     priceMin: withPrice ? priceMin : undefined,
     priceMax: withPrice ? priceMax : undefined,
   };
@@ -161,6 +156,8 @@ export function useSharedFilters(
       setFilter,
       cmcMin,
       cmcMax,
+      manaValues,
+      manaSymbols,
       priceMin,
       priceMax,
       withPrice,
@@ -187,6 +184,8 @@ export function useSharedFilters(
     setSetFilter(new Set());
     setCmcMin(undefined);
     setCmcMax(undefined);
+    setManaValues(undefined);
+    setManaSymbols(undefined);
     setPriceMin(undefined);
     setPriceMax(undefined);
   };
@@ -204,7 +203,6 @@ export function useSharedFilters(
       setColorFilter={setColorFilter}
       colorMode={colorMode}
       setColorMode={setColorMode}
-      colorOptions={COLOR_OPTIONS}
       rarityExpr={rarityExpr}
       setRarityExpr={setRarityExpr}
       rarities={RARITIES}
@@ -238,6 +236,10 @@ export function useSharedFilters(
       setCmcMin={setCmcMin}
       cmcMax={cmcMax}
       setCmcMax={setCmcMax}
+      manaValues={manaValues}
+      setManaValues={setManaValues}
+      manaSymbols={manaSymbols}
+      setManaSymbols={setManaSymbols}
       {...(withPrice ? { priceMin, setPriceMin, priceMax, setPriceMax } : {})}
       activeCount={activeCount}
     />

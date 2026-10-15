@@ -191,17 +191,6 @@
   gap: var(--space-2-5);
 }
 
-/* The Color field's label also carries the AND/OR toggle — Field's label
-   slot is plain text otherwise, so this is the one field that needs its
-   label to be a flex row instead of a bare string. */
-.collection-filters-color-label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  width: 100%;
-}
-
 /* Set-picker results render inline inside the dialog instead of an
    absolute popover — an overlaid dropdown gets clipped by the body's
    `overflow-y: auto`, and would be hidden the moment the picker sits
@@ -214,6 +203,7 @@
 .collection-filters-dialog-footer {
   flex: 0 0 auto;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2-5);
@@ -221,10 +211,8 @@
   border-top: 0.5px solid var(--border);
 }
 
-/* Groups Clear with the "Save as a binder…" link so the footer's flex layout
-   still sees three items (this group, the count, Apply) — the count's
-   auto margins below center it between them regardless of how many buttons
-   the left group holds. */
+/* Groups Clear with the "Save as a binder…" link, so the footer reads as
+   secondary actions on the left and the one primary, Show N, on the right. */
 .collection-filters-dialog-footer-start {
   display: flex;
   align-items: center;
@@ -235,19 +223,91 @@
   font-size: var(--text-sm);
 }
 
-/* Live match count over the draft. Sits between Clear and Apply because it is
-   the answer to "is this filter worth applying" — the question you used to
-   have to press Apply to find out. */
-.collection-filters-dialog-count {
-  margin-inline: auto;
+/* At zero matches: what to do next, above the buttons, on its own line. */
+.collection-filters-dialog-empty {
+  flex: 1 0 100%;
+  margin: 0;
   font-size: var(--text-sm);
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
+  color: var(--warn-text);
 }
 
-/* Zero matches is the outcome worth catching before you commit to it. */
-.collection-filters-dialog-count.is-empty {
-  color: var(--warn-text);
+/* The active-filter strip sits between the header and the scrolling body, so
+   what is on stays in view while the sections scroll. */
+.collection-filters-dialog-active {
+  flex: 0 0 auto;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 0.5px solid var(--border);
+}
+
+/* Inside the dialog the strip is a plain wrapping row; the page's own row
+   carries margins for its place between the search bar and the list. */
+.collection-filters-dialog-active .collection-filter-chips {
+  margin: 0;
+  padding: 0;
+}
+
+/* The text inputs (subtype search, rules text) fill the dialog's width; their
+   rule-editor defaults size them for a rule row. */
+.collection-filters-dialog .type-line-builder,
+.collection-filters-dialog .chip-builder-wrap,
+.collection-filters-dialog .chip-builder-input-wrap {
+  align-self: stretch;
+  width: 100%;
+}
+
+.collection-filters-dialog .chip-builder-wrap input {
+  max-width: none;
+}
+
+/* The disclosure's sections stack with the same gap as the body's. */
+.collection-filters-more {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-2);
+}
+
+/* The grabber only exists on the phone sheet. */
+.collection-filters-dialog-grabber {
+  display: none;
+}
+
+/* Phone: a bottom sheet, Show N full width at the foot. Doubled class and the
+   role attribute so this beats the sheet pattern's own panel rule
+   (modals-dialogs.css) whatever order the sheets load in. */
+@media (max-width: 599px) {
+  .modal-backdrop.modal-backdrop--sheet > .collection-filters-dialog[role='dialog'] {
+    max-height: calc(var(--vh-safe) - 3rem);
+    height: calc(var(--vh-safe) - 3rem);
+    padding-bottom: 0;
+    /* The centered dialog's `margin-block: auto` would float the sheet 24px
+       above the screen's bottom edge; a sheet sits on it. */
+    margin-block: auto 0;
+  }
+
+  .collection-filters-dialog-grabber {
+    display: block;
+    flex: 0 0 auto;
+    width: 2.5rem;
+    height: 0.3rem;
+    margin: var(--space-2) auto 0;
+    border-radius: var(--radius);
+    background: var(--border-strong);
+  }
+
+  .collection-filters-dialog-footer {
+    padding-bottom: calc(var(--space-3) + var(--safe-bottom));
+  }
+
+  .collection-filters-dialog-footer .filter-kit-show {
+    flex: 1 0 100%;
+    order: 2;
+  }
+
+  .collection-filters-dialog-footer .filter-kit-show button {
+    width: 100%;
+    min-height: 3rem;
+  }
 }
 
 .set-filter-picker {

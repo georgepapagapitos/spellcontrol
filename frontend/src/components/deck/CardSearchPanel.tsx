@@ -251,14 +251,6 @@ const ALL_UNOWNED: (name: string) => ChangeOwnership = () => 'unowned';
 
 // Local copy of the same enum vocabularies the collection page uses.
 // Kept local so this component isn't load-coupled to that page.
-const COLOR_FILTERS: Array<{ key: string; label: string }> = [
-  { key: 'W', label: 'White' },
-  { key: 'U', label: 'Blue' },
-  { key: 'B', label: 'Black' },
-  { key: 'R', label: 'Red' },
-  { key: 'G', label: 'Green' },
-  { key: 'C', label: 'Colorless' },
-];
 const RARITIES = ['mythic', 'rare', 'uncommon', 'common'] as const;
 
 const SORT_OPTIONS: SelectOption<AddSort>[] = [
@@ -815,7 +807,6 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
               setColorFilter={setColorFilter}
               colorMode={colorMode}
               setColorMode={setColorMode}
-              colorOptions={COLOR_FILTERS}
               rarityExpr={rarityExpr}
               setRarityExpr={setRarityExpr}
               rarities={RARITIES}

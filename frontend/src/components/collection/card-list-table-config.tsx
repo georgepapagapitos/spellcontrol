@@ -107,15 +107,6 @@ export const COLLECTION_TABLE_SORTS: Partial<Record<CardTableCol, SortKey>> = {
 // Keep in sync with .collection-grid-section-header in styles/collection.css.
 export const GRID_SECTION_HEADER_H = 40;
 
-export const COLOR_FILTERS: Array<{ key: string; label: string }> = [
-  { key: 'W', label: 'White' },
-  { key: 'U', label: 'Blue' },
-  { key: 'B', label: 'Black' },
-  { key: 'R', label: 'Red' },
-  { key: 'G', label: 'Green' },
-  { key: 'C', label: 'Colorless' },
-];
-
 export const RARITIES = ['mythic', 'rare', 'uncommon', 'common'] as const;
 
 export const SORT_FIELDS: Array<{ key: SortKey; label: string; defaultDir: 'asc' | 'desc' }> = [
