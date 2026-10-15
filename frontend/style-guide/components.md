@@ -585,7 +585,8 @@ everywhere. Catalog specimen: `Filter kit`.
   power, toughness) is `ValueStrip`: chips 0 to 6 and 7+, the 7+ chip opens a
   second row to narrow, and Custom… holds the comparator (exactly, at most, at
   least, between). An open-ended number (price, EDHREC rank) is `PresetRange`.
-  A mana cost is built on `ManaSymbolPad`. A long list (sets, subtypes, tags)
+  A mana cost is built on `ManaSymbolPad`, whose value is the engine's
+  `ManaSymbolQuery`, and a color's mode is the engine's `ColorMatchMode`. A long list (sets, subtypes, tags)
   is a search field with removable chips, not chips of every value. Never a
   dropdown for a short list, and never a free-text box where chips can say it.
 - **Mana value, mana cost and color are three separate questions** and get

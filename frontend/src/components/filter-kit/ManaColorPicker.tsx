@@ -1,3 +1,4 @@
+import type { ColorMatchMode } from '@spellcontrol/binder-routing';
 import { IconButton } from '@/components/shared/Button';
 import { SegmentedControl } from '@/components/shared/form';
 import { ColorPip } from '@/components/shared/ManaSymbol';
@@ -10,9 +11,9 @@ export interface ManaColorPickerProps {
   onColorsChange: (next: string[]) => void;
   /** Offer Multicolor (M) after Colorless. */
   includeMulticolor?: boolean;
-  mode: string;
+  mode: ColorMatchMode;
   modes: ColorModeOption[];
-  onModeChange: (next: string) => void;
+  onModeChange: (next: ColorMatchMode) => void;
   /** Names the pip group. */
   ariaLabel?: string;
   /** Names the mode control. */
