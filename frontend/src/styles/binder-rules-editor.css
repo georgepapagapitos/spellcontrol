@@ -1169,7 +1169,8 @@
    tall control aligns its label to the top instead of the middle. */
 .rule-row > .rule-choice,
 .rule-row > .filter-kit-strip,
-.rule-row > .filter-kit-color {
+.rule-row > .filter-kit-color,
+.rule-row > .filter-kit-pad {
   flex: 1;
   min-width: 0;
 }
@@ -1181,7 +1182,7 @@
   gap: var(--space-2);
 }
 
-.rule-row:has(> .rule-choice, > .filter-kit-strip, > .filter-kit-color) {
+.rule-row:has(> .rule-choice, > .filter-kit-strip, > .filter-kit-color, > .filter-kit-pad) {
   align-items: flex-start;
 }
 

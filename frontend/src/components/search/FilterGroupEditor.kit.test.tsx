@@ -10,6 +10,7 @@ import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { cardMatchesFilter } from '@spellcontrol/binder-routing';
 import { cleanFilter } from '@/lib/search/clean-filter';
+import { FILTER_FIELDS } from '@/lib/search/filter-fields';
 import { FilterGroupList } from './FilterGroupEditor';
 import type { BinderFilter, BinderFilterGroup, EnrichedCard } from '@/types/index';
 
@@ -43,7 +44,13 @@ const GYRE = card({
   cmc: 11,
   colorIdentity: [],
 });
-const CARDS = [SOL_RING, CULTIVATE, CRYPTIC, VINDICATE, CRUSHER, GRAY_MERCHANT, GYRE];
+const COUNTERSPELL = card({
+  name: 'Counterspell',
+  manaCost: '{U}{U}',
+  cmc: 2,
+  colorIdentity: ['U'],
+});
+const CARDS = [SOL_RING, CULTIVATE, CRYPTIC, VINDICATE, CRUSHER, GRAY_MERCHANT, GYRE, COUNTERSPELL];
 const names = (f: BinderFilter) => CARDS.filter((c) => cardMatchesFilter(c, f)).map((c) => c.name);
 
 let latest: BinderFilter = {};
@@ -130,6 +137,7 @@ describe('the new values', () => {
       'Cryptic Command',
       'Ulamog Crusher',
       'Ulamog, the Infinite Gyre',
+      'Counterspell',
     ]);
   });
 
@@ -165,6 +173,37 @@ describe('the new values', () => {
     expect(cleaned.colorIdentity?.mode).toBe('within');
     expect(cleaned.manaValues).toEqual({ values: [9], atLeast: 11 });
     expect(names(cleaned)).toEqual([]);
+  });
+});
+
+describe('the Mana symbols rule', () => {
+  it('at least BB writes manaSymbols and routes Gray Merchant, not Counterspell or Vindicate', () => {
+    render(<Harness initial={{ manaSymbols: { counts: { B: 1 }, mode: 'atLeast' } }} />);
+    // The pad opens on the saved cost (one black).
+    expect(names(latest)).toEqual(['Vindicate', 'Gray Merchant of Asphodel']);
+    fireEvent.click(screen.getByRole('button', { name: /^Add black mana/ }));
+    expect(latest.manaSymbols).toEqual({ counts: { B: 2 }, mode: 'atLeast' });
+    expect(names(latest)).toEqual(['Gray Merchant of Asphodel']);
+    expect(names({ manaSymbols: { counts: { U: 2 }, mode: 'atLeast' } })).toEqual([
+      'Cryptic Command',
+      'Counterspell',
+    ]);
+  });
+
+  it('survives cleanFilter and a JSON sync payload', () => {
+    const f = cleanFilter({ manaSymbols: { counts: { B: 2, W: 0 }, mode: 'atLeast' } });
+    expect(JSON.parse(JSON.stringify(f))).toEqual({
+      manaSymbols: { counts: { B: 2 }, mode: 'atLeast' },
+    });
+  });
+
+  it('is its own registry field, apart from the text Mana cost', () => {
+    const ms = FILTER_FIELDS.find((x) => x.id === 'manaSymbols')!;
+    const mc = FILTER_FIELDS.find((x) => x.id === 'manaCost')!;
+    const f: BinderFilter = { manaSymbols: { counts: { B: 2 }, mode: 'atLeast' } };
+    expect(ms.group).toBe('Cost');
+    expect(ms.isSet(f)).toBe(true);
+    expect(mc.isSet(f)).toBe(false);
   });
 });
 

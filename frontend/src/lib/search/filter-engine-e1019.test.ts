@@ -218,13 +218,13 @@ describe('cleanFilter keeps the new fields (the whitelist guard)', () => {
 describe('registry and summaries know the new fields', () => {
   const field = (id: string) => FILTER_FIELDS.find((f) => f.id === id)!;
 
-  it('Mana value and Mana cost report set and clear the new fields', () => {
+  it('Mana value and Mana symbols report set and clear the new fields', () => {
     const mv: BinderFilter = { manaValues: { values: [2] } };
     expect(field('cmc').isSet(mv)).toBe(true);
     expect(field('cmc').clear()).toMatchObject({ manaValues: undefined });
     const ms: BinderFilter = { manaSymbols: { counts: { B: 2 }, mode: 'atLeast' } };
-    expect(field('manaCost').isSet(ms)).toBe(true);
-    expect(field('manaCost').clear()).toMatchObject({ manaSymbols: undefined });
+    expect(field('manaSymbols').isSet(ms)).toBe(true);
+    expect(field('manaSymbols').clear()).toMatchObject({ manaSymbols: undefined });
     expect(field('cmc').isSet({ manaValues: { values: [] } })).toBe(false);
   });
 

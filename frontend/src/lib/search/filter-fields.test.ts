@@ -33,6 +33,7 @@ describe('the registry covers the whole vocabulary', () => {
       commanderEligible: { commanderEligible: true },
       cmc: { cmcMin: 2, cmcMax: 5 },
       manaCost: { manaCost: '{2}{G}' },
+      manaSymbols: { manaSymbols: { counts: { B: 2 }, mode: 'atLeast' } },
       nameContains: { nameContains: 'dragon' },
       oracleChips: { oracleChips: chips('flying') },
       oracleTagChips: { oracleTagChips: chips('ramp') },
