@@ -9,6 +9,8 @@ import { deckSnapshot, type Grounding } from '../ai/grounding';
 import { testAwareLimiter } from '../route-utils';
 import { getScryfallCache } from '../scryfall-cache';
 import type { PriceCeiling } from '../cache';
+import { cardFaceText } from '../card-text';
+import type { ScryfallCard } from '../types';
 import { aiEnabled, generateReview, REFINE_MODEL, REVIEW_GENERATION } from '../ai/client';
 import { aiDailyUsdCap, spentTodayUsd } from '../ai/spend';
 import {
@@ -553,6 +555,21 @@ function lookedUpNames(fetched: { name: string }[] | undefined): string[] {
 }
 
 /**
+ * One card as the model reads it. Multi-face cards carry their text per face, so
+ * this joins them with each face's name ("Front: text // Back: text") through the
+ * same helper the search index uses. Exported for the guard test.
+ */
+export function oracleEntry(card: ScryfallCard): OracleEntry {
+  const { manaCost, typeLine, oracleText } = cardFaceText(card, { labelFaces: true });
+  return {
+    name: card.name,
+    manaCost: manaCost || undefined,
+    typeLine: typeLine || undefined,
+    oracleText: oracleText || undefined,
+  };
+}
+
+/**
  * Cache-only oracle hydration, shared by both features. A miss means the model
  * reasons about that card without its text (the prompts say how) — never a live
  * Scryfall call from the shared egress IP.
@@ -571,12 +588,7 @@ function hydrateOracle(names: string[]): OracleEntry[] {
     seen.add(name);
     const hit = cache.getCheapestByName(name, ORACLE_MAX_AGE_MS);
     if (hit) {
-      out.push({
-        name: hit.name,
-        manaCost: hit.mana_cost ?? undefined,
-        typeLine: hit.type_line ?? undefined,
-        oracleText: hit.oracle_text ?? undefined,
-      });
+      out.push(oracleEntry(hit));
     }
   }
   return out;
