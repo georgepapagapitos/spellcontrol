@@ -280,6 +280,9 @@
     max-height: calc(var(--vh-safe) - 3rem);
     height: calc(var(--vh-safe) - 3rem);
     padding-bottom: 0;
+    /* The centered dialog's `margin-block: auto` would float the sheet 24px
+       above the screen's bottom edge; a sheet sits on it. */
+    margin-block: auto 0;
   }
 
   .collection-filters-dialog-grabber {
