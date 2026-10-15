@@ -400,15 +400,17 @@ describe('the Color identity rule', () => {
     expect(within(pips).getByRole('button', { name: 'Red' }).getAttribute('aria-pressed')).toBe(
       'false'
     );
-    expect(screen.getByText('only these colors')).toBeTruthy();
+    expect((screen.getByRole('radio', { name: 'Exactly these' }) as HTMLInputElement).checked).toBe(
+      true
+    );
     expect(landLine()).toBe('1 card lands here');
 
     // OR: any card showing white or blue.
-    fireEvent.click(screen.getByRole('button', { name: /Color match mode/ }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Any of these' }));
     act(() => {
       vi.advanceTimersByTime(200);
     });
-    expect(screen.getByText('any selected color')).toBeTruthy();
+    expect(screen.getByText(/Cards that are white or blue/)).toBeTruthy();
     expect(landLine()).toBe('2 cards land here');
 
     // Clearing the last pip removes the constraint rather than matching nothing.

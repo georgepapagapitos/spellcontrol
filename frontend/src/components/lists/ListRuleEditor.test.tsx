@@ -137,8 +137,7 @@ describe('ListRuleEditor', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Add condition' }));
     fireEvent.click(screen.getByRole('button', { name: 'Rarity' }));
-    fireEvent.click(screen.getByRole('button', { name: /Add rarity/ }));
-    fireEvent.click(screen.getByRole('option', { name: 'common' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Common' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Save rule' }));
     expect(setListRule).toHaveBeenCalledWith('l2', [

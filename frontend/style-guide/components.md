@@ -611,6 +611,14 @@ everywhere. Catalog specimen: `Filter kit`.
 - **Targets and width.** Every control has a 44px target on a coarse pointer
   and wraps rather than scrolls, so a section holds at 320px and in a narrow
   popover.
+- **Binder rule rows edit their value with the kit.** The row structure stays (a
+  rule reads like the filter it came from); only the value control changes:
+  color identity is `ManaColorPicker` with Any / Exactly / Within, mana value is
+  `ValueStrip` (chips write `manaValues`, Custom… writes the older
+  `cmcMin`/`cmcMax`, and picking one clears the other), price is `PresetRange`,
+  and a small closed vocabulary is `ChipsChoice` over `ChoiceChips`. A saved
+  expression chips cannot say (a NOT, a mixed AND/OR) keeps its
+  `ChipExpressionBuilder`. Long vocabularies stay search-and-add.
 
 ## Config surfaces (T139)
 

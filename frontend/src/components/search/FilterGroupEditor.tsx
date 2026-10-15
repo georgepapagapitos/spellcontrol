@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { isFilterEmpty } from '@spellcontrol/binder-routing';
+import { isFilterEmpty, parseColorMatchMode } from '@spellcontrol/binder-routing';
 import { countBinderMatches } from '@/lib/binder/binder-counts';
 import { useDebouncedValue } from '@/lib/util/use-debounced-value';
 import { autoSummary } from '@/lib/search/filter-summary';
@@ -7,7 +7,7 @@ import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 import { InfoTip } from '@/components/overlays/InfoTip';
 import { OverflowMenu } from '@/components/overlays/OverflowMenu';
 import { SegmentedControl, type Option } from '@/components/shared/form';
-import { BinderRow as RuleRow, FilterFieldEditor, NumberRangeInput } from './FilterFieldEditor';
+import { BinderRow as RuleRow, FilterFieldEditor } from './FilterFieldEditor';
 import { RuleFieldContext } from './RuleFieldContext';
 import { RuleFieldPicker } from './RuleFieldPicker';
 import { SetFilterPicker } from './SetFilterPicker';
@@ -20,10 +20,18 @@ import type {
   EnrichedCard,
   Rarity,
 } from '@/types/index';
-import { Button, IconButton } from '@/components/shared/Button';
-import { ColorPip } from '@/components/shared/ManaSymbol';
-import { ColorMatchModeToggle } from '@/components/shared/ColorMatchModeToggle';
-import { FILTER_COLOR_OPTIONS } from '@/lib/cards/colors';
+import { Button } from '@/components/shared/Button';
+import {
+  ManaColorPicker,
+  PresetRange,
+  ValueStrip,
+  colorModeHint,
+  colorModeOptions,
+  isValueStripRange,
+  type RangePreset,
+  type ValueStripValue,
+} from '@/components/filter-kit';
+import { ChipsChoice } from './ChipsChoice';
 
 const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'mythic', 'special', 'bonus'];
 
@@ -38,6 +46,55 @@ const COLORS: { key: ColorChoice; label: string }[] = [
   { key: 'C', label: 'Colorless' },
 ];
 const DEFAULT_EDHREC_TOP_N = 100;
+
+const PRICE_PRESETS: RangePreset[] = [
+  { label: 'Under $1', max: 1 },
+  { label: '$1–$5', min: 1, max: 5 },
+  { label: '$5–$20', min: 5, max: 20 },
+  { label: '$20+', min: 20 },
+];
+
+/**
+ * Mana value on the kit's strip. Chips write `manaValues`; Custom… writes the
+ * older `cmcMin`/`cmcMax` pair, so a rule saved before the chips existed
+ * opens in Custom… with its numbers and routes exactly as it did. Picking one
+ * form clears the other, so a rule never carries two answers.
+ */
+function ManaValueRow({
+  filter,
+  patch,
+  keepRow,
+}: {
+  filter: BinderFilter;
+  patch: (p: Partial<BinderFilter>) => void;
+  keepRow: () => void;
+}) {
+  const hasRange = filter.cmcMin !== undefined || filter.cmcMax !== undefined;
+  // Custom… with nothing typed yet has no data to show it, so it is held here.
+  const [customOpen, setCustomOpen] = useState(false);
+  const range = customOpen || hasRange;
+  const value: ValueStripValue = range
+    ? { min: filter.cmcMin, max: filter.cmcMax }
+    : (filter.manaValues ?? { values: [] });
+  return (
+    <ValueStrip
+      ariaLabel="Filter by mana value"
+      valueLabel="Mana value"
+      value={value}
+      onChange={(next) => {
+        if (isValueStripRange(next)) {
+          setCustomOpen(true);
+          patch({ cmcMin: next.min, cmcMax: next.max, manaValues: undefined });
+          return;
+        }
+        setCustomOpen(false);
+        const empty = next.values.length === 0 && next.atLeast === undefined;
+        if (empty) keepRow();
+        patch({ manaValues: empty ? undefined : next, cmcMin: undefined, cmcMax: undefined });
+      }}
+    />
+  );
+}
 
 /** A yes/no/either predicate as a segmented control's value. */
 type TriState = 'any' | 'is' | 'not';
@@ -380,6 +437,10 @@ function FilterGroupFields({
     [visibleFields, patch]
   );
 
+  /** Keep a row on screen after its last value is cleared, so the next pick is one tap away. */
+  const keepRow = (id: FilterFieldId) =>
+    setAdded((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+
   // "A set binder": reveal + scroll to the Sets row. Render-phase rising-edge
   // compare, so the lint-discouraged setState-in-effect isn't needed. Signal 0
   // = no reveal, so editing an existing binder is unaffected.
@@ -421,47 +482,38 @@ function FilterGroupFields({
         />
       </RuleRow>
 
-      {/* Color identity: the collection's pip row and AND/OR mode, run through
-          the same predicate, so a saved collection filter matches the same cards. */}
+      {/* Color identity: the kit's pips and Any / Exactly / Within, run through
+          the same predicate as the collection, so a saved collection filter
+          matches the same cards. */}
       <RuleRow fieldId="colorIdentity" label="Color identity">
-        <div className="rule-color-identity">
-          <div className="color-filter-row" role="group" aria-label="Color identity">
-            {FILTER_COLOR_OPTIONS.map((c) => {
-              const selected = filter.colorIdentity?.colors ?? [];
-              const active = selected.includes(c.key);
-              return (
-                <IconButton
-                  className={`color-filter-btn${active ? ' is-active' : ''}`}
-                  key={c.key}
-                  onClick={() => {
-                    const colors = active
-                      ? selected.filter((k) => k !== c.key)
-                      : [...selected, c.key];
-                    // Turning the last pip off clears the value, not the row:
-                    // keep it on screen so the next pip is one tap away.
-                    if (!colors.length) setAdded((prev) => new Set(prev).add('colorIdentity'));
-                    patch({
-                      colorIdentity: colors.length
-                        ? { colors, mode: filter.colorIdentity?.mode ?? 'any' }
-                        : undefined,
-                    });
-                  }}
-                  aria-pressed={active}
-                  label={c.label}
-                  icon={<ColorPip color={c.key} />}
-                />
-              );
-            })}
-          </div>
-          <ColorMatchModeToggle
-            mode={filter.colorIdentity?.mode ?? 'any'}
-            onChange={(mode) =>
-              patch({
-                colorIdentity: { colors: filter.colorIdentity?.colors ?? [], mode },
-              })
-            }
-          />
-        </div>
+        <ManaColorPicker
+          ariaLabel="Color identity"
+          colors={filter.colorIdentity?.colors ?? []}
+          mode={filter.colorIdentity?.mode ?? 'any'}
+          modes={colorModeOptions(['any', 'all', 'within'])}
+          hint={colorModeHint(
+            filter.colorIdentity?.colors ?? [],
+            filter.colorIdentity?.mode ?? 'any'
+          )}
+          onColorsChange={(colors) => {
+            // Turning the last pip off clears the value, not the row:
+            // keep it on screen so the next pip is one tap away.
+            if (!colors.length) keepRow('colorIdentity');
+            patch({
+              colorIdentity: colors.length
+                ? { colors, mode: filter.colorIdentity?.mode ?? 'any' }
+                : undefined,
+            });
+          }}
+          onModeChange={(mode) =>
+            patch({
+              colorIdentity: {
+                colors: filter.colorIdentity?.colors ?? [],
+                mode: parseColorMatchMode(mode),
+              },
+            })
+          }
+        />
       </RuleRow>
 
       {/* The older color rule, one bucket per card. Only rules saved with it show it. */}
@@ -477,38 +529,39 @@ function FilterGroupFields({
 
       {/* Rarity */}
       <RuleRow fieldId="rarities" label="Rarity">
-        <ChipExpressionBuilder
-          options={RARITIES.map((r) => ({ value: r, label: r }))}
-          value={filter.rarities ?? EMPTY_EXPR}
+        <ChipsChoice
+          options={RARITIES.map((r) => ({
+            value: r,
+            label: r.charAt(0).toUpperCase() + r.slice(1),
+          }))}
+          value={filter.rarities}
           onChange={(next) => patch({ rarities: next })}
-          defaultJoiner="OR"
+          ariaLabel="Filter by rarity"
+          noun="rarities"
           // A card has exactly ONE rarity, so "rare AND mythic" can never match
-          // anything. The collection Filters dialog already locked this; the
-          // binder editor let you build the empty set by hand.
-          lockJoiner="OR"
-          placeholder="Add rarity…"
+          // anything; the chips only offer "any of".
+          lockOr
         />
       </RuleRow>
 
       {/* Mana value */}
       <RuleRow fieldId="cmc" label="Mana value">
-        <NumberRangeInput
-          min={filter.cmcMin}
-          max={filter.cmcMax}
-          step={1}
-          onMinChange={(v) => patch({ cmcMin: v })}
-          onMaxChange={(v) => patch({ cmcMax: v })}
-        />
+        <ManaValueRow filter={filter} patch={patch} keepRow={() => keepRow('cmc')} />
       </RuleRow>
 
       {/* Price */}
       <RuleRow fieldId="price" label="Price ($)">
-        <NumberRangeInput
-          min={filter.priceMin}
-          max={filter.priceMax}
+        <PresetRange
+          ariaLabel="Filter by price"
+          valueLabel="Price"
+          prefix="$"
           step={0.01}
-          onMinChange={(v) => patch({ priceMin: v })}
-          onMaxChange={(v) => patch({ priceMax: v })}
+          presets={PRICE_PRESETS}
+          value={{ min: filter.priceMin, max: filter.priceMax }}
+          onChange={(r) => {
+            if (r.min === undefined && r.max === undefined) keepRow('price');
+            patch({ priceMin: r.min, priceMax: r.max });
+          }}
         />
       </RuleRow>
 
