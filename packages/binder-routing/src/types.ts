@@ -11,6 +11,9 @@
  * is no second copy to keep in sync.
  */
 
+import type { ColorMatchMode } from './colors.js';
+import type { ManaSymbolQuery } from './mana-cost.js';
+
 /** The owned finish for a physical copy. */
 export type Finish = 'nonfoil' | 'foil' | 'etched';
 
@@ -261,11 +264,26 @@ export interface BinderFilter {
    * Same predicate (`colorSelectionMatches`), so Save as binder carries a
    * collection color filter over without changing which cards match.
    */
-  colorIdentity?: { colors: string[]; mode: 'any' | 'all' };
+  colorIdentity?: { colors: string[]; mode: ColorMatchMode };
   /** Rarity chips. Exact match (no substring). */
   rarities?: ChipExpression;
   cmcMin?: number;
   cmcMax?: number;
+  /**
+   * Mana value as a set: a card matches when its cmc is in `values`, OR (when
+   * `atLeast` is set) its cmc is at least `atLeast`. This is the "0-6 chips,
+   * 7+" picker (`{ values: [1, 2], atLeast: 7 }`; drilling into an exact 9 is
+   * just `values: [9]`). ANDs with cmcMin/cmcMax, which stay as the "Custom"
+   * comparator. A card with no known cmc never matches. Empty `values` and no
+   * `atLeast` is no constraint.
+   */
+  manaValues?: { values: number[]; atLeast?: number };
+  /**
+   * Printed mana-cost symbols (WUBRG, C, X, Phyrexian P, snow S), counted from
+   * the card's `manaCost`. Distinct from `manaCost` below (an exact string)
+   * and from the mana value fields. Semantics live on `ManaSymbolQuery`.
+   */
+  manaSymbols?: ManaSymbolQuery;
   /** Exact match on mana cost string e.g. "{2}{G}{W}" (case-insensitive, whitespace-trimmed). */
   manaCost?: string;
   /** Type-line chips. Substring match. */

@@ -1,3 +1,4 @@
+import { normalizeManaSymbolQuery, normalizeManaValues } from '@spellcontrol/binder-routing';
 import type { BinderFilter, ChipExpression, NegatableChip } from '@/types/index';
 
 /**
@@ -55,6 +56,10 @@ export function cleanFilter(f: BinderFilter): BinderFilter {
 
   if (f.cmcMin !== undefined && !isNaN(f.cmcMin)) out.cmcMin = f.cmcMin;
   if (f.cmcMax !== undefined && !isNaN(f.cmcMax)) out.cmcMax = f.cmcMax;
+  const mv = normalizeManaValues(f.manaValues);
+  if (mv) out.manaValues = mv;
+  const ms = normalizeManaSymbolQuery(f.manaSymbols);
+  if (ms) out.manaSymbols = ms;
   if (f.manaCost?.trim()) out.manaCost = f.manaCost.trim();
   if (f.setCodes && f.setCodes.length) out.setCodes = f.setCodes.map((s) => s.toUpperCase());
   if (f.priceMin !== undefined && !isNaN(f.priceMin)) out.priceMin = f.priceMin;

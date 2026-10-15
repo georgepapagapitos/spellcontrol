@@ -1,5 +1,6 @@
 import type { BinderFilter, BinderFilterGroup, ChipExpression } from '@/types/index';
-import type { ColorMatchMode } from '@spellcontrol/binder-routing';
+import type { ColorMatchMode, ManaSymbolQuery } from '@spellcontrol/binder-routing';
+import { normalizeManaSymbolQuery, normalizeManaValues } from '@spellcontrol/binder-routing';
 import { currencySymbol } from '@/lib/collection/currency';
 import { cardTagLabel } from '@/lib/cards/card-tags';
 
@@ -36,7 +37,33 @@ const COLOR_GROUP_LABELS: Record<string, string> = {
  * which combine semantics are active.
  */
 export function colorChipLabel(keys: Iterable<string>, mode: ColorMatchMode = 'any'): string {
-  return [...keys].map((k) => FILTER_COLOR_LABELS[k] ?? k).join(mode === 'all' ? ' + ' : ', ');
+  const list = [...keys].map((k) => FILTER_COLOR_LABELS[k] ?? k);
+  if (mode === 'within') return `within ${list.join(', ')}`;
+  return list.join(mode === 'all' ? ' + ' : ', ');
+}
+
+/** "Mana value 1, 2, 7+" for a mana value set; '' when it constrains nothing. */
+export function manaValuesLabel(m: BinderFilter['manaValues']): string {
+  const n = normalizeManaValues(m);
+  if (!n) return '';
+  const parts = n.values.map(String);
+  if (n.atLeast !== undefined) parts.push(`${n.atLeast}+`);
+  return `Mana value ${parts.join(', ')}`;
+}
+
+/** "Cost BB", "Cost exactly 1W", "Cost no colored" for a mana symbol query; '' when inactive. */
+export function manaSymbolsLabel(q: ManaSymbolQuery | undefined): string {
+  const n = normalizeManaSymbolQuery(q);
+  if (!n) return '';
+  const pips = (['W', 'U', 'B', 'R', 'G', 'C', 'X', 'P', 'S'] as const)
+    .map((k) => (n.counts[k] ? k.repeat(n.counts[k]) : ''))
+    .join('');
+  const alts = [
+    pips ? `${n.mode === 'exactColored' ? 'exactly ' : ''}${pips}` : '',
+    n.noColored ? 'no colored' : '',
+    n.noCost ? 'no cost' : '',
+  ].filter(Boolean);
+  return `Cost ${alts.join(' or ')}`;
 }
 
 /**
@@ -125,6 +152,11 @@ export function autoSummary(f: BinderFilter): string {
     parts.push(`Mana value ${f.cmcMin}–${f.cmcMax}`);
   else if (f.cmcMin !== undefined) parts.push(`Mana value ≥ ${f.cmcMin}`);
   else if (f.cmcMax !== undefined) parts.push(`Mana value ≤ ${f.cmcMax}`);
+
+  const mv = manaValuesLabel(f.manaValues);
+  if (mv) parts.push(mv);
+  const ms = manaSymbolsLabel(f.manaSymbols);
+  if (ms) parts.push(ms);
 
   if (f.edhrecRankMax !== undefined) parts.push(`EDH top ${f.edhrecRankMax}`);
   if (f.manaCost?.trim()) parts.push(f.manaCost.trim());

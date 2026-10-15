@@ -45,7 +45,11 @@ import {
 } from '@/lib/deck/deck-sort';
 import { ColorIdentityBar } from '../components/shared/ColorIdentityBar';
 import { ColorPip } from '../components/shared/ManaSymbol';
-import { colorSelectionMatches, type ColorMatchMode } from '@spellcontrol/binder-routing';
+import {
+  colorSelectionMatches,
+  parseColorMatchMode,
+  type ColorMatchMode,
+} from '@spellcontrol/binder-routing';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ViewModeToggle } from '@/components/shared/ViewModeToggle';
 import { SearchPill } from '@/components/search/SearchPill';
@@ -116,7 +120,7 @@ function loadFilters(): StoredFilters {
         colors: Array.isArray(parsed.colors) ? parsed.colors : [],
         // Decks default to AND — picking R + G means Gruul decks, and that
         // was this page's behavior before the mode became a choice.
-        colorMode: parsed.colorMode === 'any' ? 'any' : 'all',
+        colorMode: parseColorMatchMode(parsed.colorMode, 'all'),
       };
     }
   } catch {

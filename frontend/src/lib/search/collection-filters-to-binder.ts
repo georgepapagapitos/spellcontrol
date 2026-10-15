@@ -7,6 +7,7 @@ import type {
 import { currencySymbol } from '@/lib/collection/currency';
 import type { ColorMatchMode } from '@spellcontrol/binder-routing';
 import { isExpressionEmpty } from '@spellcontrol/binder-routing';
+import { normalizeManaSymbolQuery, normalizeManaValues } from '@spellcontrol/binder-routing';
 
 /**
  * Subset of collection filter state that can be mapped to a binder rule group.
@@ -36,6 +37,8 @@ export interface CollectionFilterInput {
   priceMax: number | undefined;
   cmcMin: number | undefined;
   cmcMax: number | undefined;
+  manaValues?: BinderFilter['manaValues'];
+  manaSymbols?: BinderFilter['manaSymbols'];
   search: string;
   /** "Proxies only": carried as the binder's Proxy rule. */
   proxyOnly?: boolean;
@@ -68,6 +71,8 @@ export function hasStructuredFilter(input: CollectionFilterInput): boolean {
     input.priceMax !== undefined ||
     input.cmcMin !== undefined ||
     input.cmcMax !== undefined ||
+    normalizeManaValues(input.manaValues) !== undefined ||
+    normalizeManaSymbolQuery(input.manaSymbols) !== undefined ||
     !!input.proxyOnly ||
     !!input.surplusOnly
   );
@@ -175,6 +180,10 @@ export function collectionFiltersToFilterGroup(input: CollectionFilterInput): {
   // CMC — faithfully mapped; engine now excludes unknown-cmc cards.
   if (input.cmcMin !== undefined) filter.cmcMin = input.cmcMin;
   if (input.cmcMax !== undefined) filter.cmcMax = input.cmcMax;
+  const manaValues = normalizeManaValues(input.manaValues);
+  if (manaValues) filter.manaValues = manaValues;
+  const manaSymbols = normalizeManaSymbolQuery(input.manaSymbols);
+  if (manaSymbols) filter.manaSymbols = manaSymbols;
 
   // Color — exact: the binder's colorIdentity rule runs the collection's own
   // predicate (colorSelectionMatches) with the same mode. It used to become

@@ -5,6 +5,12 @@ import { parseTypeLine } from './card-types.js';
 import { normalizeForSearch } from './normalize-search.js';
 import { nameMatchesNormalized } from './printed-name.js';
 import { getFinishKey } from './sorting.js';
+import {
+  compileManaSymbols,
+  manaCostMatches,
+  manaSymbolQueryIsActive,
+  type CompiledManaSymbols,
+} from './mana-cost.js';
 
 /**
  * Pre-processed filter ready for the per-card matching hot path.
@@ -49,6 +55,8 @@ export interface CompiledFilter {
   priceMax?: number;
   cmcMin?: number;
   cmcMax?: number;
+  manaValueSet?: { values: Set<number>; atLeast?: number };
+  manaSymbols?: CompiledManaSymbols;
   edhrecRankMax?: number;
   commanderEligible?: boolean;
   proxy?: boolean;
@@ -95,6 +103,16 @@ export function compileFilter(filter: BinderFilter): CompiledFilter {
   if (filter.priceMax !== undefined) out.priceMax = filter.priceMax;
   if (filter.cmcMin !== undefined) out.cmcMin = filter.cmcMin;
   if (filter.cmcMax !== undefined) out.cmcMax = filter.cmcMax;
+  if (filter.manaValues) {
+    const values = new Set(filter.manaValues.values.filter((n) => Number.isFinite(n)));
+    const atLeast = Number.isFinite(filter.manaValues.atLeast)
+      ? filter.manaValues.atLeast
+      : undefined;
+    if (values.size > 0 || atLeast !== undefined) {
+      out.manaValueSet = atLeast !== undefined ? { values, atLeast } : { values };
+    }
+  }
+  out.manaSymbols = compileManaSymbols(filter.manaSymbols);
   if (filter.edhrecRankMax !== undefined) out.edhrecRankMax = filter.edhrecRankMax;
   if (filter.commanderEligible !== undefined) out.commanderEligible = filter.commanderEligible;
   if (filter.proxy !== undefined) out.proxy = filter.proxy;
@@ -175,6 +193,18 @@ export function cardMatchesCompiled(
   // mirroring the collection predicate in CardListTable.tsx.
   if (f.cmcMin !== undefined && (card.cmc === undefined || card.cmc < f.cmcMin)) return false;
   if (f.cmcMax !== undefined && (card.cmc === undefined || card.cmc > f.cmcMax)) return false;
+
+  if (f.manaValueSet) {
+    const cmc = card.cmc;
+    if (cmc === undefined) return false;
+    if (
+      !f.manaValueSet.values.has(cmc) &&
+      !(f.manaValueSet.atLeast !== undefined && cmc >= f.manaValueSet.atLeast)
+    )
+      return false;
+  }
+
+  if (f.manaSymbols && !manaCostMatches(card.manaCost, f.manaSymbols)) return false;
 
   if (f.manaCostNormalized !== undefined) {
     if (normalizeMana(card.manaCost || '') !== f.manaCostNormalized) return false;
@@ -305,6 +335,22 @@ function normalizeMana(s: string): string {
   return s.replace(/\s+/g, '').toLowerCase();
 }
 
+/**
+ * The persistable form of a mana value set: finite, de-duplicated, ascending
+ * values, and `atLeast` only when finite. Undefined when it constrains nothing.
+ */
+export function normalizeManaValues(m: BinderFilter['manaValues']): BinderFilter['manaValues'] {
+  if (!m) return undefined;
+  const values = [...new Set(m.values.filter((n) => Number.isFinite(n)))].sort((a, b) => a - b);
+  const atLeast = Number.isFinite(m.atLeast) ? m.atLeast : undefined;
+  if (values.length === 0 && atLeast === undefined) return undefined;
+  return atLeast !== undefined ? { values, atLeast } : { values };
+}
+
+function isManaValuesActive(m: BinderFilter['manaValues']): boolean {
+  return normalizeManaValues(m) !== undefined;
+}
+
 /** True if every group in the list is empty (binder would match every card). */
 export function areAllGroupsEmpty(groups: BinderFilterGroup[]): boolean {
   return groups.every((g) => isFilterEmpty(g.filter));
@@ -331,6 +377,8 @@ export function isFilterEmpty(filter: BinderFilter): boolean {
     filter.priceMax === undefined &&
     filter.cmcMin === undefined &&
     filter.cmcMax === undefined &&
+    !isManaValuesActive(filter.manaValues) &&
+    !manaSymbolQueryIsActive(filter.manaSymbols) &&
     !filter.manaCost?.trim() &&
     !filter.nameContains?.trim() &&
     (!filter.setCodes || filter.setCodes.length === 0) &&

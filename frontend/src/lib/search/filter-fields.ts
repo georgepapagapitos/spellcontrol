@@ -1,4 +1,8 @@
+import { manaSymbolQueryIsActive, normalizeManaValues } from '@spellcontrol/binder-routing';
 import type { BinderFilter } from '@/types/index';
+
+const manaValueSetActive = (m: BinderFilter['manaValues']): boolean =>
+  normalizeManaValues(m) !== undefined;
 
 /**
  * The rule vocabulary, as data.
@@ -143,8 +147,9 @@ export const FILTER_FIELDS: FilterFieldSpec[] = [
     group: 'Cost',
     hint: 'The number in the corner, as a range.',
     keywords: ['cmc', 'converted'],
-    isSet: (f) => f.cmcMin !== undefined || f.cmcMax !== undefined,
-    clear: () => ({ cmcMin: undefined, cmcMax: undefined }),
+    isSet: (f) =>
+      f.cmcMin !== undefined || f.cmcMax !== undefined || manaValueSetActive(f.manaValues),
+    clear: () => ({ cmcMin: undefined, cmcMax: undefined, manaValues: undefined }),
   },
   {
     id: 'manaCost',
@@ -152,8 +157,8 @@ export const FILTER_FIELDS: FilterFieldSpec[] = [
     group: 'Cost',
     hint: 'The exact symbols, like {2}{G}{W}.',
     keywords: ['pips', 'symbols'],
-    isSet: (f) => !!f.manaCost?.trim(),
-    clear: () => ({ manaCost: undefined }),
+    isSet: (f) => !!f.manaCost?.trim() || manaSymbolQueryIsActive(f.manaSymbols),
+    clear: () => ({ manaCost: undefined, manaSymbols: undefined }),
   },
   {
     id: 'nameContains',

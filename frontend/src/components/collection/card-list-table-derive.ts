@@ -18,6 +18,7 @@ import {
 } from '@spellcontrol/binder-routing';
 import { releaseDateOf } from '@spellcontrol/binder-routing';
 import { isExpressionEmpty } from '@spellcontrol/binder-routing';
+import { normalizeManaSymbolQuery, normalizeManaValues } from '@spellcontrol/binder-routing';
 import { parseTypeLine, SUPERTYPES, TYPES } from '@spellcontrol/binder-routing';
 import { SORT_KEY_TO_FIELD, type Row, type SortKey } from './card-list-table-config';
 
@@ -131,6 +132,10 @@ export interface MatchFilterState {
   priceMax: number | undefined;
   cmcMin: number | undefined;
   cmcMax: number | undefined;
+  /** Mana value chips (see `BinderFilter.manaValues`). Optional until the UI sets it. */
+  manaValues?: BinderFilter['manaValues'];
+  /** Printed mana-cost symbols (see `BinderFilter.manaSymbols`). */
+  manaSymbols?: BinderFilter['manaSymbols'];
   debouncedSearch: string;
 }
 
@@ -155,6 +160,10 @@ export function buildMatchFilter(s: MatchFilterState): BinderFilter {
   if (s.priceMax !== undefined) f.priceMax = s.priceMax;
   if (s.cmcMin !== undefined) f.cmcMin = s.cmcMin;
   if (s.cmcMax !== undefined) f.cmcMax = s.cmcMax;
+  const mv = normalizeManaValues(s.manaValues);
+  if (mv) f.manaValues = mv;
+  const ms = normalizeManaSymbolQuery(s.manaSymbols);
+  if (ms) f.manaSymbols = ms;
   const trimmed = s.debouncedSearch.trim();
   if (trimmed) f.nameContains = trimmed;
   return f;

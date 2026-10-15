@@ -146,7 +146,7 @@ export function buildActiveFilterChips(input: ActiveFilterChipsInput): FilterChi
       .join(colorMode === 'all' ? ' + ' : ', ');
     chips.push({
       id: 'color',
-      label: `Color: ${labels}`,
+      label: `Color: ${colorMode === 'within' ? 'within ' : ''}${labels}`,
       onClear: () => setColorFilter(new Set()),
     });
   }
