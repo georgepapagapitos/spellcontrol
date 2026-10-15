@@ -4,6 +4,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import type { ScryfallCard, Ruling } from './types';
+import { cardFaceText } from './card-text';
 
 const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -345,19 +346,7 @@ export class ScryfallCache {
     if (!this.searchInsertStmt) return;
     // Multi-face layouts carry their rules text per face, so a search for a back
     // face's ability would miss the card entirely if we only read the top level.
-    const faces = card.card_faces ?? [];
-    const oracleText =
-      card.oracle_text ||
-      faces
-        .map((f) => f.oracle_text ?? '')
-        .filter(Boolean)
-        .join('\n//\n');
-    const typeLine =
-      card.type_line ||
-      faces
-        .map((f) => f.type_line ?? '')
-        .filter(Boolean)
-        .join(' // ');
+    const { oracleText, typeLine } = cardFaceText(card);
     if (!oracleText && !typeLine) return;
 
     const info = this.searchInsertStmt.run(

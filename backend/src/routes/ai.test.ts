@@ -31,6 +31,7 @@ import { APIUserAbortError } from '@anthropic-ai/sdk';
 
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { getScryfallCache } from '../scryfall-cache';
+import { DELVER_TRANSFORM } from '../multiface-cards.fixture';
 
 let app: Server;
 let cleanup: () => Promise<void>;
@@ -1621,6 +1622,32 @@ describe('grounding verdict on the stored row', () => {
     const messages = mockState.generate.mock.calls.map((c) => c[1] as string);
     expect(messages.length).toBeGreaterThanOrEqual(2);
     for (const m of messages) expect(m).toContain('Spells you control can’t be countered.');
+  });
+
+  it('gives the model both faces of a double-faced deck card', async () => {
+    // Scryfall keeps a transform card's text on its faces and leaves the top
+    // level empty, so the Card reference used to name it and say nothing else.
+    const cache = getScryfallCache();
+    cache.setMany([DELVER_TRANSFORM]);
+    cache.setLookups([{ key: 'ns:delver of secrets|isd', scryfallId: DELVER_TRANSFORM.id }]);
+    const cookie = await makeUser('ai-grounding-dfc');
+    await optIn(cookie);
+    const deck = {
+      cards: [
+        { name: 'Delver of Secrets // Insectile Aberration', oracleId: 'o-d', qty: 1 },
+        { name: 'Island', oracleId: 'o-i', qty: 12 },
+      ],
+    };
+
+    await request(app).post('/api/ai/deck-refine').set('Cookie', cookie).send(refineBody(deck));
+    await request(app).post('/api/ai/deck-review').set('Cookie', cookie).send(reviewBody(deck));
+
+    const messages = mockState.generate.mock.calls.map((c) => c[1] as string);
+    expect(messages.length).toBeGreaterThanOrEqual(2);
+    for (const m of messages) {
+      expect(m).toContain('Delver of Secrets: At the beginning of your upkeep');
+      expect(m).toContain('Insectile Aberration: Flying');
+    }
   });
 });
 
