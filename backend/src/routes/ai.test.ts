@@ -10,6 +10,7 @@ const mockState = {
 };
 vi.mock('../ai/client', async (importOriginal) => ({
   AI_MODEL: 'test-model',
+  REFINE_MODEL: 'test-refine-model',
   // Real pricing math: the global spend cap reads it.
   estimateUsd: (await importOriginal<typeof import('../ai/client')>()).estimateUsd,
   aiEnabled: () => mockState.enabled,
@@ -1618,5 +1619,53 @@ describe('grounding verdict on the stored row', () => {
     const messages = mockState.generate.mock.calls.map((c) => c[1] as string);
     expect(messages.length).toBeGreaterThanOrEqual(2);
     for (const m of messages) expect(m).toContain('Spells you control can’t be countered.');
+  });
+});
+
+describe('per-feature model', () => {
+  // Refine moved to its own tier (E1017) while the review stays on AI_MODEL
+  // until its own gate passes. A refine call that silently fell back to
+  // AI_MODEL would run, store and bill the wrong model.
+  async function storedModels(username: string): Promise<Record<string, string>> {
+    const { getPool } = await import('../db');
+    const rows = await getPool().query<{ feature: string; model: string }>(
+      `SELECT r.feature, r.model FROM ai_reviews r JOIN users u ON u.id = r.user_id
+        WHERE u.username = $1`,
+      [username]
+    );
+    return Object.fromEntries(rows.rows.map((r) => [r.feature, r.model]));
+  }
+
+  it('runs, stores and reports refine on REFINE_MODEL and the review on AI_MODEL', async () => {
+    const cookie = await makeUser('ai-model-split');
+    await optIn(cookie);
+
+    const review = await request(app)
+      .post('/api/ai/deck-review')
+      .set('Cookie', cookie)
+      .send(reviewBody());
+    const reviewCalls = mockState.generate.mock.calls.length;
+    mockState.generate.mockImplementation(async () => ({
+      content: refineReply('Your deck grinds.', []),
+      inputTokens: 1,
+      outputTokens: 1,
+      fetched: [],
+    }));
+    const refine = await request(app)
+      .post('/api/ai/deck-refine')
+      .set('Cookie', cookie)
+      .send(refineBody());
+
+    const optionModels = mockState.generate.mock.calls.map(
+      (c) => (c[4] as { model?: string } | undefined)?.model
+    );
+    expect(optionModels.slice(0, reviewCalls).every((m) => m === undefined)).toBe(true);
+    expect(optionModels.slice(reviewCalls)).toEqual(['test-refine-model']);
+    expect(parseStream(review.text).done).toMatchObject({ model: 'test-model' });
+    expect(parseStream(refine.text).done).toMatchObject({ model: 'test-refine-model' });
+    expect(await storedModels('ai-model-split')).toEqual({
+      'deck-review': 'test-model',
+      'deck-refine': 'test-refine-model',
+    });
   });
 });
