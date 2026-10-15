@@ -259,42 +259,37 @@ above pages that each re-list their own, is the pattern this replaced.
   card's group — the preview carousel's context line — reads
   `section.cardLabels[i]`; only a header reads `label`.
 
-## Color pip rows — AND/OR match-mode chip
+## Color pip rows — match mode
 
 Every WUBRG+C color pip row that filters _cards or decks by their own colors_
 (collection dialog, lists, deck add-cards, shared views, decks index, friend
-collection) carries `ColorMatchModeToggle`
-(`components/shared/ColorMatchModeToggle.tsx`): a `chip-joiner`-styled AND/OR
-pill plus a plain-language hint ("any selected color" / "only these
-colors"). One combine-operator language app-wide — the pill is the same one
-`ChipExpressionBuilder` renders between chips, so AND is always the
-accent-filled variant and OR the muted one.
+collection) is the filter kit's `ManaColorPicker` (STYLE_GUIDE § Filter kit,
+`components/filter-kit/`): mana-font pips, then a segmented control of
+**Any of these / Exactly these / Within these**, then the one-sentence hint
+from `colorModeHint` (`aria-live="polite"`). The old AND/OR `chip-joiner` pill
+(`ColorMatchModeToggle`) is gone; one color control, one set of mode words.
 
-- **Placement:** dialog/popover sections put it right-aligned in the section
-  label row (`*-section-label--split`). There is no longer an inline pip row
-  anywhere: the friend hub used to append the toggle after a bare pip row,
-  which spread the pips across a phone and squeezed the hint into a
-  three-line sliver at the edge. It now mounts the same `CollectionFiltersDialog`
-  the collection and the public share views use (`useSharedFilters` with the
-  `card-facts` facet set), so every card-filtering surface shares one filter
-  door, one pip row, and one AND/OR placement.
+- **Placement:** the picker is a section of its own (`FilterSection`), not a
+  control in another section's label row. The friend hub mounts the same
+  `CollectionFiltersDialog` the collection and the public share views use
+  (`useSharedFilters` with the `card-facts` facet set), so every
+  card-filtering surface shares one filter door and one picker.
 - **Binder / list rule rows** (`FilterGroupEditor`, the Color identity rule):
-  the rule label is a fixed-width column, so the toggle follows the pips in
+  the rule label is a fixed-width column, so the mode control follows the pips in
   the control column (`.rule-color-identity`) and wraps onto its own line on
   a phone rather than squeezing its hint. The rule runs the same
   `colorSelectionMatches`, so Save as binder carries a collection color filter
   over exactly. The older one-bucket-per-card rule shows as **Color group**
   only on rules saved with it; the picker never offers it.
-- **The hint is mandatory.** Between two value chips the operator explains
-  itself; standing alone it doesn't — never render the bare pill without the
-  hint text.
-- **Semantics:** OR = card shows any selected color (`colorSelectionMatches`
-  in `@spellcontrol/binder-routing`, the single predicate); AND = the card's colors are
+- **The hint is mandatory.** The mode words are short; the sentence says what
+  they match. Never render the mode control without it.
+- **Semantics:** Any = card shows any selected color (`colorSelectionMatches`
+  in `@spellcontrol/binder-routing`, the single predicate); Exactly = the card's colors are
   **exactly** the selection (Blue alone = mono-blue, R + W = Boros only, not
-  Naya). AND is an exact match, not a superset one: a lone pip reading as
+  Naya). Exactly is an exact match, not a superset one: a lone pip reading as
   "every card that happens to contain blue" is the bug that made the mode
-  useless for picking a mono color. Card surfaces default to OR; the decks index defaults to
-  AND (its pre-existing behavior). Filter chips echo the mode: "White, Red"
+  useless for picking a mono color. Within = the card fits a deck of those colors (colorless always passes). Card
+  surfaces default to Any. Filter chips echo the mode: "White, Red"
   (OR) vs "White + Red" (AND) via `colorChipLabel`.
 - **Deliberate exceptions — no toggle:** combos ("fits inside these colors",
   subset), Discover decks (identity-subset, server-side), the browse lists
