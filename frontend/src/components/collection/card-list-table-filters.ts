@@ -56,13 +56,9 @@ export function useCollectionFilters(
     // Mount only — the value is already captured in state above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // Default ON: a collection reads as "what printings do I own and how
-  // many?" — the rolled-up qty pill matches that mental model. Power
-  // users who want to see every physical copy individually can toggle.
-  const [groupPrintings, setGroupPrintings] = useState(true);
   // Tradeable-surplus filter: rows whose card name has ≥1 unallocated copy
   // beyond the keep floor (see computeSurplusByName). Independent of
-  // groupPrintings — works whether rows are per-printing or per-copy.
+  // copy stacking — works whether rows are per-printing or per-copy.
   const [surplusOnly, setSurplusOnly] = useState(false);
   const [proxyOnly, setProxyOnly] = useState(false);
   const [colorFilter, setColorFilter] = useState<Set<string>>(new Set());
@@ -127,7 +123,6 @@ export function useCollectionFilters(
     setLanguageExpr(EMPTY_EXPR);
     setBinderExpr(EMPTY_EXPR);
     setSetFilter(new Set());
-    setGroupPrintings(true);
     setSurplusOnly(false);
     setProxyOnly(false);
     setPriceMin(undefined);
@@ -209,7 +204,6 @@ export function useCollectionFilters(
     (cmcMin !== undefined || cmcMax !== undefined ? 1 : 0) +
     (normalizeManaValues(manaValues) ? 1 : 0) +
     (manaSymbolQueryIsActive(manaSymbols) ? 1 : 0) +
-    (groupPrintings ? 0 : 1) +
     (surplusOnly ? 1 : 0) +
     (proxyOnly ? 1 : 0);
 
@@ -344,7 +338,6 @@ export function useCollectionFilters(
         manaSymbols,
         surplusOnly,
         proxyOnly,
-        groupPrintings,
         EMPTY_EXPR,
         setSearch,
         setColorFilter,
@@ -370,7 +363,6 @@ export function useCollectionFilters(
         setCmcMax,
         setManaValues,
         setManaSymbols,
-        setGroupPrintings,
         setSurplusOnly,
         setProxyOnly,
       }),
@@ -402,7 +394,6 @@ export function useCollectionFilters(
       manaSymbols,
       surplusOnly,
       proxyOnly,
-      groupPrintings,
       EMPTY_EXPR,
     ]
   );
@@ -464,8 +455,6 @@ export function useCollectionFilters(
       setManaValues,
       manaSymbols,
       setManaSymbols,
-      groupPrintings,
-      setGroupPrintings,
       surplusOnly,
       setSurplusOnly,
       proxyOnly,

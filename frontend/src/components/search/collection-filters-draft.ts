@@ -41,7 +41,6 @@ export interface FilterDraft {
   cmcMax: number | undefined;
   manaValues: BinderFilter['manaValues'];
   manaSymbols: BinderFilter['manaSymbols'];
-  group: boolean;
   surplusOnly: boolean;
   proxyOnly: boolean;
 }
@@ -75,7 +74,6 @@ export function emptyDraft(): FilterDraft {
     cmcMax: undefined,
     manaValues: undefined,
     manaSymbols: undefined,
-    group: true,
     surplusOnly: false,
     proxyOnly: false,
   };
@@ -114,7 +112,6 @@ export function draftChips(
     manaSymbols: d.manaSymbols,
     surplusOnly: d.surplusOnly,
     proxyOnly: d.proxyOnly,
-    groupPrintings: d.group,
     EMPTY_EXPR,
     setSearch: () => {},
     setColorFilter: (color) => apply({ color }),
@@ -140,7 +137,6 @@ export function draftChips(
     setCmcMax: (cmcMax) => apply({ cmcMax }),
     setManaValues: (manaValues) => apply({ manaValues }),
     setManaSymbols: (manaSymbols) => apply({ manaSymbols }),
-    setGroupPrintings: (group) => apply({ group }),
     setSurplusOnly: (surplusOnly) => apply({ surplusOnly }),
     setProxyOnly: (proxyOnly) => apply({ proxyOnly }),
   });

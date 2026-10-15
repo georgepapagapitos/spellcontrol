@@ -269,10 +269,11 @@
 }
 
 /* ── Menu footer (E250) ───────────────────────────────────────────────
-   An action belonging to the menu rather than to any one option — today
-   only SortMenu's Reverse. Sticky at the panel's bottom edge (mirroring
-   the searchable filter input's sticky top) so a list long enough to
-   scroll can't push it out of sight; the panel itself is the scroller. */
+   An action belonging to the menu rather than to any one option: today
+   SortMenu's Reverse and the collection Group menu's copy stacking.
+   Sticky at the panel's bottom edge (mirroring the searchable filter
+   input's sticky top) so a list long enough to scroll can't push it out
+   of sight; the panel itself is the scroller. */
 .toolbar-popover-footer {
   position: sticky;
   /* -0.3rem, not 0: the panel keeps 0.3rem of padding below its scroller, and
@@ -285,6 +286,12 @@
   padding-block: var(--space-1);
   border-top: 1px solid var(--border);
   background: var(--surface);
+}
+
+/* A SwitchRow in the footer (the collection Group menu's copy stacking)
+   lines its text up with the option rows above it. */
+.toolbar-popover-footer > .switch-row {
+  padding-inline: var(--space-2-5);
 }
 
 /* ── Sort menu (E250) ─────────────────────────────────────────────────

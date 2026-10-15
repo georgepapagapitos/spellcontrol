@@ -164,3 +164,36 @@ describe('CardListTable list-row activation (UX-212 role="button" fix)', () => {
     expect(row.getAttribute('aria-pressed')).toBe('false');
   });
 });
+
+describe('CardListTable copy stacking (Group menu switch)', () => {
+  beforeEach(() => {
+    preview = null;
+    idSeq = 0;
+    localStorage.setItem('mtg-collection-view-mode', 'list');
+  });
+
+  it('lives in the Group menu, and switching it off shows each copy as its own row', () => {
+    render(
+      <ShortcutRegistryProvider>
+        <MemoryRouter>
+          <CardListTable cards={copies('Aaa', 5, 'sf-aaa', 3)} binders={[]} />
+        </MemoryRouter>
+      </ShortcutRegistryProvider>
+    );
+    expect(screen.getAllByRole('button', { name: /aaa/i })).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Group by' }));
+    const stack = screen.getByRole('switch', { name: /Stack identical copies/ });
+    expect(stack.getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(stack);
+    expect(stack.getAttribute('aria-checked')).toBe('false');
+    // "No grouping" stays the section choice; stacking is independent of it.
+    expect(screen.getByRole('option', { name: 'No grouping' }).getAttribute('aria-selected')).toBe(
+      'true'
+    );
+
+    expect(screen.getAllByRole('button', { name: /aaa/i })).toHaveLength(3);
+    // A layout choice, not a filter: no "All copies shown" chip.
+    expect(screen.queryByText('All copies shown')).toBeNull();
+  });
+});
