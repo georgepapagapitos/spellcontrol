@@ -6,11 +6,15 @@
    the count plate, and the list they open. */
 
 /* The trigger: one button around the marks, so the whole cluster is one
-   target and the marks inside are pictures, not controls. */
+   target and the marks inside are pictures, not controls. WCAG 2.5.8 floor
+   on both axes: one 1x mark (13px glyph, 4px padding, border) is 23px wide,
+   and the marks no longer carry the floor now that they aren't controls. */
 .copy-places-trigger {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: inherit;
+  min-width: 24px;
   min-height: 24px;
   margin: 0;
   padding: 0;
@@ -101,12 +105,20 @@
   height: 13px;
 }
 
-/* On touch the trigger's target grows past the marks to 44px; the padding
-   is cancelled by the margin, so the marks don't move. */
+/* On touch the target grows past the marks to 44px through a ghost, not the
+   button's own box: padding cancelled by a negative margin pushed the button
+   past the tile's clipped edge (the foot sits only --space-1-5 in), so at
+   large text it was a quarter hidden. The ghost is clipped there instead,
+   and the button stays whole. */
 @media (pointer: coarse) {
-  .copy-places-trigger--art {
-    margin: calc(-1 * var(--space-3));
-    padding: var(--space-3);
+  .copy-places-trigger--art::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
   }
 }
 
