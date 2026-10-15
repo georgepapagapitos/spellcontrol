@@ -141,6 +141,8 @@ export const aiReviews = pgTable(
     promptVersion: text('prompt_version'),
     /** The verbatim rules-qa question; NULL for the deck features. */
     question: text('question'),
+    /** The deck the reading was written for (`DeckSnapshot`, ai/grounding.ts); NULL on rows predating the column. */
+    deckSnapshot: jsonb('deck_snapshot'),
   },
   (t) => [uniqueIndex('ai_reviews_key_idx').on(t.userId, t.feature, t.inputHash)]
 );
