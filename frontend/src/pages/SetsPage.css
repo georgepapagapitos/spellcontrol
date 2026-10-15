@@ -54,6 +54,15 @@
   gap: var(--space-2);
 }
 
+/* Title + drop search; the search wraps under the title on a phone. */
+.sets-detail-drops-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 .sets-detail-drops-title {
   margin: 0;
   font-size: var(--text-sm);

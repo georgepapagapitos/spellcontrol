@@ -26,10 +26,11 @@ import {
   filterSetRows,
   overlaySetOwnership,
   searchCollectionCardSets,
+  releaseYear,
+  searchSldDrops,
   sortSetRows,
   type CardSetMatch,
   type SetGridRow,
-  type SetProgress,
   type SetSortKey,
 } from '@/lib/cards/set-completion';
 import {
@@ -55,6 +56,7 @@ import { CardName } from '@/components/shared/CardName';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { ArtBadge } from '@/components/shared/ArtBadge';
+import { DropRowList, SetProgressRow } from './sets/SetProgressRow';
 
 /** Sets whose 100%-completion seal already fired this app-open (STYLE_GUIDE
  *  "Completion moments": once per subject per app-open). */
@@ -65,10 +67,6 @@ const CARD_REVEAL_STEP = 6;
 export function SetsPage() {
   const { code } = useParams();
   return code ? <SetDetail code={code} /> : <SetsIndex />;
-}
-
-function releaseYear(releasedAt: string): string {
-  return releasedAt ? releasedAt.slice(0, 4) : '';
 }
 
 const SORT_OPTIONS: SelectOption<SetSortKey>[] = (
@@ -90,61 +88,6 @@ const DETAIL_VIEW_KEY = 'sets-detail-view';
 
 function loadDetailView(): SetDetailView {
   return localStorage.getItem(DETAIL_VIEW_KEY) === 'list' ? 'list' : 'grid';
-}
-
-/** Hub link for a progress row — drop rows deep-link into the SLD checklist. */
-function setRowLink(s: SetProgress): string {
-  const base = `/collection/sets/${s.code.toLowerCase()}`;
-  return s.drop ? `${base}?drop=${encodeURIComponent(s.drop)}` : base;
-}
-
-/** One completion row — a hub set, or a Secret Lair drop inside the SLD page. */
-function SetProgressRow({ s }: { s: SetProgress }) {
-  const complete = s.pct === 100;
-  return (
-    <li>
-      <Link
-        to={setRowLink(s)}
-        className={`sets-row${complete ? ' is-complete' : ''}`}
-        aria-label={
-          s.total > 0
-            ? `${s.name}, ${s.owned} of ${s.total} cards, ${s.pct}% complete`
-            : `${s.name}, ${s.owned} cards owned`
-        }
-      >
-        {s.iconSvgUri ? (
-          <img src={s.iconSvgUri} alt="" aria-hidden className="sets-row-icon" />
-        ) : (
-          <span className="sets-row-icon sets-row-icon-ph" aria-hidden />
-        )}
-        <span className="sets-row-body">
-          <span className="sets-row-name">{s.name}</span>
-          <span className="sets-row-meta">
-            <span className="sets-row-code">{s.code}</span>
-            {releaseYear(s.releasedAt) && <span>{releaseYear(s.releasedAt)}</span>}
-            <span>
-              {s.total > 0
-                ? `${s.owned}/${s.total} cards`
-                : `${s.owned} ${s.owned === 1 ? 'card' : 'cards'}`}
-            </span>
-          </span>
-          {s.total > 0 && (
-            <MeterBar
-              value={s.owned}
-              max={s.total}
-              minPct={1.5}
-              color={complete ? 'var(--brand-seal-gold)' : undefined}
-              className="sets-row-bar"
-            />
-          )}
-        </span>
-        <span className={`sets-row-pct${complete ? ' is-complete' : ''}`}>
-          {complete && <CheckCircle2 width={16} height={16} aria-hidden strokeWidth={2} />}
-          {s.total > 0 ? `${s.pct}%` : '—'}
-        </span>
-      </Link>
-    </li>
-  );
 }
 
 // ── Card → sets search results (hub "Cards in your collection" section) ─────
@@ -355,6 +298,16 @@ function SetsIndex() {
     );
   }, [progress, query]);
   const completeCount = useMemo(() => progress.filter((s) => s.pct === 100).length, [progress]);
+  // Secret Lair drops by name, owned or not: Scryfall files every drop under
+  // the one SLD set, so the set filter above can't reach them. Same 3-char
+  // noise floor as the card search.
+  const dropResults = useMemo(
+    () =>
+      sldIndex && query.trim().length >= CARD_SEARCH_MIN_CHARS
+        ? searchSldDrops(cards, sldIndex, query, setMap?.[SLD_CODE]?.iconSvgUri ?? '')
+        : [],
+    [cards, sldIndex, query, setMap]
+  );
   // Card-name search: which sets is this card in? (fires at 3+ characters)
   // The reveal count belongs to the query it was raised for, so typing again
   // starts back at the first handful without a reset effect.
@@ -403,8 +356,8 @@ function SetsIndex() {
           <div className="sets-toolbar">
             <SearchPill
               className="sets-search"
-              placeholder="Filter sets or cards"
-              ariaLabel="Filter sets by name or code, or search cards by name"
+              placeholder="Filter sets, drops or cards"
+              ariaLabel="Filter sets by name or code, or search Secret Lair drops and cards by name"
               value={query}
               onChange={setQuery}
             />
@@ -419,10 +372,10 @@ function SetsIndex() {
               className="sets-sort-menu"
             />
           </div>
-          {shown.length === 0 && cardResults.total === 0 ? (
+          {shown.length === 0 && dropResults.length === 0 && cardResults.total === 0 ? (
             <p className="sets-empty" role="status">
-              No sets{query.trim().length >= CARD_SEARCH_MIN_CHARS ? ' or cards' : ''} match “
-              {query.trim()}”.
+              No sets{query.trim().length >= CARD_SEARCH_MIN_CHARS ? ', drops or cards' : ''} match
+              “{query.trim()}”.
             </p>
           ) : (
             <>
@@ -432,6 +385,12 @@ function SetsIndex() {
                     <SetProgressRow key={s.code} s={s} />
                   ))}
                 </ul>
+              )}
+              {dropResults.length > 0 && (
+                <section className="sets-detail-drops" aria-label="Secret Lair drops">
+                  <h2 className="sets-detail-drops-title">Secret Lair drops</h2>
+                  <DropRowList rows={dropResults} query={query} />
+                </section>
               )}
               {cardResults.total > 0 && (
                 <section className="sets-card-results" aria-label="Cards in your collection">
@@ -578,6 +537,16 @@ function SetDetail({ code }: { code: string }) {
       isSld && sldIndex ? computeSldDropProgress(collection, sldIndex, meta?.iconSvgUri ?? '') : [],
     [isSld, sldIndex, collection, meta?.iconSvgUri]
   );
+  // Name search over EVERY drop, owned or not (the list above holds only the
+  // drops the collection touches).
+  const [dropQuery, setDropQuery] = useState('');
+  const dropSearchRows = useMemo(
+    () =>
+      isSld && sldIndex
+        ? searchSldDrops(collection, sldIndex, dropQuery, meta?.iconSvgUri ?? '')
+        : [],
+    [isSld, sldIndex, collection, dropQuery, meta?.iconSvgUri]
+  );
 
   // Seal moment on an observed <100% → 100% transition (never on mount of an
   // already-complete set), once per set per app-open.
@@ -692,14 +661,35 @@ function SetDetail({ code }: { code: string }) {
         </div>
       )}
 
-      {isSld && !dropParam && dropRows.length > 0 && (
-        <section className="sets-detail-drops" aria-label="Your Secret Lair drops">
-          <h2 className="sets-detail-drops-title">Your drops</h2>
-          <ul className="list-stack sets-list">
-            {dropRows.map((s) => (
-              <SetProgressRow key={s.drop} s={s} />
-            ))}
-          </ul>
+      {isSld && sldIndex && !dropParam && (
+        <section className="sets-detail-drops" aria-label="Secret Lair drops">
+          <div className="sets-detail-drops-head">
+            <h2 className="sets-detail-drops-title">{dropQuery.trim() ? 'Drops' : 'Your drops'}</h2>
+            <SearchPill
+              className="sets-search"
+              placeholder="Search all drops"
+              ariaLabel="Search every Secret Lair drop by name"
+              value={dropQuery}
+              onChange={setDropQuery}
+            />
+          </div>
+          {dropQuery.trim() ? (
+            dropSearchRows.length > 0 ? (
+              <DropRowList rows={dropSearchRows} query={dropQuery} />
+            ) : (
+              <p className="sets-empty" role="status">
+                No drops match “{dropQuery.trim()}”.
+              </p>
+            )
+          ) : dropRows.length > 0 ? (
+            <ul className="list-stack sets-list">
+              {dropRows.map((s) => (
+                <SetProgressRow key={s.drop} s={s} />
+              ))}
+            </ul>
+          ) : (
+            <p className="sets-empty">No Secret Lair cards in your collection yet.</p>
+          )}
         </section>
       )}
 
