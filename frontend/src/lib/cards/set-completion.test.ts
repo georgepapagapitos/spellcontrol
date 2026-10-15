@@ -10,6 +10,7 @@ import {
   filterSetRows,
   overlaySetOwnership,
   searchCollectionCardSets,
+  searchSldDrops,
   sortSetRows,
   type SetProgress,
 } from './set-completion';
@@ -237,6 +238,56 @@ describe('computeSldDropProgress', () => {
     expect(rest).toMatchObject({ owned: 1, total: 0, pct: 0, iconSvgUri: 'sld.svg' });
     // Unassigned trails the mapped drops.
     expect(rows[rows.length - 1].drop).toBe(SLD_UNASSIGNED);
+  });
+});
+
+describe('searchSldDrops', () => {
+  it('finds drops the collection owns nothing from, at 0/N', () => {
+    const rows = searchSldDrops([], SLD_INDEX, 'rocks', 'sld.svg');
+    expect(rows).toEqual([
+      {
+        code: 'SLD',
+        name: 'Box of Rocks',
+        iconSvgUri: 'sld.svg',
+        releasedAt: '2021-03-15',
+        owned: 0,
+        total: 2,
+        pct: 0,
+        drop: 'Box of Rocks',
+      },
+    ]);
+  });
+
+  it('carries owned progress for drops the collection touches', () => {
+    const rows = searchSldDrops([owned('SLD', '92'), owned('SLD', '93')], SLD_INDEX, 'kitties');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ drop: 'OMG KITTIES', owned: 2, total: 3, pct: 67 });
+  });
+
+  it('needs every word, in any order, case- and punctuation-insensitive', () => {
+    expect(searchSldDrops([], SLD_INDEX, 'talismans ENEMY').map((r) => r.drop)).toEqual([
+      'Enemy Talismans',
+    ]);
+    expect(searchSldDrops([], SLD_INDEX, 'omg, kitties!').map((r) => r.drop)).toEqual([
+      'OMG KITTIES',
+    ]);
+  });
+
+  it('ranks name-prefix matches first, then snapshot order', () => {
+    expect(searchSldDrops([], SLD_INDEX, 'talismans').map((r) => r.drop)).toEqual([
+      'Allied Talismans',
+      'Enemy Talismans',
+    ]);
+    expect(searchSldDrops([], SLD_INDEX, 'enemy tal').map((r) => r.drop)).toEqual([
+      'Enemy Talismans',
+    ]);
+    // "o" hits KITTIES (prefix "omg") and Rocks ("of"); the prefix hit leads.
+    expect(searchSldDrops([], SLD_INDEX, 'o')[0].drop).toBe('OMG KITTIES');
+  });
+
+  it('returns nothing for a blank or punctuation-only query', () => {
+    expect(searchSldDrops([], SLD_INDEX, '   ')).toEqual([]);
+    expect(searchSldDrops([], SLD_INDEX, '!!')).toEqual([]);
   });
 });
 

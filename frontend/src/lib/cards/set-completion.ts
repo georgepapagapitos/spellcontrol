@@ -38,6 +38,11 @@ export interface SetProgress {
   drop?: string;
 }
 
+/** The year of a YYYY-MM-DD release date; '' when unknown. */
+export function releaseYear(releasedAt: string): string {
+  return releasedAt ? releasedAt.slice(0, 4) : '';
+}
+
 /** Display percent that never rounds up to a false 100%. */
 export function completionPct(owned: number, total: number): number {
   if (total <= 0) return 0;
@@ -163,6 +168,49 @@ export function computeSldDropProgress(
   }
 
   return dropRows;
+}
+
+/**
+ * Secret Lair drops whose name matches `query`, across the WHOLE drop map —
+ * not just drops the collection touches — so a drop you own nothing from is
+ * still findable. Every query word must appear (diacritic/case/punctuation
+ * insensitive), so "stardew pelican" finds "Stardew Valley Life in Pelican
+ * Town". Owned drops carry their progress; the rest come back 0/N. Name-prefix
+ * matches rank first, then the snapshot's newest-first order. A blank query
+ * returns [].
+ */
+export function searchSldDrops(
+  cards: EnrichedCard[],
+  index: SldDropsIndex,
+  query: string,
+  iconSvgUri = ''
+): SetProgress[] {
+  const nq = normalizeForSearch(query);
+  if (!nq) return [];
+  const words = nq.split(' ');
+  const ownedByDrop = new Map(
+    computeSldDropProgress(cards, index, iconSvgUri).map((r) => [r.drop, r])
+  );
+  const hits: Array<{ row: SetProgress; prefix: boolean }> = [];
+  for (const d of index.drops) {
+    const name = normalizeForSearch(d.name);
+    if (!words.every((w) => name.includes(w))) continue;
+    hits.push({
+      prefix: name.startsWith(nq),
+      row: ownedByDrop.get(d.name) ?? {
+        code: SLD_CODE,
+        name: d.name,
+        iconSvgUri,
+        releasedAt: d.releasedAt,
+        owned: 0,
+        total: d.numbers.length,
+        pct: 0,
+        drop: d.name,
+      },
+    });
+  }
+  // Stable sort: prefix hits first, snapshot order within each group.
+  return hits.sort((a, b) => Number(b.prefix) - Number(a.prefix)).map((h) => h.row);
 }
 
 export type SetSortKey = 'release' | 'pct' | 'name' | 'total' | 'owned';
