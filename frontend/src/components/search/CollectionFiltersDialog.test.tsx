@@ -149,7 +149,11 @@ function Harness({
 const openDialog = () => fireEvent.click(screen.getByRole('button', { name: /Filters/ }));
 const dialog = () => screen.getByRole('dialog', { name: 'Collection filters' });
 const show = () =>
-  fireEvent.click(within(dialog()).getByRole('button', { name: /^Show|^No cards/ }));
+  fireEvent.click(
+    within(dialog()).getByRole('button', {
+      name: /^Show (\d[\d,]* cards?|cards)$|^No cards match$/,
+    })
+  );
 const openMore = () => fireEvent.click(screen.getByRole('button', { name: /More filters/ }));
 const press = (name: string | RegExp) =>
   fireEvent.click(within(dialog()).getByRole('button', { name }));
