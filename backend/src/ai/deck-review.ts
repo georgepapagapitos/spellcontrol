@@ -74,7 +74,7 @@ import crypto from 'node:crypto';
 export const DECK_REVIEW_FEATURE = 'deck-review';
 
 /** Bump whenever DECK_REVIEW_SYSTEM_PROMPT's text changes. */
-export const DECK_REVIEW_PROMPT_VERSION = 'v13';
+export const DECK_REVIEW_PROMPT_VERSION = 'v14';
 
 /**
  * Section labels the model emits. They exist so the client can stream text
@@ -220,6 +220,14 @@ On finding the weakness - this is the part that earns your existence:
 - Ask what single common opposing card or effect turns this deck off,
   and whether the deck runs any answer to it.
 - Ask what happens on the turn after the engine is disrupted.
+- Verify before you commit. A weakness is a claim that the deck lacks
+  something, so before you write it, name the decklist cards that would
+  answer it - the cards that already do that job - and confirm by reading
+  the list that none of them is there. If you find one, the weakness is
+  not real: drop it and look again. A deck that runs several answers to a
+  threat does not lack an answer to it, however thin it looks. Do not
+  claim a card is missing from the list without searching the list for
+  it first.
 - Check castability. The land count can be healthy while the mana is
   not: compare the colored mana symbols the deck's spells and commander
   actually demand against the colors its lands actually produce. Take
@@ -319,7 +327,10 @@ Rules:
 - Emit the four labels and the terminator verbatim, each alone on its
   line. Write nothing before the first label and nothing after the
   terminator.
-- Be direct. If the deck genuinely has no structural problem, say so
+- Be direct. If you cannot verify a gap, say the deck is sound in that
+  respect, name its closest pressure point instead (the thing most likely
+  to go wrong, stated as a risk and not as a missing piece), and keep the
+  fix to one line. If the deck genuinely has no structural problem, say so
   briefly rather than manufacturing one - and then prescribe the
   sharpening it would actually benefit from, in a single fix rather than
   two. A thin prescription on a tuned deck is right; an invented

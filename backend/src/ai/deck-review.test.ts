@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
+  DECK_REVIEW_PROMPT_VERSION,
+  DECK_REVIEW_SYSTEM_PROMPT,
+  END_MARK,
+  FIXES_MARK,
+  GAMEPLAN_MARK,
   MAX_CARDS,
+  WEAKNESS_MARK,
+  WINS_MARK,
   buildUserMessage,
   hashDeckReviewInput,
   parseAiScope,
@@ -315,5 +322,35 @@ describe('renderFetchedCards', () => {
   it('returns empty for no cards, so the caller appends no empty section', () => {
     // A review whose research found nothing must not be told it has a list.
     expect(renderFetchedCards([])).toBe('');
+  });
+});
+
+describe('review prompt v14: the weakness is verified against the list (E1018)', () => {
+  const prompt = DECK_REVIEW_SYSTEM_PROMPT.replace(/\s+/g, ' ');
+
+  it('is versioned so reviews cached under v13 are not replayed', () => {
+    expect(DECK_REVIEW_PROMPT_VERSION).toBe('v14');
+  });
+
+  it('makes the model name the cards that would answer a gap and confirm they are absent', () => {
+    expect(prompt).toContain('Verify before you commit');
+    expect(prompt).toContain('name the decklist cards that would answer it');
+    expect(prompt).toContain('confirm by reading the list that none of them is there');
+    expect(prompt).toContain('the weakness is not real');
+  });
+
+  it('lets the review say the deck is sound and name a pressure point instead', () => {
+    expect(prompt).toContain('If you cannot verify a gap, say the deck is sound in that respect');
+    expect(prompt).toContain('closest pressure point');
+  });
+
+  it('keeps the four-section format and the terminator', () => {
+    const marks = [WEAKNESS_MARK, FIXES_MARK, GAMEPLAN_MARK, WINS_MARK, END_MARK];
+    const at = marks.map((m) => DECK_REVIEW_SYSTEM_PROMPT.indexOf(m));
+    expect(at.every((i) => i >= 0)).toBe(true);
+    expect([...at].sort((a, b) => a - b)).toEqual(at);
+    expect(prompt).toContain(
+      'Those limits are hard. The whole reading is at most twelve sentences'
+    );
   });
 });
