@@ -20,7 +20,6 @@ import { MeterBar, StackedBar } from '@/components/shared/MeterBar';
 import { ColorPip, ManaSymbol, TypeIcon } from '@/components/shared/ManaSymbol';
 import { ColorIdentityBar } from '@/components/shared/ColorIdentityBar';
 import { ColorIdentityPicker } from '@/components/shared/ColorIdentityPicker';
-import { ColorMatchModeToggle } from '@/components/shared/ColorMatchModeToggle';
 import {
   ChoiceList,
   Disclosure,
@@ -642,7 +641,6 @@ function NavSpecimen() {
       </Row>
       <Row label="Color picker">
         <ColorIdentityPicker colors={new Set(['W', 'U'])} onChange={noop} />
-        <ColorMatchModeToggle mode="any" onChange={noop} />
       </Row>
     </Specimen>
   );

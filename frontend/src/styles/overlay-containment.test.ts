@@ -328,7 +328,6 @@ describe('coarse-pointer touch floor', () => {
     // coarse pointer by the route walk (320–768px, touch emulation). Inline
     // and dense-row controls ghost; everything else grows its box.
     ['components/overlays/InfoTip.tsx', '.info-tip-btn::after'],
-    ['components/shared/ColorMatchModeToggle.css', '.color-mode-toggle .chip-joiner::after'],
     ['styles/play-panel-menus.css', '.seat-menu-row input'],
     ['styles/search-controls.css', '.search-pill'],
     ['styles/play-setup.css', '.play-setup-seat-name'],
