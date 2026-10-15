@@ -78,20 +78,51 @@ describe('filterCombos', () => {
   describe('colors', () => {
     it('keeps combos whose identity FITS INSIDE the selection, not merely overlaps', () => {
       // Picking U alone must not surface the UB combo — you couldn't run it.
+      // A colorless combo fits any deck, so it stays.
       const ids = filterCombos(all, filters({ colors: new Set(['U']) })).map((m) => m.combo.id);
-      expect(ids).toEqual(['u']);
+      expect(ids).toEqual(['u', 'c']);
     });
 
     it('surfaces the UB combo once both its colors are selected', () => {
       const ids = filterCombos(all, filters({ colors: new Set(['U', 'B']) })).map(
         (m) => m.combo.id
       );
+      expect(ids).toEqual(['ub', 'u', 'c']);
+    });
+
+    it('treats C alone as colorless only', () => {
+      const ids = filterCombos(all, filters({ colors: new Set(['C']) })).map((m) => m.combo.id);
+      expect(ids).toEqual(['c']);
+    });
+
+    it('defaults to within', () => {
+      expect(emptyComboFilters().colorMode).toBe('within');
+    });
+
+    it('any keeps combos that share a selected color', () => {
+      const ids = filterCombos(all, filters({ colors: new Set(['U']), colorMode: 'any' })).map(
+        (m) => m.combo.id
+      );
       expect(ids).toEqual(['ub', 'u']);
     });
 
-    it('treats C as an explicit colorless-only filter', () => {
-      const ids = filterCombos(all, filters({ colors: new Set(['C']) })).map((m) => m.combo.id);
-      expect(ids).toEqual(['c']);
+    it('any with C also keeps colorless combos', () => {
+      const ids = filterCombos(all, filters({ colors: new Set(['B', 'C']), colorMode: 'any' })).map(
+        (m) => m.combo.id
+      );
+      expect(ids).toEqual(['ub', 'c']);
+    });
+
+    it('all keeps combos whose identity is exactly the selection', () => {
+      const ids = filterCombos(all, filters({ colors: new Set(['U', 'B']), colorMode: 'all' })).map(
+        (m) => m.combo.id
+      );
+      expect(ids).toEqual(['ub']);
+      expect(
+        filterCombos(all, filters({ colors: new Set(['U']), colorMode: 'all' })).map(
+          (m) => m.combo.id
+        )
+      ).toEqual(['u']);
     });
   });
 

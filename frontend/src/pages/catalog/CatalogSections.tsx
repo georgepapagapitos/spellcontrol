@@ -70,6 +70,7 @@ import {
   type PresetRangeValue,
   type ValueStripValue,
 } from '@/components/filter-kit';
+import { FilterPopoverFooter } from '@/components/shared/FilterPopoverFooter';
 import { Tabs } from '@/components/overlays/Tabs';
 import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { OverflowMenu } from '@/components/overlays/OverflowMenu';
@@ -577,6 +578,9 @@ function FilterKitSpecimen() {
           <ShowResultsButton count={412} onClick={noop} />
           <ShowResultsButton count={1} onClick={noop} />
           <ShowResultsButton count={0} onClick={noop} />
+        </Row>
+        <Row label="FilterPopoverFooter">
+          <FilterPopoverFooter resultLabel="14 decks" onClear={noop} />
         </Row>
         <Row label="Empty value strip">
           <ValueStrip

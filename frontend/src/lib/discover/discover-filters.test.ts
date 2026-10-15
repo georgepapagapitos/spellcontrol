@@ -36,6 +36,20 @@ describe('discover-filters round trip', () => {
     expect(roundTrip(filters)).toEqual(filters);
   });
 
+  it('round-trips a color mode, omitting the default and ignoring an unknown value', () => {
+    const any: DiscoverFilters = { ...NO_DISCOVER_FILTERS, colors: ['W', 'U'], colorMode: 'any' };
+    expect(discoverFiltersToSearchParams(any).toString()).toBe('colors=W%2CU&colorMode=any');
+    expect(roundTrip(any)).toEqual(any);
+    const all: DiscoverFilters = { ...NO_DISCOVER_FILTERS, colorMode: 'all' };
+    expect(roundTrip(all)).toEqual(all);
+    const within: DiscoverFilters = { ...NO_DISCOVER_FILTERS, colors: ['G'] };
+    expect(discoverFiltersToSearchParams(within).toString()).toBe('colors=G');
+    expect(
+      parseDiscoverFiltersFromSearchParams(new URLSearchParams({ colors: 'G', colorMode: 'bogus' }))
+        .colorMode
+    ).toBe('within');
+  });
+
   it('round-trips a format filter', () => {
     const filters: DiscoverFilters = { ...NO_DISCOVER_FILTERS, format: 'commander' };
     expect(roundTrip(filters)).toEqual(filters);
@@ -67,6 +81,7 @@ describe('discover-filters round trip', () => {
       format: 'commander',
       brackets: [2, 3],
       colors: ['B', 'R', 'G'],
+      colorMode: 'all',
       budget: '400plus',
     };
     expect(roundTrip(filters)).toEqual(filters);

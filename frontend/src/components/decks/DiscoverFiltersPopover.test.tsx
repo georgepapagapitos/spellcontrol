@@ -21,13 +21,13 @@ function Harness({ onChange }: { onChange?: (f: DiscoverFilters) => void }) {
 }
 
 function openPanel() {
-  fireEvent.click(screen.getByRole('button', { name: /^filters$/i }));
+  fireEvent.click(screen.getByRole('button', { name: /^filters/i }));
 }
 
 describe('DiscoverFiltersPopover', () => {
   it('trigger has no badge and a plain "Filters" name when nothing is active', () => {
     render(<Harness />);
-    expect(screen.getByRole('button', { name: /^filters$/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^filters/i })).toBeTruthy();
   });
 
   it('the panel is role=dialog, aria-label="Filters", with no aria-modal (matches the real DeckFiltersPopover shape)', () => {
@@ -37,11 +37,11 @@ describe('DiscoverFiltersPopover', () => {
     expect(dialog.getAttribute('aria-modal')).toBeNull();
   });
 
-  it('every section is a fieldset with a real legend', () => {
+  it('every section is a labelled kit section', () => {
     render(<Harness />);
     openPanel();
-    for (const name of ['Format', 'Colors', 'Bracket', 'Budget']) {
-      expect(screen.getByText(name, { selector: 'legend' })).toBeTruthy();
+    for (const name of ['Format', 'Color', 'Bracket', 'Budget']) {
+      expect(screen.getByRole('region', { name })).toBeTruthy();
     }
   });
 
@@ -68,26 +68,26 @@ describe('DiscoverFiltersPopover', () => {
     expect(screen.queryByRole('dialog')).not.toBeNull();
   });
 
-  it('toggling a Color checkbox updates filters and keeps the popover open', () => {
+  it('toggling a Color pip updates filters and keeps the popover open', () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
     openPanel();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'White' }));
+    fireEvent.click(screen.getByRole('button', { name: 'White' }));
 
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ colors: ['W'] }));
     expect(screen.getByRole('dialog')).toBeTruthy();
 
     // A second color accumulates, canonical-ordered, and still stays open.
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Blue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Blue' }));
     expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ colors: ['W', 'U'] }));
     expect(screen.getByRole('dialog')).toBeTruthy();
   });
 
-  it('toggling a Bracket checkbox updates filters and keeps the popover open', () => {
+  it('toggling a Bracket chip updates filters and keeps the popover open', () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
     openPanel();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Upgraded' })); // bracket 3
+    fireEvent.click(screen.getByRole('button', { name: 'Upgraded' })); // bracket 3
 
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ brackets: [3] }));
     expect(screen.getByRole('dialog')).toBeTruthy();
@@ -96,13 +96,59 @@ describe('DiscoverFiltersPopover', () => {
   it('shows a count badge once a filter is active, and "Clear filters" resets format/colors/bracket/budget', () => {
     render(<Harness />);
     openPanel();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'White' }));
+    fireEvent.click(screen.getByRole('button', { name: 'White' }));
 
     // "(1 active)", not ", 1 active" — the four filter triggers had drifted to
     // two different phrasings; they share one `<FilterTrigger>` now.
     expect(screen.getByRole('button', { name: 'Filters (1 active)' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /clear filters/i }));
-    expect(screen.getByRole('button', { name: /^filters$/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^filters/i })).toBeTruthy();
+  });
+
+  it('the color mode defaults to Within and switching it updates colorMode', () => {
+    const onChange = vi.fn();
+    render(<Harness onChange={onChange} />);
+    openPanel();
+    expect((screen.getByRole('radio', { name: 'Within these' }) as HTMLInputElement).checked).toBe(
+      true
+    );
+    fireEvent.click(screen.getByRole('radio', { name: 'Any of these' }));
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ colorMode: 'any' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Exactly these' }));
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ colorMode: 'all' }));
+  });
+
+  it('Format and Budget are single-choice with an Any reset', () => {
+    const onChange = vi.fn();
+    render(<Harness onChange={onChange} />);
+    openPanel();
+    expect(screen.getAllByRole('radio', { name: 'Any' })).toHaveLength(2);
+    fireEvent.click(screen.getByRole('radio', { name: 'Commander' }));
+    fireEvent.click(screen.getAllByRole('radio', { name: 'Any' })[0]);
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ format: null }));
+  });
+
+  it('shows the live count passed in, and Clear filters also resets the color mode', () => {
+    const onChange = vi.fn();
+    render(
+      <DiscoverFiltersPopover
+        filters={{ ...NO_DISCOVER_FILTERS, colors: ['W'], colorMode: 'any' }}
+        onChange={onChange}
+        resultLabel="24+ decks"
+      />
+    );
+    openPanel();
+    expect(screen.getByText('24+ decks')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /clear filters/i }));
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ colors: [], colorMode: 'within' })
+    );
+  });
+
+  it('hideBudget drops the Budget section', () => {
+    render(<DiscoverFiltersPopover filters={NO_DISCOVER_FILTERS} onChange={vi.fn()} hideBudget />);
+    openPanel();
+    expect(screen.queryByRole('region', { name: 'Budget' })).toBeNull();
   });
 
   it('closes on Escape', () => {

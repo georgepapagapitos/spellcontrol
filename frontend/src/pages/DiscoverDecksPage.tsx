@@ -43,6 +43,7 @@ import { useCollectionStore } from '../store/collection';
 
 import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
+import { resultCountLabel } from '@/lib/search/result-count-label';
 type DiscoverSortField = DiscoverSortKey | 'buildable';
 
 // No sort here has a real asc/desc — the server always orders each column
@@ -276,7 +277,7 @@ export function DiscoverDecksPage() {
     if (filters.colors.length > 0)
       chips.push({
         id: 'colors',
-        label: `Color: ${colorChipLabel(filters.colors)}`,
+        label: `Color: ${colorChipLabel(filters.colors, filters.colorMode)}`,
         onClear: () => setFilters({ ...filters, colors: [] }),
       });
     if (filters.budget)
@@ -320,7 +321,15 @@ export function DiscoverDecksPage() {
               onPickCommander={(commander) => setFilters({ ...filters, commander, query: null })}
               source={source}
               placeholder={precons ? 'Search precons and commanders…' : undefined}
-              trailing={<DiscoverFiltersPopover filters={filters} onChange={setFilters} />}
+              trailing={
+                <DiscoverFiltersPopover
+                  filters={filters}
+                  onChange={setFilters}
+                  resultLabel={
+                    loading || error ? undefined : resultCountLabel(decks.length, 'deck', hasMore)
+                  }
+                />
+              }
             />
             <div className="discover-sort-bar">
               <SelectMenu

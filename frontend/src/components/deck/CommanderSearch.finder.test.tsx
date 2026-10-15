@@ -190,12 +190,39 @@ describe('browsing with nothing typed', () => {
     await screen.findByText('Krenko, Mob Boss');
     fireEvent.click(screen.getByRole('button', { name: 'Black' }));
     fireEvent.click(screen.getByRole('button', { name: 'Green' }));
-    await waitFor(() => expect(fetchTopCommanders).toHaveBeenLastCalledWith(['B', 'G']));
-    expect(screen.getByText('Black-green commanders only')).toBeTruthy();
-    fireEvent.click(screen.getByRole('radio', { name: 'Within' }));
+    // Within is the default reading of a color pick.
     await screen.findByText('Meren of Clan Nel Toth');
     expect(fetchCommandersWithinColors).toHaveBeenCalledWith(['B', 'G']);
     expect(screen.getByText('Anything you can play in black-green')).toBeTruthy();
+    fireEvent.click(screen.getByRole('radio', { name: 'Exactly these' }));
+    await waitFor(() => expect(fetchTopCommanders).toHaveBeenLastCalledWith(['B', 'G']));
+    expect(screen.getByText('Black-green commanders only')).toBeTruthy();
+  });
+
+  it('starts on Within, and keeps an Exactly choice saved before', async () => {
+    const { unmount } = render(<CommanderSearch value={null} onSelect={vi.fn()} />);
+    expect((screen.getByRole('radio', { name: 'Within these' }) as HTMLInputElement).checked).toBe(
+      true
+    );
+    fireEvent.click(screen.getByRole('radio', { name: 'Exactly these' }));
+    unmount();
+    render(<CommanderSearch value={null} onSelect={vi.fn()} />);
+    expect((screen.getByRole('radio', { name: 'Exactly these' }) as HTMLInputElement).checked).toBe(
+      true
+    );
+  });
+
+  it('picking colorless clears the colors, and a color clears colorless', async () => {
+    render(<CommanderSearch value={null} onSelect={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Black' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Colorless' }));
+    expect(screen.getByRole('button', { name: 'Black' }).getAttribute('aria-pressed')).toBe(
+      'false'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Green' }));
+    expect(screen.getByRole('button', { name: 'Colorless' }).getAttribute('aria-pressed')).toBe(
+      'false'
+    );
   });
 
   it('offers a retry when EDHREC is unreachable, not an empty result', async () => {
@@ -289,7 +316,7 @@ describe('searching every commander', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Aristocrats' }));
     await waitFor(() => expect(searchCommanderFinder).toHaveBeenCalled());
     const [q] = searchCommanderFinder.mock.calls.at(-1)!;
-    expect(q.startsWith('id=b o:/')).toBe(true);
+    expect(q.startsWith('id<=b o:/')).toBe(true);
     expect(screen.getByText(/Sacrifice creatures for value/)).toBeTruthy();
     // EDHREC's crowd list for the tag rides along; Teysa is W/B, outside
     // mono-black, so it stays out.
@@ -348,6 +375,7 @@ describe('your own commanders', () => {
 
   it('filters by exact colors and by playstyle', async () => {
     render(<CommanderSearch value={null} onSelect={vi.fn()} />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Exactly these' }));
     fireEvent.click(screen.getByRole('button', { name: 'Black' }));
     await waitFor(() => expect(results()).toEqual(['Sheoldred, the Apocalypse']));
     fireEvent.click(screen.getByRole('button', { name: 'Green' }));
@@ -358,6 +386,7 @@ describe('your own commanders', () => {
 
   it('names the filter to drop when nothing matches, and drops it', async () => {
     render(<CommanderSearch value={null} onSelect={vi.fn()} />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Exactly these' }));
     fireEvent.click(screen.getByRole('button', { name: 'White' }));
     await screen.findByText('None of your commanders match these filters.');
     fireEvent.click(screen.getByRole('button', { name: 'Search all commanders' }));

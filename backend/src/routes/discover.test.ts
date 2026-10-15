@@ -1,3 +1,4 @@
+import { colorSelectionMatches } from '@spellcontrol/binder-routing';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
 import type { Server } from 'node:http';
@@ -349,6 +350,52 @@ describe('GET /api/discover/decks', () => {
       .query({ commander: cmdr, colors: 'W' });
     expect(excludes.status).toBe(200);
     expect(slugsOf(excludes.body)).not.toContain(wu.slug);
+  });
+
+  it('colorMode any / all / within matches the engine predicate, for every deck identity', async () => {
+    const identities: string[][] = [[], ['W'], ['U'], ['W', 'U'], ['W', 'U', 'B']];
+    const published: Array<{ slug: string; identity: string[] }> = [];
+    for (const identity of identities) {
+      const d = await publishDeck({
+        commander: {
+          id: uid('c'),
+          oracle_id: uid('o'),
+          name: uid('Disco Mode Cmdr'),
+          color_identity: identity,
+        },
+      });
+      published.push({ slug: d.slug, identity });
+    }
+    const picks = [['W'], ['W', 'U'], ['C'], ['U', 'B'], ['W', 'U', 'B']];
+    for (const mode of ['any', 'all', 'within'] as const) {
+      for (const pick of picks) {
+        const res = await request(app)
+          .get('/api/discover/decks')
+          .query({ colors: pick.join(','), colorMode: mode, pageSize: 48 });
+        expect(res.status).toBe(200);
+        const got = new Set(slugsOf(res.body));
+        for (const { slug, identity } of published) {
+          const key = identity.length === 0 ? 'C' : '';
+          const want = colorSelectionMatches(key, identity, new Set(pick), mode);
+          expect(got.has(slug), `${mode} [${pick}] vs deck [${identity}]`).toBe(want);
+        }
+      }
+    }
+  });
+
+  it('an unknown colorMode falls back to within', async () => {
+    const cmdr = uid('Disco Mode Fallback');
+    const wu = await publishDeck({
+      commander: { id: uid('c'), oracle_id: uid('o'), name: cmdr, color_identity: ['W', 'U'] },
+    });
+    const res = await request(app)
+      .get('/api/discover/decks')
+      .query({ commander: cmdr, colors: 'W,U,B', colorMode: 'bogus' });
+    expect(slugsOf(res.body)).toEqual([wu.slug]);
+    const narrow = await request(app)
+      .get('/api/discover/decks')
+      .query({ commander: cmdr, colors: 'W', colorMode: 'bogus' });
+    expect(slugsOf(narrow.body)).toEqual([]);
   });
 
   it('filters by exact format', async () => {

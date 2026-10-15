@@ -101,6 +101,19 @@ export function colorIdentityMatches(
 }
 
 /**
+ * Colorless is an identity of its own, so picking it clears the colors and
+ * picking a color clears it. `next` is the picker's toggle result over `prev`.
+ */
+export function exclusiveColorless(
+  prev: ReadonlySet<string>,
+  next: readonly string[]
+): Set<string> {
+  const picked = new Set(next);
+  if (!picked.has('C')) return picked;
+  return prev.has('C') ? new Set([...picked].filter((c) => c !== 'C')) : new Set(['C']);
+}
+
+/**
  * The one-line hint beside the Exactly / Within switch. The switch alone
  * doesn't say what it does (STYLE_GUIDE § Color pip rows: the hint is
  * mandatory), so this spells out the current selection.

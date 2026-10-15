@@ -569,6 +569,7 @@ export function DecksIndexPage() {
                   setColors={setColorFilter}
                   colorMode={colorMode}
                   setColorMode={setColorMode}
+                  resultCount={sorted.length}
                 />
               }
             />

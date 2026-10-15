@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { testAwareLimiter } from '../route-utils';
 import { requireAuth, optionalAuth } from '../auth';
 import { getPool } from '../db';
+import { parseColorMatchMode, type ColorMatchMode } from '@spellcontrol/binder-routing';
 import { hydratePublicationRows, type PublicationListingRow } from '../discover/hydrate';
 
 /**
@@ -166,7 +167,14 @@ const LISTING_WHERE = `dp.unpublished_at IS NULL
       AND ($1::text IS NULL OR dp.commander_name = $1)
       AND ($2::text IS NULL OR dp.format = $2)
       AND ($3::int[] IS NULL OR dp.bracket = ANY($3))
-      AND ($4::text[] IS NULL OR dp.color_identity <@ to_jsonb($4::text[]))
+      AND ($4::text[] IS NULL OR CASE $8::text
+             WHEN 'any' THEN (dp.color_identity ?| $4::text[]
+                              OR (jsonb_array_length(dp.color_identity) = 0 AND 'C' = ANY($4::text[])))
+             WHEN 'all' THEN ((dp.color_identity <@ to_jsonb($4::text[])
+                               AND dp.color_identity @> to_jsonb($4::text[]))
+                              OR (jsonb_array_length(dp.color_identity) = 0 AND $4::text[] = ARRAY['C']))
+             ELSE dp.color_identity <@ to_jsonb($4::text[])
+           END)
       AND ($5::text IS NULL OR dp.user_id <> $5)
       AND ($6::text IS NULL OR dp.deck_name ILIKE $6 OR dp.commander_name ILIKE $6
            OR u.username ILIKE $6 OR u.display_name ILIKE $6)
@@ -186,6 +194,7 @@ interface ParsedFilters {
   format: string | null;
   brackets: number[] | null;
   colors: string[] | null;
+  colorMode: ColorMatchMode;
   sort: SortKey;
   budget: BudgetKey | null;
   page: number;
@@ -201,6 +210,8 @@ function parseFilters(query: Request['query']): ParsedFilters {
     format: parseString(query.format)?.toLowerCase() ?? null,
     brackets: parseBrackets(query.bracket),
     colors: parseColors(query.colors),
+    // 'within' (identity fits inside the picks) was the only behavior before the mode existed.
+    colorMode: parseColorMatchMode(query.colorMode, 'within'),
     sort: parseSort(query.sort),
     budget: parseBudget(query.budget),
     page: parsePage(query.page),
@@ -226,6 +237,7 @@ discoverRouter.get(
       filters.excludeMine ? (viewerId ?? null) : null,
       filters.query,
       filters.precons,
+      filters.colorMode,
     ];
     const sortCol = SORT_COLUMNS[filters.sort];
 
@@ -238,7 +250,7 @@ discoverRouter.get(
          FROM deck_publications dp JOIN users u ON u.id = dp.user_id
         WHERE ${LISTING_WHERE}
         ORDER BY ${sortCol} DESC, ${TIEBREAK}
-        LIMIT $8 OFFSET $9`,
+        LIMIT $9 OFFSET $10`,
         [...whereParams, filters.pageSize + 1, offset]
       );
       const hasMore = rows.length > filters.pageSize;

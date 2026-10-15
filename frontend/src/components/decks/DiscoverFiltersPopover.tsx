@@ -1,8 +1,6 @@
-import './DiscoverFiltersPopover.css';
 import { createPortal } from 'react-dom';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { BRACKET_LABELS } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import { FILTER_COLOR_OPTIONS } from '@/lib/cards/colors';
 import { useAnchoredPanel } from '@/lib/overlays/use-anchored-panel';
 import {
   DISCOVER_BUDGET_LABELS,
@@ -10,17 +8,34 @@ import {
   type DiscoverBudgetKey,
   type DiscoverFilters,
 } from '@/lib/discover/discover-filters';
+import { colorModeNounHint } from '@/components/filter-kit/color-mode-noun-hint';
+import { parseColorMatchMode } from '@spellcontrol/binder-routing';
 import type { DeckFormat } from '@/deck-builder/types';
-import { ColorPip } from '@/components/shared/ManaSymbol';
+import {
+  ChoiceChips,
+  FilterSection,
+  ManaColorPicker,
+  colorModeOptions,
+} from '@/components/filter-kit';
+import { FilterPopoverFooter } from '@/components/shared/FilterPopoverFooter';
 import { FilterTrigger } from '@/components/shared/FilterTrigger';
-import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 
-const BRACKET_OPTIONS = [1, 2, 3, 4, 5];
+const FORMAT_OPTIONS = Object.values(DECK_FORMAT_CONFIGS).map((cfg) => ({
+  value: cfg.format,
+  label: cfg.label,
+}));
+
+const BRACKET_OPTIONS = [1, 2, 3, 4, 5].map((n) => ({
+  value: String(n),
+  label: BRACKET_LABELS[n],
+}));
 
 const BUDGET_OPTIONS = (
   Object.entries(DISCOVER_BUDGET_LABELS) as Array<[DiscoverBudgetKey, string]>
-).map(([key, label]) => ({ key, label }));
+).map(([value, label]) => ({ value, label }));
+
+const COLOR_MODES = colorModeOptions(['any', 'all', 'within']);
 
 interface Props {
   filters: DiscoverFilters;
@@ -33,52 +48,35 @@ interface Props {
    * a dead filter is not.
    */
   hideBudget?: boolean;
+  /**
+   * The footer's live count ("14 decks"), taken from the list the page shows.
+   * Omit while the list is still loading.
+   */
+  resultLabel?: string;
 }
 
 /**
- * Colors/Format/Bracket/Budget filters for the Discover browse. Portal,
- * placement and dismiss come from `useAnchoredPanel`; live-toggle with no
- * separate Apply step, because these only change what you're looking at.
- *
- * Unlike DeckFiltersPopover's button/aria-pressed chips, every option here is
- * a real `<input type="radio"|"checkbox">` inside a `<fieldset><legend>` (the
- * visually-hidden-input-stretched-over-a-styled-label pattern the Settings
- * currency toggle already uses). Format/Budget are single-select radios,
- * Colors/Bracket multi-select checkboxes — but every one of them now leaves
- * the panel OPEN. Closing on a radio pick made this the only popover in the
- * family that vanished mid-edit, and it punished the common case: narrowing by
- * format and budget together meant reopening the panel to set the second one.
+ * Format / Bracket / Color / Budget filters for the Discover browse, built on
+ * the filter kit. Portal, placement and dismiss come from `useAnchoredPanel`;
+ * every pick applies as you tap and leaves the panel open, with a live count
+ * and "Clear filters" in the footer (STYLE_GUIDE § Filter kit).
  */
-export function DiscoverFiltersPopover({ filters, onChange, hideBudget }: Props) {
+export function DiscoverFiltersPopover({ filters, onChange, hideBudget, resultLabel }: Props) {
   const { open, toggle, triggerRef, panelRef, panelStyle } = useAnchoredPanel();
 
+  const budgetCount = !hideBudget && filters.budget ? 1 : 0;
   const activeCount =
-    (filters.format ? 1 : 0) +
-    filters.colors.length +
-    filters.brackets.length +
-    (!hideBudget && filters.budget ? 1 : 0);
-  const hasActive = activeCount > 0;
+    (filters.format ? 1 : 0) + filters.colors.length + filters.brackets.length + budgetCount;
 
-  const setFormat = (format: DeckFormat | null) => onChange({ ...filters, format });
-  const setBudget = (budget: DiscoverBudgetKey | null) => onChange({ ...filters, budget });
-  const toggleColor = (c: string) => {
-    const set = new Set(filters.colors);
-    if (set.has(c)) set.delete(c);
-    else set.add(c);
-    onChange({ ...filters, colors: DISCOVER_COLOR_ORDER.filter((k) => set.has(k)) });
-  };
-  const toggleBracket = (n: number) => {
-    const set = new Set(filters.brackets);
-    if (set.has(n)) set.delete(n);
-    else set.add(n);
-    onChange({ ...filters, brackets: [...set].sort((a, b) => a - b) });
-  };
   const clearAll = () =>
-    onChange({ ...filters, format: null, colors: [], brackets: [], budget: null });
-
-  const formatEntries = Object.entries(DECK_FORMAT_CONFIGS) as Array<
-    [DeckFormat, (typeof DECK_FORMAT_CONFIGS)[DeckFormat]]
-  >;
+    onChange({
+      ...filters,
+      format: null,
+      colors: [],
+      colorMode: 'within',
+      brackets: [],
+      budget: null,
+    });
 
   return (
     <div className="filter-popover discover-filters-popover">
@@ -96,115 +94,71 @@ export function DiscoverFiltersPopover({ filters, onChange, hideBudget }: Props)
             as="div"
             variant="popover"
             ref={panelRef}
-            className="filter-popover-panel discover-filters-panel"
+            className="filter-popover-panel deck-filters-panel"
             role="dialog"
             aria-label="Filters"
             style={panelStyle}
           >
-            <fieldset className="discover-filters-section">
-              <legend className="discover-filters-legend">Format</legend>
-              <div className="discover-filters-chips">
-                <label className="discover-filter-chip">
-                  <input
-                    className="overlay-input"
-                    type="radio"
-                    name="discover-format"
-                    checked={filters.format === null}
-                    onChange={() => setFormat(null)}
-                  />
-                  <span className="filter-chip">Any</span>
-                </label>
-                {formatEntries.map(([key, cfg]) => (
-                  <label key={key} className="discover-filter-chip">
-                    <input
-                      className="overlay-input"
-                      type="radio"
-                      name="discover-format"
-                      checked={filters.format === key}
-                      onChange={() => setFormat(key)}
-                    />
-                    <span className="filter-chip">{cfg.label}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
+            <FilterSection label="Format" count={filters.format ? 1 : 0}>
+              <ChoiceChips
+                ariaLabel="Filter by format"
+                anyLabel="Any"
+                options={FORMAT_OPTIONS}
+                value={filters.format ?? ''}
+                onChange={(next) =>
+                  onChange({ ...filters, format: (next || null) as DeckFormat | null })
+                }
+              />
+            </FilterSection>
 
-            <fieldset className="discover-filters-section">
-              <legend className="discover-filters-legend">Colors</legend>
-              <div className="discover-filters-chips" aria-label="Filter by color" role="group">
-                {FILTER_COLOR_OPTIONS.map((c) => (
-                  <label
-                    key={c.key}
-                    className="discover-filter-chip discover-filter-chip--color"
-                    title={c.label}
-                  >
-                    <input
-                      className="overlay-input"
-                      type="checkbox"
-                      checked={filters.colors.includes(c.key)}
-                      onChange={() => toggleColor(c.key)}
-                    />
-                    <ColorPip color={c.key} />
-                    <span className="sr-only">{c.label}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
+            <FilterSection label="Color" count={filters.colors.length}>
+              <ManaColorPicker
+                colors={filters.colors}
+                onColorsChange={(next) =>
+                  onChange({
+                    ...filters,
+                    colors: DISCOVER_COLOR_ORDER.filter((k) => next.includes(k)),
+                  })
+                }
+                mode={filters.colorMode}
+                modes={COLOR_MODES}
+                onModeChange={(next) =>
+                  onChange({ ...filters, colorMode: parseColorMatchMode(next, 'within') })
+                }
+                hint={colorModeNounHint(filters.colors, filters.colorMode, 'decks')}
+              />
+            </FilterSection>
 
-            <fieldset className="discover-filters-section">
-              <legend className="discover-filters-legend">Bracket</legend>
-              <div className="discover-filters-chips">
-                {BRACKET_OPTIONS.map((n) => (
-                  <label key={n} className="discover-filter-chip">
-                    <input
-                      className="overlay-input"
-                      type="checkbox"
-                      checked={filters.brackets.includes(n)}
-                      onChange={() => toggleBracket(n)}
-                    />
-                    <span className="filter-chip">{BRACKET_LABELS[n]}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
+            <FilterSection label="Bracket" count={filters.brackets.length}>
+              <ChoiceChips
+                multiple
+                ariaLabel="Filter by bracket"
+                options={BRACKET_OPTIONS}
+                value={filters.brackets.map(String)}
+                onChange={(next) =>
+                  onChange({ ...filters, brackets: next.map(Number).sort((a, b) => a - b) })
+                }
+              />
+            </FilterSection>
 
             {!hideBudget && (
-              <fieldset className="discover-filters-section">
-                <legend className="discover-filters-legend">Budget</legend>
-                <div className="discover-filters-chips">
-                  <label className="discover-filter-chip">
-                    <input
-                      className="overlay-input"
-                      type="radio"
-                      name="discover-budget"
-                      checked={filters.budget === null}
-                      onChange={() => setBudget(null)}
-                    />
-                    <span className="filter-chip">Any</span>
-                  </label>
-                  {BUDGET_OPTIONS.map((b) => (
-                    <label key={b.key} className="discover-filter-chip">
-                      <input
-                        className="overlay-input"
-                        type="radio"
-                        name="discover-budget"
-                        checked={filters.budget === b.key}
-                        onChange={() => setBudget(b.key)}
-                      />
-                      <span className="filter-chip">{b.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
+              <FilterSection label="Budget" count={budgetCount}>
+                <ChoiceChips
+                  ariaLabel="Filter by budget"
+                  anyLabel="Any"
+                  options={BUDGET_OPTIONS}
+                  value={filters.budget ?? ''}
+                  onChange={(next) =>
+                    onChange({ ...filters, budget: (next || null) as DiscoverBudgetKey | null })
+                  }
+                />
+              </FilterSection>
             )}
 
-            {hasActive && (
-              <div className="deck-filters-footer">
-                <Button variant="link" onClick={clearAll} className="deck-filters-clear">
-                  Clear filters
-                </Button>
-              </div>
-            )}
+            <FilterPopoverFooter
+              resultLabel={resultLabel}
+              onClear={activeCount > 0 ? clearAll : undefined}
+            />
           </Surface>,
           document.body
         )}

@@ -68,6 +68,7 @@ describe('listDiscoverDecks', () => {
       format: 'commander',
       brackets: [2, 4],
       colors: ['W', 'U'],
+      colorMode: 'any',
       budget: '50to150',
     });
     const url = new URL(fetchedUrl(fetchSpy), 'http://x');
@@ -75,6 +76,7 @@ describe('listDiscoverDecks', () => {
     expect(url.searchParams.get('format')).toBe('commander');
     expect(url.searchParams.get('bracket')).toBe('2,4');
     expect(url.searchParams.get('colors')).toBe('W,U');
+    expect(url.searchParams.get('colorMode')).toBe('any');
     expect(url.searchParams.get('budget')).toBe('50to150');
   });
 
@@ -88,6 +90,7 @@ describe('listDiscoverDecks', () => {
     expect(url.searchParams.has('format')).toBe(false);
     expect(url.searchParams.has('bracket')).toBe(false);
     expect(url.searchParams.has('colors')).toBe(false);
+    expect(url.searchParams.has('colorMode')).toBe(false);
     expect(url.searchParams.has('budget')).toBe(false);
   });
 
