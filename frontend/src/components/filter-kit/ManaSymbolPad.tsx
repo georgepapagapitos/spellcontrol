@@ -7,6 +7,8 @@ import {
   NAMES,
   PAD_SYMBOLS,
   countOf,
+  flagOn,
+  toggleFlag,
   manaCostSummary,
   type ManaCostFilter,
   type PadSymbol,
@@ -77,17 +79,17 @@ export function ManaSymbolPad({ value, onChange }: ManaSymbolPadProps) {
         value={value.mode}
         options={[
           { value: 'atLeast', label: 'At least these' },
-          { value: 'exact', label: 'Exactly these colored' },
+          { value: 'exactColored', label: 'Exactly these colored' },
         ]}
-        onChange={(mode) => onChange({ ...value, mode })}
+        onChange={(mode) => onChange({ ...value, mode: mode as ManaCostFilter['mode'] })}
       />
       <div className="filter-kit-chips" role="group" aria-label="Mana cost shortcuts">
         {FLAGS.map((f) => (
           <Chip
             key={f.key}
             className="filter-chip filter-kit-chip"
-            pressed={!!value[f.key]}
-            onClick={() => onChange({ ...value, [f.key]: !value[f.key] })}
+            pressed={flagOn(value, f.key)}
+            onClick={() => onChange(toggleFlag(value, f.key))}
           >
             {f.label}
           </Chip>

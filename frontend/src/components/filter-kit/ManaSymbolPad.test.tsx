@@ -25,13 +25,16 @@ describe('manaCostSummary', () => {
     expect(manaCostSummary({ counts: { B: 2 }, mode: 'atLeast' })).toBe(
       'Costs with at least two black mana symbols, plus anything else.'
     );
-    expect(manaCostSummary({ counts: { B: 1, X: 1 }, mode: 'exact' })).toBe(
+    expect(manaCostSummary({ counts: { B: 1, X: 1 }, mode: 'exactColored' })).toBe(
       'Costs with exactly one black mana symbol and one X as colored symbols, plus any generic.'
     );
-    expect(manaCostSummary({ counts: {}, mode: 'atLeast', hasX: true, noCost: true })).toBe(
-      'Cards that have X in the cost and have no mana cost.'
+    expect(manaCostSummary({ counts: {}, mode: 'atLeast', noColored: true, noCost: true })).toBe(
+      'Cards that have no colored symbols and have no mana cost.'
     );
-    expect(manaCostCount({ counts: { B: 2, W: 1 }, mode: 'atLeast', hybrid: true })).toBe(4);
+    expect(manaCostSummary({ counts: { W: 1 }, mode: 'atLeast', hybrid: false })).toBe(
+      "Costs with at least one white mana symbol, plus anything else. Hybrid symbols don't count."
+    );
+    expect(manaCostCount({ counts: { B: 2, W: 1 }, mode: 'atLeast', hybrid: false })).toBe(4);
   });
 });
 
@@ -50,9 +53,9 @@ describe('ManaSymbolPad', () => {
   });
 
   it('Clear empties the tray but keeps the mode and shortcuts', () => {
-    render(<Harness initial={{ counts: { W: 1 }, mode: 'exact', hasX: true }} />);
+    render(<Harness initial={{ counts: { W: 1 }, mode: 'exactColored', noCost: true }} />);
     fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
-    expect(latest.current).toEqual({ counts: {}, mode: 'exact', hasX: true });
+    expect(latest.current).toEqual({ counts: {}, mode: 'exactColored', noCost: true });
     expect(screen.queryByRole('button', { name: 'Clear' })).toBeNull();
   });
 
@@ -62,22 +65,33 @@ describe('ManaSymbolPad', () => {
       (screen.getByRole('radio', { name: 'At least these' }) as HTMLInputElement).checked
     ).toBe(true);
     fireEvent.click(screen.getByRole('radio', { name: 'Exactly these colored' }));
-    expect(latest.current.mode).toBe('exact');
+    expect(latest.current.mode).toBe('exactColored');
   });
 
-  it('toggles the shortcut chips', () => {
+  it('maps the shortcut chips onto the engine query', () => {
     render(<Harness />);
-    for (const label of ['Has X', 'Hybrid', 'Phyrexian', 'No colored symbols', 'No mana cost']) {
-      expect(screen.getByRole('button', { name: label }).getAttribute('aria-pressed')).toBe(
-        'false'
-      );
+    const chip = (name: string) => screen.getByRole('button', { name });
+    // Count hybrid is on by default; the rest are off.
+    expect(chip('Count hybrid').getAttribute('aria-pressed')).toBe('true');
+    for (const label of ['Has X', 'Phyrexian', 'No colored symbols', 'No mana cost']) {
+      expect(chip(label).getAttribute('aria-pressed')).toBe('false');
     }
-    fireEvent.click(screen.getByRole('button', { name: 'Hybrid' }));
-    expect(latest.current.hybrid).toBe(true);
-    expect(screen.getByRole('button', { name: 'Hybrid' }).getAttribute('aria-pressed')).toBe(
-      'true'
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Hybrid' }));
+    fireEvent.click(chip('Has X'));
+    expect(latest.current.counts).toEqual({ X: 1 });
+    fireEvent.click(chip('Phyrexian'));
+    expect(latest.current.counts).toEqual({ X: 1, P: 1 });
+    fireEvent.click(chip('Has X'));
+    expect(latest.current.counts).toEqual({ P: 1 });
+    fireEvent.click(chip('No colored symbols'));
+    fireEvent.click(chip('No mana cost'));
+    expect(latest.current.noColored).toBe(true);
+    expect(latest.current.noCost).toBe(true);
+    fireEvent.click(chip('No mana cost'));
+    expect('noCost' in latest.current).toBe(false);
+    fireEvent.click(chip('Count hybrid'));
     expect(latest.current.hybrid).toBe(false);
+    expect(chip('Count hybrid').getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(chip('Count hybrid'));
+    expect('hybrid' in latest.current).toBe(false);
   });
 });

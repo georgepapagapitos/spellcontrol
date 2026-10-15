@@ -21,7 +21,14 @@ export { PresetRange } from './PresetRange';
 export type { PresetRangeProps, PresetRangeValue, RangePreset } from './PresetRange';
 export { ManaSymbolPad } from './ManaSymbolPad';
 export type { ManaSymbolPadProps } from './ManaSymbolPad';
-export { EMPTY_MANA_COST, PAD_SYMBOLS, manaCostCount, manaCostSummary } from './mana-cost';
+export {
+  EMPTY_MANA_COST,
+  PAD_SYMBOLS,
+  flagOn,
+  manaCostCount,
+  manaCostSummary,
+  toggleFlag,
+} from './mana-cost';
 export type { ManaCostFilter, PadSymbol } from './mana-cost';
 export { ShowResultsButton } from './ShowResultsButton';
 export type { ShowResultsButtonProps } from './ShowResultsButton';

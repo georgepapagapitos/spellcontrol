@@ -13,22 +13,9 @@
 }
 
 .filter-kit-label {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  /* The heading look is the shared `.form-section-heading` (sentence case,
+     E595); this only drops its bottom margin, the section's gap spaces it. */
   margin: 0;
-  font-family: var(--font-label);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
-  color: var(--text-secondary);
-}
-
-.filter-kit-count {
-  /* The label's caps and tracking stop at the number. */
-  text-transform: none;
-  letter-spacing: normal;
 }
 
 /* ── Chips ─────────────────────────────────────────────────────────────── */

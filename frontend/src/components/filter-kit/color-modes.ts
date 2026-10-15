@@ -1,10 +1,7 @@
-/**
- * The color match modes the kit labels out of the box. The engine's
- * `ColorMatchMode` (binder-routing) gains `'within'` in a parallel change, so
- * the kit types `mode` as a plain string and a surface passes the modes it
- * offers; wave 2 narrows `mode` to the engine type once both have landed.
- */
-export type ColorModeKey = 'any' | 'all' | 'within';
+import type { ColorMatchMode } from '@spellcontrol/binder-routing';
+
+/** The color match modes the kit labels: the engine's `ColorMatchMode`. */
+export type ColorModeKey = ColorMatchMode;
 
 export const COLOR_MODE_LABELS: Record<ColorModeKey, string> = {
   any: 'Any of these',
@@ -18,7 +15,7 @@ export function colorModeOptions(keys: readonly ColorModeKey[]): ColorModeOption
 }
 
 export interface ColorModeOption {
-  value: string;
+  value: ColorMatchMode;
   label: string;
 }
 
@@ -40,8 +37,8 @@ const joinWords = (words: string[], conjunction: string) =>
 /**
  * The sentence under the picker that says what the current picks match:
  * "Cards that are blue or green, including multicolor cards." Empty colors
- * return the prompt to pick some. A mode other than any / all / within returns
- * '' so a surface with its own mode words writes its own hint.
+ * return the prompt to pick some. A mode string other than the engine's three
+ * returns '' so a surface with its own mode words writes its own hint.
  */
 export function colorModeHint(colors: readonly string[], mode: string): string {
   if (colors.length === 0) return 'No color filter. Pick one or more colors.';

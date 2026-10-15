@@ -66,6 +66,7 @@ import {
   colorModeOptions,
   manaCostCount,
   valueStripCount,
+  type ColorModeKey,
   type ManaCostFilter,
   type PresetRangeValue,
   type ValueStripValue,
@@ -510,7 +511,7 @@ function FilterKitSpecimen() {
   const [rarities, setRarities] = useState<string[]>(['rare', 'mythic']);
   const [budget, setBudget] = useState('');
   const [colors, setColors] = useState<string[]>(['U', 'G']);
-  const [mode, setMode] = useState('any');
+  const [mode, setMode] = useState<ColorModeKey>('any');
   const [mv, setMv] = useState<ValueStripValue>({ values: [2, 3], atLeast: 7 });
   const [price, setPrice] = useState<PresetRangeValue>({ min: 1, max: 5 });
   const [cost, setCost] = useState<ManaCostFilter>({ ...EMPTY_MANA_COST, counts: { B: 2 } });

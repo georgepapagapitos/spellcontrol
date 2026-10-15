@@ -1,28 +1,23 @@
-/** The symbols the pad adds: the five colors, colorless, X, Phyrexian and snow. */
-export type PadSymbol = 'W' | 'U' | 'B' | 'R' | 'G' | 'C' | 'X' | 'P' | 'S';
+import {
+  MANA_SYMBOL_KEYS,
+  type ManaSymbolKey,
+  type ManaSymbolQuery,
+} from '@spellcontrol/binder-routing';
 
-export const PAD_SYMBOLS: readonly PadSymbol[] = ['W', 'U', 'B', 'R', 'G', 'C', 'X', 'P', 'S'];
+/** The symbols the pad adds: the five colors, colorless, X, Phyrexian and snow. */
+export type PadSymbol = ManaSymbolKey;
+
+export const PAD_SYMBOLS: readonly PadSymbol[] = MANA_SYMBOL_KEYS;
 
 /**
- * The pad's value. Kept local to the kit: the engine's planned `manaCost`
- * field mirrors it, and the wave-2 agent that wires the surface aligns this
- * type with the engine's (rename or re-export, not a second shape).
- *
- * - `counts`: how many of each symbol the cost must have. Absent or 0 means
- *   no requirement.
- * - `mode`: `atLeast` is "has these and may have more"; `exact` is "exactly
- *   these colored symbols, plus any generic".
- * - the flags are the shortcut chips.
+ * The pad's value is the engine's `ManaSymbolQuery` (`BinderFilter.manaSymbols`),
+ * so a surface stores it as is. The shortcut chips map onto it:
+ * Has X is `counts.X`, Phyrexian is `counts.P`, No colored symbols is
+ * `noColored`, No mana cost is `noCost`, and Count hybrid is the engine's
+ * `hybrid` (on unless it is `false`). The mode "Exactly these colored" is
+ * `exactColored`.
  */
-export interface ManaCostFilter {
-  counts: Partial<Record<PadSymbol, number>>;
-  mode: 'atLeast' | 'exact';
-  hasX?: boolean;
-  hybrid?: boolean;
-  phyrexian?: boolean;
-  noColored?: boolean;
-  noCost?: boolean;
-}
+export type ManaCostFilter = ManaSymbolQuery;
 
 export const EMPTY_MANA_COST: ManaCostFilter = { counts: {}, mode: 'atLeast' };
 
@@ -38,17 +33,49 @@ export const NAMES: Record<PadSymbol, string> = {
   S: 'snow mana',
 };
 
-export const FLAGS: Array<{
-  key: 'hasX' | 'hybrid' | 'phyrexian' | 'noColored' | 'noCost';
-  label: string;
-  phrase: string;
-}> = [
-  { key: 'hasX', label: 'Has X', phrase: 'have X in the cost' },
-  { key: 'hybrid', label: 'Hybrid', phrase: 'have a hybrid symbol' },
-  { key: 'phyrexian', label: 'Phyrexian', phrase: 'have a Phyrexian symbol' },
-  { key: 'noColored', label: 'No colored symbols', phrase: 'have no colored symbols' },
-  { key: 'noCost', label: 'No mana cost', phrase: 'have no mana cost' },
+export type FlagKey = 'hasX' | 'hybrid' | 'phyrexian' | 'noColored' | 'noCost';
+
+export const FLAGS: Array<{ key: FlagKey; label: string }> = [
+  { key: 'hasX', label: 'Has X' },
+  { key: 'hybrid', label: 'Count hybrid' },
+  { key: 'phyrexian', label: 'Phyrexian' },
+  { key: 'noColored', label: 'No colored symbols' },
+  { key: 'noCost', label: 'No mana cost' },
 ];
+
+/** Whether a shortcut chip reads as on. Count hybrid is on by default; the others are off. */
+export function flagOn(v: ManaCostFilter, key: FlagKey): boolean {
+  switch (key) {
+    case 'hasX':
+      return countOf(v, 'X') > 0;
+    case 'phyrexian':
+      return countOf(v, 'P') > 0;
+    case 'hybrid':
+      return v.hybrid !== false;
+    default:
+      return !!v[key];
+  }
+}
+
+/** The query after tapping a shortcut chip. */
+export function toggleFlag(v: ManaCostFilter, key: FlagKey): ManaCostFilter {
+  const on = flagOn(v, key);
+  if (key === 'hasX' || key === 'phyrexian') {
+    const s: PadSymbol = key === 'hasX' ? 'X' : 'P';
+    const counts = { ...v.counts };
+    if (on) delete counts[s];
+    else counts[s] = 1;
+    return { ...v, counts };
+  }
+  if (key === 'hybrid') {
+    const { hybrid: _drop, ...rest } = v;
+    return on ? { ...rest, hybrid: false } : rest;
+  }
+  const next = { ...v };
+  if (on) delete next[key];
+  else next[key] = true;
+  return next;
+}
 
 const WORDS = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
 
@@ -59,9 +86,14 @@ const joinAnd = (parts: string[]) =>
 
 export const countOf = (v: ManaCostFilter, s: PadSymbol) => v.counts[s] ?? 0;
 
-/** How many things are set: each symbol added, plus each shortcut on. */
+/** How many things are set: each symbol added, plus each shortcut that differs from the default. */
 export function manaCostCount(v: ManaCostFilter): number {
-  return PAD_SYMBOLS.reduce((n, s) => n + countOf(v, s), 0) + FLAGS.filter((f) => v[f.key]).length;
+  return (
+    PAD_SYMBOLS.reduce((n, s) => n + countOf(v, s), 0) +
+    (v.noColored ? 1 : 0) +
+    (v.noCost ? 1 : 0) +
+    (v.hybrid === false ? 1 : 0)
+  );
 }
 
 /** The sentence under the pad: "Costs with at least two black symbols, plus anything else." */
@@ -71,7 +103,10 @@ export function manaCostSummary(v: ManaCostFilter): string {
     const word = WORDS[n] || String(n);
     return s === 'X' ? `${word} X` : `${word} ${NAMES[s]} ${n > 1 ? 'symbols' : 'symbol'}`;
   });
-  const phrases = FLAGS.filter((f) => v[f.key]).map((f) => f.phrase);
+  const phrases = [
+    v.noColored && 'have no colored symbols',
+    v.noCost && 'have no mana cost',
+  ].filter((p): p is string => !!p);
   const sentences: string[] = [];
   if (parts.length) {
     sentences.push(
@@ -81,5 +116,6 @@ export function manaCostSummary(v: ManaCostFilter): string {
     );
   }
   if (phrases.length) sentences.push(`Cards that ${joinAnd(phrases)}.`);
+  if (v.hybrid === false) sentences.push("Hybrid symbols don't count.");
   return sentences.length ? sentences.join(' ') : 'Any mana cost.';
 }

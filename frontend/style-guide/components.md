@@ -585,17 +585,17 @@ everywhere. Catalog specimen: `Filter kit`.
   power, toughness) is `ValueStrip`: chips 0 to 6 and 7+, the 7+ chip opens a
   second row to narrow, and Custom… holds the comparator (exactly, at most, at
   least, between). An open-ended number (price, EDHREC rank) is `PresetRange`.
-  A mana cost is built on `ManaSymbolPad`. A long list (sets, subtypes, tags)
+  A mana cost is built on `ManaSymbolPad`, whose value is the engine's
+  `ManaSymbolQuery`, and a color's mode is the engine's `ColorMatchMode`. A long list (sets, subtypes, tags)
   is a search field with removable chips, not chips of every value. Never a
   dropdown for a short list, and never a free-text box where chips can say it.
 - **Mana value, mana cost and color are three separate questions** and get
   three separate controls. Do not fold a cost into a mana-value field or a
   color into a cost.
-- **One section label.** `FilterSection` heads every group: the `--font-label`
-  stamp, uppercase, with a count of what is on. This is a deliberate exception
-  to sentence-case section labels (E595): it is chrome that stamps a filter
-  group, set in `--font-label`, which the `uppercase-role` guard allows. A
-  surface does not restyle it.
+- **One section label.** `FilterSection` heads every group with the shared
+  section heading (`.form-section-heading`: sentence case, weight 600, E595),
+  followed by a count of what is on. It is not a stamp: no caps, no
+  `--font-label`. A surface does not restyle it.
 - **Popover = live; dialog or sheet = draft.** When the list stays visible, the
   filters are a popover and apply as you tap, with a live count and "Clear
   filters" in the footer. When the panel covers the list (the dialog on
