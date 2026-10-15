@@ -11,6 +11,7 @@ const mockState = {
 vi.mock('../ai/client', async (importOriginal) => ({
   AI_MODEL: 'test-model',
   REFINE_MODEL: 'test-refine-model',
+  REVIEW_GENERATION: { model: 'test-model', thinking: 'off' },
   // Real pricing math: the global spend cap reads it.
   estimateUsd: (await importOriginal<typeof import('../ai/client')>()).estimateUsd,
   aiEnabled: () => mockState.enabled,
@@ -1572,6 +1573,7 @@ describe('grounding verdict on the stored row', () => {
       recalled: [],
       rejected: ['Mana Crypt'],
       protectedCuts: [],
+      suggestedAsDeck: [],
     });
   });
 
@@ -1656,11 +1658,18 @@ describe('per-feature model', () => {
       .set('Cookie', cookie)
       .send(refineBody());
 
-    const optionModels = mockState.generate.mock.calls.map(
-      (c) => (c[4] as { model?: string } | undefined)?.model
+    const options = mockState.generate.mock.calls.map(
+      (c) => (c[4] ?? {}) as { model?: string; thinking?: string }
     );
-    expect(optionModels.slice(0, reviewCalls).every((m) => m === undefined)).toBe(true);
-    expect(optionModels.slice(reviewCalls)).toEqual(['test-refine-model']);
+    // Both review passes run the shipped review configuration: its model, thinking off.
+    expect(reviewCalls).toBe(2);
+    for (const o of options.slice(0, reviewCalls)) {
+      expect(o).toMatchObject({ model: 'test-model', thinking: 'off' });
+    }
+    // Refine keeps its own model and the model's default thinking.
+    expect(options.slice(reviewCalls).map((o) => [o.model, o.thinking])).toEqual([
+      ['test-refine-model', undefined],
+    ]);
     expect(parseStream(review.text).done).toMatchObject({ model: 'test-model' });
     expect(parseStream(refine.text).done).toMatchObject({ model: 'test-refine-model' });
     expect(await storedModels('ai-model-split')).toEqual({

@@ -51,11 +51,16 @@ import {
  * v3 added the bracket target/estimate line to the statistics block (see
  * deck-review.ts's v7 note for the shared payload/prompt-contract change and
  * why the clause treats the numbers as given data, never something to infer).
+ *
+ * v7 (E1017): the strategy paragraphs may name only decklist cards. On Haiku
+ * 5.5 the blind critic caught engine suggestions described as deck cards in 5
+ * of 6 fixture-8 runs ("Sol Ring, Mind Stone and the other ramp pieces"). v6
+ * was a measured, unshipped variant (read-before-cut) that scored no better.
  */
 export const DECK_REFINE_FEATURE = 'deck-refine';
 
 /** Bump whenever DECK_REFINE_SYSTEM_PROMPT's text changes. */
-export const DECK_REFINE_PROMPT_VERSION = 'v5';
+export const DECK_REFINE_PROMPT_VERSION = 'v7';
 
 /** Cap on what the model may propose, enforced again after parsing. */
 export const MAX_TWEAKS = 5;
@@ -109,6 +114,9 @@ Reply in exactly four parts, in this order:
 
 2. Two or three short paragraphs of plain prose: what this deck is actually
    trying to do, and how it wins. Name the specific cards that define it.
+   Only decklist cards define it: an ENGINE SUGGESTION or a card you looked
+   up is not in the deck yet, so never write about one here as if the deck
+   runs it. Those belong in the changes below.
    Second person ("your deck"). No headers, no bullet lists, no preamble.
 
 3. A line containing exactly ${TWEAKS_DELIMITER} and nothing else.
@@ -518,4 +526,37 @@ export function buildRefineMessage(req: RefineRequest, oracle: OracleEntry[]): s
     );
   }
   return parts.join('\n\n');
+}
+
+/**
+ * Suggested or looked-up cards the STRATEGY paragraphs name as if the deck ran
+ * them. The strategy describes the deck as it stands (prompt v7), so a pool or
+ * fetched card named there that is not in the decklist is being passed off as a
+ * deck card. Haiku 5.5 did this in 5 of 6 fixture-8 runs (E1017). Audit only:
+ * stored in the row's grounding verdict, never stripped from the prose.
+ */
+export function suggestedAsDeck(
+  strategy: string,
+  req: Pick<RefineRequest, 'commander' | 'partnerCommander' | 'cards' | 'pool'>,
+  fetched: { name: string }[] | undefined
+): string[] {
+  const inDeck = new Set(
+    [req.commander, req.partnerCommander, ...req.cards.map((c) => c.name)]
+      .filter((n): n is string => !!n)
+      .map((n) => n.toLowerCase())
+  );
+  const pattern = (name: string) =>
+    new RegExp(
+      `(^|[^a-z0-9'])${name.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=$|[^a-z0-9'])`,
+      'g'
+    );
+  // Blank out the deck's own names first, longest first, so a suggestion that
+  // is a prefix of a deck card ("Kozilek" in "Kozilek, Butcher of Truth") isn't
+  // read as named.
+  const prose = [...inDeck]
+    .sort((a, b) => b.length - a.length)
+    .reduce((text, name) => text.replace(pattern(name), '$1 '), strategy.toLowerCase());
+  const named = (name: string) => pattern(name).test(prose);
+  const candidates = [...req.pool.map((c) => c.name), ...(fetched ?? []).map((f) => f.name)];
+  return [...new Set(candidates)].filter((n) => !inDeck.has(n.toLowerCase()) && named(n));
 }

@@ -8,6 +8,7 @@ import {
   hashRefineInput,
   parseRefineOutput,
   parseRefineRequest,
+  suggestedAsDeck,
   type RefineRequest,
 } from './deck-refine';
 
@@ -193,6 +194,24 @@ describe('parseRefineOutput — the model curates, it never invents', () => {
     const out = parseRefineOutput(reply('This deck is already coherent.', []), REQ);
     expect(out.strategy).toBe('This deck is already coherent.');
     expect(out.tweaks).toEqual([]);
+  });
+});
+
+describe('suggestedAsDeck — the strategy describes the deck as it stands (v7)', () => {
+  // From a real Haiku 5.5 fixture-8 run: "Sol Ring, Mind Stone and the other
+  // ramp pieces" where Mind Stone was only an engine suggestion.
+  it('flags a pool or looked-up card the strategy names, and only those', () => {
+    const strategy =
+      'Your Sol Ring and Boros Signet ramp into Kaalia, and Burnished Hart smooths the curve.';
+    expect(suggestedAsDeck(strategy, REQ, [{ name: 'Burnished Hart' }])).toEqual([
+      'Boros Signet',
+      'Burnished Hart',
+    ]);
+  });
+
+  it('ignores deck cards, the commander, and partial-word matches', () => {
+    const req = { ...REQ, pool: [card('Sol'), card('Orzhov Signet')] };
+    expect(suggestedAsDeck('Kaalia and Sol Ring carry the deck.', req, undefined)).toEqual([]);
   });
 });
 

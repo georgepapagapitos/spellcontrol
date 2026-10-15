@@ -13,5 +13,7 @@ export interface Grounding {
   rejected?: string[];
   /** Refine only: engine pieces the model tried to cut. */
   protectedCuts?: string[];
+  /** Refine only: suggested or looked-up cards the STRATEGY prose names as if in the deck. */
+  suggestedAsDeck?: string[];
   truncated?: true;
 }

@@ -12,7 +12,16 @@ import { createMarkerGate, runTool, type AiTool, type FetchedCard } from './tool
  * one, and add its price to AI_USD_PER_MTOK in the same change.
  */
 /** The deck review's model ("Read the deck"). */
-export const AI_MODEL = 'claude-haiku-4-5';
+export const AI_MODEL = 'claude-haiku-5-5';
+
+/**
+ * What both review passes send. Thinking is OFF: on Haiku 5.5 it is adaptive by
+ * default, and on the 2026-10-15 gate the writing pass spent 4-7.5k of its
+ * 6000-token budget thinking and returned one empty review in six. Spread into
+ * every review `generateReview` call (the route and the eval probe), so the
+ * measured configuration is the shipped one.
+ */
+export const REVIEW_GENERATION = { model: AI_MODEL, thinking: 'off' } as const;
 
 /**
  * The refine pass's model. Split from AI_MODEL on 2026-10-15 (E1017): on the
@@ -175,7 +184,14 @@ export async function generateReview(
   user: string,
   onDelta?: (text: string) => void,
   signal?: AbortSignal,
-  options?: { tools?: AiTool[]; answerMarker?: string; endMarker?: string; model?: string }
+  options?: {
+    tools?: AiTool[];
+    answerMarker?: string;
+    endMarker?: string;
+    model?: string;
+    /** `off` sends `thinking: {type: "disabled"}`; omitted, the model's default applies. */
+    thinking?: 'off';
+  }
 ): Promise<AiGeneration> {
   if (!client) client = new Anthropic();
   const tools = options?.tools ?? [];
@@ -206,6 +222,7 @@ export async function generateReview(
       {
         model: options?.model ?? AI_MODEL,
         max_tokens: MAX_OUTPUT_TOKENS,
+        ...(options?.thinking === 'off' ? { thinking: { type: 'disabled' as const } } : {}),
         system,
         messages,
         ...(tools.length > 0
