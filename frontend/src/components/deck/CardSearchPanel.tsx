@@ -39,7 +39,9 @@ import { fetchTypeSuggestions } from '@/lib/cards/scryfall-catalog';
 import { parseTypeLine, SUPERTYPES, TYPES } from '@spellcontrol/binder-routing';
 import { colorSelectionMatches, type ColorMatchMode } from '@spellcontrol/binder-routing';
 import {
+  cardMatchesCompiled,
   compileExpression,
+  type compileFilter,
   effectiveTreatments,
   exactMatchesExpression,
   isExpressionEmpty,
@@ -47,6 +49,7 @@ import {
   setMatchesExpression,
   substringMatchesExpression,
 } from '@spellcontrol/binder-routing';
+import { useManaFilters } from './use-mana-filters';
 import { CollectionFiltersDialog } from '@/components/search/CollectionFiltersDialog';
 import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { AddGroupPicker, useAddGroup } from './AddGroupPicker';
@@ -532,6 +535,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   const [subtypeExpr, setSubtypeExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [colorFilter, setColorFilter] = useState<Set<string>>(new Set());
   const [colorMode, setColorMode] = useState<ColorMatchMode>('any');
+  const manaFilters = useManaFilters();
   const [rarityExpr, setRarityExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [oracleExpr, setOracleExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [legalityExpr, setLegalityExpr] = useState<ChipExpression>(EMPTY_EXPR);
@@ -586,6 +590,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
     (!isExpressionEmpty(typesExpr) ? 1 : 0) +
     (!isExpressionEmpty(subtypeExpr) ? 1 : 0) +
     (colorFilter.size > 0 ? 1 : 0) +
+    manaFilters.activeCount +
     (!isExpressionEmpty(rarityExpr) ? 1 : 0) +
     (!isExpressionEmpty(oracleExpr) ? 1 : 0) +
     (!isExpressionEmpty(legalityExpr) ? 1 : 0) +
@@ -807,6 +812,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
               setColorFilter={setColorFilter}
               colorMode={colorMode}
               setColorMode={setColorMode}
+              {...manaFilters.dialogProps}
               rarityExpr={rarityExpr}
               setRarityExpr={setRarityExpr}
               rarities={RARITIES}
@@ -901,6 +907,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             compiledLayout={compiledLayout}
             compiledTreatment={compiledTreatment}
             compiledBorder={compiledBorder}
+            compiledMana={manaFilters.compiled}
             colorFilter={colorFilter}
             colorMatchMode={colorMode}
             setFilter={setFilter}
@@ -1037,6 +1044,7 @@ interface CollectionResultsProps extends ResultsProps, FitProps {
   compiledLayout: ReturnType<typeof compileExpression>;
   compiledTreatment: ReturnType<typeof compileExpression>;
   compiledBorder: ReturnType<typeof compileExpression>;
+  compiledMana: ReturnType<typeof compileFilter>;
   colorFilter: Set<string>;
   colorMatchMode: ColorMatchMode;
   setFilter: Set<string>;
@@ -1065,6 +1073,7 @@ function CollectionResults({
   compiledLayout,
   compiledTreatment,
   compiledBorder,
+  compiledMana,
   colorFilter,
   colorMatchMode,
   setFilter,
@@ -1145,6 +1154,7 @@ function CollectionResults({
         continue;
       if (compiledBorder && !exactMatchesExpression(c.borderColor, compiledBorder)) continue;
       if (setFilter.size > 0 && !setFilter.has((c.setCode || '').toUpperCase())) continue;
+      if (!cardMatchesCompiled(c, compiledMana)) continue;
 
       if (seenNames.has(c.name)) continue;
       seenNames.add(c.name);
@@ -1192,6 +1202,7 @@ function CollectionResults({
     compiledLayout,
     compiledTreatment,
     compiledBorder,
+    compiledMana,
     colorFilter,
     colorMatchMode,
     setFilter,
