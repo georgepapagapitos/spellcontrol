@@ -17,7 +17,14 @@ import {
   cardMatchesCompiled,
   isExpressionEmpty,
 } from '@spellcontrol/binder-routing';
-import { sortCards, printingKey, sortDirectionLabel } from '@spellcontrol/binder-routing';
+import {
+  normalizeManaSymbolQuery,
+  normalizeManaValues,
+  sortCards,
+  printingKey,
+  sortDirectionLabel,
+} from '@spellcontrol/binder-routing';
+import { manaSymbolsLabel, manaValuesLabel } from '@/lib/search/filter-summary';
 import {
   colorSelectionMatches,
   getColorKey,
@@ -80,15 +87,6 @@ import { Button } from '@/components/shared/Button';
 const GRID_SIZE_KEY = 'mtg-lists-grid-size';
 
 const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
-
-const COLOR_FILTERS: Array<{ key: string; label: string }> = [
-  { key: 'W', label: 'White' },
-  { key: 'U', label: 'Blue' },
-  { key: 'B', label: 'Black' },
-  { key: 'R', label: 'Red' },
-  { key: 'G', label: 'Green' },
-  { key: 'C', label: 'Colorless' },
-];
 
 const RARITIES = ['mythic', 'rare', 'uncommon', 'common'] as const;
 
@@ -248,6 +246,8 @@ export function ListDetailView({
   const [setFilter, setSetFilter] = useState<Set<string>>(new Set());
   const [cmcMin, setCmcMin] = useState<number | undefined>(undefined);
   const [cmcMax, setCmcMax] = useState<number | undefined>(undefined);
+  const [manaValues, setManaValues] = useState<BinderFilter['manaValues']>(undefined);
+  const [manaSymbols, setManaSymbols] = useState<BinderFilter['manaSymbols']>(undefined);
 
   // Which columns drive the sort here. Lists already sort by SortField, so a
   // header click is the same `pickSort` the SortMenu calls — one sort state,
@@ -334,6 +334,10 @@ export function ListDetailView({
     if (setFilter.size > 0) f.setCodes = [...setFilter].map((s) => s.toUpperCase());
     if (cmcMin !== undefined) f.cmcMin = cmcMin;
     if (cmcMax !== undefined) f.cmcMax = cmcMax;
+    const mv = normalizeManaValues(manaValues);
+    if (mv) f.manaValues = mv;
+    const ms = normalizeManaSymbolQuery(manaSymbols);
+    if (ms) f.manaSymbols = ms;
     const t = search.trim();
     if (t) f.nameContains = t;
     return compileFilter(f);
@@ -352,6 +356,8 @@ export function ListDetailView({
     setFilter,
     cmcMin,
     cmcMax,
+    manaValues,
+    manaSymbols,
     search,
   ]);
 
@@ -463,6 +469,14 @@ export function ListDetailView({
         },
       });
     }
+    const mvLabel = manaValuesLabel(manaValues);
+    if (mvLabel) {
+      chips.push({ id: 'manaValues', label: mvLabel, onClear: () => setManaValues(undefined) });
+    }
+    const msLabel = manaSymbolsLabel(manaSymbols);
+    if (msLabel) {
+      chips.push({ id: 'manaSymbols', label: msLabel, onClear: () => setManaSymbols(undefined) });
+    }
     return chips;
   }, [
     search,
@@ -482,6 +496,8 @@ export function ListDetailView({
     setFilter,
     cmcMin,
     cmcMax,
+    manaValues,
+    manaSymbols,
   ]);
 
   const clearAll = () => {
@@ -502,6 +518,8 @@ export function ListDetailView({
     setSetFilter(new Set());
     setCmcMin(undefined);
     setCmcMax(undefined);
+    setManaValues(undefined);
+    setManaSymbols(undefined);
   };
 
   const pickSort = (next: SortField) => {
@@ -649,7 +667,6 @@ export function ListDetailView({
               setColorFilter={setColorFilter}
               colorMode={colorMode}
               setColorMode={setColorMode}
-              colorOptions={COLOR_FILTERS}
               rarityExpr={rarityExpr}
               setRarityExpr={setRarityExpr}
               rarities={RARITIES}
@@ -673,6 +690,10 @@ export function ListDetailView({
               setCmcMin={setCmcMin}
               cmcMax={cmcMax}
               setCmcMax={setCmcMax}
+              manaValues={manaValues}
+              setManaValues={setManaValues}
+              manaSymbols={manaSymbols}
+              setManaSymbols={setManaSymbols}
               activeCount={activeCount}
             />
           }

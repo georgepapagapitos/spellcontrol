@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { ChipExpression, ScryfallQueryRule } from '@/types/index';
+import type { BinderFilter, ChipExpression, ScryfallQueryRule } from '@/types/index';
 import { compileExpression, compileFilter, isExpressionEmpty } from '@spellcontrol/binder-routing';
-import { type ColorMatchMode } from '@spellcontrol/binder-routing';
+import {
+  manaSymbolQueryIsActive,
+  normalizeManaValues,
+  type ColorMatchMode,
+} from '@spellcontrol/binder-routing';
 import { rowMatchesCollectionFilter } from '@/lib/search/collection-filter';
 import {
   collectionFiltersToFilterGroup,
@@ -94,6 +98,8 @@ export function useCollectionFilters(
   const [priceMax, setPriceMax] = useState<number | undefined>(undefined);
   const [cmcMin, setCmcMin] = useState<number | undefined>(undefined);
   const [cmcMax, setCmcMax] = useState<number | undefined>(undefined);
+  const [manaValues, setManaValues] = useState<BinderFilter['manaValues']>(undefined);
+  const [manaSymbols, setManaSymbols] = useState<BinderFilter['manaSymbols']>(undefined);
 
   // Empty chip expression reused for clearing chip-based filters.
   // Stable reference (same shape every time) — memoized so the
@@ -128,6 +134,8 @@ export function useCollectionFilters(
     setPriceMax(undefined);
     setCmcMin(undefined);
     setCmcMax(undefined);
+    setManaValues(undefined);
+    setManaSymbols(undefined);
   }, [EMPTY_EXPR]);
 
   // A jump from an external surface (currently the Breakdown drawer — see
@@ -199,6 +207,8 @@ export function useCollectionFilters(
     (setFilter.size > 0 ? 1 : 0) +
     (priceMin !== undefined || priceMax !== undefined ? 1 : 0) +
     (cmcMin !== undefined || cmcMax !== undefined ? 1 : 0) +
+    (normalizeManaValues(manaValues) ? 1 : 0) +
+    (manaSymbolQueryIsActive(manaSymbols) ? 1 : 0) +
     (groupPrintings ? 0 : 1) +
     (surplusOnly ? 1 : 0) +
     (proxyOnly ? 1 : 0);
@@ -230,6 +240,8 @@ export function useCollectionFilters(
     priceMax,
     cmcMin,
     cmcMax,
+    manaValues,
+    manaSymbols,
     search,
   });
 
@@ -260,6 +272,8 @@ export function useCollectionFilters(
       priceMax,
       cmcMin,
       cmcMax,
+      manaValues,
+      manaSymbols,
       search,
     };
     const { group, flagged } = collectionFiltersToFilterGroup(filterInput);
@@ -290,6 +304,8 @@ export function useCollectionFilters(
     priceMax,
     cmcMin,
     cmcMax,
+    manaValues,
+    manaSymbols,
     search,
     setEditingBinder,
   ]);
@@ -324,6 +340,8 @@ export function useCollectionFilters(
         priceMax,
         cmcMin,
         cmcMax,
+        manaValues,
+        manaSymbols,
         surplusOnly,
         proxyOnly,
         groupPrintings,
@@ -350,6 +368,8 @@ export function useCollectionFilters(
         setPriceMax,
         setCmcMin,
         setCmcMax,
+        setManaValues,
+        setManaSymbols,
         setGroupPrintings,
         setSurplusOnly,
         setProxyOnly,
@@ -378,6 +398,8 @@ export function useCollectionFilters(
       priceMax,
       cmcMin,
       cmcMax,
+      manaValues,
+      manaSymbols,
       surplusOnly,
       proxyOnly,
       groupPrintings,
@@ -438,6 +460,10 @@ export function useCollectionFilters(
       setCmcMin,
       cmcMax,
       setCmcMax,
+      manaValues,
+      setManaValues,
+      manaSymbols,
+      setManaSymbols,
       groupPrintings,
       setGroupPrintings,
       surplusOnly,
@@ -480,6 +506,8 @@ export function useFilteredRows(
     priceMax,
     cmcMin,
     cmcMax,
+    manaValues,
+    manaSymbols,
     surplusOnly,
     proxyOnly,
   } = filters.fields;
@@ -515,6 +543,8 @@ export function useFilteredRows(
           priceMax,
           cmcMin,
           cmcMax,
+          manaValues,
+          manaSymbols,
           debouncedSearch,
         })
       ),
@@ -536,6 +566,8 @@ export function useFilteredRows(
       priceMax,
       cmcMin,
       cmcMax,
+      manaValues,
+      manaSymbols,
       debouncedSearch,
     ]
   );

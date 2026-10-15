@@ -1,8 +1,9 @@
-import type { ChipExpression, ScryfallQueryRule } from '@/types/index';
+import type { BinderFilter, ChipExpression, ScryfallQueryRule } from '@/types/index';
 import { formatMoney } from '@/lib/collection/format-money';
 import { LANGUAGE_OPTIONS } from '@/lib/collection/copy-options';
 import { cardTagLabel } from '@/lib/cards/card-tags';
 import { isExpressionEmpty } from '@spellcontrol/binder-routing';
+import { manaSymbolsLabel, manaValuesLabel } from '@/lib/search/filter-summary';
 import type { ColorMatchMode } from '@spellcontrol/binder-routing';
 import type { FilterChipDescriptor } from '@/components/shared/FilterChipsRow';
 
@@ -35,6 +36,9 @@ export interface ActiveFilterChipsInput {
   priceMax: number | undefined;
   cmcMin: number | undefined;
   cmcMax: number | undefined;
+  /** Mana value chips and printed cost symbols; absent where a surface has neither. */
+  manaValues?: BinderFilter['manaValues'];
+  manaSymbols?: BinderFilter['manaSymbols'];
   surplusOnly: boolean;
   proxyOnly: boolean;
   groupPrintings: boolean;
@@ -62,6 +66,8 @@ export interface ActiveFilterChipsInput {
   setPriceMax: (v: number | undefined) => void;
   setCmcMin: (v: number | undefined) => void;
   setCmcMax: (v: number | undefined) => void;
+  setManaValues?: (v: BinderFilter['manaValues']) => void;
+  setManaSymbols?: (v: BinderFilter['manaSymbols']) => void;
   setGroupPrintings: (v: boolean) => void;
   setSurplusOnly: (v: boolean) => void;
   setProxyOnly: (v: boolean) => void;
@@ -92,6 +98,8 @@ export function buildActiveFilterChips(input: ActiveFilterChipsInput): FilterChi
     priceMax,
     cmcMin,
     cmcMax,
+    manaValues,
+    manaSymbols,
     surplusOnly,
     proxyOnly,
     groupPrintings,
@@ -118,6 +126,8 @@ export function buildActiveFilterChips(input: ActiveFilterChipsInput): FilterChi
     setPriceMax,
     setCmcMin,
     setCmcMax,
+    setManaValues,
+    setManaSymbols,
     setGroupPrintings,
     setSurplusOnly,
     setProxyOnly,
@@ -350,6 +360,14 @@ export function buildActiveFilterChips(input: ActiveFilterChipsInput): FilterChi
         setCmcMax(undefined);
       },
     });
+  }
+  const mvLabel = manaValuesLabel(manaValues);
+  if (mvLabel) {
+    chips.push({ id: 'manaValues', label: mvLabel, onClear: () => setManaValues?.(undefined) });
+  }
+  const msLabel = manaSymbolsLabel(manaSymbols);
+  if (msLabel) {
+    chips.push({ id: 'manaSymbols', label: msLabel, onClear: () => setManaSymbols?.(undefined) });
   }
   if (!groupPrintings) {
     chips.push({

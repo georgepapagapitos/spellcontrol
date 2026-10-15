@@ -69,9 +69,10 @@ function renderTable(c: EnrichedCard[]) {
 
 function openLanguageAndPick(labelText: string) {
   fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
+  fireEvent.click(screen.getByRole('button', { name: /More filters/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Add language…' }));
   fireEvent.click(screen.getByRole('option', { name: labelText }));
-  fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^Show / }));
 }
 
 describe('E161 — collection language filter', () => {
@@ -89,6 +90,7 @@ describe('E161 — collection language filter', () => {
       mk({ name: 'ECard', scryfallId: 'sf-e' }),
     ]);
     fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    fireEvent.click(screen.getByRole('button', { name: /More filters/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Add language…' }));
     expect(screen.getByRole('option', { name: 'Japanese' })).toBeDefined();
     expect(screen.getByRole('option', { name: 'English' })).toBeDefined();

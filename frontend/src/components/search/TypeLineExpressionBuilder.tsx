@@ -15,6 +15,16 @@ interface Props {
   /** Open-vocabulary suggestion pool for subtype matches (typically pulled from
    *  the Scryfall type catalog minus known supertypes/types). */
   subtypeSuggestions: string[];
+  /**
+   * The dialog shows the eight card types as chips above this input, so the
+   * Type row only repeats them. With this set it appears only when the type
+   * expression says something chips can't (IS NOT, or AND between types).
+   */
+  hideSimpleTypeRow?: boolean;
+  /** Input placeholder. */
+  placeholder?: string;
+  /** Accessible name for the input, when a visible label is not tied to it. */
+  inputAriaLabel?: string;
 }
 
 const SUPERTYPE_SET = new Set<string>(SUPERTYPES);
@@ -52,6 +62,9 @@ export function TypeLineExpressionBuilder({
   subtypeExpr,
   setSubtypeExpr,
   subtypeSuggestions,
+  hideSimpleTypeRow = false,
+  placeholder = 'Legendary, Creature, Angel',
+  inputAriaLabel,
 }: Props) {
   const [draft, setDraft] = useState('');
   const [activeIdx, setActiveIdx] = useState(-1);
@@ -139,18 +152,23 @@ export function TypeLineExpressionBuilder({
           />
         </div>
       )}
-      {typesExpr.chips.length > 0 && (
-        <div className="type-line-row">
-          <span className="type-line-row-label">Type</span>
-          <ChipExpressionBuilder
-            value={typesExpr}
-            onChange={setTypesExpr}
-            options={TYPE_OPTS}
-            defaultJoiner="AND"
-            hideInput
-          />
-        </div>
-      )}
+      {typesExpr.chips.length > 0 &&
+        !(
+          hideSimpleTypeRow &&
+          typesExpr.chips.every((c) => !c.negate) &&
+          !typesExpr.joiners.includes('AND')
+        ) && (
+          <div className="type-line-row">
+            <span className="type-line-row-label">Type</span>
+            <ChipExpressionBuilder
+              value={typesExpr}
+              onChange={setTypesExpr}
+              options={TYPE_OPTS}
+              defaultJoiner="AND"
+              hideInput
+            />
+          </div>
+        )}
       {subtypeExpr.chips.length > 0 && (
         <div className="type-line-row">
           <span className="type-line-row-label">Subtype</span>
@@ -193,7 +211,8 @@ export function TypeLineExpressionBuilder({
           onBlur={() => {
             setTimeout(() => commit(), 120);
           }}
-          placeholder="Legendary, Creature, Angel"
+          placeholder={placeholder}
+          aria-label={inputAriaLabel}
           autoComplete="off"
           role="combobox"
           aria-autocomplete="list"

@@ -58,7 +58,6 @@ import {
 import {
   COLLECTION_TABLE_SORTS,
   COLLECTION_VIEW_KEY,
-  COLOR_FILTERS,
   GRID_SIZE_KEY,
   RARITIES,
   SORT_FIELD_BY_KEY,
@@ -396,7 +395,6 @@ export function CardListTable({
             <CollectionFiltersDialog
               {...filters.fields}
               subtypeSuggestions={subtypeSuggestions}
-              colorOptions={COLOR_FILTERS}
               rarities={RARITIES}
               languages={languageOptions}
               binders={binders}

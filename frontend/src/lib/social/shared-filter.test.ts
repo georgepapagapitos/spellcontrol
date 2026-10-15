@@ -200,4 +200,20 @@ describe('countActiveSharedFilters', () => {
       )
     ).toBe(6); // 1 color + 1 rarity + 2 sets + 1 price range + 1 cmc range
   });
+
+  it('counts mana values and mana cost symbols, and ignores ones that constrain nothing', () => {
+    expect(
+      countActiveSharedFilters(
+        state({
+          manaValues: { values: [2], atLeast: 7 },
+          manaSymbols: { counts: { B: 1 }, mode: 'atLeast' },
+        })
+      )
+    ).toBe(2);
+    expect(
+      countActiveSharedFilters(
+        state({ manaValues: { values: [] }, manaSymbols: { counts: {}, mode: 'exactColored' } })
+      )
+    ).toBe(0);
+  });
 });

@@ -55,7 +55,7 @@ describe('SharedCollectionView', () => {
     renderView();
     fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
     fireEvent.click(screen.getByRole('button', { name: 'Blue' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Show / }));
     expect(await screen.findByText(/no cards match/i)).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear search and filters' }));
