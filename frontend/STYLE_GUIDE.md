@@ -2635,6 +2635,7 @@ must follow goes in the core.
   - [Toolbars & action rows (responsive)](style-guide/components.md#toolbars--action-rows-responsive)
   - [Tag chips (E171)](style-guide/components.md#tag-chips-e171)
   - [Rule & filter editors (#1626–#1630)](style-guide/components.md#rule--filter-editors-16261630)
+  - [Filter kit (E1019)](style-guide/components.md#filter-kit-e1019)
   - [Config surfaces (T139)](style-guide/components.md#config-surfaces-t139)
   - [Index-page insight strips (UX-334)](style-guide/components.md#index-page-insight-strips-ux-334)
   - [Empty states (E182)](style-guide/components.md#empty-states-e182)

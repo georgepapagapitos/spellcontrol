@@ -1,0 +1,268 @@
+/* The filter kit (STYLE_GUIDE § Filter kit). One module's worth of layout for
+   every kit primitive; the chip look itself is the shared `.filter-chip`
+   (styles/search-controls.css) and the segmented track is `.segmented`
+   (shared/form.css). Everything wraps, so a section holds at 320px and inside
+   a container of any width; the coarse-pointer floor is 44px. */
+
+/* ── Section label ─────────────────────────────────────────────────────── */
+.filter-kit-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2-5);
+  min-width: 0;
+}
+
+.filter-kit-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-family: var(--font-label);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-overline);
+  color: var(--text-secondary);
+}
+
+.filter-kit-count {
+  /* The label's caps and tracking stop at the number. */
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* ── Chips ─────────────────────────────────────────────────────────────── */
+.filter-kit-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1-5);
+  min-width: 0;
+}
+
+.filter-kit-fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+.filter-kit-chip {
+  min-height: 36px;
+  padding-inline: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+@media (pointer: coarse) {
+  .filter-kit-chip {
+    min-height: 44px;
+  }
+}
+
+.filter-kit-num {
+  min-width: 44px;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A radio chip: the real input is stretched over the painted span, so the
+   whole chip is the target and keyboard and AT semantics stay native. */
+.filter-kit-radio {
+  position: relative;
+  display: inline-flex;
+}
+
+.filter-kit-radio input:checked + .filter-chip {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+
+.filter-kit-radio input:focus-visible + .filter-chip {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Color pips ────────────────────────────────────────────────────────── */
+.filter-kit-color {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.filter-kit-pips,
+.filter-kit-symbols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.filter-kit-pip,
+.filter-kit-symbol {
+  --pip-size: 1.35rem;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* Off is dimmed so what is on pops; on is a ring outside the circle. */
+.filter-kit-pip .color-pip-mana {
+  opacity: 0.55;
+  transition:
+    opacity var(--motion-fast),
+    box-shadow var(--motion-fast);
+}
+
+.filter-kit-pip[aria-pressed='true'] .color-pip-mana {
+  opacity: 1;
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--accent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .filter-kit-pip:hover .color-pip-mana {
+    opacity: 0.85;
+  }
+}
+
+/* Focus is an outline outside the selection ring, never the same ring. */
+.filter-kit-pip:focus-visible,
+.filter-kit-symbol:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ── Hints, strips and comparators ─────────────────────────────────────── */
+.filter-kit-hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.filter-kit-strip,
+.filter-kit-pad {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2-5);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.filter-kit-narrow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+}
+
+.filter-kit-narrow-note {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.filter-kit-compare {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2-5);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.filter-kit-range-field {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.filter-kit-number {
+  min-height: 40px;
+  padding: 0 var(--space-2-5);
+  font: inherit;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.filter-kit-number {
+  width: 5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (pointer: coarse) {
+  .filter-kit-number {
+    min-height: 44px;
+  }
+}
+
+.filter-kit-number:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ── Mana symbol pad ───────────────────────────────────────────────────── */
+.filter-kit-symbol-count {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 var(--space-1);
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--on-accent);
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+.filter-kit-tray {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  background: var(--surface-raised);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.filter-kit-tray-cost {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-0-5);
+}
+
+.filter-kit-tray-empty {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* ── Show N cards ──────────────────────────────────────────────────────── */
+.filter-kit-show {
+  display: inline-flex;
+}
