@@ -41,16 +41,15 @@ import { colorSelectionMatches, type ColorMatchMode } from '@spellcontrol/binder
 import {
   cardMatchesCompiled,
   compileExpression,
-  compileFilter,
+  type compileFilter,
   effectiveTreatments,
   exactMatchesExpression,
   isExpressionEmpty,
   legalityMatchesExpression,
-  manaSymbolQueryIsActive,
-  normalizeManaValues,
   setMatchesExpression,
   substringMatchesExpression,
 } from '@spellcontrol/binder-routing';
+import { useManaFilters } from './use-mana-filters';
 import { CollectionFiltersDialog } from '@/components/search/CollectionFiltersDialog';
 import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { AddGroupPicker, useAddGroup } from './AddGroupPicker';
@@ -63,7 +62,7 @@ import { Tabs, type TabItem } from '@/components/overlays/Tabs';
 import { WedgeHintStrip } from './WedgeHintStrip';
 import { DeckAnalysisSkeleton } from './DeckAnalysisSkeleton';
 import { dismissBinderHint, shouldShowBinderHint } from '@/lib/home/wedge-hints';
-import type { BinderFilter, ChipExpression, EnrichedCard } from '../../types';
+import type { ChipExpression, EnrichedCard } from '../../types';
 import type { GapAnalysisCard, HiddenGemRow } from '@/deck-builder/types';
 import { hiddenGemReason } from '@/deck-builder/services/deckBuilder/hiddenGems';
 import { useDismissedSuggestions } from '@/lib/coach/dismissed-suggestions';
@@ -536,14 +535,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   const [subtypeExpr, setSubtypeExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [colorFilter, setColorFilter] = useState<Set<string>>(new Set());
   const [colorMode, setColorMode] = useState<ColorMatchMode>('any');
-  // Mana value (chips + Custom comparator) and printed cost symbols. Applied
-  // client-side over the owned rows like every other filter here: the
-  // Collection tab is the only one the dialog filters, so no Scryfall query
-  // translation is involved.
-  const [cmcMin, setCmcMin] = useState<number | undefined>(undefined);
-  const [cmcMax, setCmcMax] = useState<number | undefined>(undefined);
-  const [manaValues, setManaValues] = useState<BinderFilter['manaValues']>(undefined);
-  const [manaSymbols, setManaSymbols] = useState<BinderFilter['manaSymbols']>(undefined);
+  const manaFilters = useManaFilters();
   const [rarityExpr, setRarityExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [oracleExpr, setOracleExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [legalityExpr, setLegalityExpr] = useState<ChipExpression>(EMPTY_EXPR);
@@ -598,9 +590,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
     (!isExpressionEmpty(typesExpr) ? 1 : 0) +
     (!isExpressionEmpty(subtypeExpr) ? 1 : 0) +
     (colorFilter.size > 0 ? 1 : 0) +
-    (cmcMin !== undefined || cmcMax !== undefined ? 1 : 0) +
-    (normalizeManaValues(manaValues) ? 1 : 0) +
-    (manaSymbolQueryIsActive(manaSymbols) ? 1 : 0) +
+    manaFilters.activeCount +
     (!isExpressionEmpty(rarityExpr) ? 1 : 0) +
     (!isExpressionEmpty(oracleExpr) ? 1 : 0) +
     (!isExpressionEmpty(legalityExpr) ? 1 : 0) +
@@ -620,10 +610,6 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   const compiledLayout = useMemo(() => compileExpression(layoutExpr), [layoutExpr]);
   const compiledTreatment = useMemo(() => compileExpression(treatmentExpr), [treatmentExpr]);
   const compiledBorder = useMemo(() => compileExpression(borderExpr), [borderExpr]);
-  const compiledMana = useMemo(
-    () => compileFilter({ cmcMin, cmcMax, manaValues, manaSymbols }),
-    [cmcMin, cmcMax, manaValues, manaSymbols]
-  );
   // EDHREC gap analysis + one-away combos, indexed by lowercased name so every
   // tab can badge results with deck-fit intelligence (not just Suggestions).
   const gapByName = useMemo(() => {
@@ -826,14 +812,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
               setColorFilter={setColorFilter}
               colorMode={colorMode}
               setColorMode={setColorMode}
-              cmcMin={cmcMin}
-              setCmcMin={setCmcMin}
-              cmcMax={cmcMax}
-              setCmcMax={setCmcMax}
-              manaValues={manaValues}
-              setManaValues={setManaValues}
-              manaSymbols={manaSymbols}
-              setManaSymbols={setManaSymbols}
+              {...manaFilters.dialogProps}
               rarityExpr={rarityExpr}
               setRarityExpr={setRarityExpr}
               rarities={RARITIES}
@@ -928,7 +907,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             compiledLayout={compiledLayout}
             compiledTreatment={compiledTreatment}
             compiledBorder={compiledBorder}
-            compiledMana={compiledMana}
+            compiledMana={manaFilters.compiled}
             colorFilter={colorFilter}
             colorMatchMode={colorMode}
             setFilter={setFilter}
