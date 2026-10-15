@@ -25,6 +25,8 @@ import {
   cardMatchesCompiled,
   compileFilter,
   isExpressionEmpty,
+  normalizeManaSymbolQuery,
+  normalizeManaValues,
 } from '@spellcontrol/binder-routing';
 
 /** Committed filter state the shared views hold and the dialog edits. */
@@ -48,6 +50,8 @@ export interface SharedFilterState {
   setFilter: ReadonlySet<string>;
   cmcMin?: number;
   cmcMax?: number;
+  manaValues?: BinderFilter['manaValues'];
+  manaSymbols?: BinderFilter['manaSymbols'];
   priceMin?: number;
   priceMax?: number;
 }
@@ -111,6 +115,10 @@ export function buildSharedBinderFilter(s: SharedFilterState): BinderFilter {
   if (s.priceMax !== undefined) f.priceMax = s.priceMax;
   if (s.cmcMin !== undefined) f.cmcMin = s.cmcMin;
   if (s.cmcMax !== undefined) f.cmcMax = s.cmcMax;
+  const mv = normalizeManaValues(s.manaValues);
+  if (mv) f.manaValues = mv;
+  const ms = normalizeManaSymbolQuery(s.manaSymbols);
+  if (ms) f.manaSymbols = ms;
   return f;
 }
 

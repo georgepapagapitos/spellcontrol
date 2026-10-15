@@ -83,12 +83,26 @@ export function getColorKeyFromIdentity(colorIdentity: string[]): string {
 }
 
 /**
- * How a color pip selection combines: `'any'` (OR — a card matches if it shows
- * any selected color; the historical default) or `'all'` (AND — the card's
- * colors are exactly the selection, so U means mono-blue and R + W means Boros,
- * not Naya).
+ * How a color pip selection combines:
+ * - `'any'` (OR — a card matches if it shows any selected color; the
+ *   historical default),
+ * - `'all'` (AND — the card's colors are exactly the selection, so U means
+ *   mono-blue and R + W means Boros, not Naya; persisted data relies on this),
+ * - `'within'` (the Commander question, "what can a deck of these colors
+ *   play": the card's colors are a SUBSET of the selection, and colorless cards
+ *   always match. R + W matches Lightning Helix, Swords to Plowshares, mono-R,
+ *   mono-W and colorless, never an Orzhov card. Selecting only C is colorless
+ *   only).
  */
-export type ColorMatchMode = 'any' | 'all';
+export type ColorMatchMode = 'any' | 'all' | 'within';
+
+/** Every mode, for validators and persistence parsers that whitelist. */
+export const COLOR_MATCH_MODES: readonly ColorMatchMode[] = ['any', 'all', 'within'];
+
+/** Narrow an untrusted value (URL, localStorage, synced JSON) to a mode, or return `fallback`. */
+export function parseColorMatchMode(v: unknown, fallback: ColorMatchMode = 'any'): ColorMatchMode {
+  return (COLOR_MATCH_MODES as readonly unknown[]).includes(v) ? (v as ColorMatchMode) : fallback;
+}
 
 /**
  * The single color-filter predicate behind every WUBRG+C pip row (collection,
@@ -99,6 +113,8 @@ export type ColorMatchMode = 'any' | 'all';
  * basic-land name), 'M' for multicolor. Selecting 'C' means "colorless"; in
  * 'all' mode combining it with a color is unsatisfiable and correctly matches
  * nothing.
+ *
+ * 'within' is a subset match (colorless always passes), see `ColorMatchMode`.
  *
  * 'all' is an *exact* match, not a superset one: a card carrying a color the
  * user didn't pick is excluded, so a lone Blue pip lists mono-blue cards rather
@@ -111,6 +127,11 @@ export function colorSelectionMatches(
   mode: ColorMatchMode = 'any'
 ): boolean {
   if (selected.size === 0) return true;
+  if (mode === 'within') {
+    if (key === 'C') return true;
+    const cardColors = colorIdentity.length > 0 ? colorIdentity : [key];
+    return cardColors.every((c) => selected.has(c));
+  }
   const has = (c: string) => (c === 'C' ? key === 'C' : colorIdentity.includes(c) || key === c);
   const picks = [...selected];
   if (mode === 'any') return picks.some(has);

@@ -408,7 +408,7 @@ export function ListDetailView({
       };
       chips.push({
         id: 'color',
-        label: `Color: ${[...colorFilter]
+        label: `Color: ${colorMode === 'within' ? 'within ' : ''}${[...colorFilter]
           .map((k) => map[k] ?? k)
           .join(colorMode === 'all' ? ' + ' : ', ')}`,
         onClear: () => setColorFilter(new Set()),
