@@ -339,7 +339,7 @@ describe('summarizeImportRouting', () => {
   });
 
   it("reports the binder's default (group-printings off) page layout, not the grouped one", () => {
-    // BinderPage's "group printings" toggle collapses duplicate printings
+    // BinderPage's "stack identical copies" toggle collapses duplicate printings
     // before materializing, which changes page numbers — but it defaults to
     // OFF and isn't observable from here, so the summary always answers for
     // the OFF state (the layout the binder actually opens in).

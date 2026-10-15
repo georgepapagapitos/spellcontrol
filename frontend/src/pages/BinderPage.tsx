@@ -131,7 +131,7 @@ export function BinderPage() {
   // still reflects live keystrokes via the un-debounced `search`.
   const debouncedSearch = useDebouncedValue(search, 180);
 
-  // When "group printings" is on we collapse multiple copies of the same
+  // When "stack identical copies" is on we collapse multiple copies of the same
   // (scryfallId, foil) into a single representative copy and remember the
   // total via qtyByCopyId. The materializer then lays out unique
   // printings; CardSlot paints a ×N badge on slots with qty > 1.
@@ -400,7 +400,7 @@ export function BinderPage() {
             },
             {
               key: 'group-printings',
-              label: 'Group printings',
+              label: 'Stack identical copies',
               value: groupPrintings,
               onChange: setGroupPrintings,
             },

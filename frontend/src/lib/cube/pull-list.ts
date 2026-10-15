@@ -14,7 +14,7 @@ import type { SetMap } from '@/lib/api';
  * `BinderPage.tsx`'s live view:
  *   materializeBinders(cards, binders, { search: '', allocatedCopyIds, setMap, qtyByPrintingKey })
  * — this module skips `qtyByPrintingKey` (BinderPage only threads it through
- * for the "group printings" page-grid preference, which collapses identical
+ * for the "stack identical copies" page-grid preference, which collapses identical
  * printings into one pocket; a pull list always wants ONE row per physical
  * copy, never collapsed) and otherwise takes the same options. In particular
  * `allocatedCopyIds` is expected to be the FULL allocation set (every deck's

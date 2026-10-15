@@ -203,7 +203,7 @@ function SkeletonGrid({ count, style }: { count: number; style?: React.CSSProper
  * dialog, sort menu, view toggle, card rows and preview the collection uses,
  * fed by entries resolved to full card data (`useEnrichedListEntries`). Lists
  * are unowned printing references, so the collection-only filters (condition,
- * binder, finish, price, group-printings) are simply not wired and the dialog
+ * binder, finish, price) are simply not wired and the dialog
  * hides those sections. Per-row actions live in an overflow menu.
  */
 export function ListDetailView({

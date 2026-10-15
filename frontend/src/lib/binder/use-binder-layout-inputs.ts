@@ -15,7 +15,7 @@ import type { BinderDef, EnrichedCard } from '@/types/index';
 
 /**
  * Every input `materializeBinders` needs to lay out a binder exactly the way
- * `BinderPage` renders it, at BinderPage's DEFAULT view: "group printings"
+ * `BinderPage` renders it, at BinderPage's DEFAULT view: "stack identical copies"
  * off (a non-persisted toggle that starts off every session) and no in-binder
  * search. A caller predicting routing or reporting page numbers OUTSIDE
  * BinderPage (the Add-list row prediction, the post-import routing summary)

@@ -20,7 +20,7 @@ export interface LocatedCopy {
 
 /**
  * Where a copy sits in a binder's page run. The copy itself first; failing
- * that, a copy of the same printing, since "Group printings" files one copy
+ * that, a copy of the same printing, since "Stack identical copies" files one copy
  * per printing and the one it keeps may not be the one asked for.
  */
 export function findCopyPage(
