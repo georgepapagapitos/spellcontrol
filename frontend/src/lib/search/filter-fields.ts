@@ -28,6 +28,7 @@ export type FilterFieldId =
   | 'commanderEligible'
   | 'cmc'
   | 'manaCost'
+  | 'manaSymbols'
   | 'nameContains'
   | 'oracleChips'
   | 'oracleTagChips'
@@ -157,8 +158,17 @@ export const FILTER_FIELDS: FilterFieldSpec[] = [
     group: 'Cost',
     hint: 'The exact symbols, like {2}{G}{W}.',
     keywords: ['pips', 'symbols'],
-    isSet: (f) => !!f.manaCost?.trim() || manaSymbolQueryIsActive(f.manaSymbols),
-    clear: () => ({ manaCost: undefined, manaSymbols: undefined }),
+    isSet: (f) => !!f.manaCost?.trim(),
+    clear: () => ({ manaCost: undefined }),
+  },
+  {
+    id: 'manaSymbols',
+    label: 'Mana symbols',
+    group: 'Cost',
+    hint: 'Which symbols the cost has, like at least two black.',
+    keywords: ['pips', 'symbols', 'hybrid', 'phyrexian', 'colored'],
+    isSet: (f) => manaSymbolQueryIsActive(f.manaSymbols),
+    clear: () => ({ manaSymbols: undefined }),
   },
   {
     id: 'nameContains',

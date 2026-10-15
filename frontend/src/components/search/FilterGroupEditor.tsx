@@ -1,5 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { isFilterEmpty, parseColorMatchMode } from '@spellcontrol/binder-routing';
+import {
+  isFilterEmpty,
+  manaSymbolQueryIsActive,
+  parseColorMatchMode,
+} from '@spellcontrol/binder-routing';
 import { countBinderMatches } from '@/lib/binder/binder-counts';
 import { useDebouncedValue } from '@/lib/util/use-debounced-value';
 import { autoSummary } from '@/lib/search/filter-summary';
@@ -22,7 +26,9 @@ import type {
 } from '@/types/index';
 import { Button } from '@/components/shared/Button';
 import {
+  EMPTY_MANA_COST,
   ManaColorPicker,
+  ManaSymbolPad,
   PresetRange,
   ValueStrip,
   colorModeHint,
@@ -593,6 +599,18 @@ function FilterGroupFields({
           value={filter.manaCost || ''}
           onChange={(e) => patch({ manaCost: e.target.value })}
           placeholder="{2}{G}{W}"
+        />
+      </RuleRow>
+
+      {/* Mana symbols: which symbols the printed cost has, built on the pad. */}
+      <RuleRow fieldId="manaSymbols" label="Mana symbols">
+        <ManaSymbolPad
+          value={filter.manaSymbols ?? EMPTY_MANA_COST}
+          onChange={(next) => {
+            // An emptied pad clears the value, not the row, so the next symbol is one tap away.
+            if (!manaSymbolQueryIsActive(next)) keepRow('manaSymbols');
+            patch({ manaSymbols: next });
+          }}
         />
       </RuleRow>
 
