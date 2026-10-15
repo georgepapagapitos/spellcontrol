@@ -43,6 +43,7 @@ import {
   colorIdentityMatches,
   colorModeHint,
   colorWords,
+  exclusiveColorless,
   compareEntries,
   effectiveSort,
   filterSummary,
@@ -63,7 +64,7 @@ import { CommanderReadiness } from './CommanderReadiness';
 import { CommanderResultCard } from './CommanderResultCard';
 import type { EnrichedCard } from '../../types';
 import { ManaCost } from '@/components/shared/ManaCost';
-import { ColorIdentityPicker } from '../shared/ColorIdentityPicker';
+import { ManaColorPicker, colorModeOptions } from '@/components/filter-kit';
 import { SearchPill } from '@/components/search/SearchPill';
 import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { InfoTip } from '@/components/overlays/InfoTip';
@@ -217,6 +218,9 @@ async function runPool<T>(
   );
 }
 
+// The finder's two readings of a color identity: Scryfall `id=` and `id<=`.
+const COMMANDER_COLOR_MODES = colorModeOptions(['all', 'within']);
+
 /** EDHREC's popular list for the color filter. */
 function fetchPopular(colors: ReadonlySet<string>, mode: ColorMode): Promise<EDHRECTopCommander[]> {
   if (colors.size === 0) return fetchTopCommanders([]);
@@ -345,7 +349,8 @@ export function CommanderSearch({
     }
   });
   const [colorMode, setColorModeState] = useState<ColorMode>(() =>
-    readPref(COLOR_MODE_KEY) === 'within' ? 'within' : 'exact'
+    // 'within' is the default: a saved 'exact' choice is kept, nothing saved reads within.
+    readPref(COLOR_MODE_KEY) === 'exact' ? 'exact' : 'within'
   );
   const [playstyleIds, setPlaystyleIds] = useState<string[]>([]);
   const [sortChoice, setSortChoice] = useState<FinderSort | null>(
@@ -963,25 +968,18 @@ export function CommanderSearch({
     <div className="commander-finder-filters" id={filtersId}>
       <div className="commander-finder-row">
         <span className="commander-finder-label" id={`${baseId}-colors`}>
-          Colors
+          Color
         </span>
         <div className="commander-finder-control" role="group" aria-labelledby={`${baseId}-colors`}>
-          <ColorIdentityPicker colors={colors} onChange={setColors} />
+          <ManaColorPicker
+            colors={[...colors]}
+            onColorsChange={(next) => setColors(exclusiveColorless(colors, next))}
+            mode={colorMode === 'exact' ? 'all' : 'within'}
+            modes={COMMANDER_COLOR_MODES}
+            onModeChange={(next) => setColorMode(next === 'within' ? 'within' : 'exact')}
+            hint={colorModeHint(colors, colorMode)}
+          />
           {comboName && <span className="commander-finder-combo">{comboName}</span>}
-          {colors.size > 0 && !colors.has('C') && (
-            <SegmentedControl
-              ariaLabel="Color match"
-              value={colorMode}
-              onChange={setColorMode}
-              options={[
-                { value: 'exact', label: 'Exactly' },
-                { value: 'within', label: 'Within' },
-              ]}
-            />
-          )}
-          {colors.size > 0 && (
-            <span className="commander-finder-hint">{colorModeHint(colors, colorMode)}</span>
-          )}
         </div>
       </div>
       <div className="commander-finder-row">

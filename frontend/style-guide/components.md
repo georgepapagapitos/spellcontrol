@@ -602,6 +602,9 @@ everywhere. Catalog specimen: `Filter kit`.
   desktop, a sheet on phones), changes are a draft until the primary button:
   `ShowResultsButton`, "Show N cards", which reads "No cards match" in the
   danger tone at zero and is never primary then. Closing a draft discards it.
+  The popover footer is `FilterPopoverFooter` (shared): the count comes from
+  the list the page renders, so it can never disagree with it; a paged list
+  that has not loaded everything reads "24+ decks".
   Either way the page shows the active-filter row (`FilterChipsRow`, exported
   from the kit as `ActiveFilterStrip`) so what is on is always visible.
 - **Hints say what the picks match.** Under the color mode, the sentence from

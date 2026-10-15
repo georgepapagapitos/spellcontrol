@@ -180,7 +180,6 @@ const ALLOWED: Record<Shape, Record<string, number | { count: number; why: strin
     'components/deck/GenerationModePicker.tsx': { count: 2, why: CHOICE },
     // 6 labels + 5 plain spans now carrying the shared `.filter-chip` face
     // (T152 W8k) — the color chip's span stays sr-only, no shared class.
-    'components/decks/DiscoverFiltersPopover.tsx': { count: 11, why: CHOICE },
     'components/browse/BrowseListFilters.tsx': { count: 2, why: CHOICE },
     'components/filter-kit/ChoiceChips.tsx': { count: 1, why: CHOICE },
     'components/play/GameBoard.tsx': { count: 5, why: BOARD_CHROME },

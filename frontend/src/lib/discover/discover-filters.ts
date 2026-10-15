@@ -1,5 +1,6 @@
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { DeckFormat } from '@/deck-builder/types';
+import { parseColorMatchMode, type ColorMatchMode } from '@spellcontrol/binder-routing';
 
 /**
  * Discover filter state, round-tripped through the URL (`useSearchParams`) so
@@ -19,6 +20,11 @@ export interface DiscoverFilters {
   brackets: number[];
   /** Canonical W/U/B/R/G/C order, deduped. */
   colors: string[];
+  /**
+   * How the colors match a deck: 'within' (the deck fits inside the picks, the
+   * default and the only behavior before the mode existed), 'any' or 'all'.
+   */
+  colorMode: ColorMatchMode;
   budget: DiscoverBudgetKey | null;
 }
 
@@ -28,6 +34,7 @@ export const NO_DISCOVER_FILTERS: DiscoverFilters = {
   format: null,
   brackets: [],
   colors: [],
+  colorMode: 'within',
   budget: null,
 };
 
@@ -70,13 +77,15 @@ export function parseDiscoverFiltersFromSearchParams(params: URLSearchParams): D
   );
   const colors = DISCOVER_COLOR_ORDER.filter((c) => colorSet.has(c));
 
+  const colorMode = parseColorMatchMode(params.get('colorMode'), 'within');
+
   const budgetRaw = params.get('budget');
   const budget =
     budgetRaw && VALID_BUDGETS.has(budgetRaw as DiscoverBudgetKey)
       ? (budgetRaw as DiscoverBudgetKey)
       : null;
 
-  return { query, commander, format, brackets, colors, budget };
+  return { query, commander, format, brackets, colors, colorMode, budget };
 }
 
 export function discoverFiltersToSearchParams(filters: DiscoverFilters): URLSearchParams {
@@ -86,6 +95,8 @@ export function discoverFiltersToSearchParams(filters: DiscoverFilters): URLSear
   if (filters.format) params.set('format', filters.format);
   if (filters.brackets.length > 0) params.set('bracket', filters.brackets.join(','));
   if (filters.colors.length > 0) params.set('colors', filters.colors.join(','));
+  // Kept even with no colors picked yet, or choosing the mode first would lose it.
+  if (filters.colorMode !== 'within') params.set('colorMode', filters.colorMode);
   if (filters.budget) params.set('budget', filters.budget);
   return params;
 }

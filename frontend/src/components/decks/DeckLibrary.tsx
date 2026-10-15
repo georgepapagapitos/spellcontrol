@@ -9,7 +9,9 @@ import {
 } from '@/lib/deck-analysis/format-bracket-label';
 import type { DeckFormat } from '@/deck-builder/types';
 import { NO_DISCOVER_FILTERS, type DiscoverFilters } from '@/lib/discover/discover-filters';
+import { colorSelectionMatches } from '@spellcontrol/binder-routing';
 import { DiscoverFiltersPopover } from './DiscoverFiltersPopover';
+import { resultCountLabel } from '@/lib/search/result-count-label';
 import { SearchPill } from '@/components/search/SearchPill';
 import { SortMenu, type SortMenuOption } from '@/components/search/SortMenu';
 import { SharedEmptyState } from '../share/SharedEmptyState';
@@ -137,10 +139,17 @@ export function DeckLibrary({
         (d.bracket == null || !filters.brackets.includes(d.bracket))
       )
         return false;
-      // Colors narrow to decks whose identity CONTAINS every picked color —
-      // the same "at least these" reading Discover's own filter uses, so one
-      // control can't mean two things in two places.
-      if (filters.colors.length > 0 && !filters.colors.every((c) => d.colorIdentity.includes(c)))
+      // The same predicate Discover's server query mirrors (and the engine
+      // owns), so one control can't mean two things in two places.
+      if (
+        filters.colors.length > 0 &&
+        !colorSelectionMatches(
+          d.colorIdentity.length === 0 ? 'C' : '',
+          d.colorIdentity,
+          new Set(filters.colors),
+          filters.colorMode
+        )
+      )
         return false;
       return true;
     });
@@ -186,7 +195,14 @@ export function DeckLibrary({
           placeholder="Search by deck or commander"
           ariaLabel={`Search ${ariaLabel} by deck or commander`}
           className="deck-library-search"
-          trailing={<DiscoverFiltersPopover filters={filters} onChange={setFilters} hideBudget />}
+          trailing={
+            <DiscoverFiltersPopover
+              filters={filters}
+              onChange={setFilters}
+              hideBudget
+              resultLabel={resultCountLabel(filtered.length, 'deck')}
+            />
+          }
         />
         <SortMenu<LibrarySortKey>
           ariaLabel="Sort"

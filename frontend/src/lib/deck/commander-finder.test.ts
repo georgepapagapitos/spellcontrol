@@ -4,6 +4,7 @@ import {
   colorComboName,
   colorIdentityMatches,
   colorModeHint,
+  exclusiveColorless,
   compareEntries,
   effectiveSort,
   filterSummary,
@@ -251,5 +252,18 @@ describe('relaxations and filterSummary', () => {
       'within black-green · Aristocrats or Tokens'
     );
     expect(filterSummary(q())).toBe('');
+  });
+});
+
+describe('exclusiveColorless', () => {
+  it('picking colorless clears the colors', () => {
+    expect([...exclusiveColorless(new Set(['W', 'U']), ['W', 'U', 'C'])]).toEqual(['C']);
+  });
+  it('picking a color clears colorless', () => {
+    expect([...exclusiveColorless(new Set(['C']), ['C', 'G'])]).toEqual(['G']);
+  });
+  it('leaves a plain pick alone', () => {
+    expect([...exclusiveColorless(new Set(['W']), ['W', 'U'])]).toEqual(['W', 'U']);
+    expect([...exclusiveColorless(new Set(['W']), [])]).toEqual([]);
   });
 });

@@ -2,20 +2,31 @@ import { createPortal } from 'react-dom';
 import type { DeckFormat } from '@/deck-builder/types';
 import type { DeckSource } from '@/store/decks';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
-import { ColorPip } from '@/components/shared/ManaSymbol';
-import { ColorMatchModeToggle } from '@/components/shared/ColorMatchModeToggle';
+import {
+  ChoiceChips,
+  FilterSection,
+  ManaColorPicker,
+  colorModeOptions,
+} from '@/components/filter-kit';
+import { FilterPopoverFooter } from '@/components/shared/FilterPopoverFooter';
+import { resultCountLabel } from '@/lib/search/result-count-label';
 import { FilterTrigger } from '@/components/shared/FilterTrigger';
-import { FILTER_COLOR_OPTIONS } from '@/lib/cards/colors';
-import { type ColorMatchMode } from '@spellcontrol/binder-routing';
+import { colorModeNounHint } from '@/components/filter-kit/color-mode-noun-hint';
+import { parseColorMatchMode, type ColorMatchMode } from '@spellcontrol/binder-routing';
 import { useAnchoredPanel } from '@/lib/overlays/use-anchored-panel';
-import { Button, IconButton } from '@/components/shared/Button';
-import { Chip } from '@/components/shared/Chip';
 import { Surface } from '@/components/shared/Surface';
 
-const SOURCE_OPTIONS: Array<{ key: DeckSource; label: string }> = [
-  { key: 'generated', label: 'Generated' },
-  { key: 'manual', label: 'Manual' },
+const SOURCE_OPTIONS = [
+  { value: 'generated', label: 'Generated' },
+  { value: 'manual', label: 'Manual' },
 ];
+
+const FORMAT_OPTIONS = Object.values(DECK_FORMAT_CONFIGS).map((cfg) => ({
+  value: cfg.format,
+  label: cfg.label,
+}));
+
+const COLOR_MODES = colorModeOptions(['any', 'all', 'within']);
 
 interface Props {
   formats: Set<DeckFormat>;
@@ -24,15 +35,18 @@ interface Props {
   setSources: (next: Set<DeckSource>) => void;
   colors: Set<string>;
   setColors: (next: Set<string>) => void;
-  /** OR ('any') vs AND ('all') across the selected colors. Decks default to 'all'. */
+  /** Any / Exactly / Within across the selected colors. Decks default to 'all'. */
   colorMode: ColorMatchMode;
   setColorMode: (next: ColorMatchMode) => void;
+  /** How many decks the list shows right now, so the count is the list's own. */
+  resultCount: number;
 }
 
 /**
  * Inline filters anchored to the decks index search pill's trailing slot.
- * Three multi-select sections — Format, Source, Color — with live toggling
- * (no Apply staging), because these only change what you're looking at.
+ * Three kit sections (Format, Source, Color) that apply as you tap, with a
+ * live count and "Clear filters" in the footer (STYLE_GUIDE § Filter kit:
+ * a popover over a visible list is live, never a draft).
  *
  * Portal, placement and dismiss all come from `useAnchoredPanel`; the trigger
  * from `FilterTrigger`. Both are shared with every other filter popover.
@@ -46,42 +60,18 @@ export function DeckFiltersPopover({
   setColors,
   colorMode,
   setColorMode,
+  resultCount,
 }: Props) {
   const { open, toggle, triggerRef, panelRef, panelStyle } = useAnchoredPanel();
 
   const activeCount = formats.size + sources.size + colors.size;
-  const hasActive = activeCount > 0;
-
-  const toggleFormat = (f: DeckFormat) => {
-    const next = new Set(formats);
-    if (next.has(f)) next.delete(f);
-    else next.add(f);
-    setFormats(next);
-  };
-
-  const toggleSource = (s: DeckSource) => {
-    const next = new Set(sources);
-    if (next.has(s)) next.delete(s);
-    else next.add(s);
-    setSources(next);
-  };
-
-  const toggleColor = (c: string) => {
-    const next = new Set(colors);
-    if (next.has(c)) next.delete(c);
-    else next.add(c);
-    setColors(next);
-  };
+  const colorList = [...colors];
 
   const clearAll = () => {
     setFormats(new Set());
     setSources(new Set());
     setColors(new Set());
   };
-
-  const formatEntries = Object.entries(DECK_FORMAT_CONFIGS) as Array<
-    [DeckFormat, (typeof DECK_FORMAT_CONFIGS)[DeckFormat]]
-  >;
 
   return (
     <div className="filter-popover deck-filters-popover">
@@ -104,73 +94,41 @@ export function DeckFiltersPopover({
             aria-label="Filters"
             style={panelStyle}
           >
-            <section className="deck-filters-section">
-              <div className="deck-filters-section-label">Format</div>
-              <div className="deck-filters-chips" role="group" aria-label="Filter by format">
-                {formatEntries.map(([key, cfg]) => {
-                  const active = formats.has(key);
-                  return (
-                    <Chip
-                      key={key}
-                      className="filter-chip"
-                      onClick={() => toggleFormat(key)}
-                      pressed={active}
-                    >
-                      {cfg.label}
-                    </Chip>
-                  );
-                })}
-              </div>
-            </section>
+            <FilterSection label="Format" count={formats.size}>
+              <ChoiceChips
+                multiple
+                ariaLabel="Filter by format"
+                options={FORMAT_OPTIONS}
+                value={[...formats]}
+                onChange={(next) => setFormats(new Set(next as DeckFormat[]))}
+              />
+            </FilterSection>
 
-            <section className="deck-filters-section">
-              <div className="deck-filters-section-label">Source</div>
-              <div className="deck-filters-chips" role="group" aria-label="Filter by source">
-                {SOURCE_OPTIONS.map((s) => {
-                  const active = sources.has(s.key);
-                  return (
-                    <Chip
-                      key={s.key}
-                      className="filter-chip"
-                      onClick={() => toggleSource(s.key)}
-                      pressed={active}
-                    >
-                      {s.label}
-                    </Chip>
-                  );
-                })}
-              </div>
-            </section>
+            <FilterSection label="Source" count={sources.size}>
+              <ChoiceChips
+                multiple
+                ariaLabel="Filter by source"
+                options={SOURCE_OPTIONS}
+                value={[...sources]}
+                onChange={(next) => setSources(new Set(next as DeckSource[]))}
+              />
+            </FilterSection>
 
-            <section className="deck-filters-section">
-              <div className="deck-filters-section-label deck-filters-section-label--split">
-                Color
-                <ColorMatchModeToggle mode={colorMode} onChange={setColorMode} />
-              </div>
-              <div className="color-filter-row" role="group" aria-label="Filter by color">
-                {FILTER_COLOR_OPTIONS.map((c) => {
-                  const active = colors.has(c.key);
-                  return (
-                    <IconButton
-                      className={`color-filter-btn${active ? ' is-active' : ''}`}
-                      key={c.key}
-                      onClick={() => toggleColor(c.key)}
-                      aria-pressed={active}
-                      label={c.label}
-                      icon={<ColorPip color={c.key} />}
-                    />
-                  );
-                })}
-              </div>
-            </section>
+            <FilterSection label="Color" count={colors.size}>
+              <ManaColorPicker
+                colors={colorList}
+                onColorsChange={(next) => setColors(new Set(next))}
+                mode={colorMode}
+                modes={COLOR_MODES}
+                onModeChange={(next) => setColorMode(parseColorMatchMode(next, 'all'))}
+                hint={colorModeNounHint(colorList, colorMode, 'decks')}
+              />
+            </FilterSection>
 
-            {hasActive && (
-              <div className="deck-filters-footer">
-                <Button variant="link" onClick={clearAll} className="deck-filters-clear">
-                  Clear filters
-                </Button>
-              </div>
-            )}
+            <FilterPopoverFooter
+              resultLabel={resultCountLabel(resultCount, 'deck')}
+              onClear={activeCount > 0 ? clearAll : undefined}
+            />
           </Surface>,
           document.body
         )}

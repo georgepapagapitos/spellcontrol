@@ -88,6 +88,7 @@ export async function listDiscoverDecks(
   if (params.format) qs.set('format', params.format);
   if (params.brackets && params.brackets.length > 0) qs.set('bracket', params.brackets.join(','));
   if (params.colors && params.colors.length > 0) qs.set('colors', params.colors.join(','));
+  if (params.colorMode && params.colorMode !== 'within') qs.set('colorMode', params.colorMode);
   if (params.budget) qs.set('budget', params.budget);
   const res = await fetch(apiUrl(`/api/discover/decks?${qs.toString()}`), {
     credentials: 'include',

@@ -15,6 +15,7 @@ import type { ComboSearchResult } from '../lib/offline';
 import { CardPreview } from '@/components/card/CardPreview';
 import { Tabs } from '@/components/overlays/Tabs';
 import { SearchPill } from '@/components/search/SearchPill';
+import { resultCountLabel } from '@/lib/search/result-count-label';
 import { ComboFiltersPopover } from '@/components/collection/ComboFiltersPopover';
 import { FilterChipsRow, type FilterChipDescriptor } from '../components/shared/FilterChipsRow';
 import { colorChipLabel } from '@/lib/search/filter-summary';
@@ -142,7 +143,7 @@ export function CollectionCombosPage() {
     if (filters.colors.size > 0)
       chips.push({
         id: 'colors',
-        label: `Color: ${colorChipLabel(filters.colors)}`,
+        label: `Color: ${colorChipLabel(filters.colors, filters.colorMode)}`,
         onClear: () => setFilters({ ...filters, colors: new Set() }),
       });
     if (filters.results.size > 0)
@@ -357,6 +358,11 @@ export function CollectionCombosPage() {
                 filters={filters}
                 setFilters={setFilters}
                 hasCommanders={commanders.length > 0}
+                resultLabel={resultCountLabel(
+                  matches.length,
+                  'combo',
+                  searchMode && searchTruncated
+                )}
               />
             }
           />

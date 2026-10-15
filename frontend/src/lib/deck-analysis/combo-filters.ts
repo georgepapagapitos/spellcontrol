@@ -1,5 +1,6 @@
 import type { ComboMatch } from '@/types/combos';
 import { normalizeForSearch } from '@/lib/search/normalize-search';
+import { colorSelectionMatches, type ColorMatchMode } from '@spellcontrol/binder-routing';
 
 /**
  * Search + filter for the collection combos view. Pure and synchronous — the
@@ -14,6 +15,8 @@ export type ComboPieceCount = '2' | '3' | '4+';
 export interface ComboFilterState {
   /** WUBRG + 'C'. Empty = no constraint. See `fitsColors` for the semantics. */
   colors: Set<string>;
+  /** How `colors` match a combo's identity. Defaults to 'within' ("what can I build"). */
+  colorMode: ColorMatchMode;
   /** Empty = no constraint. A combo matches if ANY of its results is selected. */
   results: Set<ComboResultKind>;
   /** Empty = no constraint. */
@@ -33,7 +36,13 @@ export const COMBO_RESULT_LABELS: Record<ComboResultKind, string> = {
 };
 
 export function emptyComboFilters(): ComboFilterState {
-  return { colors: new Set(), results: new Set(), pieceCounts: new Set(), hostOnly: false };
+  return {
+    colors: new Set(),
+    colorMode: 'within',
+    results: new Set(),
+    pieceCounts: new Set(),
+    hostOnly: false,
+  };
 }
 
 export function countActiveFilters(f: ComboFilterState): number {
@@ -78,22 +87,25 @@ export function pieceCountBucket(n: number): ComboPieceCount {
 }
 
 /**
- * Color semantics: selecting {U, B} means "combos I could run in a UB deck" —
- * i.e. the combo's identity must FIT INSIDE the selection, not merely overlap
- * it. Same subset rule `useDeckCombos.filterByIdentity` applies against a
- * commander, which is what makes the filter useful for "what can I build".
+ * Color semantics, by mode (the engine's `colorSelectionMatches`, shared with
+ * every other color row). The default, 'within', means selecting {U, B} is
+ * "combos I could run in a UB deck": the combo's identity must FIT INSIDE the
+ * selection, not merely overlap it. Same subset rule `useDeckCombos.filterByIdentity`
+ * applies against a commander, which is what makes the filter useful for
+ * "what can I build". 'any' is overlap, 'all' is exactly the selection.
  *
- * Spellbook identities are lowercase WUBRG, or 'c' for colorless. Colorless
- * fits in any selection, so a combo with identity 'c' (or '') always passes
- * once any color is chosen.
+ * Spellbook identities are lowercase WUBRG, or 'c' for colorless. In 'within'
+ * a colorless combo fits any selection, so it always passes once a color is
+ * chosen.
  */
-function fitsColors(identity: string, selected: ReadonlySet<string>): boolean {
+function fitsColors(
+  identity: string,
+  selected: ReadonlySet<string>,
+  mode: ColorMatchMode
+): boolean {
   if (selected.size === 0) return true;
   const letters = [...identity.toUpperCase()].filter((ch) => ch !== 'C');
-  // Colorless combos: only shown when 'C' is among the selection, so that
-  // picking just 'C' is a meaningful "colorless only" filter.
-  if (letters.length === 0) return selected.has('C');
-  return letters.every((ch) => selected.has(ch));
+  return colorSelectionMatches(letters.length === 0 ? 'C' : '', letters, selected, mode);
 }
 
 /**
@@ -132,7 +144,7 @@ export function filterCombos(
 
   return matches.filter((m) => {
     if (!matchesSearch(m, needle)) return false;
-    if (!fitsColors(m.combo.identity, f.colors)) return false;
+    if (!fitsColors(m.combo.identity, f.colors, f.colorMode)) return false;
 
     if (f.pieceCounts.size > 0 && !f.pieceCounts.has(pieceCountBucket(m.combo.cards.length))) {
       return false;
