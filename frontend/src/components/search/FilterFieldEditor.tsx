@@ -15,6 +15,7 @@ import { FINISH_LABELS } from '@/lib/scanner/scanner-feedback';
 import { cardTagLabel, listCardTags, useCardTagsReady } from '@/lib/cards/card-tags';
 import { searchCardsLive } from '@/deck-builder/services/scryfall/client';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
+import { ChipsChoice } from './ChipsChoice';
 import { X } from 'lucide-react';
 import { InfoTip } from '@/components/overlays/InfoTip';
 import { useRuleFieldVisibility } from './RuleFieldContext';
@@ -483,12 +484,12 @@ export function FilterFieldEditor({
       {/* Format/Legality */}
       {showLegality && inGroup('legalities') && (
         <Row label="Format" fieldId="legalities">
-          <ChipExpressionBuilder
+          <ChipsChoice
             options={SHARED_FORMAT_OPTIONS}
-            value={value.legalities ?? EMPTY_EXPR}
+            value={value.legalities}
             onChange={(next) => onPatch({ legalities: next })}
-            defaultJoiner="OR"
-            placeholder="Add format…"
+            ariaLabel="Filter by format"
+            noun="formats"
           />
         </Row>
       )}
@@ -496,13 +497,13 @@ export function FilterFieldEditor({
       {/* Layout */}
       {showLayout && inGroup('layouts') && (
         <Row label="Layout" fieldId="layouts">
-          <ChipExpressionBuilder
+          <ChipsChoice
             options={SHARED_LAYOUT_OPTIONS}
-            value={value.layouts ?? EMPTY_EXPR}
+            value={value.layouts}
             onChange={(next) => onPatch({ layouts: next })}
-            defaultJoiner="OR"
-            lockJoiner="OR"
-            placeholder="Add layout…"
+            ariaLabel="Filter by layout"
+            noun="layouts"
+            lockOr
           />
         </Row>
       )}
@@ -510,12 +511,12 @@ export function FilterFieldEditor({
       {/* Treatment */}
       {showTreatment && inGroup('treatments') && (
         <Row label="Treatment" fieldId="treatments">
-          <ChipExpressionBuilder
+          <ChipsChoice
             options={SHARED_TREATMENT_OPTIONS}
-            value={value.treatments ?? EMPTY_EXPR}
+            value={value.treatments}
             onChange={(next) => onPatch({ treatments: next })}
-            defaultJoiner="OR"
-            placeholder="Add treatment…"
+            ariaLabel="Filter by treatment"
+            noun="treatments"
           />
         </Row>
       )}
@@ -523,13 +524,13 @@ export function FilterFieldEditor({
       {/* Border */}
       {showBorder && inGroup('borderColors') && (
         <Row label="Border" fieldId="borderColors">
-          <ChipExpressionBuilder
+          <ChipsChoice
             options={SHARED_BORDER_OPTIONS}
-            value={value.borderColors ?? EMPTY_EXPR}
+            value={value.borderColors}
             onChange={(next) => onPatch({ borderColors: next })}
-            defaultJoiner="OR"
-            lockJoiner="OR"
-            placeholder="Add border…"
+            ariaLabel="Filter by border"
+            noun="borders"
+            lockOr
           />
         </Row>
       )}
@@ -537,13 +538,13 @@ export function FilterFieldEditor({
       {/* Finish — collection-page only (physical copy field) */}
       {showFinish && inGroup('finishes') && (
         <Row label="Finish" fieldId="finishes">
-          <ChipExpressionBuilder
+          <ChipsChoice
             options={SHARED_FINISH_OPTIONS}
-            value={value.finishes ?? EMPTY_EXPR}
+            value={value.finishes}
             onChange={(next) => onPatch({ finishes: next })}
-            defaultJoiner="OR"
-            lockJoiner="OR"
-            placeholder="Add finish…"
+            ariaLabel="Filter by finish"
+            noun="finishes"
+            lockOr
           />
         </Row>
       )}
