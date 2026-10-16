@@ -202,15 +202,17 @@ export function CollectionPage() {
               },
             ]),
       ]}
-      // The totals wait for the collection: a price read mid-load is wrong.
-      // The card count is the Cards tab's chip, so the line doesn't repeat it
-      // (STYLE_GUIDE § Layout system, "A count is said once"); an empty
+      // The totals wait for the collection: a count and a price read mid-load
+      // are both wrong. The exact count lives here: the Cards tab chip rounds
+      // to "14K" past 999, so it can't be the one place the number is said
+      // (STYLE_GUIDE § Layout system, "A count is said once"). An empty
       // collection has no totals line at all.
       intro={
         loadingCollection || isEmpty ? undefined : (
           <>
             <span aria-label="Collection totals" role="group">
-              Worth{' '}
+              {collectionCardCount.toLocaleString()} {collectionCardCount === 1 ? 'card' : 'cards'}{' '}
+              · Worth{' '}
               {(isRefreshingPrices && priceRefreshProgress) ||
               (!isEmpty && !pricesEverLoaded && collectionValue === 0) ? (
                 // The prominent total must not read as a settled figure

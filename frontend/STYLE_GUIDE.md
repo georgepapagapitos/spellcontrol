@@ -583,7 +583,11 @@ meanwhile.
   Inside its own hub a nav item drops its count, because the tab chip right
   under it says the same thing (`/collection` said "61" three times: nav,
   tab, intro line), and an intro line carries what the chips don't, such as
-  the value. Three bordered boxes of big-number-over-caps-label is the stat
+  the value. **A rounded chip doesn't count as saying it.** Past 999 the chip
+  abbreviates ("14K"), so the exact figure is said once in full on the hub's
+  intro line ("13,842 cards · Worth $11,971"). Losing the exact number to
+  avoid a repeat is the wrong trade: the owner reads it. Guard:
+  `pages/CollectionPage.test.tsx` ("intro carries the exact count"). Three bordered boxes of big-number-over-caps-label is the stat
   tile template, and on Home it repeated the nav word for word; the hero now
   leads with the collection's value as its one figure, captioned with what it
   is. **Why:** an outside "does this read as AI-designed" review and the
