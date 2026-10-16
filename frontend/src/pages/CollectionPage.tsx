@@ -113,13 +113,8 @@ export function CollectionPage() {
     [cards]
   );
 
-  // Reveal animations for the hero stats. Card count counts up on first load;
-  // dollar value reveals (integer only, no pop animation wired up — popKey is
-  // intentionally unused here per §8.1 of the UX-411 spec).
-  const { display: displayCardCount } = useAnimatedNumber(collectionCardCount, {
-    revealMs: 600,
-    revealKey: 'collection-hero-count',
-  });
+  // The value reveals on first load (integer only, no pop animation wired up:
+  // popKey is intentionally unused here per §8.1 of the UX-411 spec).
   const { display: displayValue } = useAnimatedNumber(Math.floor(collectionValue), {
     revealMs: 600,
     revealKey: 'collection-hero-value',
@@ -207,13 +202,15 @@ export function CollectionPage() {
               },
             ]),
       ]}
-      // The totals wait for the collection: a count and a price read
-      // mid-load are both wrong.
+      // The totals wait for the collection: a price read mid-load is wrong.
+      // The card count is the Cards tab's chip, so the line doesn't repeat it
+      // (STYLE_GUIDE § Layout system, "A count is said once"); an empty
+      // collection has no totals line at all.
       intro={
-        loadingCollection ? undefined : (
+        loadingCollection || isEmpty ? undefined : (
           <>
             <span aria-label="Collection totals" role="group">
-              {displayCardCount.toLocaleString()} {collectionCardCount === 1 ? 'card' : 'cards'} ·{' '}
+              Worth{' '}
               {(isRefreshingPrices && priceRefreshProgress) ||
               (!isEmpty && !pricesEverLoaded && collectionValue === 0) ? (
                 // The prominent total must not read as a settled figure

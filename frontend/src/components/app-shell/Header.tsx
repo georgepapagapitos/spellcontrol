@@ -63,11 +63,16 @@ export function Header() {
             to="/collection"
             className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
           >
-            <span>Collection</span>
-            {cardCount > 0 && (
-              <span className="site-nav-count" aria-label={`${cardCount} cards`} role="img">
-                {formatCount(cardCount)}
-              </span>
+            {({ isActive }) => (
+              <>
+                <span>Collection</span>
+                {/* Inside its own hub the count is the Cards tab's: said once. */}
+                {cardCount > 0 && !isActive && (
+                  <span className="site-nav-count" aria-label={`${cardCount} cards`} role="img">
+                    {formatCount(cardCount)}
+                  </span>
+                )}
+              </>
             )}
           </NavLink>
           <NavLink
@@ -75,11 +80,16 @@ export function Header() {
             to="/decks"
             className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
           >
-            <span>Decks</span>
-            {deckCount > 0 && (
-              <span className="site-nav-count" aria-label={`${deckCount} decks`} role="img">
-                {formatCount(deckCount)}
-              </span>
+            {({ isActive }) => (
+              <>
+                <span>Decks</span>
+                {/* Inside its own hub the count is the My decks tab's: said once. */}
+                {deckCount > 0 && !isActive && (
+                  <span className="site-nav-count" aria-label={`${deckCount} decks`} role="img">
+                    {formatCount(deckCount)}
+                  </span>
+                )}
+              </>
             )}
           </NavLink>
           <NavLink

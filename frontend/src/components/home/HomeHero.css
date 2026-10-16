@@ -8,10 +8,15 @@
    the day's card sits to the right at its full aspect in a sleeve frame
    with a tape-label caption. No backdrop, no scrim, no on-art text.
 
-   Four areas: head (greeting + value), the card, the value sparkline, and
-   the foot (scale line + actions). On a phone the card sits beside the head
-   and the sparkline and foot run the panel's full width; from 600px the card
-   takes its own column down the right and everything else stacks beside it. */
+   One figure wins: the collection's value. Four areas: head (greeting +
+   value), the card, the value sparkline, and the foot (the actions). On a
+   phone `.home-hero-main` is `display: contents`, so the card sits beside the
+   head and the sparkline and actions run the panel's full width. From 600px
+   the main block is one column, centered on the card's height beside it, so
+   the panel has no dead middle whether or not a sparkline is there. The
+   cards / decks / binders tiles that once sat in the foot are gone: the nav
+   and the hub tabs already carry those counts (STYLE_GUIDE § Layout system,
+   "A count is said once"). */
 
 .home-hero {
   display: grid;
@@ -28,24 +33,49 @@
   box-shadow: var(--shadow-card);
 }
 
+/* On a phone the main block lends its children to the hero's grid. */
+.home-hero-main {
+  display: contents;
+}
+
 @media (min-width: 600px) {
   .home-hero {
     grid-template-columns: minmax(0, 1fr) clamp(12rem, 28vw, 15rem);
-    /* The chart's row takes whatever height the card leaves over, so the
-       sparkline grows into it rather than a gap opening above the plates. */
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    grid-template-areas:
-      'head card'
-      'spark card'
-      'foot card';
-    gap: var(--space-3) var(--space-5);
+    grid-template-areas: 'main card';
+    align-items: center;
+    gap: var(--space-5);
     padding: var(--space-5);
+  }
+
+  .home-hero-main {
+    grid-area: main;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    min-width: 0;
+  }
+
+  /* In the column every part runs the full width; the chart gets a fixed
+     band under the value instead of the leftover height of a grid row. */
+  .home-hero-main > .home-hero-head,
+  .home-hero-main > .home-hero-foot {
+    align-self: stretch;
+  }
+
+  .home-hero-main > .home-hero-spark {
+    height: 5.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .home-hero-main > .home-hero-spark {
+    height: 7rem;
   }
 }
 
 @media (min-width: 1024px) {
   .home-hero {
-    grid-template-columns: minmax(0, 1fr) 21rem;
+    grid-template-columns: minmax(0, 1fr) 18rem;
     column-gap: var(--space-7);
     padding: var(--space-5) var(--space-6);
   }
@@ -84,23 +114,12 @@
   min-width: 0;
 }
 
-/* Desktop: the scale line and the actions share one row, plates left and
-   actions right, so the foot is one line under the chart. */
-@media (min-width: 1024px) {
-  .home-hero:not(.home-hero--checklist) .home-hero-foot {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    justify-content: space-between;
-  }
-}
-
 /* The greeting is a line above the value when there is a value; with none
    (a guest, or no price history yet) it is the title. */
 .home-hero-hello {
   margin: 0;
   font-family: var(--font-serif);
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   font-weight: 500;
   color: var(--text-secondary);
 }
@@ -167,71 +186,12 @@
   color: var(--text-secondary);
 }
 
-/* ── Scale line ────────────────────────────────────────────────────────────
-   Three plates: what the collection IS, each a door. Print voice, matching
-   the app's table tier — a tracked `--font-label` caption over a tabular
-   numeral, on a step-down `--surface` plate. Captions on the hero panel, not
-   surfaces of their own. Three equal columns on a phone. */
-.home-hero-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-@media (min-width: 600px) {
-  .home-hero-stats {
-    display: flex;
-    flex-wrap: wrap;
-  }
-}
-
-.home-hero-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 5.5rem;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: inherit;
-  text-decoration: none;
-  transition:
-    border-color var(--motion-fast),
-    background var(--motion-fast);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .home-hero-stat:hover {
-    border-color: var(--border-strong);
-    background: var(--surface-raised);
-  }
-}
-
-.home-hero-stat:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.home-hero-stat-value {
-  font-family: var(--font-serif);
-  font-size: var(--text-lg);
-  font-weight: 700;
-  line-height: 1.1;
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
-}
-
-.home-hero-stat-label {
-  font-family: var(--font-label);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-muted);
+/* What the number is, on its own line under it: a figure without its
+   context reads as decoration (ui-tells.md, "give each number its context"). */
+.home-hero-value-label {
+  flex-basis: 100%;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
 }
 
 /* ── Actions ───────────────────────────────────────────────────────────────
@@ -424,7 +384,7 @@ a.home-hero-step:focus-visible {
 /* ── The featured card ─────────────────────────────────────────────────── */
 
 /* The grid column sets its width: 7.5rem beside a phone's head, up to 15rem
-   on a tablet, 21rem on desktop, where it is the page's one large image. */
+   on a tablet, 18rem on desktop, where it is the page's one large image. */
 .home-hero-card {
   margin: 0;
   display: flex;

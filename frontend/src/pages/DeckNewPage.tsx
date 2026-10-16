@@ -1,6 +1,6 @@
 import { useCallback, useId, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowRight, Download, Hand, Package, Plus, Wand2 } from 'lucide-react';
+import { ArrowRight, ChevronRight, Download, Hand, Package, Plus, Wand2 } from 'lucide-react';
 // New-deck-only stylesheets ship with this chunk, not the boot payload (E265).
 import '@/styles/deck-builder-deck-extras.css';
 import '@/styles/deck-builder-import-dialog.css';
@@ -20,10 +20,8 @@ type DoorProps = {
   icon: ReactNode;
   title: string;
   description: string;
-  /** The one full-width door, with a visible call to action. */
+  /** The one primary door, framed, with a visible call to action. */
   feature?: string;
-  /** An open slot, like BinderStartChooser's Blank tile: the start with nothing preset. */
-  dashed?: boolean;
 } & ({ to: string; onClick?: never } | { onClick: () => void; to?: never });
 
 /**
@@ -32,12 +30,13 @@ type DoorProps = {
  * title alone, with the description attached as a description, so a screen
  * reader hears "Brew it slot by slot" and not the whole paragraph.
  */
-function Door({ icon, title, description, feature, dashed, to, onClick }: DoorProps) {
+function Door({ icon, title, description, feature, to, onClick }: DoorProps) {
   const id = useId();
-  const cls = `deck-new-door${feature ? ' is-feature' : ''}${dashed ? ' is-dashed' : ''}`;
+  const cls = `deck-new-door${feature ? ' is-feature' : ''}`;
   const body = (
     <>
-      <span className="deck-new-door-glyph" aria-hidden>
+      {/* Beside the title at text size, never framed in a square of its own. */}
+      <span className="deck-new-door-icon" aria-hidden>
         {icon}
       </span>
       <span className="deck-new-door-text">
@@ -54,7 +53,13 @@ function Door({ icon, title, description, feature, dashed, to, onClick }: DoorPr
           <ArrowRight width={14} height={14} strokeWidth={1.8} />
         </span>
       ) : (
-        <ArrowRight className="deck-new-door-go" width={16} height={16} aria-hidden />
+        <ChevronRight
+          className="deck-new-door-go"
+          width={16}
+          height={16}
+          strokeWidth={2}
+          aria-hidden
+        />
       )}
     </>
   );
@@ -167,7 +172,7 @@ export function DeckNewPage() {
           <Door
             to={`/decks/new/generate?format=${format}`}
             feature="Find a commander"
-            icon={<Wand2 width={20} height={20} strokeWidth={1.8} />}
+            icon={<Wand2 width={14} height={14} strokeWidth={1.8} />}
             title="Generate a deck"
             description={
               isPdh
@@ -180,15 +185,14 @@ export function DeckNewPage() {
         {formatConfig.hasCommander && !isPdh && (
           <Door
             to="/decks/new/brew"
-            icon={<Hand width={20} height={20} strokeWidth={1.8} />}
+            icon={<Hand width={14} height={14} strokeWidth={1.8} />}
             title="Brew it slot by slot"
             description="Build one slot at a time from a hand of candidates you add or pass."
           />
         )}
         <Door
           onClick={handleEmptyDeck}
-          dashed
-          icon={<Plus width={20} height={20} strokeWidth={1.8} />}
+          icon={<Plus width={14} height={14} strokeWidth={1.8} />}
           title={formatConfig.hasCommander ? 'Empty deck' : `Empty ${formatConfig.label} deck`}
           description={
             formatConfig.hasCommander
@@ -198,7 +202,7 @@ export function DeckNewPage() {
         />
         <Door
           onClick={() => setShowImport(true)}
-          icon={<Download width={20} height={20} strokeWidth={1.8} />}
+          icon={<Download width={14} height={14} strokeWidth={1.8} />}
           title="Import a list"
           description="Paste a decklist or a deck link."
         />
@@ -208,7 +212,7 @@ export function DeckNewPage() {
         {format === 'commander' && (
           <Door
             onClick={() => setShowProduct(true)}
-            icon={<Package width={20} height={20} strokeWidth={1.8} />}
+            icon={<Package width={14} height={14} strokeWidth={1.8} />}
             title="Add a product"
             description="A precon or boxed deck, added as it came in the box."
           />

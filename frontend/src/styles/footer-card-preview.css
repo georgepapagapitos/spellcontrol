@@ -1221,12 +1221,10 @@
 .card-preview-sec--disc .card-rulings-toggle,
 .card-preview-sec--disc .card-disc-toggle {
   margin: 0 0 var(--space-2);
-  font-family: var(--font-label);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--text-secondary);
+  font-family: var(--font-serif);
 }
 
 .card-preview-sec--disc .card-rulings-toggle,

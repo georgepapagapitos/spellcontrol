@@ -14,11 +14,8 @@
 
 .home-waiting-title {
   margin: 0;
-  font-family: var(--font-label);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--text-secondary);
 }
 

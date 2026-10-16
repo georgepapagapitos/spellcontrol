@@ -29,10 +29,6 @@ import {
 } from '@/lib/collection/value-history';
 import { Button, buttonClass } from '@/components/shared/Button';
 
-/** Every scale-line label is a plain plural, so one copy of the s-strip
- *  covers all three — "1 Binders" reads as a bug in a figure that small. */
-const singularize = (n: number, label: string) => (n === 1 ? label.slice(0, -1) : label);
-
 /** The caption's provenance line states WHY this card was picked — an
  *  unlabeled pick read as random to real users ("why does it pick that
  *  card?"), and the picker always knows its reason. */
@@ -190,8 +186,8 @@ function HeroChecklist({ greeting }: { greeting: string }) {
 
 /**
  * /home's hero ("your collection is the hero"): the greeting, the collection's
- * value with its sparkline under it, the scale line (cards/decks/binders, each
- * a door) and the actions on the left; the day's card from the viewer's own
+ * value (the one dominant figure) with its sparkline under it and the actions on
+ * the left, as one centered block; the day's card from the viewer's own
  * collection displayed as an OBJECT on the right — a full, uncropped art crop
  * in a sleeve frame with a tape-label caption. The value and its chart live
  * only here: the Value movers card used to restate both word for word.
@@ -206,7 +202,6 @@ export function HomeHero() {
   const profile = useAuth((s) => s.profile);
 
   const collectionCards = useCollectionStore((s) => s.cards);
-  const binders = useCollectionStore((s) => s.binders);
   const importHistory = useCollectionStore((s) => s.importHistory);
   const decks = useDecksStore((s) => s.decks);
   const decksHydrated = useDecksStore((s) => s.hydrated);
@@ -306,8 +301,8 @@ export function HomeHero() {
   const latestValue = points.length > 0 ? points[points.length - 1].value : null;
   const showSparkline = points.length >= 2 && delta !== null;
 
-  // Both async lines below (value, scale) reserve their box while pending IF
-  // this browser rendered them last time (`remembered`) — the hero otherwise
+  // The value line reserves its box while pending IF
+  // this browser rendered it last time (`remembered`) — the hero otherwise
   // grows under the greeting after first paint (E277). A fresh account has
   // no memory and reserves nothing.
   const valuePending = authed && valueData === undefined;
@@ -315,21 +310,6 @@ export function HomeHero() {
     if (authed && !valuePending) rememberHomeShape('hero-value', latestValue !== null ? 1 : 0);
   }, [authed, valuePending, latestValue]);
   const reserveValue = valuePending && remembered['hero-value'] === 1;
-
-  // Scale line: the three things this collection IS, each one a door. The
-  // header's nav chips carry two of these abbreviated ("12K"); these are the
-  // real figures, and they're clickable. Suppressed wholesale on a fresh
-  // account — a row of zeroes is worse than no row.
-  const stats = [
-    { label: 'Cards', value: collectionCards.length, to: '/collection' },
-    { label: 'Decks', value: decks.length, to: '/decks' },
-    { label: 'Binders', value: binders.length, to: '/collection/binders' },
-  ];
-  const showStats = authed && stats.some((s) => s.value > 0);
-  useEffect(() => {
-    if (authed && !hydrating) rememberHomeShape('hero-stats', showStats ? 1 : 0);
-  }, [authed, hydrating, showStats]);
-  const reserveStats = authed && hydrating && !showStats && remembered['hero-stats'] === 1;
 
   const name = formatIdentity({
     username: user?.username ?? '',
@@ -381,93 +361,65 @@ export function HomeHero() {
 
   return (
     <header className="home-hero">
-      <div className="home-hero-head">
-        {!authed ? (
-          <h1 className="home-hero-title">Plan your Magic: The Gathering collection</h1>
-        ) : hasValue ? (
-          <>
-            <h1 className="home-hero-hello">{hello}</h1>
-            {reserveValue ? (
-              <div className="home-hero-value home-hero-value--loading" aria-hidden="true">
-                <span className="home-hero-value-amount">{' '}</span>
-              </div>
-            ) : (
-              latestValue !== null && (
-                <div className="home-hero-value">
-                  <span className="home-hero-value-amount">
-                    {formatMoney(latestValue, { wholeDollars: true })}
-                  </span>
-                  {chip.text && (
-                    <span
-                      className={`home-hero-value-delta home-hero-value-delta--${chip.direction}`}
-                    >
-                      {chip.text}
-                    </span>
-                  )}
-                  {chip.changes && <span className="home-hero-value-changes">{chip.changes}</span>}
+      <div className="home-hero-main">
+        <div className="home-hero-head">
+          {!authed ? (
+            <h1 className="home-hero-title">Plan your Magic: The Gathering collection</h1>
+          ) : hasValue ? (
+            <>
+              <h1 className="home-hero-hello">{hello}</h1>
+              {reserveValue ? (
+                <div className="home-hero-value home-hero-value--loading" aria-hidden="true">
+                  <span className="home-hero-value-amount">{' '}</span>
                 </div>
-              )
-            )}
-          </>
-        ) : (
-          <h1 className="home-hero-title">{hello}</h1>
+              ) : (
+                latestValue !== null && (
+                  <div className="home-hero-value">
+                    <span className="home-hero-value-amount">
+                      {formatMoney(latestValue, { wholeDollars: true })}
+                    </span>
+                    {chip.text && (
+                      <span
+                        className={`home-hero-value-delta home-hero-value-delta--${chip.direction}`}
+                      >
+                        {chip.text}
+                      </span>
+                    )}
+                    {chip.changes && (
+                      <span className="home-hero-value-changes">{chip.changes}</span>
+                    )}
+                    <span className="home-hero-value-label">Collection value</span>
+                  </div>
+                )
+              )}
+            </>
+          ) : (
+            <h1 className="home-hero-title">{hello}</h1>
+          )}
+        </div>
+
+        {showSparkline && valueData && (
+          <div className="home-hero-spark">
+            <ValueSparkline points={points} today={valueData.today} />
+          </div>
         )}
+
+        <div className="home-hero-foot">
+          <HeroActions
+            secondary={
+              <Button
+                to="/decks/new"
+                className="home-hero-action"
+                icon={<Plus width={16} height={16} strokeWidth={1.8} />}
+              >
+                New deck
+              </Button>
+            }
+          />
+        </div>
       </div>
 
       {figure}
-
-      {showSparkline && valueData && (
-        <div className="home-hero-spark">
-          <ValueSparkline points={points} today={valueData.today} />
-        </div>
-      )}
-
-      <div className="home-hero-foot">
-        {reserveStats && (
-          <ul className="home-hero-stats home-hero-stats--loading" aria-hidden="true">
-            {stats.map((stat) => (
-              <li key={stat.label}>
-                <span className="home-hero-stat">
-                  <span className="home-hero-stat-value">{' '}</span>
-                  <span className="home-hero-stat-label">{stat.label}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-        {showStats && (
-          <ul className="home-hero-stats">
-            {stats.map((stat) => (
-              <li key={stat.label}>
-                <Link
-                  to={stat.to}
-                  className="home-hero-stat"
-                  aria-label={`${stat.value.toLocaleString()} ${singularize(
-                    stat.value,
-                    stat.label
-                  ).toLowerCase()}`}
-                >
-                  <span className="home-hero-stat-value">{stat.value.toLocaleString()}</span>
-                  <span className="home-hero-stat-label">
-                    {singularize(stat.value, stat.label)}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-        <HeroActions
-          secondary={
-            <Button
-              to="/decks/new"
-              className="home-hero-action"
-              icon={<Plus width={16} height={16} strokeWidth={1.8} />}
-            >
-              New deck
-            </Button>
-          }
-        />
-      </div>
     </header>
   );
 }
