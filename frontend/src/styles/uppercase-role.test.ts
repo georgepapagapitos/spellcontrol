@@ -49,7 +49,7 @@ const ROLES: Record<string, Record<string, [Role, string]>> = {
   'styles/collection.css': {
     '.collection-table-th': ['table-head', 'the collection table'],
     '.set-filter-chip-label': ['data', 'a set code'],
-    '.collection-grid-set': ['data', 'a set code'],
+    '.collection-grid-set, .copy-places-set': ['data', 'a set code, as a chip or on the one plate'],
   },
   'styles/shared.css': {
     '.shared-list-table th': ['table-head', 'a shared list table'],

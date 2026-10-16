@@ -116,7 +116,8 @@
 }
 
 /* All or nothing: shown, it keeps every letter (flex would trim "MSC" to
-   "MS" before the discs overlap); folded, it takes no room at all. */
+   "MS" before the discs overlap); folded, it takes no room at all. Its mono
+   face is the corner set chip's rule (collection.css .collection-grid-set). */
 .copy-places-set {
   flex-shrink: 0;
   overflow: hidden;

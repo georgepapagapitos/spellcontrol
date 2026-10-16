@@ -89,7 +89,7 @@ function ArtPlate({ groups, lead }: { groups: MarkGroup[]; lead?: PlateLead }) {
             </span>
           )}
           {lead.set && (
-            <span className="collection-grid-set copy-places-set" title={lead.set.title}>
+            <span className="copy-places-set" title={lead.set.title}>
               {lead.set.code}
             </span>
           )}

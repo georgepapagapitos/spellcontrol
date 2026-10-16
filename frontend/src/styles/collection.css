@@ -1598,8 +1598,10 @@ i.ss.set-symbol--mythic {
   z-index: 2;
 }
 
-/* A set code is a code: mono and uppercase on the plate. */
-.collection-grid-set {
+/* A set code is a code: mono and uppercase on the plate, as its own chip or
+   as a segment of the tile's one plate (CopyPlaces). */
+.collection-grid-set,
+.copy-places-set {
   font-family: var(--font-mono);
   letter-spacing: 0.04em;
   text-transform: uppercase;
