@@ -124,8 +124,12 @@ describe('importReviewHeadline', () => {
 
 describe('fetchErrorMessage', () => {
   it('pluralizes the count and joins the retry hint with no em-dash', () => {
-    expect(fetchErrorMessage(1, 'Retry below.')).toBe("1 card couldn't be fetched. Retry below.");
-    expect(fetchErrorMessage(3, 'Retry below.')).toBe("3 cards couldn't be fetched. Retry below.");
+    expect(fetchErrorMessage(1, 'Choose Retry to fetch them.')).toBe(
+      "1 card couldn't be fetched. Choose Retry to fetch them."
+    );
+    expect(fetchErrorMessage(3, 'Choose Retry to fetch them.')).toBe(
+      "3 cards couldn't be fetched. Choose Retry to fetch them."
+    );
   });
 
   it('carries a longer explanatory retry hint verbatim', () => {

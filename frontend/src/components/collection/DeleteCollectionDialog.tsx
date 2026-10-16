@@ -44,7 +44,7 @@ export function DeleteCollectionDialog({ onClose }: { onClose: () => void }) {
   return (
     <Modal
       // A fresh modal per step, so the final step's danger button takes focus
-      // as its own dialog rather than inheriting the Continue click's focus.
+      // as its own dialog rather than inheriting the first step's click's focus.
       key={step}
       onClose={onClose}
       dismissable={!busy}
@@ -81,7 +81,7 @@ export function DeleteCollectionDialog({ onClose }: { onClose: () => void }) {
           disabled={busy}
           autoFocus
         >
-          {busy ? 'Deleting…' : isFinal ? 'Delete everything' : 'Continue'}
+          {busy ? 'Deleting…' : isFinal ? 'Delete everything' : 'Delete all cards'}
         </Button>
       </div>
     </Modal>

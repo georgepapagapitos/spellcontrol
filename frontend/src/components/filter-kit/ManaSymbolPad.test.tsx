@@ -41,7 +41,7 @@ describe('manaCostSummary', () => {
 describe('ManaSymbolPad', () => {
   it('adds a symbol per tap, with a count badge and the cost in the tray', () => {
     render(<Harness />);
-    expect(screen.getByText('Tap symbols above')).toBeTruthy();
+    expect(screen.getByText('Tap a symbol to add it')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Add black mana' }));
     fireEvent.click(screen.getByRole('button', { name: 'Add black mana, 1 added' }));
     expect(latest.current.counts).toEqual({ B: 2 });

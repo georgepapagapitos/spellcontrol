@@ -290,7 +290,7 @@ export function AvatarPickerSheet({ current, onPick, onClose }: Props) {
           {!searching && collection.length === 0 && (
             <div className="avatar-picker-empty-collection">
               <p>Your collection is empty.</p>
-              <p>Search above for any card to use as your avatar.</p>
+              <p>Search for any card to use as your avatar.</p>
             </div>
           )}
 
@@ -338,9 +338,7 @@ export function AvatarPickerSheet({ current, onPick, onClose }: Props) {
             <p className="avatar-picker-hint">Type at least two characters to search.</p>
           )}
           {!searching && browseHasMore && (
-            <p className="avatar-picker-hint">
-              Showing your first 300 cards. Search above for more.
-            </p>
+            <p className="avatar-picker-hint">Showing your first 300 cards. Search for more.</p>
           )}
         </div>
       </div>

@@ -423,7 +423,7 @@ export function UploadPanel({ hideScanButton = false, onSeeFindings }: UploadPan
     ];
     if (totals.unresolvedCount > 0) parts.push(`${totals.unresolvedCount} unresolved`);
     if (allFetchErrors.length > 0) {
-      parts.push(fetchErrorMessage(allFetchErrors.length, 'Retry below.'));
+      parts.push(fetchErrorMessage(allFetchErrors.length, 'Choose Retry to fetch them.'));
     }
     if (allMalformedRows.length > 0) {
       parts.push(`${allMalformedRows.length} rows couldn't be read`);
@@ -480,7 +480,7 @@ export function UploadPanel({ hideScanButton = false, onSeeFindings }: UploadPan
       parts.push(`${result.unresolvedNames.length} unresolved`);
     }
     if (result.fetchErrors.length > 0) {
-      parts.push(fetchErrorMessage(result.fetchErrors.length, 'Retry below.'));
+      parts.push(fetchErrorMessage(result.fetchErrors.length, 'Choose Retry to fetch them.'));
     }
     if (result.malformedRows.length > 0) {
       parts.push(`${result.malformedRows.length} rows couldn't be read`);
@@ -996,7 +996,7 @@ export function UploadPanel({ hideScanButton = false, onSeeFindings }: UploadPan
             {successMsg && findingsReady && onSeeFindings && (
               <div>
                 <Button variant="link" onClick={onSeeFindings}>
-                  See what we found
+                  See the collection summary
                 </Button>
               </div>
             )}
@@ -1070,7 +1070,7 @@ export function UploadPanel({ hideScanButton = false, onSeeFindings }: UploadPan
                 <div className="row-between">
                   <span>
                     {unresolvedNames.length} card{unresolvedNames.length !== 1 ? 's' : ''} didn't
-                    match Scryfall. Fix them below, or leave them as bare entries with no image or
+                    match Scryfall. Fix each name, or leave them as bare entries with no image or
                     price.
                   </span>
                   <Button variant="link" onClick={() => setShowUnresolved((v) => !v)}>

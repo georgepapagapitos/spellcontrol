@@ -329,7 +329,7 @@ describe('UploadPanel "mark all as proxies" toggle', () => {
       open: true,
       shownCounted: false,
     });
-    fireEvent.click(await screen.findByRole('button', { name: 'See what we found' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'See the collection summary' }));
     expect(onSeeFindings).toHaveBeenCalledTimes(1);
   });
 

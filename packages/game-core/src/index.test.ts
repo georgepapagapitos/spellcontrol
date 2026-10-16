@@ -1379,7 +1379,7 @@ describe('host handover', () => {
     const s = lobby(2);
     const withGuest = { ...s, players: [s.players[0], guest(1)] };
     expect(() => applyAction(withGuest, { type: 'transfer-host', seat: 1 })).toThrow(
-      'A guest seat cannot host.'
+      "A guest seat can't host."
     );
   });
 

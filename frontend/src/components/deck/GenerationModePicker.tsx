@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { Sparkles, Wrench, Palette, Hourglass, WifiOff } from 'lucide-react';
+import { Users, Wrench, Palette, Hourglass, WifiOff, type LucideIcon } from 'lucide-react';
 import type { Customization, GenerationMode, ScryfallCard } from '@/deck-builder/types';
 import { searchCardsLive } from '@/deck-builder/services/scryfall/client';
 import { useDebouncedValue } from '@/lib/util/use-debounced-value';
@@ -16,7 +16,7 @@ interface ModeDef {
   id: GenerationMode;
   label: string;
   tag: string;
-  icon: typeof Sparkles;
+  icon: LucideIcon;
   blurb: string;
   /** Needs the live Scryfall API (disabled offline). */
   online: boolean;
@@ -27,7 +27,7 @@ const MODES: readonly ModeDef[] = [
     id: 'edhrec',
     label: 'Standard',
     tag: 'EDHREC',
-    icon: Sparkles,
+    icon: Users,
     blurb: 'The popular picks other players run with your commander.',
     online: false,
   },

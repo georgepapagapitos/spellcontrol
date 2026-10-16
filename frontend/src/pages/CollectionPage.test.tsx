@@ -313,7 +313,7 @@ describe('CollectionPage – Delete collection from ⋮', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Delete collection' }));
 
     expect(screen.getByRole('heading', { name: 'Delete your collection?' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete all cards' }));
     expect(clearCards).not.toHaveBeenCalled();
 
     // The store offers Undo from its toast, so the final step must not claim otherwise.
@@ -359,7 +359,7 @@ describe('CollectionPage – what we found (E307)', () => {
     renderPage();
     expect(screen.queryByTestId('post-import-moment')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'More collection actions' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'What we found' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Collection summary' }));
     expect(screen.getByTestId('post-import-moment')).toBeTruthy();
   });
 

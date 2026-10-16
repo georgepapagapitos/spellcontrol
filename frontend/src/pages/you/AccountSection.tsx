@@ -701,7 +701,7 @@ function DeleteAccountDialog({
           disabled={busy}
           autoFocus
         >
-          {busy ? 'Deleting…' : isFinal ? 'Delete account' : 'Continue'}
+          {busy ? 'Deleting…' : isFinal ? 'Delete account' : 'Delete my account'}
         </Button>
       </div>
     </Modal>

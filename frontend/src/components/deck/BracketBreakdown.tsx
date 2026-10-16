@@ -395,7 +395,7 @@ function judgmentFor(
         },
       ],
       verdict:
-        "We go with Spellbook's rating, so the estimate is Bracket 4, borderline 3. If your table counts late combos as Bracket 3, say so before the game.",
+        "Spellbook's rating sets the estimate: Bracket 4, borderline 3. If your table counts late combos as Bracket 3, say so before the game.",
     };
   }
 

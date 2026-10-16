@@ -96,13 +96,13 @@ export function PostImportMoment({ cards, hidden = false }: Props) {
     >
       <div className="import-review-header">
         <h2 className="import-review-title" id="post-import-title">
-          What we found in your collection
+          Collection summary
         </h2>
         <IconButton
           variant="quiet"
           className="banner-dismiss"
           onClick={dismiss}
-          label="Dismiss what we found"
+          label="Dismiss the collection summary"
           icon={<X width={16} height={16} strokeWidth={2} />}
         />
       </div>

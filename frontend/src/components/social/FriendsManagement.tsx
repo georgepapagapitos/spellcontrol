@@ -379,7 +379,7 @@ export function FriendsManagement() {
             <EmptyState
               status
               tagline="No friends yet."
-              hint="Search above for someone you play with, then send a request."
+              hint="Find someone you play with by name or username, then send a request."
             />
           ) : (
             <ul className="friends-list" aria-label="Your friends">

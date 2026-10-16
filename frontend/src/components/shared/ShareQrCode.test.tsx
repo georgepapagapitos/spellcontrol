@@ -27,7 +27,7 @@ describe('ShareQrCode', () => {
     const tooBig = 'x'.repeat(5000);
     render(<ShareQrCode value={tooBig} label="QR code for this link" />);
 
-    expect(screen.getByText('QR code unavailable. Use the link above.')).toBeTruthy();
+    expect(screen.getByText('QR code unavailable. Copy the link instead.')).toBeTruthy();
     expect(screen.queryByRole('img')).toBeNull();
   });
 });

@@ -15,7 +15,10 @@
  *   EG          — no `(e.g. …)` / `i.e.` asides; placeholders show the example.
  *   FINALITY    — the finality clause is exactly "This can't be undone."
  *   EXCLAIM     — no exclamation marks.
- *   APP_SUBJECT — never narrate the app ("SpellControl routes…", "we built…").
+ *   APP_SUBJECT — never narrate the app ("SpellControl routes…", "we built…"):
+ *                 "we" as a subject anywhere, labels and menu items included.
+ *   PLACE_REF   — a hint names the control, never a place on the screen
+ *                 ("Search above…", "Use the link above.").
  *   TITLE_LONG  — a `title=` over 8 words hides detail from touch; use a
  *                 visible caption or InfoTip.
  *   INFOTIP_LONG — an InfoTip body is one paragraph of at most 35 words
@@ -38,7 +41,7 @@
  *                 An all-caps word of four or more letters must be a known
  *                 acronym or format name (SHOUTING_OK below).
  *   BUTTON_LABEL — a button's whole label names the outcome, never "Submit",
- *                 "Learn more" or "Click here" (STYLE_GUIDE § Voice & copy).
+ *                 "Continue", "OK", "Get started", "Learn more" or "Click here" (STYLE_GUIDE § Voice & copy).
  *                 Reads a <Button>/<button> child's JSX text and a string
  *                 literal inside its `{cond ? 'a' : 'b'}` child expression.
  *   BREWER     — a person who makes decks is a "brewer", never a "builder"
@@ -53,7 +56,8 @@
  *                 status value is data, not copy, and never reaches a string
  *                 that looks like prose).
  *
- * Card names and oracle text are data, not copy: fixtures and tests are
+ * The shared packages (each packages/<name>/src) render strings too and are scanned
+ * beside src/. Card names and oracle text are data, not copy: fixtures and tests are
  * excluded, and strings inside console/logger calls are ignored.
  *
  * A handful of files are mid-sweep in another lane and temporarily excluded
@@ -67,6 +71,15 @@ import ts from 'typescript';
 const ROOT = path.resolve(__dirname);
 const SKIP_FILE =
   /(\.test\.tsx?$|\.d\.ts$|\/fixtures?\/|__fixtures__|__snapshots__|\.stories\.|\/src\/test\/)/;
+
+// The shared packages' strings render in the UI too (deck-metrics' bracket
+// reasons on the Power tab, binder-routing's rule notes, game-core's table log),
+// so they pass the same rules. `calibration/` is deck-metrics' benchmark
+// tooling: it prints to a developer's terminal and nothing imports it at runtime.
+const PACKAGE_SRC = ['binder-routing', 'deck-metrics', 'game-core'].map((p) =>
+  path.resolve(ROOT, '../../packages', p, 'src')
+);
+const PACKAGE_SKIP = /\/calibration\//;
 
 const COPY_PROPS =
   /^(title|aria-label|aria-description|placeholder|label|hint|tagline|message|description|body|heading|subtitle|caption|tooltip|confirmLabel|cancelLabel|actionLabel|emptyText|helper|text|summary|reason|note|alt|blurb|action|detail)$/;
@@ -122,7 +135,7 @@ const RULES: Rule[] = [
   [
     'ADJECTIVE',
     (s) =>
-      /\b(curated|tailored|intelligent(ly)?|powerful|comprehensive|elevates?|unlocks?|leverages?|seamless(ly)?|robust|effortless(ly)?|cutting-edge|state-of-the-art)\b/i.test(
+      /\b(curated|tailored|intelligent(ly)?|powerful|comprehensive|elevates?|unlocks?|leverages?|seamless(ly)?|robust|effortless(ly)?|cutting-edge|state-of-the-art|supercharg(e|es|ed|ing)|world-class|AI-powered)\b/i.test(
         s.replace(/Comprehensive Rules/g, '')
       ),
     'marketing/capability adjective',
@@ -144,8 +157,11 @@ const RULES: Rule[] = [
     (s) =>
       /\bSpellControl (automatically|will|tracks|keeps|routes|knows|hit|uses|sends|stores|reads|checks|remembers)\b/.test(
         s
-      ) || /\b[Ww]e (connected|built|filled|snapshot|weighted|picked)\b/.test(s),
-    'the app narrated as the subject',
+      ) ||
+      // "We" as the subject anywhere: "We estimated Bracket 4.", "What we found". A
+      // label or a menu item counts (STYLE_GUIDE § Voice & copy, rule 9).
+      /(^|[^\w'’])[Ww]e(['’](ve|ll|re|d))? [a-z]/.test(s),
+    'the app narrated as the subject ("SpellControl routes…", "we found…")',
   ],
   [
     'TITLE_LONG',
@@ -176,8 +192,23 @@ const RULES: Rule[] = [
     'BUTTON_LABEL',
     (s, kind) =>
       (kind === 'jsx:button' || kind === 'jsx:button-expr') &&
-      /^(Submit|Learn more|Click here)$/i.test(s.trim()),
-    'a button names its outcome ("Send report", "Save deck"), never "Submit", "Learn more" or "Click here"',
+      /^(Submit|Learn more|Click here|Continue|OK|Okay|Get started)$/i.test(s.trim()),
+    'a button names its outcome ("Send report", "Save deck"), never "Submit", "Continue", "OK" or "Learn more"',
+  ],
+  [
+    'PLACE_REF',
+    // "Search above…", "Use the link above.", "Tap symbols above": the hint points at a
+    // place on the screen, and one surface is a sheet on a phone and a dialog on a
+    // desktop, so the place moves (STYLE_GUIDE § Voice & copy, "A hint names the
+    // control"). The shape is an instruction: a verb of doing or looking, then a bare
+    // above/below that ends its clause. "Above the hard floor", "below target", a
+    // binder that "moves above" another (binder order) and "Plays above" (a bracket)
+    // are not instructions.
+    (s) =>
+      /\b(search|type|tap|pick|choose|select|use|fix|set|unlink|link|request|retry|enter|see|scroll|look|find|edit|open|fill|add|click|press)\b[^.?!]{0,40}?\b(above|below)(?=\s*([.,;:!?)…]|$|\s+(for|to|or|and|then)\b))/i.test(
+        s
+      ),
+    'a hint names the control, never a place on the screen ("Search above")',
   ],
   [
     'BREWER',
@@ -460,11 +491,19 @@ function spellingHits(file: string): Violation[] {
 }
 
 describe('copy guards (STYLE_GUIDE § Voice & copy)', () => {
-  const files = walk(ROOT, []);
+  const packageFiles = PACKAGE_SRC.flatMap((dir) => walk(dir, [])).filter(
+    (f) => !PACKAGE_SKIP.test(f.split(path.sep).join('/'))
+  );
+  const files = [...walk(ROOT, []), ...packageFiles];
   const violations = files.flatMap(scan);
 
-  it('scans the source tree', () => {
+  it('scans the source tree and every shared package', () => {
     expect(files.length).toBeGreaterThan(100);
+    for (const dir of PACKAGE_SRC)
+      expect(
+        packageFiles.some((f) => f.startsWith(dir)),
+        `no files scanned under ${dir}`
+      ).toBe(true);
   });
 
   it('UK_SPELLING: US English in every string (color, flavor, favorite, gray)', () => {

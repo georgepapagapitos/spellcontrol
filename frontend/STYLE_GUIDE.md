@@ -662,7 +662,14 @@ meaning)`, no `(not X)`. A count qualifier `(4 of 10)` is fine. Placeholders
 9. **Never narrate the app as the subject.** Not "SpellControl routes…", "the app
    bundles…", "we built…", "AI can judge…". State the result ("Cards file into the
    first matching binder") or address the player. The AI-written pill already
-   discloses provenance; prose never repeats it.
+   discloses provenance; prose never repeats it. **"We" is the app as the subject
+   too, and a label or a menu item counts (2026-10-16).** "We estimated Bracket 4."
+   is `The estimate is Bracket 4.`; the post-import "What we found" is the
+   `Collection summary`; "We've sent a new link" is `A new link is on its way.`
+   **Why:** the outside review behind this guide and the shared directive
+   (trove `plugins/polish/reference/ui-tells.md`, Copy: "Narrating the app") both
+   read a product talking about itself as machine-written. Copy rule `APP_SUBJECT`
+   fails any "we" as a subject.
 10. **State a fact once.** No reassurance stacked on a correct fact ("this is
     expected, not a miss", "no matter what you pick", "nothing is left worse
     off"). A heading, subtitle and hint on one surface never say one thing three
@@ -686,7 +693,10 @@ meaning)`, no `(not X)`. A count qualifier `(4 of 10)` is fine. Placeholders
     The ellipsis is the single `…` glyph. No "please", no "simply", no "just" as
     filler, no exclamation marks. Banned adjectives: curated, tailored,
     intelligent, powerful, comprehensive, elevate, unlock, leverage, seamless,
-    robust, effortless (the proper noun "Comprehensive Rules" is exempt). Plurals
+    robust, effortless, supercharge, world-class, cutting-edge, AI-powered (the
+    proper noun "Comprehensive Rules" is exempt). A button never reads Submit,
+    Continue, OK, Get started or Learn more: it names what happens (the first step
+    of a two-step delete is `Delete all cards`, not "Continue"). Plurals
     are computed (`copies`), never `copy(ies)`. Sentence case applies to assembled
     strings too (aria-labels and stepper labels built from templates capitalize
     the verb).
@@ -910,7 +920,16 @@ deck" open a form, not a picker, and stay bare. Em-dashes are retired from UI co
 index below" was true when the deck editor had a card rail; the same surface is
 now a sheet on a phone and a dialog on desktop, and "below" pointed at nothing.
 Write "Open Add cards to search for cards and start your list" — the control's
-own label survives every layout the surface will ever have.
+own label survives every layout the surface will ever have. Guarded: copy rule
+`PLACE_REF` fails an instruction that ends on a bare "above" or "below" ("Search
+above for…", "Use the link above."). Order is not a place: a binder that moves
+above another, or a deck that plays above its bracket, is fine.
+
+**A shared package's strings are UI copy.** Deck-metrics' bracket reasons (the
+Power tab), binder-routing's rule notes and game-core's table messages reach the
+screen, so they pass every rule here. `copy-guards.test.ts` reads
+`packages/*/src` beside `frontend/src`; only deck-metrics' `calibration/`
+benchmark, which prints to a developer's terminal, is skipped.
 
 **A first-time state doesn't reference a thing the user hasn't made.** The
 import-mode dialog told a first import that cards "will be routed through your
@@ -1370,6 +1389,33 @@ checks. A handful of sites are deliberately off-scale (a miniature preview
 badge, an empty/error-state mark, a live-game touch target, a scanner/camera
 CTA) and are named in the guard's own allowlist with the reason; anything else
 the guard flags is a real regression to fix, not a value to allowlist.
+
+**One glyph, one meaning (2026-10-16).** `Sparkles` marks AI-written content
+(`AiMarker`, and the AI section of You) and nothing else. It is the generic "AI"
+glyph, so on anything else it reads as "the machine did this" where it didn't;
+it once stood for eight things. Each other use names its own thing:
+
+| Was a sparkle         | Now                                 |
+| --------------------- | ----------------------------------- |
+| Synergy (deck role)   | `Link2`                             |
+| Ramp (Test hand chip) | `Sprout`, the ramp role's own glyph |
+| EDHREC build mode     | `Users`: what other players run     |
+| Next best move header | `ListOrdered`: a ranked list        |
+| Nothing to suggest    | `CircleCheck`                       |
+| Combo seed assembled  | `InfinityIcon`                      |
+| Collection summary    | `ClipboardList`                     |
+| "+N new" on a deck    | no icon: the number says it         |
+
+The sparking wand (`Wand2`) marks generating or filling a deck, nothing else.
+**Why:** the outside review behind this guide and the shared directive (trove
+`plugins/polish/reference/ui-tells.md`, Icons and imagery: "The sparkle as the
+generic AI glyph") name it as a tell. Guard: `src/test/icon-meaning.test.ts`
+checks every import of both glyphs against an allowlist of files, each with its reason.
+
+**An icon sits beside its label at text size, never framed above it.** A glyph in
+its own bordered square, or stacked over a card's title, is the feature-card
+template (ui-tells.md: "an icon in a rounded colored square above each
+heading"). Use the inline-with-text size beside the title, or no icon.
 
 ## Typography — the four roles (T53/E154)
 

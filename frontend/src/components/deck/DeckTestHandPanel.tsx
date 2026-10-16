@@ -34,7 +34,7 @@ import {
   Play,
   Plus,
   Shuffle,
-  Sparkles,
+  Sprout,
   Sword,
 } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -458,7 +458,7 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                 <Chip
                   as="li"
                   className="deck-test-hand-chip"
-                  icon={<Sparkles width={12} height={12} />}
+                  icon={<Sprout width={12} height={12} />}
                   trailing={<span className="deck-test-hand-chip-label">ramp</span>}
                 >
                   <strong>{breakdown.ramp}</strong>{' '}
