@@ -202,6 +202,7 @@ export function HomeHero() {
   const profile = useAuth((s) => s.profile);
 
   const collectionCards = useCollectionStore((s) => s.cards);
+  const binders = useCollectionStore((s) => s.binders);
   const importHistory = useCollectionStore((s) => s.importHistory);
   const decks = useDecksStore((s) => s.decks);
   const decksHydrated = useDecksStore((s) => s.hydrated);
@@ -311,6 +312,24 @@ export function HomeHero() {
   }, [authed, valuePending, latestValue]);
   const reserveValue = valuePending && remembered['hero-value'] === 1;
 
+  // The scale line: the collection's exact size, one quiet line under the
+  // value, each figure a door to its hub. The header's nav chips round past
+  // 999 ("14k"), the phone's tab bar carries no counts at all, and binders
+  // have no count anywhere on Home without it, so this is the one place the
+  // real figures show here (STYLE_GUIDE § Layout system, "A count is said
+  // once", the exception). Never the three-tile stat row it replaced, and
+  // never for a guest or a row of zeroes.
+  const scale = [
+    { noun: 'card', value: collectionCards.length, to: '/collection' },
+    { noun: 'deck', value: decks.length, to: '/decks' },
+    { noun: 'binder', value: binders.length, to: '/collection/binders' },
+  ].filter((s) => s.value > 0);
+  const showScale = authed && scale.length > 0;
+  useEffect(() => {
+    if (authed && !hydrating) rememberHomeShape('hero-scale', showScale ? 1 : 0);
+  }, [authed, hydrating, showScale]);
+  const reserveScale = authed && hydrating && !showScale && remembered['hero-scale'] === 1;
+
   const name = formatIdentity({
     username: user?.username ?? '',
     displayName: profile?.displayName ?? null,
@@ -395,6 +414,24 @@ export function HomeHero() {
             </>
           ) : (
             <h1 className="home-hero-title">{hello}</h1>
+          )}
+          {showScale ? (
+            <p className="home-hero-scale">
+              {scale.map((s, i) => (
+                <span key={s.noun}>
+                  {i > 0 && ' · '}
+                  <Link to={s.to} className="home-hero-scale-link">
+                    {s.value.toLocaleString()} {s.value === 1 ? s.noun : `${s.noun}s`}
+                  </Link>
+                </span>
+              ))}
+            </p>
+          ) : (
+            reserveScale && (
+              <p className="home-hero-scale home-hero-scale--loading" aria-hidden="true">
+                <span> </span>
+              </p>
+            )
           )}
         </div>
 

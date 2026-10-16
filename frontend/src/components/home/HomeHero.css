@@ -194,6 +194,45 @@
   color: var(--text-secondary);
 }
 
+/* The scale line: the exact card / deck / binder counts as one quiet line of
+   text under the value, each a link to its hub. Not tiles: the figures sit in
+   the caption's size and ink, so the value stays the one figure that wins,
+   and the nav's rounded "14k" is never the only count on the page (STYLE_GUIDE
+   § Layout system, "A count is said once", the exception). The underline is
+   the link's affordance where there is no hover. */
+.home-hero-scale {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.home-hero-scale-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .home-hero-scale-link:hover {
+    color: var(--text-primary);
+    text-decoration-color: currentColor;
+  }
+}
+
+.home-hero-scale-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.home-hero-scale.home-hero-scale--loading span {
+  width: 18ch;
+}
+
 /* ── Actions ───────────────────────────────────────────────────────────────
    Add cards (filled) · the secondary (outline) · ⋮. Density tiers: 44px on a
    phone, 40 on a tablet, 36 on a desktop (§ Layout system). On a phone the
@@ -421,7 +460,7 @@ a.home-hero-step:focus-visible {
    plates are already the right size. Only rendered when the last visit had
    the line (lib/home/home-shape); an nbsp keeps the exact line height. */
 .home-hero-value--loading .home-hero-value-amount,
-.home-hero-stats--loading .home-hero-stat-value,
+.home-hero-scale--loading span,
 .home-hero-caption--loading .home-hero-caption-tape,
 .home-hero-caption--loading .home-hero-caption-sub {
   display: inline-block;
@@ -519,7 +558,7 @@ a.home-hero-step:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .home-hero-art-loading,
   .home-hero-value--loading .home-hero-value-amount,
-  .home-hero-stats--loading .home-hero-stat-value,
+  .home-hero-scale--loading span,
   .home-hero-caption--loading .home-hero-caption-tape,
   .home-hero-caption--loading .home-hero-caption-sub {
     animation: none;

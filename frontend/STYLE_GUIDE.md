@@ -578,24 +578,44 @@ meanwhile.
   button); sort, search and toolbar pickers stay pills, and so do
   non-actionable label chips; circles are only the camera button and
   avatars. An icon-only action such as `⋮` is a rect the height of its row.
-- **A count is said once on a screen (2026-10-16).** The header's Collection
-  and Decks counts and a hub tab's count chip are where those numbers live.
-  Inside its own hub a nav item drops its count, because the tab chip right
-  under it says the same thing (`/collection` said "61" three times: nav,
-  tab, intro line), and an intro line carries what the chips don't, such as
-  the value. **A rounded chip doesn't count as saying it.** Past 999 the chip
-  abbreviates ("14K"), so the exact figure is said once in full on the hub's
-  intro line ("13,842 cards · Worth $11,971"). Losing the exact number to
-  avoid a repeat is the wrong trade: the owner reads it. Guard:
-  `pages/CollectionPage.test.tsx` ("intro carries the exact count"). Three bordered boxes of big-number-over-caps-label is the stat
-  tile template, and on Home it repeated the nav word for word; the hero now
-  leads with the collection's value as its one figure, captioned with what it
-  is. **Why:** an outside "does this read as AI-designed" review and the
-  shared directive (ui-tells.md, "Grid of equal-weight stat tiles") both name
-  the stat-tile row as a tell: it puts several numbers at one weight, so none
-  answers the screen's question. Guards: `components/app-shell/Header.test.tsx`
-  (no count on the active hub's nav item), `pages/HomePage.test.tsx` ("hero
-  counts").
+- **A count is said once on a screen (2026-10-16, exceptions 2026-10-16).**
+  The rule protects attention: the same figure three times in one view is
+  noise (`/collection` said "61" on the nav, the tab and the intro line). It
+  never costs the reader the figure itself. Where it applies:
+  - **The header chip steps aside only while the hub's tab strip is on
+    screen**, whose own chip (Cards, My decks) carries the same figure. That is
+    keyed on the hub page being mounted (`.hub-page--<hub>`,
+    `responsive-nav.css`), not on the route: a binder, a deck or a cube page
+    sits under its hub but has no strip, so there the header chip is the only
+    count and it stays.
+  - **A rounded chip doesn't count as saying it.** Past 999 every chip
+    abbreviates ("14k", `formatCount`), so the exact figure is said once in
+    full: on the hub's intro line ("13,842 cards · Worth $11,971 · Stats"), and
+    on Home as the scale line.
+  - **Home's scale line is the kept exception.** One line of text under the
+    value, "13,842 cards · 15 decks · 3 binders", each figure a link to its hub,
+    in the caption's size and ink. It repeats the header's Collection and Decks
+    chips on purpose: those round, the phone's tab bar carries no counts, and
+    binders have no count in the nav at all, so without it Home never says how
+    big the collection is. It is not the stat-tile template: no boxes, no caps
+    captions, no big numerals, so the value stays the one figure. Suppressed
+    for a guest and when every count is zero; a zero is left out of the line,
+    and a one is singular ("1 binder").
+
+  Three bordered boxes of big-number-over-caps-label is the stat tile
+  template; the hero leads with the collection's value as its one figure,
+  captioned with what it is. **Why:** an outside "does this read as
+  AI-designed" review and the shared directive (ui-tells.md, "Grid of
+  equal-weight stat tiles") both name the stat-tile row as a tell: it puts
+  several numbers at one weight, so none answers the screen's question. #2975
+  deleted the tiles and the exact figures with them, and dropped the nav chip
+  on every route under a hub; the owner's 13,842-card collection then read
+  only "14k" (fixed in #2986 and the re-check after it; ui-tells.md, "Rules
+  have purposes; apply the purpose"). Guards:
+  `components/app-shell/Header.test.tsx` (the chip stays on a detail page; the
+  hide rule is keyed on the hub page), `pages/HomePage.test.tsx` ("hero
+  counts", at 13,842 cards and 1,204 decks), `pages/CollectionPage.test.tsx`
+  ("intro carries the exact count").
 - **Ways to start are a list, not a grid of equal cards (2026-10-16).** A
   choice between ways to start (Play's Track a table · Host online · Join with
   a code · Browse games, New deck's starts) is one group of rows split by
@@ -1433,7 +1453,7 @@ it once stood for eight things. Each other use names its own thing:
 
 | Was a sparkle         | Now                                 |
 | --------------------- | ----------------------------------- |
-| Synergy (deck role)   | `Link2`                             |
+| Synergy (deck role)   | `Combine`: pieces working together  |
 | Ramp (Test hand chip) | `Sprout`, the ramp role's own glyph |
 | EDHREC build mode     | `Users`: what other players run     |
 | Next best move header | `ListOrdered`: a ranked list        |
@@ -1443,6 +1463,9 @@ it once stood for eight things. Each other use names its own thing:
 | "+N new" on a deck    | no icon: the number says it         |
 
 The sparking wand (`Wand2`) marks generating or filling a deck, nothing else.
+The chain link (`Link2`) marks a link: a URL to copy or import from, link
+visibility, a playtest card attached to another. The synergy role first moved
+onto it from the sparkle (#2976) and read as a link there, so it is `Combine`.
 **Why:** the outside review behind this guide and the shared directive (trove
 `plugins/polish/reference/ui-tells.md`, Icons and imagery: "The sparkle as the
 generic AI glyph") name it as a tell. Guard: `src/test/icon-meaning.test.ts`

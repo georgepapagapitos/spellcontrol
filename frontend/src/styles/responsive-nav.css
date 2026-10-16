@@ -279,6 +279,17 @@
    chip gains a pale keyline so its silhouette reads on any dark/dye ground.
    Hub tape (resting AND current) keeps the plain on-page look — the hub's
    current tab no longer carries a dye to sink into. */
+/* A count is said once (STYLE_GUIDE § Layout system): while a hub's tab strip
+   is on screen its own chip (Cards, My decks) carries the figure, so the
+   header's chip for that hub steps aside. Keyed on the strip's page being
+   mounted, not on the route: a detail page under the hub (a binder, a deck)
+   has no strip, and there the header chip is the only count. Guard:
+   components/app-shell/Header.test.tsx. */
+body:has(.hub-page--collection) .site-nav-count[data-hub-count='collection'],
+body:has(.hub-page--decks) .site-nav-count[data-hub-count='decks'] {
+  display: none;
+}
+
 .site-header .site-nav-count {
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 8%),

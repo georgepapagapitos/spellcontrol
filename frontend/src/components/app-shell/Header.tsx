@@ -63,16 +63,20 @@ export function Header() {
             to="/collection"
             className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
           >
-            {({ isActive }) => (
-              <>
-                <span>Collection</span>
-                {/* Inside its own hub the count is the Cards tab's: said once. */}
-                {cardCount > 0 && !isActive && (
-                  <span className="site-nav-count" aria-label={`${cardCount} cards`} role="img">
-                    {formatCount(cardCount)}
-                  </span>
-                )}
-              </>
+            <span>Collection</span>
+            {/* Hidden only while the collection hub's tab strip is on screen, whose
+                Cards chip says the same figure (responsive-nav.css). A detail
+                page under the hub (a binder, a set) has no strip, so the
+                count stays: the active route alone is not a reason to drop it. */}
+            {cardCount > 0 && (
+              <span
+                className="site-nav-count"
+                data-hub-count="collection"
+                aria-label={`${cardCount} cards`}
+                role="img"
+              >
+                {formatCount(cardCount)}
+              </span>
             )}
           </NavLink>
           <NavLink
@@ -80,16 +84,20 @@ export function Header() {
             to="/decks"
             className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
           >
-            {({ isActive }) => (
-              <>
-                <span>Decks</span>
-                {/* Inside its own hub the count is the My decks tab's: said once. */}
-                {deckCount > 0 && !isActive && (
-                  <span className="site-nav-count" aria-label={`${deckCount} decks`} role="img">
-                    {formatCount(deckCount)}
-                  </span>
-                )}
-              </>
+            <span>Decks</span>
+            {/* Hidden only while the decks hub's tab strip is on screen, whose
+                My decks chip says the same figure (responsive-nav.css). A detail
+                page under the hub (a deck, a cube) has no strip, so the
+                count stays: the active route alone is not a reason to drop it. */}
+            {deckCount > 0 && (
+              <span
+                className="site-nav-count"
+                data-hub-count="decks"
+                aria-label={`${deckCount} decks`}
+                role="img"
+              >
+                {formatCount(deckCount)}
+              </span>
             )}
           </NavLink>
           <NavLink

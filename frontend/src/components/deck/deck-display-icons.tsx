@@ -7,9 +7,9 @@ import {
   Bookmark,
   BookOpen,
   Boxes,
+  Combine,
   Crosshair,
   Layers,
-  Link2,
   Sprout,
   Tag as TagIcon,
   Wrench,
@@ -54,7 +54,9 @@ const CATEGORY_ICON_COMPONENTS: Partial<
   cardDraw: BookOpen,
   singleRemoval: Crosshair,
   boardWipes: Bomb,
-  synergy: Link2,
+  // Pieces that work together. Not Link2: the chain link is the app's URL /
+  // copy-link glyph (and a playtest attachment), so on a role it read as a link.
+  synergy: Combine,
   utility: Wrench,
 };
 
