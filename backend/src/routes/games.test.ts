@@ -1902,7 +1902,11 @@ describe('clock action (board-timer pause/resume)', () => {
       .set('Cookie', host)
       .send({
         baseVersion: current.body.game.version,
-        actions: [{ type: 'start' }, { type: 'clock', paused: true, actorSeat: null }],
+        actions: [
+          { type: 'start' },
+          { type: 'clock-start' },
+          { type: 'clock', paused: true, actorSeat: null },
+        ],
       });
     expect(res.status).toBe(200);
     expect(res.body.game.events.at(-1)).toMatchObject({
@@ -1920,7 +1924,10 @@ describe('clock action (board-timer pause/resume)', () => {
     const started = await request(app)
       .patch(`/api/games/${code}`)
       .set('Cookie', host)
-      .send({ baseVersion: current.body.game.version, actions: [{ type: 'start' }] });
+      .send({
+        baseVersion: current.body.game.version,
+        actions: [{ type: 'start' }, { type: 'clock-start' }],
+      });
     const res = await request(app)
       .patch(`/api/games/${code}`)
       .set('Cookie', joiners[0])
@@ -1942,7 +1949,11 @@ describe('clock action (board-timer pause/resume)', () => {
       .set('Cookie', host)
       .send({
         baseVersion: current.body.game.version,
-        actions: [{ type: 'start' }, { type: 'clock', paused: true, actorSeat: null }],
+        actions: [
+          { type: 'start' },
+          { type: 'clock-start' },
+          { type: 'clock', paused: true, actorSeat: null },
+        ],
       });
     const res = await request(app)
       .patch(`/api/games/${code}`)
