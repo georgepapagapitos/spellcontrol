@@ -42,8 +42,8 @@ const FAMILIES = [
   'deck-combos-card-qty-badge',
   'deck-library-tile-badge',
   'slot-qty-badge',
-  // CopyPlaces' count plate: the scrim holding an identity disc and a count.
-  'copy-places-counted',
+  // CopyPlaces' one plate on a collection tile: ×qty, its chips and the discs.
+  'copy-places-plate',
 ];
 
 /** The plate's properties, owned by `.art-badge`. */

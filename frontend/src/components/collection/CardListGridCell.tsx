@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { SetMap } from '@/lib/api';
-import type { CopyBreakdown } from '@/lib/collection/copy-locations';
+import { markGroups, type CopyBreakdown } from '@/lib/collection/copy-locations';
 import type { CardLocation } from '@/lib/binder/card-locations';
 import { setSymbolTitle } from '@/lib/cards/set-symbols';
 import type { CubeListing } from '@/lib/cube/cube-listings';
@@ -60,21 +60,27 @@ export function CardListGridCell({
   // set code when the same name appears as several printings
   // (redundant while the set caption is on), and the surplus
   // count while the "Tradeable surplus" filter is active.
-  const dupChip =
-    setLabel === null && duplicateNames.has(r.card.name) ? (
-      <ArtBadge
-        className="collection-grid-set"
-        title={setSymbolTitle({
-          setCode: r.card.setCode,
-          setName: r.card.setName || setMap?.[r.card.setCode.toUpperCase()]?.name,
-          collectorNumber: r.card.collectorNumber,
-          rarity: r.card.rarity,
-        })}
-      >
-        {r.card.setCode.toUpperCase()}
-      </ArtBadge>
-    ) : null;
+  const set =
+    setLabel === null && duplicateNames.has(r.card.name)
+      ? {
+          code: r.card.setCode.toUpperCase(),
+          title: setSymbolTitle({
+            setCode: r.card.setCode,
+            setName: r.card.setName || setMap?.[r.card.setCode.toUpperCase()]?.name,
+            collectorNumber: r.card.collectorNumber,
+            rarity: r.card.rarity,
+          }),
+        }
+      : undefined;
   const surplus = surplusOnly ? surplusByName.get(r.card.name) : undefined;
+  // A stack with a place draws everything on one plate (CopyPlaces' lead);
+  // one in no place keeps the plain ×qty corner and its chips.
+  const plated = markGroups(places, cubeListings).length > 0;
+  const dupChip = set ? (
+    <ArtBadge className="collection-grid-set" title={set.title}>
+      {set.code}
+    </ArtBadge>
+  ) : null;
   const surplusChip = surplus ? (
     <ArtBadge
       className="collection-grid-surplus"
@@ -102,8 +108,9 @@ export function CardListGridCell({
           </>
         ) : null
       }
+      badgesHoldCorner={plated}
       badges={
-        places.places.length > 0 || cubeListings.length > 0 ? (
+        plated ? (
           <CopyPlaces
             card={r.card}
             breakdown={places}
@@ -111,6 +118,7 @@ export function CardListGridCell({
             locations={locations}
             placement="art"
             interactive={!selectMode}
+            lead={{ qty: r.qty, set, surplus }}
           />
         ) : null
       }

@@ -145,6 +145,11 @@ interface CardGridCellProps {
   cornerExtras?: ReactNode;
   /** Bottom-right badge cluster (deck/binder) — collection only. */
   badges?: ReactNode;
+  /**
+   * The badges draw the ×qty corner themselves (the collection's one plate,
+   * `CopyPlaces` with a `lead`), so the tile skips its own corner.
+   */
+  badgesHoldCorner?: boolean;
   /** Appended to the tile's aria-label (e.g. surplus copies). */
   ariaExtra?: string;
   /**
@@ -217,6 +222,7 @@ export function CardGridCell({
   selected = false,
   cornerExtras,
   badges,
+  badgesHoldCorner = false,
   ariaExtra,
   hideQty = false,
   menu,
@@ -237,7 +243,7 @@ export function CardGridCell({
   // name-bearing placeholder shows behind it.
   const [loadedArt, setLoadedArt] = useState<string | undefined>(undefined);
   const artReady = !!art && loadedArt === art;
-  const corner = (qty > 1 && !hideQty) || !!cornerExtras;
+  const corner = !(badges && badgesHoldCorner) && ((qty > 1 && !hideQty) || !!cornerExtras);
 
   return (
     <div

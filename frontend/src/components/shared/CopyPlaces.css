@@ -62,47 +62,121 @@
   cursor: inherit;
 }
 
-/* The count plate: the scrim, with the identity disc seated flush at its
-   start and the count after it. The disc keeps its own size rules
-   (.collection-grid-badges .identity-mark), so the plate is always exactly
-   one disc tall. */
-.copy-places-counted {
-  gap: var(--space-1);
-  padding: 0 var(--space-2) 0 0;
+/* The one plate (2026-10-16): on a collection tile the ×qty, its set and
+   surplus chips, and a disc per kind of place share a single scrim plate at
+   the bottom-left. The old row of separate plates wrapped into a ragged pile
+   over the rules text whenever it ran out of room. This one never wraps: it
+   gives things up in a fixed order as the tile narrows.
+
+   1. Below --plate-full the per-place counts fold away (the list has them).
+   2. Below --plate-lean the set code folds away too.
+   3. From step 1 the discs lose their gaps, then overlap as flex shrinks
+      them, and at the very last the row clips.
+
+   Both widths are em of the plate's font, worked out per tile from its
+   content (plateWidths in CopyPlaces.tsx), and compared with the bottom
+   row's width (100cqi). `(100cqi - w) * 999` is huge above w and negative
+   below it, so clamping it makes a switch without a measuring script.
+   Every size is em, so the 2x / 3x tiers scale the plate by font-size alone. */
+.collection-grid-foot:has(.copy-places-plate) {
+  container-type: inline-size;
 }
 
-.collection-grid-item.grid-2x .copy-places-counted {
-  font-size: var(--text-base);
-  padding-right: var(--space-2-5);
+.collection-grid-badges:has(> .copy-places-trigger--art) {
+  margin-left: 0;
 }
 
-.collection-grid-item.grid-3x .copy-places-counted {
-  font-size: var(--text-lg);
-  padding-right: var(--space-3);
-}
-
-/* The tile's bottom row (.collection-grid-foot) gives the cluster what the
-   ×qty corner leaves, or a line of its own above it. Where even that line is
-   too narrow for every mark (a phone's smallest tiles), the marks stack, the
-   first at the bottom. */
 .copy-places-trigger--art {
-  flex-wrap: wrap-reverse;
-  justify-content: flex-end;
-  border-radius: var(--radius);
+  max-width: 100%;
+  border-radius: 999px;
 }
 
-/* The marks keep their 1x size on a phone. collection.css bumps an on-art
-   mark there because each mark used to be its own control; here the trigger
-   is the one control, and at the bumped size two counted marks no longer fit
-   one line of a three-column tile and stacked three rows up the card. The
-   2x / 3x tiers still scale the marks (their rules outrank this one). */
-.collection-grid-badges .copy-places-trigger--art .identity-mark {
-  padding: var(--space-1);
+.copy-places-plate {
+  min-width: 0;
+  max-width: 100%;
+  gap: 0;
+  padding: 2px 0.5em;
 }
 
-.collection-grid-badges .copy-places-trigger--art svg {
-  width: 13px;
-  height: 13px;
+.copy-places-plate > * + * {
+  margin-inline-start: 0.4em;
+}
+
+.collection-grid-item.grid-2x .copy-places-plate {
+  font-size: var(--text-base);
+}
+
+.collection-grid-item.grid-3x .copy-places-plate {
+  font-size: var(--text-lg);
+}
+
+.copy-places-qty,
+.copy-places-surplus {
+  flex: none;
+}
+
+/* All or nothing: shown, it keeps every letter (flex would trim "MSC" to
+   "MS" before the discs overlap); folded, it takes no room at all. */
+.copy-places-set {
+  flex-shrink: 0;
+  overflow: hidden;
+  max-width: clamp(0px, (100cqi - var(--plate-lean)) * 999, 6em);
+  margin-inline-start: clamp(0px, (100cqi - var(--plate-lean)) * 999, 0.4em);
+}
+
+.copy-places-set:first-child {
+  margin-inline-start: 0;
+}
+
+.copy-places-sep {
+  flex: none;
+  align-self: stretch;
+  width: 1px;
+  margin-block: 0.2em;
+  background: color-mix(in srgb, var(--art-scrim-text) 30%, transparent);
+}
+
+.copy-places-marks {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: clip;
+  overflow-clip-margin: 4px;
+}
+
+.copy-places-mark {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  min-width: 0.9em;
+}
+
+.copy-places-mark + .copy-places-mark {
+  margin-inline-start: clamp(0px, (100cqi - var(--plate-full)) * 999, 0.4em);
+}
+
+.copy-places-mark:last-child {
+  flex-shrink: 0;
+}
+
+.copy-places-count {
+  overflow: hidden;
+  max-width: clamp(0px, (100cqi - var(--plate-full)) * 999, 3em);
+  margin-inline-start: clamp(0px, (100cqi - var(--plate-full)) * 999, 0.2em);
+}
+
+/* The disc inside the plate: em-sized, so it scales with the tier, and one
+   size on every device (collection.css bumps a lone on-art mark on a phone;
+   the plate is the control here, and its 44px target is the ghost below).
+   The selector outranks those size rules, whatever order the sheets load. */
+.collection-grid-item .collection-grid-badges .copy-places-trigger--art .identity-mark {
+  flex: none;
+  padding: 0.25em;
+}
+
+.collection-grid-item .collection-grid-badges .copy-places-trigger--art .identity-mark svg {
+  width: 0.95em;
+  height: 0.95em;
 }
 
 /* On touch the target grows past the marks to 44px through a ghost, not the
