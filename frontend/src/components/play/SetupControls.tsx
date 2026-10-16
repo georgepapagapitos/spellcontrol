@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { DeckPickerDialog, type PickedDeck } from './DeckPickerDialog';
+import { DeckPickerDialog, type DeckOwner, type PickedDeck } from './DeckPickerDialog';
 import type { Deck } from '../../store/decks';
 import { ColorPip } from '../shared/ManaSymbol';
 
@@ -82,12 +82,16 @@ export function DeckPicker({
   value,
   valueName,
   onChange,
+  showStarters,
+  owner,
 }: {
   decks: Deck[];
   value: string | null;
   /** Name of the currently picked deck — a starter is not in `decks`. */
   valueName: string | null;
   onChange: (picked: PickedDeck | null) => void;
+  showStarters?: boolean;
+  owner?: DeckOwner;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -108,6 +112,8 @@ export function DeckPicker({
           value={value}
           onPick={onChange}
           onClose={() => setOpen(false)}
+          showStarters={showStarters}
+          owner={owner}
         />
       )}
     </>

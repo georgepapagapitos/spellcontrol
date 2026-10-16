@@ -6,18 +6,27 @@ import { type Friend } from '@/lib/social/friends-client';
 import { formatIdentity } from '@/lib/social/display-name';
 import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { DeckPicker } from '@/components/play/SetupControls';
-import type { PickedDeck } from '@/components/play/DeckPickerDialog';
+import type { DeckOwner, PickedDeck } from '@/components/play/DeckPickerDialog';
 
 export function SeatDeck({
   decks,
   value,
   deckName,
   onChange,
+  showStarters = true,
+  owner,
 }: {
   decks: Deck[];
   value: string | null;
   deckName: string | null;
   onChange: (picked: PickedDeck | null) => void;
+  /**
+   * Offer the starter catalog. A local game turns it off: that table plays
+   * physical decks, and nobody brought a precon picked from a list.
+   */
+  showStarters?: boolean;
+  /** A friend in the seat: the picker leads with their decks. */
+  owner?: DeckOwner;
 }) {
   const [open, setOpen] = useState(false);
   if (!open && !value) {
@@ -34,7 +43,14 @@ export function SeatDeck({
   }
   return (
     <div className="play-setup-seat-deck">
-      <DeckPicker decks={decks} value={value} valueName={deckName} onChange={onChange} />
+      <DeckPicker
+        decks={decks}
+        value={value}
+        valueName={deckName}
+        onChange={onChange}
+        showStarters={showStarters}
+        owner={owner}
+      />
       {value && deckName && (
         <IconButton
           className="play-setup-seat-deck-clear"

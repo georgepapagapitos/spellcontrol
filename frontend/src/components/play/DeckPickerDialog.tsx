@@ -13,6 +13,7 @@ import {
   useProductCommander,
 } from '@/lib/import-export/use-product-commander';
 import { userMessage } from '@/lib/util/user-error';
+import { fetchFriendDecks, type FriendDeck } from '@/lib/social/friend-decks-client';
 import { effectiveBracket, type Deck } from '../../store/decks';
 import { signatureMissesCombos } from '@/lib/deck-analysis/bracket-signature';
 import { bracketTextWithEstimate } from '@/lib/deck-analysis/format-bracket-label';
@@ -56,7 +57,33 @@ function pickedFromDeck(deck: Deck): PickedDeck {
   };
 }
 
-type TabId = 'mine' | 'starters';
+/**
+ * A friend in the seat. Their own shelf (what they published or showed their
+ * friends) becomes the picker's first tab, because at a real table they play
+ * their own deck. Never widens the visibility ladder: a private deck of theirs
+ * stays out, same as on their friend hub.
+ */
+export interface DeckOwner {
+  id: string;
+  name: string;
+}
+
+function pickedFromFriendDeck(deck: FriendDeck): PickedDeck {
+  const bracket = deck.bracket ?? deck.estimatedBracket;
+  return {
+    id: deck.deckId,
+    name: deck.name,
+    commander: deck.commanderName,
+    // ponytail: the shelf listing carries one commander name, so a friend's
+    // Partner pair seats without the split counter. Add the partner to
+    // listing-fields.ts when a friend's partner deck needs it.
+    partner: null,
+    colorIdentity: deck.colorIdentity,
+    bracket: bracket && bracket >= 1 && bracket <= 5 ? (bracket as 1 | 2 | 3 | 4 | 5) : null,
+  };
+}
+
+type TabId = 'owner' | 'mine' | 'starters';
 
 /** How long to wait after a keystroke before searching the starter catalog. */
 const SEARCH_DEBOUNCE_MS = 300;
@@ -74,6 +101,14 @@ interface Props {
   initialTab?: TabId;
   /** Hide the "My decks" tab entirely (the Decks index' "Play a starter" door). */
   startersOnly?: boolean;
+  /**
+   * Offer the starter catalog. Off for a local game: everyone at that table
+   * plays a deck someone physically brought, and nobody has a precon they
+   * picked from a list.
+   */
+  showStarters?: boolean;
+  /** A friend in this seat: their decks lead, yours stay one tab over. */
+  owner?: DeckOwner;
 }
 
 /**
@@ -92,11 +127,25 @@ export function DeckPickerDialog({
   onClose,
   initialTab,
   startersOnly = false,
+  showStarters = true,
+  owner,
 }: Props) {
   const labelId = useId();
   const [tab, setTab] = useState<TabId>(
-    () => initialTab ?? (startersOnly || decks.length === 0 ? 'starters' : 'mine')
+    () =>
+      initialTab ??
+      (owner ? 'owner' : startersOnly || (showStarters && decks.length === 0) ? 'starters' : 'mine')
   );
+  const tabs = [
+    ...(owner
+      ? [{ id: 'owner' as const, label: `${owner.name}'s decks`, controls: 'deck-picker-panel' }]
+      : []),
+    { id: 'mine' as const, label: 'My decks', count: decks.length, controls: 'deck-picker-panel' },
+    ...(showStarters
+      ? [{ id: 'starters' as const, label: 'Starter decks', controls: 'deck-picker-panel' }]
+      : []),
+  ];
+  const showTabs = !startersOnly && tabs.length > 1;
   const [query, setQuery] = useState('');
 
   const choose = (picked: PickedDeck | null) => {
@@ -116,7 +165,7 @@ export function DeckPickerDialog({
         />
       </div>
       <div className="modal-body deck-picker-body">
-        {!startersOnly && (
+        {showTabs && (
           <Tabs<TabId>
             ariaLabel="Deck source"
             value={tab}
@@ -124,25 +173,31 @@ export function DeckPickerDialog({
               setTab(next);
               setQuery('');
             }}
-            tabs={[
-              { id: 'mine', label: 'My decks', count: decks.length, controls: 'deck-picker-panel' },
-              { id: 'starters', label: 'Starter decks', controls: 'deck-picker-panel' },
-            ]}
+            tabs={tabs}
           />
         )}
         <div
           className="deck-picker-panel"
           id="deck-picker-panel"
           role="tabpanel"
-          aria-labelledby={startersOnly ? undefined : `sc-tab-${tab}`}
+          aria-labelledby={showTabs ? `sc-tab-${tab}` : undefined}
         >
-          {tab === 'mine' ? (
+          {tab === 'owner' && owner ? (
+            <FriendDecksTab
+              owner={owner}
+              value={value}
+              query={query}
+              onQuery={setQuery}
+              onChoose={choose}
+            />
+          ) : tab === 'mine' ? (
             <MyDecksTab
               decks={decks}
               value={value}
               query={query}
               onQuery={setQuery}
               onChoose={choose}
+              starterHint={showStarters}
             />
           ) : (
             <StarterDecksTab value={value} query={query} onQuery={setQuery} onChoose={choose} />
@@ -194,12 +249,15 @@ function MyDecksTab({
   query,
   onQuery,
   onChoose,
+  starterHint,
 }: {
   decks: Deck[];
   value: string | null;
   query: string;
   onQuery: (next: string) => void;
   onChoose: (picked: PickedDeck | null) => void;
+  /** Point an empty account at the starter tab, when there is one. */
+  starterHint: boolean;
 }) {
   // Same-named decks behind the same commander are the common case for
   // generated decks — the labels are made distinct in deckPickerLabels.
@@ -227,7 +285,9 @@ function MyDecksTab({
       />
       {decks.length === 0 ? (
         <p className="deck-picker-empty">
-          You have no decks yet. The starter decks are ready to play without building one.
+          {starterHint
+            ? 'You have no decks yet. The starter decks are ready to play without building one.'
+            : 'You have no decks yet.'}
         </p>
       ) : shown.length === 0 ? (
         <p className="deck-picker-empty">No deck of yours matches that.</p>
@@ -277,6 +337,113 @@ function MyDecksTab({
                   </span>
                   {label !== deck.name && <span className="sr-only">{label}</span>}
                   {bracketText && <span className="deck-picker-row-bracket">{bracketText}</span>}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </>
+  );
+}
+
+function FriendDecksTab({
+  owner,
+  value,
+  query,
+  onQuery,
+  onChoose,
+}: {
+  owner: DeckOwner;
+  value: string | null;
+  query: string;
+  onQuery: (next: string) => void;
+  onChoose: (picked: PickedDeck | null) => void;
+}) {
+  const [decks, setDecks] = useState<FriendDeck[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetchFriendDecks(owner.id);
+        if (!cancelled) setDecks(res.decks);
+      } catch (e) {
+        if (!cancelled) setError(userMessage(e, `Couldn't load ${owner.name}'s decks. Try again.`));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [owner.id, owner.name]);
+
+  const needle = query.trim().toLowerCase();
+  const shown = (decks ?? []).filter(
+    (deck) =>
+      !needle ||
+      deck.name.toLowerCase().includes(needle) ||
+      (deck.commanderName ?? '').toLowerCase().includes(needle)
+  );
+
+  return (
+    <>
+      <PickerSearch
+        query={query}
+        onQuery={onQuery}
+        placeholder="Search by deck name"
+        onRandom={() =>
+          onChoose(pickedFromFriendDeck(shown[Math.floor(Math.random() * shown.length)]))
+        }
+        randomDisabled={shown.length < 2}
+      />
+      {error ? (
+        <p className="deck-picker-empty" role="alert">
+          {error}
+        </p>
+      ) : decks === null ? (
+        <p className="deck-picker-empty">
+          <span className="spinner" aria-hidden="true" /> Loading {owner.name}'s decks…
+        </p>
+      ) : decks.length === 0 ? (
+        <p className="deck-picker-empty">
+          {owner.name} has no decks shared with friends. A deck they publish or share with friends
+          shows up here.
+        </p>
+      ) : shown.length === 0 ? (
+        <p className="deck-picker-empty">No deck of {owner.name}'s matches that.</p>
+      ) : (
+        <ul className="deck-picker-list">
+          {value && (
+            <li>
+              <button
+                type="button"
+                className="deck-picker-row deck-picker-row-clear"
+                onClick={() => onChoose(null)}
+              >
+                <span className="deck-picker-row-name">No deck</span>
+              </button>
+            </li>
+          )}
+          {shown.map((deck) => {
+            const bracket = deck.bracket ?? deck.estimatedBracket;
+            return (
+              <li key={deck.deckId}>
+                <button
+                  type="button"
+                  className="deck-picker-row"
+                  aria-current={deck.deckId === value || undefined}
+                  onClick={() => onChoose(pickedFromFriendDeck(deck))}
+                >
+                  <span className="text-stack">
+                    <span className="deck-picker-row-name">{deck.name}</span>
+                    {deck.commanderName && (
+                      <span className="deck-picker-row-meta">{deck.commanderName}</span>
+                    )}
+                  </span>
+                  {bracket != null && (
+                    <span className="deck-picker-row-bracket">Bracket {bracket}</span>
+                  )}
                 </button>
               </li>
             );
