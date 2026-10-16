@@ -159,6 +159,15 @@ describe('CollectionPage – hero total while pricing', () => {
     expect(screen.queryByText(/Pricing/)).toBeNull();
   });
 
+  it('intro carries the exact count', () => {
+    // The Cards tab chip rounds past 999 ("14K"), so the intro line is the one
+    // place the exact figure is said. A 2026-10-16 "say a count once" pass
+    // dropped it here and left only the rounded chip, and the owner noticed.
+    useCollectionStore.setState({ cards: priced(1234, 1) });
+    renderPage('/collection');
+    expect(screen.getByRole('group', { name: 'Collection totals' }).textContent).toMatch(/^1,234 cards · Worth /);
+  });
+
   it('keeps the total visible during an untracked background re-price', () => {
     // The other half of the contract. `autoRefreshStalePrices` only passes
     // `{ track: true }` for the fresh-device first fill, so a routine daily
