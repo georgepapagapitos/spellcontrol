@@ -103,9 +103,9 @@ import type { BinderDef, EnrichedCard } from '../types';
 import type { Deck } from '../store/decks';
 import { dayKey } from '@/lib/collection/value-history';
 
-/** The thinnest rows the scale line's three counts can be taken from — the
- *  cards below still walk them (NewArrivalsCard reads deck.cards), so an
- *  empty object literal isn't enough. */
+/** The thinnest rows the Home cards can be built from — they still walk
+ *  them (NewArrivalsCard reads deck.cards), so an empty object literal isn't
+ *  enough. */
 // Each row is one physical copy with its own copyId, as a real collection
 // row always is: spare copies are decided per copy (binder-routing
 // computeSpareCopyIds), so two rows sharing an undefined copyId read as one
@@ -421,18 +421,15 @@ describe('HomePage', () => {
   });
 
   describe('hero reservations (E277)', () => {
-    it('reserves the value and scale lines while pending when the last visit had them', () => {
-      localStorage.setItem('sc-home-shape', JSON.stringify({ 'hero-value': 1, 'hero-stats': 1 }));
+    it('reserves the value line while pending when the last visit had it', () => {
+      localStorage.setItem('sc-home-shape', JSON.stringify({ 'hero-value': 1 }));
       mockGetValueHistory.mockReturnValue(pending([]));
       useCollectionStore.setState({ hydrating: true });
       const { container } = renderPage();
-      expect(container.querySelector('.home-hero-value--loading')).toBeTruthy();
-      expect(container.querySelector('.home-hero-stats--loading')).toBeTruthy();
-      // Placeholders, not doors: nothing linkable and nothing announced.
-      expect(screen.queryByRole('link', { name: /cards$/ })).toBeNull();
-      expect(
-        container.querySelector('.home-hero-stats--loading')?.getAttribute('aria-hidden')
-      ).toBe('true');
+      const reserved = container.querySelector('.home-hero-value--loading');
+      expect(reserved).toBeTruthy();
+      // A placeholder, not a figure: nothing announced.
+      expect(reserved?.getAttribute('aria-hidden')).toBe('true');
     });
 
     it('reserves the caption under the loading art when the last visit showed a card', () => {
@@ -467,7 +464,6 @@ describe('HomePage', () => {
       useCollectionStore.setState({ hydrating: true });
       const { container } = renderPage();
       expect(container.querySelector('.home-hero-value--loading')).toBeNull();
-      expect(container.querySelector('.home-hero-stats--loading')).toBeNull();
       expect(container.querySelector('.home-hero-caption--loading')).toBeNull();
     });
 
@@ -476,48 +472,46 @@ describe('HomePage', () => {
       renderPage();
       await waitFor(() =>
         expect(JSON.parse(localStorage.getItem('sc-home-shape') ?? '{}')).toMatchObject({
-          'hero-stats': 1,
           'hero-value': 0,
         })
       );
     });
 
     it('a guest reserves nothing even with a remembered shape', () => {
-      localStorage.setItem('sc-home-shape', JSON.stringify({ 'hero-value': 1, 'hero-stats': 1 }));
+      localStorage.setItem('sc-home-shape', JSON.stringify({ 'hero-value': 1 }));
       mockAuthState.status = 'guest';
       useCollectionStore.setState({ hydrating: true });
       const { container } = renderPage();
       expect(container.querySelector('.home-hero-value--loading')).toBeNull();
-      expect(container.querySelector('.home-hero-stats--loading')).toBeNull();
     });
   });
 
-  describe('hero scale line', () => {
-    it('is suppressed entirely on a fresh account — a row of zeroes is worse than no row', () => {
-      const { container } = renderPage();
-      expect(container.querySelector('.home-hero-stats')).toBeNull();
-    });
-
-    it('is suppressed for a guest even with local rows (the hero shows a guest nothing personal)', () => {
-      mockAuthState.status = 'guest';
-      useCollectionStore.setState({ cards: [makeRow(), makeRow()] });
-      const { container } = renderPage();
-      expect(container.querySelector('.home-hero-stats')).toBeNull();
-    });
-
-    it('renders one labeled door per count once any store holds rows', () => {
+  describe('hero counts', () => {
+    // The nav and the hub tabs carry the card and deck counts; the hero used to
+    // repeat them as three stat tiles (STYLE_GUIDE § Layout system, "A count is
+    // said once").
+    it('repeats no count the nav already shows', () => {
       useCollectionStore.setState({
         cards: [makeRow(), makeRow(), makeRow()],
         binders: [{ id: 'b1', name: 'Binder', filterGroups: [] } as unknown as BinderDef],
       });
       useDecksStore.setState({ decks: [makeDeckRow('d1'), makeDeckRow('d2')] });
-      renderPage();
-      expect(screen.getByRole('link', { name: '3 cards' }).getAttribute('href')).toBe(
-        '/collection'
+      const { container } = renderPage();
+      expect(container.querySelector('.home-hero-stats')).toBeNull();
+      expect(screen.queryByRole('link', { name: '3 cards' })).toBeNull();
+      expect(screen.queryByRole('link', { name: '2 decks' })).toBeNull();
+      expect(screen.queryByRole('link', { name: '1 binder' })).toBeNull();
+    });
+
+    it('says what the value is', async () => {
+      mockGetValueHistory.mockImplementation(() =>
+        Promise.resolve([{ day: dayKey(Date.now()), value: 1125, at: Date.now() }])
       );
-      expect(screen.getByRole('link', { name: '2 decks' }).getAttribute('href')).toBe('/decks');
-      expect(screen.getByRole('link', { name: '1 binder' }).getAttribute('href')).toBe(
-        '/collection/binders'
+      useCollectionStore.setState({ cards: [makeRow()] });
+      const { container } = renderPage();
+      expect(await screen.findByText('Collection value')).toBeTruthy();
+      expect(container.querySelector('.home-hero-value-label')?.textContent).toBe(
+        'Collection value'
       );
     });
   });

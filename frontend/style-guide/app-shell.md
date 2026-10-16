@@ -206,9 +206,9 @@ cards collapsed to 44px rows that still took whole grid cells and left holes
 beside their tall neighbors. The rebuild (mockups: Direction A, "the desk")
 is a column of sections in a fixed order, each answering one question:
 
-1. **The hero** — the collection itself (value + its sparkline, the scale
-   line, the day's card, the actions). An empty collection's hero is the
-   setup checklist instead.
+1. **The hero** — the collection itself (its value as the one figure, with
+   its sparkline, the day's card, the actions). An empty collection's hero is
+   the setup checklist instead.
 2. **Waiting on you** — what needs an answer.
 3. **Your decks** — what you were working on.
 4. **Price movers · Recently added or Your cards** — what changed, and what
@@ -292,7 +292,7 @@ Rulings:
 - **Loading takes last visit's footprint (E277), unchanged in spirit.**
   `lib/home/home-shape.ts` (`sc-home-shape`) remembers, per `HomeCard` title, the
   rendered height or 0 for absent — a remembered-absent card stays absent
-  while loading, never a phantom skeleton — plus the hero's value, scale and
+  while loading, never a phantom skeleton — plus the hero's value and
   caption lines, the `your-decks` tile count and the `waiting` line. A first
   visit still reflows once. A card must report `loading` while its store is
   hydrating: "nothing here" over an un-hydrated collection is a false empty.
@@ -474,25 +474,22 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
   the thinned zones carries `text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5)` as
   a second legibility floor. Flat `--art-scrim` coverage remains correct for
   small tiles/badges where content genuinely spans the whole art.
-- **A hero band's slack goes to the chart, not to a gap.** `HomeHero` is a
-  two-column grid whose right column (the featured sleeve, 15rem on a
-  tablet, 21rem on desktop) is the taller of the two, so any difference
-  used to render as one dead band in the left column — the "boring and
-  bland, a lot of empty space" report (#1679 answered it with a fourth
-  row; T138 removed the search row). The rule now: the left column is
-  head (greeting + value) → sparkline → foot (scale line + actions), and
-  the sparkline's grid row is `minmax(0, 1fr)`, so the chart grows into
-  whatever height the card leaves over (`ValueSparkline` measures both
-  axes). On a phone the card sits beside the head and the chart is 48px.
-  The scale line is three link plates (`Cards` / `Decks` / `Binders`,
-  `--font-label` caption over a `--font-serif` tabular numeral on a
-  `--surface` plate), each a door to its surface. Two hard rules: it is
-  **suppressed wholesale when every count is zero** (a row of zeroes reads
-  worse than no row) and for guests (the hero shows a guest nothing
-  personal — same rule as the art pick); and labels **singularize at 1**
-  ("1 Binder"), because a figure that small makes "1 Binders" read as a
-  bug. Restating the header's own nav chips is deliberate — those are
-  abbreviated glyphs (`12K`), these are the real figures.
+- **The hero is one block beside the card, centered on it (2026-10-16).**
+  `HomeHero` is a two-column grid whose right column (the featured sleeve,
+  15rem on a tablet, 18rem on desktop) is the taller of the two, so any
+  difference used to render as one dead band in the left column: the
+  "boring and bland, a lot of empty space" report (#1679), and again in the
+  2026-10-15 audit, where the value sat top-left, the tiles bottom-left and
+  ~250px of empty card lay between them on a fresh account with no
+  sparkline. The rule now: the left column is one block (greeting → value
+  with its "Collection value" caption → sparkline, a fixed 5.5rem / 7rem band
+  → actions), vertically centered against the card, so the panel reads as
+  one composition with a chart or without one. On a phone the block lends
+  its parts to the grid (`display: contents`): the card sits beside the
+  greeting and value, the chart (48px) and the actions run the full width.
+  **The cards / decks / binders tiles are gone.** They restated the header's
+  nav counts as three equal stat tiles under caps captions (Layout system,
+  "A count is said once"); the hero's one figure is the value.
 
 - **`/home` hero = featured-card sleeve, not a backdrop (geometry rule).**
   A dashboard hero band is ~8:1 while card art crops are ~4:3, so a `cover`

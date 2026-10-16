@@ -29,7 +29,7 @@ interface Props {
 const RECENT_LIMIT = 3;
 
 /**
- * The Play landing: what's live, the three doors, the next game night, the
+ * The Play landing: what's live, the ways to start (one list of rows), the next game night, the
  * last few games and a one-line record. Everything here is a read of state
  * the page already holds — the doors are the only thing that starts anything,
  * and they only open a section, never a game.
@@ -83,45 +83,117 @@ export function PlayHome({
         </section>
       )}
 
-      <section className="play-home-doors" aria-label="Start playing">
-        <button type="button" className="play-home-door" onClick={() => go({ tab: 'local' })}>
-          <Swords width={20} height={20} strokeWidth={1.8} aria-hidden />
-          <span className="play-home-door-title">Track a table</span>
-          <span className="play-home-door-sub">{TABLE_PLAY_HINT} No account needed.</span>
-        </button>
-        <button
-          type="button"
-          className="play-home-door"
-          onClick={() => go({ tab: 'online', mode: 'host' })}
-        >
-          <Radio width={20} height={20} strokeWidth={1.8} aria-hidden />
-          <span className="play-home-door-title">Host online</span>
-          <span className="play-home-door-sub">
-            {isGuest ? 'Needs an account.' : ONLINE_PLAY_HINT}
-          </span>
-        </button>
-        <button
-          type="button"
-          className="play-home-door"
-          onClick={() => go({ tab: 'online', mode: 'join' })}
-        >
-          <KeyRound width={20} height={20} strokeWidth={1.8} aria-hidden />
-          <span className="play-home-door-title">Join with a code</span>
-          <span className="play-home-door-sub">
-            {isGuest ? 'Needs an account.' : 'Take your seat at a table someone else hosts.'}
-          </span>
-        </button>
-        <button
-          type="button"
-          className="play-home-door"
-          onClick={() => go({ tab: 'online', mode: 'browse' })}
-        >
-          <Users width={20} height={20} strokeWidth={1.8} aria-hidden />
-          <span className="play-home-door-title">Browse games</span>
-          <span className="play-home-door-sub">
-            {isGuest ? 'Needs an account.' : 'Public tables, no code needed.'}
-          </span>
-        </button>
+      {/* Ways to start are one list, not four equal cards with an icon on top
+          (STYLE_GUIDE § Layout system, "Ways to start are a list"). */}
+      <section className="play-home-start" aria-label="Start playing">
+        <ul className="play-home-doors" role="list">
+          <li>
+            <button type="button" className="play-home-door" onClick={() => go({ tab: 'local' })}>
+              <Swords
+                className="play-home-door-icon"
+                width={14}
+                height={14}
+                strokeWidth={1.8}
+                aria-hidden
+              />
+              <span className="play-home-door-text">
+                <span className="play-home-door-title">Track a table</span>
+                <span className="play-home-door-sub">{TABLE_PLAY_HINT} No account needed.</span>
+              </span>
+              <ChevronRight
+                className="play-home-door-go"
+                width={16}
+                height={16}
+                strokeWidth={2}
+                aria-hidden
+              />
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              className="play-home-door"
+              onClick={() => go({ tab: 'online', mode: 'host' })}
+            >
+              <Radio
+                className="play-home-door-icon"
+                width={14}
+                height={14}
+                strokeWidth={1.8}
+                aria-hidden
+              />
+              <span className="play-home-door-text">
+                <span className="play-home-door-title">Host online</span>
+                <span className="play-home-door-sub">
+                  {isGuest ? 'Needs an account.' : ONLINE_PLAY_HINT}
+                </span>
+              </span>
+              <ChevronRight
+                className="play-home-door-go"
+                width={16}
+                height={16}
+                strokeWidth={2}
+                aria-hidden
+              />
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              className="play-home-door"
+              onClick={() => go({ tab: 'online', mode: 'join' })}
+            >
+              <KeyRound
+                className="play-home-door-icon"
+                width={14}
+                height={14}
+                strokeWidth={1.8}
+                aria-hidden
+              />
+              <span className="play-home-door-text">
+                <span className="play-home-door-title">Join with a code</span>
+                <span className="play-home-door-sub">
+                  {isGuest ? 'Needs an account.' : 'Take your seat at a table someone else hosts.'}
+                </span>
+              </span>
+              <ChevronRight
+                className="play-home-door-go"
+                width={16}
+                height={16}
+                strokeWidth={2}
+                aria-hidden
+              />
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              className="play-home-door"
+              onClick={() => go({ tab: 'online', mode: 'browse' })}
+            >
+              <Users
+                className="play-home-door-icon"
+                width={14}
+                height={14}
+                strokeWidth={1.8}
+                aria-hidden
+              />
+              <span className="play-home-door-text">
+                <span className="play-home-door-title">Browse games</span>
+                <span className="play-home-door-sub">
+                  {isGuest ? 'Needs an account.' : 'Public tables, no code needed.'}
+                </span>
+              </span>
+              <ChevronRight
+                className="play-home-door-go"
+                width={16}
+                height={16}
+                strokeWidth={2}
+                aria-hidden
+              />
+            </button>
+          </li>
+        </ul>
       </section>
 
       {!isGuest && (

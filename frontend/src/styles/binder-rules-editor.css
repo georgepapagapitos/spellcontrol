@@ -68,11 +68,9 @@
    implicit fact nobody could see (STYLE_GUIDE § Sort chains). */
 .sort-editor-level-label {
   margin: var(--space-1) 0 0;
-  font-family: var(--font-label);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
-  font-size: var(--text-xs);
-  color: var(--text-muted);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-weight: 600;
 }
 
 .sort-editor-row-main {

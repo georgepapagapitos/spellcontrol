@@ -52,9 +52,9 @@ vi.mock('@/components/account/SyncIndicator', () => ({
 
 import { Header } from './Header';
 
-function renderHeader() {
+function renderHeader(path = '/') {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[path]}>
       <Header />
     </MemoryRouter>
   );
@@ -76,6 +76,28 @@ describe('Header — nav counts', () => {
     try {
       renderHeader();
       expect(screen.getByLabelText('1500 decks').textContent).toBe('1.5k');
+    } finally {
+      decksState.decks = [];
+    }
+  });
+
+  // Inside its own hub a count is said once, on the hub's tab chip (STYLE_GUIDE
+  // § Layout system, "A count is said once"); /collection said "61" three times.
+  it('drops the count from the nav item of the hub you are in', () => {
+    decksState.decks = Array.from({ length: 15 }, () => ({}));
+    try {
+      renderHeader('/decks');
+      expect(screen.queryByLabelText('15 decks')).toBeNull();
+    } finally {
+      decksState.decks = [];
+    }
+  });
+
+  it('keeps the count on the nav item of every other hub', () => {
+    decksState.decks = Array.from({ length: 15 }, () => ({}));
+    try {
+      renderHeader('/collection');
+      expect(screen.getByLabelText('15 decks').textContent).toBe('15');
     } finally {
       decksState.decks = [];
     }

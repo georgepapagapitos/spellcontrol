@@ -1,4 +1,4 @@
-/* The Play landing — what's live, three doors, the next night, recent games. */
+/* The Play landing: what's live, the ways to start, the next night, recent games. */
 
 .play-home {
   display: flex;
@@ -46,39 +46,49 @@
   white-space: nowrap;
 }
 
-/* ── Doors ─────────────────────────────────────────────────────────────── */
+/* ── Ways to start ──────────────────────────────────────────────────────
+   One list of rows split by hairlines, never a grid of boxed cards with an
+   icon on top (STYLE_GUIDE § Layout system, "Ways to start are a list").
+   The icon sits beside the title at the inline-with-text size; the chevron
+   says each row opens something. Narrower than the page, left-aligned under
+   the strip, because a row that runs 1200px puts its chevron out of reach of
+   the words it belongs to. */
 
 .play-home-doors {
-  display: grid;
-  /* auto-fit rather than a fixed column count: four doors read as 2x2 on a
-     tablet-width viewport and a single row once there's room, with no extra
-     breakpoint needed beyond the <=600px single-column override below. */
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  max-width: 44rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 0.5px solid var(--border);
+}
+
+.play-home-doors > li {
+  border-bottom: 0.5px solid var(--border);
 }
 
 .play-home-door {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-2);
-  padding: var(--space-4);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3) var(--space-1);
   text-align: left;
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  background: none;
+  border: 0;
   color: var(--text-primary);
+  font: inherit;
   cursor: pointer;
-  transition:
-    border-color var(--motion-fast) ease,
-    transform var(--motion-fast) ease;
+  transition: background-color var(--motion-fast) var(--ease-out-soft);
 }
 
-/* Hover only where a hover exists — a touch tap must not leave the door
+/* Hover only where a hover exists, so a touch tap doesn't leave the row
    stuck in its hover state (the E68 cross-device guard). */
 @media (hover: hover) and (pointer: fine) {
   .play-home-door:hover {
-    border-color: var(--border-strong);
+    background: var(--surface-raised);
   }
 }
 
@@ -87,8 +97,18 @@
   outline-offset: 2px;
 }
 
-.play-home-door > svg {
+/* The icon aligns with the title's line, not the middle of two lines. */
+.play-home-door-icon {
+  align-self: start;
+  margin-top: var(--space-1);
   color: var(--accent);
+}
+
+.play-home-door-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  min-width: 0;
 }
 
 .play-home-door-title {
@@ -99,6 +119,10 @@
 .play-home-door-sub {
   font-size: var(--text-sm);
   color: var(--text-secondary);
+}
+
+.play-home-door-go {
+  color: var(--text-muted);
 }
 
 /* ── Cards ─────────────────────────────────────────────────────────────── */
@@ -198,11 +222,44 @@
 }
 
 @media (max-width: 599px) {
-  .play-home-doors {
-    grid-template-columns: 1fr;
-  }
-
   .play-home-live-row {
     flex-wrap: wrap;
+  }
+}
+
+/* Desktop: two columns. The ways to start on the left, what's coming and what
+   happened (the next night, recent games) on the right, so the landing reads
+   as one composition, not a narrow list over full-width cards. A game in
+   progress spans both. */
+@media (min-width: 1024px) {
+  .play-home {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    /* The list spans the two card rows; the last row takes the slack so the
+       cards stack at the top instead of spreading to the list's height. */
+    grid-template-rows: auto 1fr;
+    align-items: start;
+    gap: var(--space-4) var(--space-6);
+  }
+
+  .play-home:has(> .play-home-live) {
+    grid-template-rows: auto auto 1fr;
+  }
+
+  .play-home > .play-home-live {
+    grid-column: 1 / -1;
+  }
+
+  .play-home > .play-home-start {
+    grid-column: 1;
+    grid-row: span 2;
+  }
+
+  .play-home > .play-home-card {
+    grid-column: 2;
+  }
+
+  .play-home-doors {
+    max-width: none;
   }
 }

@@ -541,11 +541,9 @@
   display: flex;
   justify-content: space-between;
   margin: 0 0 var(--space-1-5);
-  font-family: var(--font-label);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-overline);
-  font-size: var(--text-xs);
-  color: var(--text-muted);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-weight: 600;
 }
 
 .sort-sheet-preview-list li {

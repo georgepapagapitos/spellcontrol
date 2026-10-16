@@ -568,6 +568,34 @@ meanwhile.
   button); sort, search and toolbar pickers stay pills, and so do
   non-actionable label chips; circles are only the camera button and
   avatars. An icon-only action such as `⋮` is a rect the height of its row.
+- **A count is said once on a screen (2026-10-16).** The header's Collection
+  and Decks counts and a hub tab's count chip are where those numbers live.
+  Inside its own hub a nav item drops its count, because the tab chip right
+  under it says the same thing (`/collection` said "61" three times: nav,
+  tab, intro line), and an intro line carries what the chips don't, such as
+  the value. Three bordered boxes of big-number-over-caps-label is the stat
+  tile template, and on Home it repeated the nav word for word; the hero now
+  leads with the collection's value as its one figure, captioned with what it
+  is. **Why:** an outside "does this read as AI-designed" review and the
+  shared directive (ui-tells.md, "Grid of equal-weight stat tiles") both name
+  the stat-tile row as a tell: it puts several numbers at one weight, so none
+  answers the screen's question. Guards: `components/app-shell/Header.test.tsx`
+  (no count on the active hub's nav item), `pages/HomePage.test.tsx` ("hero
+  counts").
+- **Ways to start are a list, not a grid of equal cards (2026-10-16).** A
+  choice between ways to start (Play's Track a table · Host online · Join with
+  a code · Browse games, New deck's starts) is one group of rows split by
+  hairlines: the icon beside the title at the inline-with-text size (§ Icon
+  scale), the title, one line of hint, a chevron because each row goes
+  somewhere. Never four boxes of one size with an icon on top, and never an
+  icon framed in a square of its own. Where one start is what most people
+  want, it alone is framed, with a primary call to action (New deck's Generate
+  a deck); the rest are rows under it. On a desktop the Play landing sets the
+  rows beside the next night and recent games, so the page is one composition
+  instead of a narrow list over full-width cards. **Why:** "three (or six)
+  identical feature cards, icon on top" and "an icon in a rounded square" are
+  the feature-grid template (ui-tells.md, Layout and Icons); real choices have
+  unequal weight.
 
 ---
 
@@ -1363,18 +1391,28 @@ normal `letter-spacing`, `--text-secondary` or `--text-muted`, and **weight
 600 when it heads a section** (caps used to carry that emphasis; a quiet
 regular-weight label disappears above its rows). A caption under a number (a
 record `dt`, a stat label) stays regular: there the number carries the weight.
-Caps are for `--font-label`: chrome, tabs, tape, print-table `th`, and stamps or tags (a ribbon, a turn chip, a status pill) where the mark
-is meant to catch the eye. A data code whose canonical form is uppercase (a set
-code, a hex value, a room code) is data, not a label, and is allowlisted with
-its reason. **Why:** an outside "does this read as AI-designed" review named
+Caps are a role, not a font (tightened 2026-10-16): chrome (the nav, the tab
+bar, hub tabs), tape, a real table's column heads, and a stamp or tag on a
+thing (a ribbon, a turn chip, a status pill, TOKEN, a "New" note) where the
+mark is meant to catch the eye. Wearing `--font-label` does not make a heading a
+label: a line above a group of fields or rows (COLOR and PLAYSTYLE in the
+commander finder, a menu group, the upgrade plan's "To buy", a stat caption) is a
+section label in sentence case, and a name line above a title (the commander
+over a sheet's heading) is a caption in the body face. A data code whose
+canonical form is uppercase (a set code, a hex value, a room code) is data, not
+a label. `styles/uppercase-role.test.ts` lists every caps rule by role with its
+reason, and fails one that isn't listed even when it sets `--font-label`: the
+first version accepted the label face as proof, and 15 eyebrows passed it that
+way. **Why:** an outside "does this read as AI-designed" review named
 "big words above headlines", "overuse of eyebrow type in all caps" and "eyebrow
 text with pill borders" as tells; 150 rules shouted a label above every block,
 which flattens hierarchy (everything is the loudest thing) and reads as
 template. Sentence case keeps the label quiet so the heading and the number
 carry the weight. Do not type copy in ALL CAPS in source either; the
 `SHOUTING` rule in `copy-guards.test.ts` fails it, and
-`styles/uppercase-role.test.ts` fails a CSS rule that uppercases without
-`--font-label`. A section's only title is its label: when a block carries a
+`styles/uppercase-role.test.ts` fails a CSS rule that uppercases outside its
+role list. The shared directive (ui-tells.md, "Small all-caps letter-spaced
+label above every heading") names the same tell. A section's only title is its label: when a block carries a
 label and a heading that say the same thing, delete the label.
 
 In the default set (**Codex**) those roles are Eczar / Marcellus / Archivo

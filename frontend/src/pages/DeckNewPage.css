@@ -1,22 +1,14 @@
 /* DeckNewPage's own rules: the start page's doors. Loads with the new-deck
    chunk, not the boot payload (see STYLE_GUIDE "CSS file layout"). */
 
-/* One door per way to start. Two to a row from 600px, the featured Generate
-   door across the whole row; one column on a phone, Generate first. */
+/* The ways to start are a list, not a grid of equal cards (STYLE_GUIDE
+   § Layout system, "Ways to start are a list"). Generate, the start most
+   people want, is the one framed door with a primary call to action; the
+   rest are rows split by hairlines under it, each with its icon beside the
+   title at text size and a chevron, because each one goes somewhere. */
 .deck-new-doors {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-3);
-}
-
-@media (min-width: 600px) {
-  .deck-new-doors {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .deck-new-door.is-feature {
-    grid-column: 1 / -1;
-  }
+  display: flex;
+  flex-direction: column;
 }
 
 .deck-new-door {
@@ -25,48 +17,39 @@
   align-items: center;
   gap: var(--space-3);
   min-height: var(--touch-target);
-  padding: var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
+  padding: var(--space-3) var(--space-1);
+  border: 0;
+  border-bottom: 0.5px solid var(--border);
+  background: none;
   color: var(--text-primary);
   font: inherit;
   text-align: left;
   text-decoration: none;
   cursor: pointer;
-  transition: border-color var(--motion-fast);
+  transition: background-color var(--motion-fast) var(--ease-out-soft);
 }
 
-/* The open slot: nothing preset, drawn like BinderStartChooser's Blank tile. */
-.deck-new-door.is-dashed {
-  border-style: dashed;
-  border-color: var(--border-strong);
-  background: transparent;
+/* The first row after the framed door, or the first door when a format has
+   no Generate, opens the list with a hairline of its own. */
+.deck-new-door.is-feature + .deck-new-door,
+.deck-new-doors > .deck-new-door:not(.is-feature):first-child {
+  border-top: 0.5px solid var(--border);
 }
 
 .deck-new-door.is-feature {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
-  background: linear-gradient(
-    110deg,
-    color-mix(in srgb, var(--accent) 14%, var(--surface)) 0%,
-    var(--surface) 60%
-  );
-}
-
-.deck-new-door-glyph {
-  display: grid;
-  place-items: center;
-  width: var(--touch-target);
-  height: var(--touch-target);
-  border: 1px solid var(--border-strong);
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
   border-radius: var(--radius-lg);
-  background: var(--surface-raised);
-  color: var(--accent);
+  background: var(--surface);
 }
 
-.deck-new-door.is-dashed .deck-new-door-glyph {
-  border-style: dashed;
-  background: transparent;
+/* The icon sits on the title's line, not in the middle of two lines. */
+.deck-new-door-icon {
+  display: flex;
+  align-self: start;
+  margin-top: var(--space-1);
+  color: var(--accent);
 }
 
 .deck-new-door-text {
@@ -77,8 +60,12 @@
 }
 
 .deck-new-door-title {
-  font-size: var(--text-md);
+  font-size: var(--text-base);
   font-weight: 600;
+}
+
+.deck-new-door.is-feature .deck-new-door-title {
+  font-size: var(--text-md);
 }
 
 .deck-new-door-desc {
@@ -87,7 +74,7 @@
 }
 
 .deck-new-door-go {
-  color: var(--accent);
+  color: var(--text-muted);
 }
 
 /* The featured door's call to action, drawn as the primary button it stands
@@ -96,6 +83,7 @@
 .deck-new-door-cta {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-1-5);
   min-height: var(--touch-target);
   padding: 0 var(--space-4);
@@ -106,27 +94,25 @@
   white-space: nowrap;
 }
 
-/* On a phone the label would squeeze the description into a sliver; the
-   arrow alone carries it, as on every other door. */
+/* On a phone the call to action takes its own full-width line under the
+   words, so Generate stays the primary at every width. */
 @media (max-width: 599px) {
-  .deck-new-door {
+  .deck-new-door.is-feature {
+    grid-template-columns: auto minmax(0, 1fr);
     padding: var(--space-3);
   }
 
-  .deck-new-door-cta {
-    min-height: 0;
-    padding: 0;
-    background: none;
-    color: var(--accent);
-  }
-
-  .deck-new-door-cta-label {
-    display: none;
+  .deck-new-door.is-feature .deck-new-door-cta {
+    grid-column: 1 / -1;
   }
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .deck-new-door:hover {
+  .deck-new-door:not(.is-feature):hover {
+    background: var(--surface-raised);
+  }
+
+  .deck-new-door.is-feature:hover {
     border-color: var(--accent);
   }
 

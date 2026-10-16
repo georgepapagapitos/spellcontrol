@@ -66,11 +66,9 @@
 }
 
 .commander-finder-label {
-  font-family: var(--font-label);
-  font-size: var(--text-xs);
-  letter-spacing: var(--tracking-overline);
-  text-transform: uppercase;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
+  font-weight: 600;
 }
 
 .commander-finder-control {
@@ -242,11 +240,8 @@
 
 .commander-finder-buy-title {
   margin: 0;
-  font-family: var(--font-label);
-  font-size: var(--text-xs);
-  font-weight: 500;
-  letter-spacing: var(--tracking-overline);
-  text-transform: uppercase;
+  font-size: var(--text-sm);
+  font-weight: 600;
   color: var(--text-secondary);
 }
 
