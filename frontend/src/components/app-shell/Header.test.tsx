@@ -5,6 +5,8 @@
  * account menu vs. the guest "Sign in" link. Rules is a link to the /rules
  * page here (the quick-look sheet stays on Play and the in-game menu).
  */
+import fs from 'node:fs';
+import nodePath from 'node:path';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -83,13 +85,32 @@ describe('Header — nav counts', () => {
 
   // Inside its own hub a count is said once, on the hub's tab chip (STYLE_GUIDE
   // § Layout system, "A count is said once"); /collection said "61" three times.
-  it('drops the count from the nav item of the hub you are in', () => {
+  // The header chip steps aside only while the hub's strip is mounted (CSS keyed
+  // on .hub-page--<hub>), never just because the route sits under the hub: a
+  // deck or binder page has no strip, and #2975's isActive check left those
+  // pages with no count at all.
+  it('keeps the count on a detail page under its hub, which has no tab strip', () => {
     decksState.decks = Array.from({ length: 15 }, () => ({}));
     try {
-      renderHeader('/decks');
-      expect(screen.queryByLabelText('15 decks')).toBeNull();
+      renderHeader('/decks/d1');
+      const chip = screen.getByLabelText('15 decks');
+      expect(chip.textContent).toBe('15');
+      expect(chip.getAttribute('data-hub-count')).toBe('decks');
     } finally {
       decksState.decks = [];
+    }
+  });
+
+  it('hides a hub chip only while that hub page (and its strip) is mounted', () => {
+    const css = fs.readFileSync(
+      nodePath.resolve(__dirname, '../../styles/responsive-nav.css'),
+      'utf8'
+    );
+    for (const hub of ['collection', 'decks']) {
+      const rule = `body:has(.hub-page--${hub}) .site-nav-count[data-hub-count='${hub}']`;
+      const at = css.indexOf(rule);
+      expect(at, rule).toBeGreaterThan(-1);
+      expect(css.slice(at, css.indexOf('}', at))).toContain('display: none');
     }
   });
 

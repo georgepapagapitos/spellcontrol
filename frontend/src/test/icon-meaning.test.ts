@@ -12,7 +12,7 @@
  *   - the sparking wand (`Wand2`) marks generating or filling a deck, and only on
  *     the files below.
  *
- * Every other use takes the lucide icon that names its own thing (`Link2` for
+ * Every other use takes the lucide icon that names its own thing (`Combine` for
  * synergy, `Sprout` for ramp, `ListOrdered` for a ranked list), or no icon.
  * A new file importing one of these glyphs fails: pick the icon that names the
  * thing, or, if it really is AI or deck generation, add the file here with why.
@@ -45,6 +45,21 @@ const WAND_ALLOWED: Record<string, string> = {
   'pages/DeckNewPage.tsx': 'Generate a deck',
   'pages/DecksIndexPage.tsx': 'Build a deck, the empty index door to the generator',
   'pages/WelcomePage.tsx': 'Generate Commander decks, the feature row',
+};
+
+// The chain link means a link: a URL to copy or import from, link visibility,
+// a playtest card attached to another. #2976 moved the synergy role off the
+// sparkle onto Link2, giving the chain link a second meaning; it is Combine now.
+const LINK = /^(Lucide)?Link2(Icon)?$/;
+
+/** file (relative to src) -> the link the chain-link glyph marks. */
+const LINK_ALLOWED: Record<string, string> = {
+  'components/deck/DeckVisibilityChip.tsx': 'Link visibility: anyone with the link',
+  'components/deck/ImportDeckDialog.tsx': 'Import from a deck link',
+  'components/import/UploadPanel.tsx': 'Import from a link',
+  'components/overlays/OverflowMenu.tsx': 'Copy link',
+  'components/rules/RulesEntryMenu.tsx': 'Copy link to the rule',
+  'playtest/components/PlaytestCardFace.tsx': 'Attached: linked to another permanent',
 };
 
 function walk(dir: string): string[] {
@@ -110,10 +125,20 @@ describe('icon meaning (STYLE_GUIDE § Icon scale, one glyph, one meaning)', () 
     expect(hits, `a wand outside generate/fill actions\n${hits.join('\n')}`).toEqual([]);
   });
 
+  it('the chain link marks a link and nothing else (not the synergy role)', () => {
+    const hits = files
+      .filter((f) => f.names.some((n) => LINK.test(n)) && !(f.rel in LINK_ALLOWED))
+      .map((f) => f.rel);
+    expect(hits, `Link2 outside link surfaces\n${hits.join('\n')}`).toEqual([]);
+  });
+
   it('every allowlist entry is still a real use (shrink the list when one goes)', () => {
     const stale = [
       ...Object.keys(SPARKLE_ALLOWED).filter(
         (rel) => !files.find((f) => f.rel === rel)?.names.some((n) => SPARKLE.test(n))
+      ),
+      ...Object.keys(LINK_ALLOWED).filter(
+        (rel) => !files.find((f) => f.rel === rel)?.names.some((n) => LINK.test(n))
       ),
       ...Object.keys(WAND_ALLOWED).filter(
         (rel) => !files.find((f) => f.rel === rel)?.names.some((n) => WAND.test(n))

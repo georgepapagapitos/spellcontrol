@@ -487,9 +487,14 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
   one composition with a chart or without one. On a phone the block lends
   its parts to the grid (`display: contents`): the card sits beside the
   greeting and value, the chart (48px) and the actions run the full width.
-  **The cards / decks / binders tiles are gone.** They restated the header's
-  nav counts as three equal stat tiles under caps captions (Layout system,
-  "A count is said once"); the hero's one figure is the value.
+  **The cards / decks / binders tiles are gone; the figures are not.** The
+  tiles restated the header's nav counts as three equal stat tiles under caps
+  captions, so the hero's one figure is the value. The exact counts stay as
+  the scale line under it ("13,842 cards · 15 decks · 3 binders", each a link
+  to its hub, caption size and ink): the nav chips round past 999, the phone
+  tab bar has no counts and binders none in the nav (Layout system, "A count
+  is said once", the kept exception). It reserves its line while loading when
+  the last visit had one (`hero-scale`, E277).
 
 - **`/home` hero = featured-card sleeve, not a backdrop (geometry rule).**
   A dashboard hero band is ~8:1 while card art crops are ~4:3, so a `cover`

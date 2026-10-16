@@ -487,20 +487,42 @@ describe('HomePage', () => {
   });
 
   describe('hero counts', () => {
-    // The nav and the hub tabs carry the card and deck counts; the hero used to
-    // repeat them as three stat tiles (STYLE_GUIDE § Layout system, "A count is
-    // said once").
-    it('repeats no count the nav already shows', () => {
+    // The header's chips round past 999 ("14k"), the phone tab bar has no
+    // counts and binders have none in the nav, so the hero says the exact
+    // figures once, as one line of text links under the value: never the three
+    // equal stat tiles it replaced (STYLE_GUIDE § Layout system, "A count is
+    // said once", the exception). #2975 deleted the tiles and the figures with
+    // them; the owner's 13,842-card collection read only "14k".
+    it('says the exact counts at real sizes, as one line of links, not tiles', () => {
+      const row = makeRow();
       useCollectionStore.setState({
-        cards: [makeRow(), makeRow(), makeRow()],
-        binders: [{ id: 'b1', name: 'Binder', filterGroups: [] } as unknown as BinderDef],
+        cards: Array.from({ length: 13_842 }, () => row),
+        binders: [
+          { id: 'b1', name: 'Binder', filterGroups: [] } as unknown as BinderDef,
+          { id: 'b2', name: 'Trade', filterGroups: [] } as unknown as BinderDef,
+        ],
       });
-      useDecksStore.setState({ decks: [makeDeckRow('d1'), makeDeckRow('d2')] });
+      useDecksStore.setState({
+        decks: Array.from({ length: 1_204 }, (_, i) => makeDeckRow(`d${i}`)),
+      });
       const { container } = renderPage();
-      expect(container.querySelector('.home-hero-stats')).toBeNull();
-      expect(screen.queryByRole('link', { name: '3 cards' })).toBeNull();
-      expect(screen.queryByRole('link', { name: '2 decks' })).toBeNull();
-      expect(screen.queryByRole('link', { name: '1 binder' })).toBeNull();
+      const line = container.querySelector('.home-hero-scale');
+      expect(line?.textContent).toBe('13,842 cards · 1,204 decks · 2 binders');
+      expect(screen.getByRole('link', { name: '13,842 cards' }).getAttribute('href')).toBe(
+        '/collection'
+      );
+      expect(screen.getByRole('link', { name: '1,204 decks' }).getAttribute('href')).toBe('/decks');
+      expect(screen.getByRole('link', { name: '2 binders' }).getAttribute('href')).toBe(
+        '/collection/binders'
+      );
+      expect(container.querySelector('.home-hero-stats, .home-hero-stat')).toBeNull();
+    });
+
+    it('singularizes at one and leaves out a zero', () => {
+      useCollectionStore.setState({ cards: [makeRow()], binders: [] });
+      useDecksStore.setState({ decks: [] });
+      const { container } = renderPage();
+      expect(container.querySelector('.home-hero-scale')?.textContent).toBe('1 card');
     });
 
     it('says what the value is', async () => {
