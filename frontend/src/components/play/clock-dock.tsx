@@ -4,11 +4,12 @@ import { isClockWaiting } from '@/lib/play/game-clock';
 import type { HubPetal } from './BoardHubMenu';
 
 /**
- * The clock's controls inside the hub menu's dock, for the clock positions
- * that draw no edge strip (`seat`, `hub`; 2026-10-16): Pause/Resume, or Start
- * clock while the clock still waits for the first turn, and Start turns before
- * any seat holds the turn. In the dock, not the ring: an eighth key would force
- * a radius that does not fit a 320px board.
+ * The clock's controls in the hub menu's actions row (the pills over the
+ * dock), for the clock positions that draw no edge strip (`seat`, `hub`;
+ * 2026-10-16): Pause/Resume, or Start clock while the clock still waits for
+ * the first turn, and Start turns before any seat holds the turn. Not in the
+ * ring: an eighth key would force a radius that does not fit a 320px board.
+ * Not in the dock either: five dock items wrapped every label on a phone.
  */
 export function buildClockDock({
   game,

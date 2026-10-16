@@ -307,6 +307,12 @@ describe('the hub ring and its sheets clear the touch floor', () => {
     expect(px(ruleBody(hub, '.board-hub-dock'), 'height')).toBeGreaterThanOrEqual(56);
   });
 
+  it("the actions row's pills are at least 44px tall and never wrap their words", () => {
+    const body = ruleBody(hub, '.board-hub-action');
+    expect(px(body, 'min-height')).toBeGreaterThanOrEqual(44);
+    expect(body).toMatch(/white-space:\s*nowrap/);
+  });
+
   it("a sheet's close is a 44px rect", () => {
     const body = ruleBody(sheets, '.board-sheet-close');
     expect(px(body, 'width')).toBeGreaterThanOrEqual(44);

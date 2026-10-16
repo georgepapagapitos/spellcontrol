@@ -444,17 +444,17 @@ export function GameBoard({
       />
     ) : null;
   const canLeave = isFinished ? !!onLeave : !!(onEnd || onMinimize || onLeave);
+  const hubActions: HubPetal[] = clockStrip
+    ? []
+    : buildClockDock({
+        game,
+        dispatch: dispatchTracked,
+        canEdit: canControlAll,
+        showTotal: gameTimerEnabled,
+        showTurn: turnTrackerEnabled,
+        icon: dockIcon,
+      });
   const hubDock: HubPetal[] = [
-    ...(clockStrip
-      ? []
-      : buildClockDock({
-          game,
-          dispatch: dispatchTracked,
-          canEdit: canControlAll,
-          showTotal: gameTimerEnabled,
-          showTurn: turnTrackerEnabled,
-          icon: dockIcon,
-        })),
     {
       id: 'history',
       label: 'History',
@@ -601,6 +601,7 @@ export function GameBoard({
               hubRef={hubBtnRef}
               onClose={() => setHubOpen(false)}
               petals={hubPetals}
+              actions={hubActions}
               dock={hubDock}
               openedByKeyboard={hubOpenedByKeyboard}
               boardRotation={boardRotation}

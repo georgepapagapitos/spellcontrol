@@ -26,7 +26,10 @@ export interface HubPetal {
 const HUB_KEY: Size = { width: 72, height: 64 };
 const HUB_KEY_COMPACT: Size = { width: 66, height: 60 };
 const COMPACT_BELOW = 359;
-const RADIUS = 108;
+/** A cap, not a fixed size: `hubPetalPositions` takes the largest radius up
+ *  to this that the board has room for. At 108 a phone's six keys sat 36px
+ *  apart and read as one crowded block; 124 opens them to ~52px. */
+const RADIUS = 124;
 const RADIUS_COMPACT = 98;
 /** How far the dark disc behind the keys reaches past their outer edge. */
 const DISC_PAD = 22;
@@ -95,6 +98,7 @@ export function BoardHubMenu({
   hubRef,
   onClose,
   petals,
+  actions = [],
   dock = [],
   openedByKeyboard = true,
   boardRotation = 0,
@@ -103,7 +107,12 @@ export function BoardHubMenu({
   onClose: () => void;
   /** The ring's keys, clockwise from the top. */
   petals: HubPetal[];
-  /** The bottom dock's items, after the keys in keyboard order. */
+  /** Controls that change the game rather than take you somewhere (the
+   *  clock's Start/Pause, Start turns): a row of pills just above the dock,
+   *  so a phone's dock never holds more than its three places. After the
+   *  keys and before the dock in keyboard order. */
+  actions?: HubPetal[];
+  /** The bottom dock's items, last in keyboard order. */
   dock?: HubPetal[];
   /** How this open was triggered. A pointer open still moves focus to the
    *  first key (arrow-key roaming has to start somewhere), but doesn't draw
@@ -115,6 +124,7 @@ export function BoardHubMenu({
   boardRotation?: 0 | 90 | -90;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
+  // The actions row and the dock, together: the keys stay above its top.
   const dockRef = useRef<HTMLDivElement>(null);
   const [geo, setGeo] = useState<Geometry | null>(null);
 
@@ -173,7 +183,7 @@ export function BoardHubMenu({
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
-  }, [hubRef, petals.length, dock.length, boardRotation]);
+  }, [hubRef, petals.length, actions.length, dock.length, boardRotation]);
 
   const { closeAndReturnFocus } = useMenuKeyboard({
     open: true,
@@ -254,21 +264,42 @@ export function BoardHubMenu({
             </button>
           );
         })}
-        {dock.length > 0 && (
-          <div ref={dockRef} className="board-hub-dock" role="none">
-            {dock.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                role="menuitem"
-                className="board-hub-dock-item"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={select(item)}
-              >
-                {item.icon}
-                <span className="board-hub-dock-label">{item.label}</span>
-              </button>
-            ))}
+        {(actions.length > 0 || dock.length > 0) && (
+          <div ref={dockRef} className="board-hub-bottom" role="none">
+            {actions.length > 0 && (
+              <div className="board-hub-actions" role="none">
+                {actions.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="menuitem"
+                    className="board-hub-action"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={select(item)}
+                  >
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {dock.length > 0 && (
+              <div className="board-hub-dock" role="none">
+                {dock.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="menuitem"
+                    className="board-hub-dock-item"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={select(item)}
+                  >
+                    {item.icon}
+                    <span className="board-hub-dock-label">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
