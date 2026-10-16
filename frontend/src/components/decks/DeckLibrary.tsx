@@ -12,6 +12,7 @@ import { NO_DISCOVER_FILTERS, type DiscoverFilters } from '@/lib/discover/discov
 import { colorSelectionMatches } from '@spellcontrol/binder-routing';
 import { DiscoverFiltersPopover } from './DiscoverFiltersPopover';
 import { resultCountLabel } from '@/lib/search/result-count-label';
+import { formatMoneyTally } from '@/lib/collection/format-money';
 import { SearchPill } from '@/components/search/SearchPill';
 import { SortMenu, type SortMenuOption } from '@/components/search/SortMenu';
 import { SharedEmptyState } from '../share/SharedEmptyState';
@@ -49,6 +50,9 @@ export interface LibraryDeck {
   estimatedBracket?: number | null;
   /** `estimatedBracket` ran before the combo match answered: word it as a floor. */
   estimatedBracketFloor?: boolean;
+  /** USD, the figure Discover shows. Null when any card is unpriced: it sorts
+   *  last and the tile shows no price, never a $0. */
+  estimatedValueUsd?: number | null;
   /** Sort key for "Recently updated" — published-at or updated-at, per caller. */
   updatedAt: number;
   /** On-art overlay (views · copies · recency). The public profile has these
@@ -58,13 +62,33 @@ export interface LibraryDeck {
   badge?: string | null;
 }
 
-type LibrarySortKey = 'updated' | 'name' | 'bracket';
+type LibrarySortKey = 'updated' | 'name' | 'bracket' | 'price';
 
 const SORT_OPTIONS: SortMenuOption<LibrarySortKey>[] = [
   { value: 'updated', label: 'Updated', dirLabels: ['Newest', 'Oldest'] },
   { value: 'name', label: 'Name', dirLabels: ['A → Z', 'Z → A'] },
   { value: 'bracket', label: 'Bracket', dirLabels: ['Lowest', 'Highest'] },
+  { value: 'price', label: 'Price', dirLabels: ['Cheapest', 'Priciest'] },
 ];
+
+/**
+ * Orders by a number a deck may not have. A deck without one sorts LAST in
+ * either direction, never as a 0 (the app's standing rule for unknown sort
+ * values); ties fall back to name.
+ */
+function byKnownNumber(
+  a: LibraryDeck,
+  b: LibraryDeck,
+  key: (d: LibraryDeck) => number | null | undefined,
+  sign: number
+): number {
+  const x = key(a);
+  const y = key(b);
+  if (x == null && y == null) return a.name.localeCompare(b.name);
+  if (x == null) return 1;
+  if (y == null) return -1;
+  return sign * (x - y) || a.name.localeCompare(b.name);
+}
 
 function formatLabel(format: string): string {
   return DECK_FORMAT_CONFIGS[format as DeckFormat]?.label ?? format;
@@ -146,14 +170,8 @@ export function DeckLibrary({
     const sign = dir === 'asc' ? 1 : -1;
     return [...kept].sort((a, b) => {
       if (sort === 'name') return sign * a.name.localeCompare(b.name);
-      if (sort === 'bracket') {
-        // A deck with no bracket sorts LAST in either direction, never as a 0 —
-        // the app's standing rule for unknown sort values.
-        if (a.bracket == null && b.bracket == null) return a.name.localeCompare(b.name);
-        if (a.bracket == null) return 1;
-        if (b.bracket == null) return -1;
-        return sign * (a.bracket - b.bracket) || a.name.localeCompare(b.name);
-      }
+      if (sort === 'bracket') return byKnownNumber(a, b, (d) => d.bracket, sign);
+      if (sort === 'price') return byKnownNumber(a, b, (d) => d.estimatedValueUsd, sign);
       // 'updated' ascending reads NEWEST first (see SORT_OPTIONS dirLabels).
       return sign * (b.updatedAt - a.updatedAt);
     });
@@ -260,6 +278,12 @@ function DeckLibraryTile({
   showFormat: boolean;
 }) {
   const colors = deck.colorIdentity.slice(0, 5);
+  // Shown whenever it's known, so a Price sort orders by a number the tiles
+  // show (the same rule that put the number on the bracket chip).
+  const price =
+    deck.estimatedValueUsd != null
+      ? formatMoneyTally(deck.estimatedValueUsd, { currency: 'USD' })
+      : null;
   // Carries everything the tile shows, including the stats overlay — which is
   // `aria-hidden` on the art, so without it here a screen reader would lose the
   // view/copy counts entirely (the label this replaced on /u/:username spelled
@@ -274,6 +298,7 @@ function DeckLibraryTile({
         ? bracketAriaWithEstimate(deck.bracket, deck.estimatedBracket, deck.estimatedBracketFloor)
         : formatBracketLabel(deck.bracket)
       : null,
+    price,
     deck.statsLine,
     deck.badge,
   ]
@@ -344,6 +369,7 @@ function DeckLibraryTile({
                 {bracketBadge(deck.bracket, deck.estimatedBracket, deck.estimatedBracketFloor)}
               </Chip>
             )}
+            {price && <span className="deck-library-tile-price">{price}</span>}
           </div>
           {deck.commanderName && (
             <div className="deck-library-tile-commander">{deck.commanderName}</div>

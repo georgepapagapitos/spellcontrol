@@ -1154,6 +1154,10 @@ They are two different facts and the copy never blurs them into one:
     the format chip's class. Where every deck on a shelf shares one format,
     `DeckLibrary` drops the format chip (it says nothing there) and keeps the
     format in the tile's accessible name.
+  - **A deck library shows what it sorts by.** Every `DeckLibrary` sort key
+    is on the tile: the bracket chip's number, and the deck's price (USD,
+    Discover's `estimatedValueUsd`) at the trailing edge of the meta row. An
+    unpriced deck shows no price and sorts last both ways, never as $0.
   - **Text-line form** (`bracketTextWithEstimate`) — for a surface that
     already spells out "Bracket N" as running text: "Bracket 2 · est. 4"
     (the owner's deck hero, a public deck header, a lobby seat, the deck

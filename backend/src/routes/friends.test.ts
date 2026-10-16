@@ -1767,6 +1767,10 @@ describe('GET /api/friends/:friendId/decks', () => {
     });
     expect(byId['deck-friends']).toMatchObject({ visibility: 'friends' });
     expect(byId['deck-friends'].href).toMatch(/^\/s\/.+/);
+    // Both rungs carry a price field. These fixture cards have no Scryfall id,
+    // so the price is unknown (null), never a $0 that would sort as cheapest.
+    expect(byId['deck-pub']).toHaveProperty('estimatedValueUsd', null);
+    expect(byId['deck-friends']).toHaveProperty('estimatedValueUsd', null);
   });
 
   it('builds a friends-rung tile from the deck itself, via the publish-time extractor', async () => {

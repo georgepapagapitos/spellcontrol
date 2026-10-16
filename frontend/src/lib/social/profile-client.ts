@@ -15,6 +15,9 @@ export interface PublicProfileDeck {
   estimatedBracket: number | null;
   /** `estimatedBracket` ran before the combo match answered: word it as a floor. */
   estimatedBracketFloor?: boolean;
+  /** Mainboard + commanders in USD, Discover's figure. Null when any card is
+   *  unpriced; absent from a server that predates it. */
+  estimatedValueUsd?: number | null;
   viewCount: number;
   copyCount: number;
   publishedAt: number;

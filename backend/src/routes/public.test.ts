@@ -347,6 +347,32 @@ describe('GET /api/public/users/:username', () => {
     expect(res.body.decks[0].estimatedBracket).toBe(2);
   });
 
+  it('prices each deck the way Discover does, so the library can sort by it', async () => {
+    const priced = (id: string, usd: string) =>
+      ({
+        id,
+        oracle_id: `${id}-oracle`,
+        name: id,
+        rarity: 'rare',
+        set: 'tst',
+        set_name: 'Test',
+        collector_number: '1',
+        prices: { usd },
+      }) as never;
+    getScryfallCache().setMany([priced('pp-cmd', '4.00'), priced('pp-card', '1.50')]);
+    await publishDeck('pub-profile-price', 'deck-price-1', {
+      commander: { id: 'pp-cmd', name: 'Priced Commander', color_identity: ['G'] },
+      cards: [{ slotId: 's1', card: { id: 'pp-card', name: 'Priced Card' } }],
+    });
+    // The default fixture's Sol Ring is never cached: unknown, not a partial sum.
+    await publishDeck('pub-profile-unpriced', 'deck-price-2');
+
+    const res = await request(app).get('/api/public/users/pub-profile-price');
+    expect(res.body.decks[0].estimatedValueUsd).toBe(5.5);
+    const unpriced = await request(app).get('/api/public/users/pub-profile-unpriced');
+    expect(unpriced.body.decks[0].estimatedValueUsd).toBeNull();
+  });
+
   it('404s an unknown username', async () => {
     const res = await request(app).get('/api/public/users/no-such-user');
     expect(res.status).toBe(404);

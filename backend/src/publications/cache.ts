@@ -41,6 +41,9 @@ export interface PublicDeckSummary {
   estimatedBracket: number | null;
   /** `estimatedBracket` is a floor (the combo match hadn't answered). */
   estimatedBracketFloor: boolean;
+  /** Mainboard + commanders in USD, the same figure Discover shows. Null when
+   *  any card misses the price cache: unknown, never a partial sum. */
+  estimatedValueUsd: number | null;
   viewCount: number;
   copyCount: number;
   publishedAt: number;

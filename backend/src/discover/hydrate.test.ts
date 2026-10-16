@@ -3,7 +3,7 @@ import type { Pool } from 'pg';
 import { createTestEnv } from '../test-helpers';
 import { getScryfallCache } from '../scryfall-cache';
 import type { ScryfallCard } from '../types';
-import { hydratePublicationRows, type PublicationListingRow } from './hydrate';
+import { hydratePublicationRows, priceStoredDecks, type PublicationListingRow } from './hydrate';
 
 let pool: Pool;
 let cleanup: () => Promise<void>;
@@ -269,5 +269,69 @@ describe('hydratePublicationRows', () => {
       likedByViewer: false,
       bookmarkedByViewer: false,
     });
+  });
+});
+
+describe('priceStoredDecks', () => {
+  const card = (id: string) => ({ id, oracle_id: `${id}-oracle`, name: id });
+
+  beforeAll(async () => {
+    await makeUser('psd-user', 'psd-owner');
+    await makeUser('psd-other', 'psd-other-owner');
+    getScryfallCache().setMany([
+      scryfallCard('psd-cmd', 'psd-cmd-oracle', '3.50'),
+      scryfallCard('psd-partner', 'psd-partner-oracle', '1.25'),
+      scryfallCard('psd-x', 'psd-x-oracle', '2.00'),
+    ]);
+    // Priced: commander + partner + two copies of X; the sideboard, a
+    // card-less slot and a non-slot entry don't count.
+    await makeDeck('psd-user', 'psd-full', {
+      id: 'psd-full',
+      name: 'Full',
+      commander: card('psd-cmd'),
+      partnerCommander: card('psd-partner'),
+      cards: [
+        { slotId: 'a', card: card('psd-x') },
+        { slotId: 'b', card: card('psd-x') },
+        { slotId: 'c' },
+      ],
+      sideboard: [{ slotId: 'd', card: card('psd-never-cached') }],
+    });
+    // A mainboard card with no id: unknown, same as a cache miss.
+    await makeDeck('psd-user', 'psd-idless', {
+      id: 'psd-idless',
+      name: 'Idless',
+      commander: card('psd-cmd'),
+      cards: [{ slotId: 'a', card: { name: 'No id' } }],
+    });
+    await makeDeck('psd-user', 'psd-miss', {
+      id: 'psd-miss',
+      name: 'Miss',
+      cards: [{ slotId: 'a', card: card('psd-never-cached') }],
+    });
+    await makeDeck('psd-other', 'psd-theirs', { id: 'psd-theirs', name: 'Theirs', cards: [] });
+  });
+
+  it('prices each deck the way Discover does, by deck id', async () => {
+    const values = await priceStoredDecks('psd-user', ['psd-full', 'psd-idless', 'psd-miss']);
+    expect(values.get('psd-full')).toBe(8.75); // 3.50 + 1.25 + 2 + 2
+    expect(values.get('psd-idless')).toBeNull();
+    expect(values.get('psd-miss')).toBeNull();
+  });
+
+  it('agrees with hydratePublicationRows on the same stored decks', async () => {
+    const ids = ['psd-full', 'psd-idless', 'psd-miss'];
+    const values = await priceStoredDecks('psd-user', ids);
+    const hydrated = await hydratePublicationRows(
+      ids.map((deckId) => listingRow({ userId: 'psd-user', deckId, slug: `slug-${deckId}` }))
+    );
+    expect(hydrated.map((h) => h.estimatedValueUsd)).toEqual(ids.map((id) => values.get(id)));
+  });
+
+  it('only reads the named owner, and leaves out ids with no live deck', async () => {
+    await pool.query(`UPDATE user_decks SET deleted_at = $1 WHERE id = 'psd-miss'`, [Date.now()]);
+    const values = await priceStoredDecks('psd-user', ['psd-theirs', 'psd-miss', 'nope']);
+    expect(values.size).toBe(0);
+    expect(await priceStoredDecks('psd-user', [])).toEqual(new Map());
   });
 });

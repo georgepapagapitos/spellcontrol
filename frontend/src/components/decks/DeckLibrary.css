@@ -20,6 +20,14 @@
   margin-bottom: var(--space-4);
 }
 
+/* The deck's price closes the meta row, at its trailing edge: the figure a
+   Price sort orders by. It inherits the row's size and color. */
+.deck-library-tile-price {
+  margin-inline-start: auto;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .deck-library-tile-commander {
   margin-top: var(--space-0-5);
   font-size: var(--text-xs);
