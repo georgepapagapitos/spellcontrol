@@ -1078,6 +1078,11 @@
 
 /* ── Sticky suggestion tally — keeps the path to submit in reach ──────── */
 
+/* An opaque floating panel: --surface, the panel radius, the tooltip shadow.
+   It was a blurred 999px bar, the "single blurred sticky bar" ui-tells.md names;
+   at 94% the blur never made anything legible that the surface didn't
+   (STYLE_GUIDE § Color & spacing, "Blur is for a surface over moving content"),
+   and a pill is a label's shape, not a panel's (§ Shape language). */
 .feedback-tally {
   position: sticky;
   bottom: calc(var(--safe-bottom) + var(--space-3));
@@ -1090,9 +1095,8 @@
   margin: var(--space-4) auto 0;
   padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
   border: 0.5px solid var(--border);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
-  backdrop-filter: blur(6px);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
   box-shadow: var(--shadow-tooltip);
 }
 

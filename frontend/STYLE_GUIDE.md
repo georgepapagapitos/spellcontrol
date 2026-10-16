@@ -1168,6 +1168,16 @@ dashed sub-state, an italic "show more" action chip. `DiscoverFiltersPopover`'s
 label+checkbox chips paint the same class on their `<span>` but key off
 `:checked` instead, since they're a choice control, not a `Chip`.
 
+**A filter chip rests unpressed (2026-10-16).** A set of chips that filters a
+list starts with none pressed, which is the whole list, and each pressed chip
+narrows to its bucket. The Add cards availability chips (Available, In a deck,
+In a cube, Unowned) were four show-toggles that all began pressed, so the
+unfiltered list painted four accent fills before the player did anything, and
+"only what I own" took three taps. **Why:** the accent says "you chose this";
+spent on a default it says nothing (ui-tells.md, "pending styled the same as
+active", "color is spent, not sprinkled"). Guard:
+`CardSearchPanel.availability-chips.test.tsx`.
+
 **One frame per surface — never box a grid of self-framed tiles.** A
 container whose children already carry border + raised fill (result-grid
 tiles, playstyle chips, `CardGridCell`) gets no border or fill of its own;
@@ -1213,6 +1223,15 @@ section. **T135 retires the circular icon-only button** (§ Layout system): a
 `⋮` beside a rect "Add cards" read as two controls from different apps. As
 screens migrate, an icon-only action becomes a rect the height of its row;
 the only circles left are the camera button and avatars.
+
+**The search result's "+" is a rect (2026-10-16).** Add cards, /search, list
+add and the deck add panel drew Add as a filled accent disc; Coach draws the
+same Add as a labeled rect. `.inline-card-search-add` and its −/+ stepper are
+now rects at `var(--radius)`, keeping the 44px coarse box and the small painted
+square inside it (E459). One action, one shape, on every surface. **Why:**
+ui-tells.md lists "the same action as two shapes" as a tell, and the disc was
+the last circular icon button outside the camera and avatars. Guard:
+`styles/search-result-add-button.test.ts`.
 
 **Fill vs outline carries INTENT — the material pass maps onto it, never
 changes it.** The two-tier semantic is unchanged and load-bearing: an
@@ -2062,6 +2081,13 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
 - **Always theme variables**, never hard-coded colors: `--surface`, `--surface-raised`,
   `--text-primary`, `--text-secondary`, `--text-muted`, `--border`, `--border-strong`, `--accent`,
   `--accent-light`, `--on-accent`, etc. This is what makes light/dark themes work.
+  **Links too:** `base-layout.css` colors every link `--accent` from a
+  zero-specificity `:where(a)` rule, so a link-shaped class (a button, a tile,
+  a nav link) still sets its own color and a plain link never shows the
+  browser's #0000EE or a visited purple. Before it, "View your public profile"
+  on /you painted the browser default in all eleven themes. **Why:** an
+  untokened color is the one that breaks in the other theme (ui-tells.md,
+  "both themes, chosen tokens for each"). Guard: `styles/link-color.test.ts`.
 - **`--on-accent` is the sole token for text/icons on an accent-fill surface.**
   Any element with `background: var(--accent)` sets `color: var(--on-accent)` for
   its filled/active state. Never use literal `#fff`/`white` there — it's
@@ -2159,6 +2185,23 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
   art steps up one token (`--text-muted` → `--text-secondary`). If a floor + one
   token step still isn't enough for a surface, use a blur material
   (`backdrop-filter` panel), not a third gradient tune.
+- **Blur is for a surface over moving content (2026-10-16).** `backdrop-filter`
+  belongs where something really moves underneath and the text on the surface
+  must stay legible: the playtest table's chrome over cards being played (the
+  opening hand, the log dock, the corner chips, an opponent's life and name),
+  the scanner's panels over the live camera, and text over card art past the
+  floor above. Everywhere else the surface is opaque: a dim scrim over the still
+  life-board (the shared `Modal` scrim doesn't blur either), chips on a flat
+  seat color, the collection's sticky section header (plain `--bg`, like the
+  sticky row above it) and the share page's suggestion tally (`--surface`). A
+  translucent ground still has to clear AA over the worst pixel under it: the
+  opening hand's `--bg` is 92%, not 82%, because at 82% the hint measured
+  3.7:1 over the board (`styles/opening-hand-ground.test.ts`). **Why:**
+  glassmorphism on bars, cards and panels is one of the most-cited tells of
+  generated UI (ui-tells.md, "Surfaces, borders and depth"), and the audit found
+  twenty-four blurred rules and kept twelve. Guard:
+  `styles/backdrop-filter-allowlist.test.ts`, which lists each one with the
+  moving thing under it and fails on a new blur or a stale entry.
 - **Game-canonical colors** (counter gold, etc.) live in the `--mtg-*` block
   (`--mtg-counter-gold`) and are not themed — never hard-code a game-surface hex.
 - **Number fields are sized by class, never by a global selector.** The

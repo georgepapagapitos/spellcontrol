@@ -1447,13 +1447,23 @@ function SuggestionsResults({
   const savedCubes = useCubeStore((s) => s.saved);
   const allocations = useMemo(() => buildAllocationMap(decks, savedCubes), [decks, savedCubes]);
 
-  // Independent availability toggles; all on = the full discovery list.
-  const [show, setShow] = useState<SuggestionFilter>({
-    owned: true,
-    inOtherDeck: true,
-    inCube: true,
-    unowned: true,
+  // Availability chips narrow the list: none pressed is the full discovery
+  // list, and each pressed chip adds its bucket to what shows. They used to be
+  // four show-toggles that all started on, so the unfiltered list painted four
+  // accent fills at rest (STYLE_GUIDE § Chips: accent only when selected).
+  const [picked, setPicked] = useState<SuggestionFilter>({
+    owned: false,
+    inOtherDeck: false,
+    inCube: false,
+    unowned: false,
   });
+  const show = useMemo<SuggestionFilter>(
+    () =>
+      Object.values(picked).some(Boolean)
+        ? picked
+        : { owned: true, inOtherDeck: true, inCube: true, unowned: true },
+    [picked]
+  );
 
   const inDeck = useMemo(
     () => new Set([...existingCardCounts.keys()].map((n) => n.toLowerCase())),
@@ -1678,8 +1688,8 @@ function SuggestionsResults({
           <Chip
             key={f.key}
             className="filter-chip"
-            pressed={show[f.key]}
-            onClick={() => setShow((s) => ({ ...s, [f.key]: !s[f.key] }))}
+            pressed={picked[f.key]}
+            onClick={() => setPicked((s) => ({ ...s, [f.key]: !s[f.key] }))}
             trailing={<span className="card-search-filter-count">{f.count}</span>}
           >
             {f.label}

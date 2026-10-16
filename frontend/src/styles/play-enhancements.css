@@ -20,7 +20,7 @@
    */
   transform: translate(var(--undo-tx, calc(-50% - 3.4rem)), var(--undo-ty, -50%));
   z-index: 10;
-  background: rgba(14, 17, 24, 0.95);
+  background: rgb(14, 17, 24);
   border: 1px solid rgba(255, 255, 255, 0.22);
   color: var(--table-ink);
   /* F11: 44px floor on both axes (was 2.6rem/41.6px, measured 42x42 on a
@@ -36,8 +36,6 @@
   justify-content: center;
   cursor: pointer;
   touch-action: manipulation;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
   animation: pp-fade-in 160ms var(--ease-out-soft);
 }
 
@@ -354,8 +352,6 @@
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
   animation: pp-fade-in 220ms ease-out;
 }
 

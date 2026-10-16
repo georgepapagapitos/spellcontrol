@@ -91,8 +91,6 @@
   padding: var(--overlay-pad-top) var(--space-4) var(--overlay-pad-bottom);
   overflow-y: auto;
   background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
   animation: pp-fade-in 160ms var(--ease-out-soft);
 }
 

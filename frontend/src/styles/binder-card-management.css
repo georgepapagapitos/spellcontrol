@@ -1399,7 +1399,7 @@
   height: 1.5rem;
   flex-shrink: 0;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: var(--accent);
   color: var(--on-accent);
   cursor: pointer;
@@ -1429,7 +1429,9 @@
 }
 
 /* T153: the Add-list stepper replaces `.inline-card-search-add` once a row
-   is already queued — same circular-icon-button treatment, two of them. */
+   is already queued: the same icon-button treatment, two of them. Both are
+   rects at the control radius (STYLE_GUIDE § Shape language: circles are only
+   the camera button and avatars), so Add here is the same shape as Coach's Add. */
 .inline-card-search-stepper-btn {
   display: inline-flex;
   align-items: center;
@@ -1438,7 +1440,7 @@
   height: 1.5rem;
   flex-shrink: 0;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: var(--surface-raised);
   color: var(--text-primary);
   cursor: pointer;
@@ -1457,9 +1459,9 @@
 }
 
 /* Touch: both buttons keep their 44px box (the tap target, and the row
-   height the list was sized around) but paint only a 28px disc inside it,
+   height the list was sized around) but paint only a 28px square inside it,
    so the add control no longer outweighs the card (E459). The ring follows
-   the disc, 2px out, the same gap as the pointer ring. After both base rules
+   the painted box, 2px out, the same gap as the pointer ring. After both base rules
    on purpose: their `background` shorthand would reset the clip. */
 @media (pointer: coarse) {
   .inline-card-search-add,

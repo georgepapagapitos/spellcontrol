@@ -34,6 +34,19 @@ p {
   text-wrap-style: pretty;
 }
 
+/* Links take the theme's accent (STYLE_GUIDE § Color & spacing, "Always theme
+   variables"). With no base rule a plain link, such as the `.text-link` "View
+   your public profile" on /you, painted the browser's own #0000EE or #9E9EFF in
+   every theme. `--accent` is checked as text against every ground
+   (themes-contrast.test.ts, "accent as text clears AA"), and an author color
+   also covers :visited, so a followed link never turns purple. In :where(), at
+   zero specificity, so every link-shaped class (buttons, tiles, nav links, a
+   card row that sets `color: inherit`) still wins. Guard:
+   styles/link-color.test.ts. */
+:where(a) {
+  color: var(--accent);
+}
+
 /* #root IS the viewport: a 100dvh flex column. The account banners
    (RecoveryBanner, AutoLinkBanner) render as its first children, above the
    page, so the page root below them takes the REST of the height. When the
