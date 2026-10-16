@@ -3,7 +3,7 @@ import {
   heroBracketReadout,
   formatBracketLabel,
   bracketSourceSentence,
-  bracketBadgeWithEstimate,
+  bracketBadge,
   bracketTextWithEstimate,
   bracketAriaWithEstimate,
   EXHIBITION_BRACKET_NOTE,
@@ -15,9 +15,15 @@ describe('formatBracketLabel', () => {
   });
 });
 
-describe('bracketBadgeWithEstimate', () => {
-  it('formats bare tier words, stated first', () => {
-    expect(bracketBadgeWithEstimate(2, 4)).toBe('Core · est. Optimized');
+describe('bracketBadge', () => {
+  it('leads with the number, then the tier word', () => {
+    expect(bracketBadge(2)).toBe('B2 · Core');
+    expect(bracketBadge(3, 3)).toBe('B3 · Upgraded');
+  });
+
+  it('carries the Estimate as a second number when it differs, stated first', () => {
+    expect(bracketBadge(2, 4)).toBe('B2 · est. B4');
+    expect(bracketBadge(2, 4, true)).toBe('B2 · est. B4+');
   });
 });
 
@@ -25,7 +31,6 @@ describe('bracketTextWithEstimate', () => {
   it('formats "Bracket N · est. M"', () => {
     expect(bracketTextWithEstimate(2, 4)).toBe('Bracket 2 · est. 4');
     expect(bracketTextWithEstimate(2, 4, true)).toBe('Bracket 2 · est. 4+');
-    expect(bracketBadgeWithEstimate(2, 4, true)).toBe('Core · est. Optimized+');
     expect(bracketAriaWithEstimate(2, 4, true)).toBe('Bracket 2 stated, estimate at least 4');
   });
 });

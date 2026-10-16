@@ -12,10 +12,10 @@ import { formatSocialCount } from '@/lib/social/social-proof';
 import { formatRelativeTime } from '@/lib/util/format-time';
 import { formatIdentity } from '@/lib/social/display-name';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
-import { bracketLabel } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import {
-  bracketBadgeWithEstimate,
+  bracketBadge,
   bracketAriaWithEstimate,
+  formatBracketLabel,
 } from '@/lib/deck-analysis/format-bracket-label';
 import { LikeButton } from './LikeButton';
 import { BookmarkButton } from './BookmarkButton';
@@ -74,7 +74,7 @@ function tileAriaLabel(
     parts.push(
       deck.estimatedBracket != null && deck.estimatedBracket !== deck.bracket
         ? bracketAriaWithEstimate(deck.bracket, deck.estimatedBracket, deck.estimatedBracketFloor)
-        : bracketLabel(deck.bracket)
+        : formatBracketLabel(deck.bracket)
     );
   }
   if (deck.colorIdentity.length > 0) parts.push(deck.colorIdentity.join(''));
@@ -199,14 +199,8 @@ export function DiscoverDeckTile({ deck, view, buildablePercent = null, onUnsave
             )}
             <Chip className="deck-format-badge">{formatLabel(deck.format)}</Chip>
             {deck.bracket != null && (
-              <Chip className="deck-format-badge">
-                {deck.estimatedBracket != null && deck.estimatedBracket !== deck.bracket
-                  ? bracketBadgeWithEstimate(
-                      deck.bracket,
-                      deck.estimatedBracket,
-                      deck.estimatedBracketFloor
-                    )
-                  : bracketLabel(deck.bracket)}
+              <Chip className="deck-bracket-badge">
+                {bracketBadge(deck.bracket, deck.estimatedBracket, deck.estimatedBracketFloor)}
               </Chip>
             )}
           </div>
