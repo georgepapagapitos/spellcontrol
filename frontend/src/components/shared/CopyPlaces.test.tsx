@@ -6,6 +6,7 @@ import type { EnrichedCard } from '@/types/index';
 import { makeDeckAllocationInfo } from '@/lib/collection/allocations-core';
 import { breakdownCopies } from '@/lib/collection/copy-locations';
 import type { CardLocation } from '@/lib/binder/card-locations';
+import { plateWidths, type PlateLead } from '@/lib/collection/plate-widths';
 import { CopyPlaces } from './CopyPlaces';
 import { CardRow } from './CardRow';
 
@@ -74,7 +75,10 @@ const locations = new Map<string, CardLocation>([
 const WHERE =
   'Where your copies are: 1 in Mono-Red Burn, 2 in Red Spells, 1 in Modern Staples, 1 not in a deck or binder';
 
-function renderPlaces(placement: 'art' | 'row', extra: { interactive?: boolean } = {}) {
+function renderPlaces(
+  placement: 'art' | 'row',
+  extra: { interactive?: boolean; lead?: PlateLead } = {}
+) {
   return render(
     <MemoryRouter>
       <CopyPlaces
@@ -94,10 +98,39 @@ describe('CopyPlaces marks', () => {
     const { container } = renderPlaces('art');
     const counts = [...container.querySelectorAll('.copy-places-count')].map((n) => n.textContent);
     expect(counts).toEqual(['1', '3']);
-    // The count sits on its own plate; the owner's color is only the disc.
-    for (const plate of container.querySelectorAll('.copy-places-counted')) {
-      expect(plate.querySelector('.identity-mark')).not.toBeNull();
+    // The count sits beside the disc on the scrim; the owner's color is only
+    // the disc.
+    for (const count of container.querySelectorAll('.copy-places-count')) {
+      expect(count.parentElement?.querySelector('.identity-mark')).not.toBeNull();
+      expect(count.closest('.identity-mark')).toBeNull();
     }
+  });
+
+  it('draws the ×qty and the marks on one plate, on art', () => {
+    stubViewport(false);
+    const { container } = renderPlaces('art', {
+      lead: { qty: 5, set: { code: 'M11', title: 'Magic 2011' }, surplus: 2 },
+    });
+    const plates = container.querySelectorAll('.art-badge.copy-places-plate');
+    expect(plates).toHaveLength(1);
+    const plate = plates[0];
+    expect(plate.querySelector('.copy-places-qty')?.textContent).toBe('×5');
+    expect(plate.querySelector('.copy-places-set')?.textContent).toBe('M11');
+    expect(plate.querySelector('.copy-places-surplus')?.textContent).toBe('2 free');
+    expect(plate.querySelectorAll('.copy-places-mark')).toHaveLength(2);
+    // The widths CSS compares with the tile ride on the plate.
+    const style = (plate as HTMLElement).style;
+    expect(style.getPropertyValue('--plate-full')).toMatch(/^\d+(\.\d)?em$/);
+    expect(style.getPropertyValue('--plate-lean')).toMatch(/^\d+(\.\d)?em$/);
+    // The trigger is still one button, named by the whole breakdown.
+    expect(screen.getByRole('button', { name: WHERE }).contains(plate)).toBe(true);
+  });
+
+  it('leaves the lead and its divider off a stack of one', () => {
+    stubViewport(false);
+    const { container } = renderPlaces('art', { lead: { qty: 1 } });
+    expect(container.querySelector('.copy-places-qty')).toBeNull();
+    expect(container.querySelector('.copy-places-sep')).toBeNull();
   });
 
   it('counts the row chips the same way', () => {
@@ -274,5 +307,41 @@ describe('CopyPlaces inside a card row', () => {
     const onActivate = renderRow();
     fireEvent.click(screen.getByText('Lightning Bolt'));
     expect(onActivate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('plateWidths', () => {
+  const deck = { kind: 'deck' as const, color: undefined, copies: 2, counted: true };
+  const binder = { kind: 'binder' as const, color: '#39f', copies: 4, counted: true };
+  const cube = { kind: 'cube' as const, color: '#74c', copies: 3, counted: true };
+  const listed = { kind: 'listed' as const, color: 'x', copies: 0, counted: false };
+  const sld = { code: 'SLD', title: '' };
+
+  it('gives up room in order: lean is narrower than full', () => {
+    const { full, lean } = plateWidths([deck, binder], { qty: 6 });
+    expect(lean).toBeLessThan(full);
+  });
+
+  it('grows with every count, set code and place', () => {
+    const base = plateWidths([deck, binder], { qty: 6 }).full;
+    expect(plateWidths([deck, binder], { qty: 6, set: sld }).full).toBeGreaterThan(base);
+    expect(plateWidths([deck, binder, cube], { qty: 6 }).full).toBeGreaterThan(base);
+    expect(plateWidths([{ ...deck, copies: 12 }, binder], { qty: 16 }).full).toBeGreaterThan(base);
+  });
+
+  // The set code folds below `lean`, so `lean` must count it: measured
+  // without it, a 390px phone kept "MSC" and pushed the third disc out.
+  it('counts the set code in the lean width it folds below', () => {
+    const withSet = plateWidths([deck, binder], { qty: 6, set: sld });
+    expect(withSet.lean).toBeGreaterThan(plateWidths([deck, binder], { qty: 6 }).lean);
+  });
+
+  // The worst case the data can make (four kinds of place and a two-digit
+  // count) still fits a phone tile's bottom row once the set code has folded:
+  // three across on a 390px phone leaves a 101px row, 8.1em of 12.5px type,
+  // and the estimate carries a 0.25em margin on top (Chrome, 2026-10-16).
+  it('keeps the worst case within a phone tile once lean, set code folded', () => {
+    const { lean } = plateWidths([deck, cube, binder, listed], { qty: 12 });
+    expect(lean).toBeLessThanOrEqual(8.1 + 0.4);
   });
 });

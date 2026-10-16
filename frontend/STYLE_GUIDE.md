@@ -2191,9 +2191,9 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
   **owner** count (the tooltip and the accessible name do). **A copy count is
   the one exception (2026-10-13, user ruling):** on a collection tile whose
   copies are split, a mark that holds part of the stack carries how many
-  copies it holds ("1" in a deck, "3" across binders, beside "× 5"), seated
-  on a scrim plate beside the disc so the number never sits on the owner's
-  color (`CopyPlaces`, `.copy-places-counted`). A mark that holds the whole
+  copies it holds ("1" in a deck, "3" across binders, beside "× 5"), on the
+  scrim beside the disc so the number never sits on the owner's color
+  (`CopyPlaces`; the tile's one plate, cards-collection appendix). A mark that holds the whole
   stack, or a stack of one, stays bare. A cube that only
   **lists** the card holds no copy, so its mark is hollow, not filled: the
   scrim and its light glyph with a dashed ring in the cube's violet

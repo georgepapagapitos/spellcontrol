@@ -18,6 +18,7 @@ import {
 import { formatLocation, formatLocationSpan, type CardLocation } from '@/lib/binder/card-locations';
 import { binderCopyHref } from '@/lib/binder/locate-copy';
 import { useAnchoredPanel } from '@/lib/overlays/use-anchored-panel';
+import { plateWidths, type PlateLead } from '@/lib/collection/plate-widths';
 import { useMediaQuery } from '@/lib/util/use-media-query';
 import { printedName } from '@spellcontrol/binder-routing';
 import { Modal } from '@/components/overlays/Modal';
@@ -44,27 +45,63 @@ const stopActivationKeys = (e: KeyboardEvent) => {
   if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
 };
 
-function ArtMark({ group }: { group: MarkGroup }) {
+/** One identity disc, and its count beside it on the scrim, never on the
+ *  owner's color, so it holds on a light deck color as well as a dark one. */
+function PlateMark({ group }: { group: MarkGroup }) {
   const Icon = ICON[group.kind];
   const identity = group.kind === 'listed' ? 'listed' : group.color ? 'one' : 'many';
-  const disc = (
+  return (
+    <span className="copy-places-mark">
+      <ArtBadge
+        className="identity-mark"
+        data-identity={identity}
+        style={group.color ? ({ '--identity-color': group.color } as CSSProperties) : undefined}
+        aria-hidden
+      >
+        <Icon width={11} height={11} strokeWidth={2} aria-hidden />
+      </ArtBadge>
+      {group.counted && <span className="copy-places-count">{group.copies}</span>}
+    </span>
+  );
+}
+
+/**
+ * The grid tile's one plate: ×qty and its chips, a divider, then a disc per
+ * kind of place. It never wraps; on a tile too narrow for all of it, it gives
+ * up the counts, then the set code, then lets the discs overlap
+ * (CopyPlaces.css).
+ */
+function ArtPlate({ groups, lead }: { groups: MarkGroup[]; lead?: PlateLead }) {
+  const { full, lean } = plateWidths(groups, lead);
+  const showLead = lead && (lead.qty > 1 || !!lead.set || !!lead.surplus);
+  return (
     <ArtBadge
-      className="identity-mark"
-      data-identity={identity}
-      style={group.color ? ({ '--identity-color': group.color } as CSSProperties) : undefined}
+      className="copy-places-plate"
+      style={{ '--plate-full': `${full}em`, '--plate-lean': `${lean}em` } as CSSProperties}
       aria-hidden
     >
-      <Icon width={11} height={11} strokeWidth={2} aria-hidden />
-    </ArtBadge>
-  );
-  if (!group.counted) return disc;
-  // The same identity disc, seated on a plate that carries the count. The
-  // count reads on the scrim, never on the owner's color, so it holds on a
-  // light deck color as well as a dark one.
-  return (
-    <ArtBadge className="copy-places-counted" aria-hidden>
-      {disc}
-      <span className="copy-places-count">{group.copies}</span>
+      {showLead && (
+        <>
+          {lead.qty > 1 && (
+            <span className="copy-places-qty">
+              <span className="collection-grid-qty-x">×</span>
+              {lead.qty}
+            </span>
+          )}
+          {lead.set && (
+            <span className="copy-places-set" title={lead.set.title}>
+              {lead.set.code}
+            </span>
+          )}
+          {!!lead.surplus && <span className="copy-places-surplus">{lead.surplus} free</span>}
+          <span className="copy-places-sep" />
+        </>
+      )}
+      <span className="copy-places-marks">
+        {groups.map((g) => (
+          <PlateMark key={g.kind} group={g} />
+        ))}
+      </span>
     </ArtBadge>
   );
 }
@@ -276,6 +313,8 @@ export interface CopyPlacesProps {
   kinds?: readonly MarkKind[];
   /** False in select mode: the marks show, but a tap selects the tile. */
   interactive?: boolean;
+  /** On art: the tile's ×qty and corner chips, drawn at the plate's start. */
+  lead?: PlateLead;
 }
 
 /**
@@ -289,8 +328,12 @@ export function CopyPlaces(props: CopyPlacesProps) {
   const narrow = useMediaQuery(NARROW);
   if (groups.length === 0) return null;
   const label = describeCopyPlaces(props.breakdown, props.listedIn ?? []);
-  const Mark = props.placement === 'art' ? ArtMark : RowMark;
-  const marks = groups.map((g) => <Mark key={g.kind} group={g} />);
+  const marks =
+    props.placement === 'art' ? (
+      <ArtPlate groups={groups} lead={props.lead} />
+    ) : (
+      groups.map((g) => <RowMark key={g.kind} group={g} />)
+    );
   const cls = `copy-places-trigger copy-places-trigger--${props.placement}`;
   if (props.interactive === false) {
     return (

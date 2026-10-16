@@ -580,6 +580,21 @@ Other surfaces (deck editor, shares, trades, the binder page) keep
 `DeckBadge` / `BinderBadge`: there a mark is about one copy or one owner,
 and a count would have nothing to add up to.
 
+**One plate on a collection tile (2026-10-16, user ruling).** A stack that
+sits anywhere draws ×qty, its set and surplus chips, a divider, and one disc
+per kind of place on a single scrim plate at the bottom-left, and the whole
+plate is the `CopyPlaces` button (`lead`). The separate plates it replaced
+shared a wrapping row and piled up over the rules text in a different shape
+on every tile. The plate never wraps. As the tile narrows it gives things up
+in a fixed order: the per-place counts (the list still has them), then the
+set code, then the discs overlap, and at the very last the row clips. Each
+step is a CSS switch on the bottom row's width against widths the tile works
+out from its own content (`lib/collection/plate-widths.ts`, calibrated in
+Chrome); no script measures. Five decks are still one "several decks" disc,
+so the plate is never longer than ×qty, a set code and four discs. A stack
+in no place keeps the plain ×qty corner. Guard:
+`styles/copy-places-plate.test.ts`.
+
 **Table density (compact view, ≥768px) — the Moxfield-style collection table.**
 Compact is not a fourth view mode: from tablet width up the same `compact`
 setting renders `CardRow` in `table` mode — one grid cell per column on the
