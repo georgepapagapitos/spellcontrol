@@ -40,21 +40,26 @@ export function bracketSourceSentence(source: 'contents' | 'power' | 'baseline')
 // Discover tile, a deck library, a lobby seat, someone else's deck header —
 // the Estimate rides beside it whenever it differs, so a stated number can
 // never hide what the deck actually estimates at. Shown only when both a
-// stated bracket AND a differing estimate exist; the caller decides that
-// ("only when they differ" per PowerHero's own rule) — these three just format
-// the pair once each is already known to differ.
+// stated bracket AND a differing estimate exist ("only when they differ" per
+// PowerHero's own rule). `bracketBadge` decides that itself; the text and aria
+// forms format the pair once the caller knows the two differ.
 
 /**
- * Compact badge form: bare tier words, matching the existing `deck-format-
- * badge`/`deck-bracket-badge` convention of a tier word with no "Bracket N"
- * prefix (tight on a tile at phone width). "Core · est. Optimized".
+ * Compact badge form, for a deck tile: "B2 · Core", or "B2 · est. B4" when the
+ * Estimate differs (the tier word gives way to the second number at phone
+ * width). The number leads because a list sorted by bracket has to show the
+ * thing it is sorted by; a bare "Core" read as one more tag beside the format
+ * chip (2026-10-16). "B" is the short form `BracketVerdictStrip` already uses.
  */
-export function bracketBadgeWithEstimate(
+export function bracketBadge(
   bracket: number,
-  estimatedBracket: number,
+  estimatedBracket?: number | null,
   floor = false
 ): string {
-  return `${bracketLabel(bracket)} · est. ${bracketLabel(estimatedBracket)}${floor ? '+' : ''}`;
+  if (estimatedBracket != null && estimatedBracket !== bracket) {
+    return `B${bracket} · est. B${estimatedBracket}${floor ? '+' : ''}`;
+  }
+  return `B${bracket} · ${bracketLabel(bracket)}`;
 }
 
 /**

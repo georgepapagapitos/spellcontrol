@@ -1144,12 +1144,16 @@ They are two different facts and the copy never blurs them into one:
   estimates. Same "only when they differ" rule as the owner's page: on Auto
   there's nothing to disambiguate. Two compact forms, one shared formatter
   each (`frontend/src/lib/deck-analysis/format-bracket-label.ts`):
-  - **Badge form** (`bracketBadgeWithEstimate`) — bare tier words, no
-    "Bracket N" prefix, matching the existing `deck-format-badge`/
-    `deck-bracket-badge` convention: "Core · est. Optimized". Tight tile
-    badges at phone width have no room for two "Bracket N" numbers side by
-    side (phone chrome density — control rows and badge rows fit by width,
-    not by dropping content).
+  - **Badge form** (`bracketBadge`) — the number first, in the compact
+    "B" form `BracketVerdictStrip` uses: "B2 · Core", or "B2 · est. B4" when
+    the Estimate differs (the second tier word gives way at phone width). It
+    used to be bare tier words ("Core · est. Optimized"), which failed the
+    moment a deck library sorted by bracket: the list ordered by a number no
+    tile showed, and "Core" in the same pill as "Commander" read as one more
+    tag (2026-10-16). The chip is `.deck-bracket-badge` on every tile, never
+    the format chip's class. Where every deck on a shelf shares one format,
+    `DeckLibrary` drops the format chip (it says nothing there) and keeps the
+    format in the tile's accessible name.
   - **Text-line form** (`bracketTextWithEstimate`) — for a surface that
     already spells out "Bracket N" as running text: "Bracket 2 · est. 4"
     (the owner's deck hero, a public deck header, a lobby seat, the deck

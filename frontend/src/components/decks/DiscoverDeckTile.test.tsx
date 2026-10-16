@@ -285,11 +285,11 @@ describe('DiscoverDeckTile — list view stays the pre-v2 compact row', () => {
 });
 
 describe('DiscoverDeckTile — bracket badge carries the estimate (2026-09-24 ruling)', () => {
-  it('shows only the stated tier word when no estimate differs', () => {
+  it('shows only the stated bracket, number first, when no estimate differs', () => {
     useCardThumbMock.mockReturnValue(undefined);
     const { container } = renderTile({ bracket: 3, estimatedBracket: null });
 
-    expect(container.querySelector('.decks-index-card-meta')?.textContent).toContain('Upgraded');
+    expect(container.querySelector('.deck-bracket-badge')?.textContent).toBe('B3 · Upgraded');
     expect(container.querySelector('.decks-index-card-meta')?.textContent).not.toContain('est.');
   });
 
@@ -297,9 +297,7 @@ describe('DiscoverDeckTile — bracket badge carries the estimate (2026-09-24 ru
     useCardThumbMock.mockReturnValue(undefined);
     const { container } = renderTile({ bracket: 2, estimatedBracket: 4 });
 
-    expect(container.querySelector('.decks-index-card-meta')?.textContent).toContain(
-      'Core · est. Optimized'
-    );
+    expect(container.querySelector('.deck-bracket-badge')?.textContent).toBe('B2 · est. B4');
     const link = container.querySelector('.discover-tile-link');
     expect(link?.getAttribute('aria-label')).toContain('Bracket 2 stated, estimate 4');
   });
@@ -312,9 +310,7 @@ describe('DiscoverDeckTile — bracket badge carries the estimate (2026-09-24 ru
       estimatedBracketFloor: true,
     });
 
-    expect(container.querySelector('.decks-index-card-meta')?.textContent).toContain(
-      'Core · est. Optimized+'
-    );
+    expect(container.querySelector('.deck-bracket-badge')?.textContent).toBe('B2 · est. B4+');
     expect(container.querySelector('.discover-tile-link')?.getAttribute('aria-label')).toContain(
       'Bracket 2 stated, estimate at least 4'
     );

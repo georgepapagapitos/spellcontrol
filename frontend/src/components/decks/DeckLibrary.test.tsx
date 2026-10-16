@@ -131,9 +131,7 @@ describe('DeckLibrary tile', () => {
     const { container } = renderLibrary([
       deck({ id: 'a', name: 'Sandbagged', bracket: 2, estimatedBracket: 4 }),
     ]);
-    expect(container.querySelector('.deck-bracket-badge')?.textContent).toBe(
-      'Core · est. Optimized'
-    );
+    expect(container.querySelector('.deck-bracket-badge')?.textContent).toBe('B2 · est. B4');
     expect(screen.getByRole('link').getAttribute('aria-label')).toContain(
       'Bracket 2 stated, estimate 4'
     );
@@ -143,6 +141,31 @@ describe('DeckLibrary tile', () => {
     const { container } = renderLibrary([
       deck({ id: 'a', name: 'Auto', bracket: 4, estimatedBracket: 4 }),
     ]);
-    expect(container.querySelector('.deck-bracket-badge')?.textContent).toBe('Optimized');
+    expect(container.querySelector('.deck-bracket-badge')?.textContent).toBe('B4 · Optimized');
+  });
+
+  it('leads the bracket badge with its number, so a bracket sort shows its key', () => {
+    const { container } = renderLibrary([deck({ id: 'a', name: 'Mid', bracket: 3 })]);
+    expect(container.querySelector('.deck-bracket-badge')?.textContent).toBe('B3 · Upgraded');
+    expect(screen.getByRole('link').getAttribute('aria-label')).toContain('Bracket 3 · Upgraded');
+  });
+});
+
+describe('DeckLibrary format chip', () => {
+  it('drops the format chip when every deck shares one format, but keeps it in the name', () => {
+    const { container } = renderLibrary([
+      deck({ id: 'a', name: 'One' }),
+      deck({ id: 'b', name: 'Two' }),
+    ]);
+    expect(container.querySelector('.deck-format-badge')).toBeNull();
+    expect(screen.getAllByRole('link')[0].getAttribute('aria-label')).toContain('Commander');
+  });
+
+  it('shows the format chip on every tile when the shelf mixes formats', () => {
+    const { container } = renderLibrary([
+      deck({ id: 'a', name: 'One' }),
+      deck({ id: 'b', name: 'Two', format: 'standard' }),
+    ]);
+    expect(container.querySelectorAll('.deck-format-badge')).toHaveLength(2);
   });
 });

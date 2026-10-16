@@ -2,10 +2,10 @@ import './DeckLibrary.css';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
-import { BRACKET_LABELS } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import {
-  bracketBadgeWithEstimate,
+  bracketBadge,
   bracketAriaWithEstimate,
+  formatBracketLabel,
 } from '@/lib/deck-analysis/format-bracket-label';
 import type { DeckFormat } from '@/deck-builder/types';
 import { NO_DISCOVER_FILTERS, type DiscoverFilters } from '@/lib/discover/discover-filters';
@@ -173,6 +173,12 @@ export function DeckLibrary({
     filters.colors.length > 0 ||
     filters.brackets.length > 0;
 
+  // A shelf of one format (most are all Commander) repeats the same chip on
+  // every tile; it says nothing there, so it goes and the bracket gets the
+  // room. Judged over the whole shelf, not the filtered view, so filtering to
+  // a format doesn't make the chips blink out. The accessible name keeps it.
+  const showFormat = new Set(decks.map((d) => d.format)).size > 1;
+
   const featured = !narrowed && pinnedId ? (filtered.find((d) => d.id === pinnedId) ?? null) : null;
   const gridDecks = featured ? filtered.filter((d) => d !== featured) : filtered;
 
@@ -207,7 +213,7 @@ export function DeckLibrary({
 
       {featured && (
         <ul className="decks-index-list is-grid deck-library-featured" aria-label="Pinned deck">
-          <DeckLibraryTile deck={featured} featured />
+          <DeckLibraryTile deck={featured} featured showFormat={showFormat} />
         </ul>
       )}
 
@@ -231,7 +237,7 @@ export function DeckLibrary({
       ) : gridDecks.length === 0 ? null : (
         <ul className="decks-index-list is-grid deck-library-grid" aria-label={ariaLabel}>
           {gridDecks.map((deck) => (
-            <DeckLibraryTile key={deck.id} deck={deck} />
+            <DeckLibraryTile key={deck.id} deck={deck} showFormat={showFormat} />
           ))}
         </ul>
       )}
@@ -244,7 +250,15 @@ export function DeckLibrary({
  * the same thing. Same `.decks-index-card` family the owner's own deck index
  * uses, so all three read as one app.
  */
-function DeckLibraryTile({ deck, featured = false }: { deck: LibraryDeck; featured?: boolean }) {
+function DeckLibraryTile({
+  deck,
+  featured = false,
+  showFormat,
+}: {
+  deck: LibraryDeck;
+  featured?: boolean;
+  showFormat: boolean;
+}) {
   const colors = deck.colorIdentity.slice(0, 5);
   // Carries everything the tile shows, including the stats overlay — which is
   // `aria-hidden` on the art, so without it here a screen reader would lose the
@@ -258,7 +272,7 @@ function DeckLibraryTile({ deck, featured = false }: { deck: LibraryDeck; featur
     deck.bracket != null
       ? deck.estimatedBracket != null && deck.estimatedBracket !== deck.bracket
         ? bracketAriaWithEstimate(deck.bracket, deck.estimatedBracket, deck.estimatedBracketFloor)
-        : BRACKET_LABELS[deck.bracket]
+        : formatBracketLabel(deck.bracket)
       : null,
     deck.statsLine,
     deck.badge,
@@ -324,16 +338,10 @@ function DeckLibraryTile({ deck, featured = false }: { deck: LibraryDeck; featur
                 ))}
               </span>
             )}
-            <Chip className="deck-format-badge">{formatLabel(deck.format)}</Chip>
+            {showFormat && <Chip className="deck-format-badge">{formatLabel(deck.format)}</Chip>}
             {deck.bracket != null && (
               <Chip className="deck-bracket-badge">
-                {deck.estimatedBracket != null && deck.estimatedBracket !== deck.bracket
-                  ? bracketBadgeWithEstimate(
-                      deck.bracket,
-                      deck.estimatedBracket,
-                      deck.estimatedBracketFloor
-                    )
-                  : BRACKET_LABELS[deck.bracket]}
+                {bracketBadge(deck.bracket, deck.estimatedBracket, deck.estimatedBracketFloor)}
               </Chip>
             )}
           </div>
