@@ -93,4 +93,36 @@ describe('the table clock', () => {
     run(100); // 7.05s
     expect(shown()).toBe('Game 0:07');
   });
+
+  describe('before the first real action', () => {
+    it('sits at 0:00 and says it starts with the first turn, then runs after Start now', () => {
+      vi.setSystemTime(T0 + 30_000);
+      render(<Table initial={{ ...startedGame(T0), clockStartedAt: null }} />);
+      expect(shown()).toBe('Game 0:00');
+      expect(screen.getByText('Starts with the first turn')).toBeTruthy();
+      expect(screen.queryByRole('button', { name: /^Pause/ })).toBeNull();
+      run(3000);
+      expect(shown()).toBe('Game 0:00');
+      fireEvent.click(screen.getByRole('button', { name: 'Start the game clock now' }));
+      expect(screen.queryByText('Starts with the first turn')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Start the game clock now' })).toBeNull();
+      expect(screen.getByRole('button', { name: /^Pause the game clock/ })).toBeTruthy();
+    });
+  });
+
+  describe('before the first real action', () => {
+    it('sits at 0:00 and says it starts with the first turn, then runs after Start now', () => {
+      vi.setSystemTime(T0 + 30_000);
+      render(<Table initial={{ ...startedGame(T0), clockStartedAt: null }} />);
+      expect(shown()).toBe('Game 0:00');
+      expect(screen.getByText('Starts with the first turn')).toBeTruthy();
+      expect(screen.queryByRole('button', { name: /^Pause/ })).toBeNull();
+      run(3000);
+      expect(shown()).toBe('Game 0:00');
+      fireEvent.click(screen.getByRole('button', { name: 'Start the game clock now' }));
+      expect(screen.queryByText('Starts with the first turn')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Start the game clock now' })).toBeNull();
+      expect(screen.getByRole('button', { name: /^Pause the game clock/ })).toBeTruthy();
+    });
+  });
 });

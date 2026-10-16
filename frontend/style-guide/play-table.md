@@ -979,6 +979,14 @@ and undo.
   own touch floor, hence the invisible `::after` ghost pattern. The strip has
   genuine room, so Start/Pause/Pass are simply `min-height: 2.75rem` on
   coarse pointers — no ghost needed.
+- **The game clock waits for the first real action (2026-10-16).** Start game
+  does not start it: shuffling, mulligans and deciding who goes first are not
+  game time, and not recorded duration. The strip reads "Game 0:00 · Starts
+  with the first turn" with a **Start now** button in place of Pause (nothing
+  is running to pause). The reducer starts it (`clockStartedAt`) on the first
+  turn-tracker, life, poison, commander-damage, counter, designation or
+  elimination action, so local and online tables agree. A game that ends
+  before that falls back to `startedAt` for its duration.
 - **The "up next" marker is quiet, and reuses the designation rail.** A seat
   about to take the turn gets a faint, icon-only chip (`ChevronRight`,
   `.pp-designation-chip.is-next`) in the same `.pp-designation-chips` rail as

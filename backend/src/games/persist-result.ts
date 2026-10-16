@@ -1,6 +1,6 @@
 import type { Pool } from 'pg';
 import { logger } from '../logger';
-import { selectNotableEvents, summarizeGame } from './state';
+import { durationFrom, selectNotableEvents, summarizeGame } from './state';
 import type { GameState } from './state';
 import type { GameResultMode, GameResultParticipant } from './result-types';
 
@@ -83,7 +83,7 @@ export async function buildGameResultRow(
       ? state.players.find((p) => p.seat === state.winnerSeat && !p.eliminated)
       : undefined;
   const endedAt = state.endedAt ?? state.updatedAt;
-  const durationMs = state.startedAt != null ? Math.max(0, endedAt - state.startedAt) : 0;
+  const durationMs = durationFrom(state, endedAt);
 
   return {
     sessionId: state.id,
