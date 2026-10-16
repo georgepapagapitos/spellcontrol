@@ -13,6 +13,16 @@ CSS is **not** covered by typecheck/eslint/CI (only stylelint, narrowly), so mos
 of these rules are enforced by review and visual checks, not the gate. Treat them
 as real constraints anyway.
 
+**Shared directive: the floor under this guide.** Every app we build shares one
+reference for how an interface ends up looking machine-made and what to build
+instead: `plugins/polish/reference/ui-tells.md` in the trove marketplace (its
+prose counterpart is `plugins/forge/reference/ai-tells.md`). This guide is the
+ceiling above it: where this guide rules on something, it wins, and where it is
+silent the directive's default applies. A choice this guide makes against the
+directive (a stripe, a pill, a blur) is written here with its reason, and is a
+value-scoped ignore with that reason in `frontend/.impeccable/config.json`.
+Read the directive before designing or restyling a screen.
+
 ---
 
 ## Primitives index
@@ -606,8 +616,10 @@ concrete, and MTG-literate** — it says what to do and what something means,
 never what the app "is."
 
 **US English spelling, everywhere (user ruling, 2026-09-30).** Color, colorless,
-flavor, favorite, gray, organize, center, catalog: never color, flavor,
-favorite, gray, organize, center. It is also the game's own spelling: the cards
+flavor, favorite, gray, organize, center, catalog: never the UK forms `colour`,
+`flavour`, `favourite`, `grey`, `organise`, `centre`. (A spelling sweep once
+rewrote that banned list into the US words, so the rule read "never color".
+The UK forms stay in code spans so a sweep can't do it again.) It is also the game's own spelling: the cards
 print "flavor text" and the rules say "color". `copy-guards.test.ts` (rule
 UK_SPELLING) checks every string in `src/`, one-word labels included; a
 `keywords:` search-synonym list may keep a UK form so people who type it still
@@ -845,8 +857,9 @@ axis's display label, e.g. "Tokens / go-wide"). Same rules: verbatim reuse,
 mid-dot combining, no synonyms.
 
 **Confirm dialogs:** the title is the question ("Delete \"{name}\"?"); the body
-is a declarative consequence ending in a period ("This cannot be undone."). The
-body never re-asks the question.
+is a declarative consequence ending in a period ("This can't be undone.", the
+canonical clause of rule 14, and only for an action nothing can reverse; see
+§ Verbs). The body never re-asks the question.
 
 **Toasts:** a status fragment takes no period ("Added Sol Ring", "Undone: cut
 Llanowar Elves"); a complete sentence takes one ("Prices refreshed.", "Link
@@ -2348,14 +2361,18 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
 
 | Tier           | Viewport range | Test at (px)                    | What defines it                                                                                                                                                                                       |
 | -------------- | -------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Mobile**     | `≤ 600`        | **320** · 375 · 414 · 480 · 600 | base styles; phone layouts, bottom sheets. **320 = hard no-overflow floor.** 480 = cramped-phone refinement.                                                                                          |
-| **Tablet**     | `601 – 1023`   | 640 · 768 · 820 · 1023          | the gap between the two poles. 640 = deck-bento 2-col **container**-query trigger (not viewport).                                                                                                     |
+| **Mobile**     | `≤ 599`        | **320** · 375 · 414 · 480 · 600 | base styles; phone layouts, bottom sheets. **320 = hard no-overflow floor.** 480 = cramped-phone refinement.                                                                                          |
+| **Tablet**     | `600 – 1023`   | 640 · 768 · 820 · 1023          | the gap between the two poles. 640 = deck-bento 2-col **container**-query trigger (not viewport).                                                                                                     |
 | **Desktop**    | `1024 – 1399`  | **1024** · 1101 · 1280          | sticky panels, multi-column, deck card inspector (`≥1024`). 1101 = deck-editor layout shift.                                                                                                          |
 | **XL desktop** | `≥ 1400`       | 1440 · 1920                     | content **stops growing** and centers: deck-analysis caps at `--analysis-max` (1320), every page at `--page-max` (1400), the header's width. Test for balanced gutters / no dead space, not a reflow. |
 
-- **The two real breakpoints:** `max-width: 600px` (mobile) and `min-width: 1024px`
-  (desktop). Use **600**, not 599 — the codebase tolerates the 1px overlap with
-  `min-width: 600px` rules. Tablet is the implied `601–1023` gap.
+- **The two real breakpoints:** `max-width: 599px` (mobile) and `min-width: 1024px`
+  (desktop), with `min-width: 600px` opening the tablet tier. A query that closes
+  a tier ends on 599 or 1023, never 600 or 1024 (§ Layout system, density tiers;
+  guarded by `styles/tier-edge-queries.test.ts`): `max-width: 600px` and
+  `min-width: 600px` both match at exactly 600px. This bullet used to say the
+  opposite ("use 600, not 599"), from before that guard landed. Tablet is
+  `600–1023`.
 - **Legacy refinement widths** — **480** (tight phone), **640** (early tablet),
   **700** (Cost/Optimize/Substitution panels), **1101** (deck editor) — are
   existing debt, not a menu. The ratchet counts every viewport width that isn't
