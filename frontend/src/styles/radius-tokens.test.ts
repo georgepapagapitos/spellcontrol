@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 // T41 guard: the corner-radius language is two tokens defined once in
-// tokens.css — `--radius` (8px, action buttons) and `--radius-lg` (12px,
+// tokens.css — `--radius` (6px, action buttons) and `--radius-lg` (10px,
 // container surfaces). See STYLE_GUIDE.md § "Shape language — corners".
 //
 // CSS is NOT typecheck/eslint/CI-gated, so radius drift is otherwise silent.
