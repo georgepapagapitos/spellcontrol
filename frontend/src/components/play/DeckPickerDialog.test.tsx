@@ -17,6 +17,11 @@ vi.mock('@/lib/api', () => ({
 // layout, so the hook's no-IntersectionObserver path is what runs here.
 const NO_IO = undefined;
 
+const fetchFriendDecks = vi.fn();
+vi.mock('@/lib/social/friend-decks-client', () => ({
+  fetchFriendDecks: (...args: unknown[]) => fetchFriendDecks(...args),
+}));
+
 // The commander-summary cache is module-level on purpose (it spans surfaces),
 // so every test gets its own file names — a name another test already looked
 // up would answer from the cache instead of from this test's mock.
@@ -249,5 +254,81 @@ describe('the starter catalog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Pick a random deck' }));
     await waitFor(() => expect(onPick).toHaveBeenCalled());
     expect(onPick.mock.calls[0][0].id).toMatch(/^starter:/);
+  });
+});
+
+// A local game is played with physical decks: a friend in the seat plays one
+// of their own, and nobody brought a precon picked from a catalog.
+describe('a local seat', () => {
+  const owner = { id: 'friend-1', name: 'jeminsen' };
+  const shelf = {
+    ownerUsername: 'jeminsen',
+    ownerDisplayName: null,
+    decks: [
+      {
+        deckId: 'their-deck',
+        href: '/d/x',
+        name: 'Squirrels',
+        format: 'commander',
+        commanderName: 'Chatterfang, Squirrel General',
+        commanderImage: null,
+        colorIdentity: ['B', 'G'],
+        cardCount: 100,
+        bracket: null,
+        estimatedBracket: 3,
+        visibility: 'friends',
+        updatedAt: 0,
+      },
+    ],
+  };
+
+  beforeEach(() => {
+    fetchFriendDecks.mockReset();
+  });
+
+  it('hides the starter catalog', () => {
+    open({ showStarters: false, decks: [] });
+    expect(screen.queryByRole('tab')).toBeNull();
+    expect(screen.getByText('You have no decks yet.')).toBeTruthy();
+  });
+
+  it("opens on the friend's own decks and picks one of theirs", async () => {
+    fetchFriendDecks.mockResolvedValue(shelf);
+    const { onPick } = open({ showStarters: false, owner });
+    expect(
+      screen.getByRole('tab', { name: "jeminsen's decks" }).getAttribute('aria-selected')
+    ).toBe('true');
+    expect(screen.queryByRole('tab', { name: 'Starter decks' })).toBeNull();
+    fireEvent.click(await screen.findByText('Squirrels'));
+    expect(fetchFriendDecks).toHaveBeenCalledWith('friend-1');
+    expect(onPick).toHaveBeenCalledWith({
+      id: 'their-deck',
+      name: 'Squirrels',
+      commander: 'Chatterfang, Squirrel General',
+      partner: null,
+      colorIdentity: ['B', 'G'],
+      bracket: 3,
+    });
+  });
+
+  it('still offers your decks to a friend who borrows one', async () => {
+    fetchFriendDecks.mockResolvedValue(shelf);
+    open({ showStarters: false, owner });
+    fireEvent.click(screen.getByRole('tab', { name: /My decks/ }));
+    expect(screen.getByText('Atraxa')).toBeTruthy();
+  });
+
+  it('says why a friend with nothing shared has an empty shelf', async () => {
+    fetchFriendDecks.mockResolvedValue({ ...shelf, decks: [] });
+    open({ showStarters: false, owner });
+    expect(await screen.findByText(/jeminsen has no decks shared with friends/)).toBeTruthy();
+  });
+
+  it("says the shelf couldn't load instead of showing an empty one", async () => {
+    fetchFriendDecks.mockRejectedValue(new Error('Failed to fetch'));
+    open({ showStarters: false, owner });
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      "Couldn't load jeminsen's decks"
+    );
   });
 });

@@ -6,7 +6,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlayPage } from './PlayPage';
 import { usePlayStore } from '../store/play';
 import { useAuth } from '../store/auth';
-import { HORDE_BAN_LIST } from '../lib/horde/ban-list';
 import type { GameRecord } from '@spellcontrol/game-core';
 import { createGameState, makePlayer } from '@spellcontrol/game-core';
 import { useHordeGameStore } from '../store/horde-game';
@@ -415,78 +414,20 @@ describe('Local setup — Horde (co-op)', () => {
   });
 });
 
-describe('Local setup — Horde ban-list check reaches starter decks', () => {
-  const bannedName = HORDE_BAN_LIST[0];
-
+// A local game is played with physical decks: the picker never offers the
+// starter catalog there, even to an account with no decks of its own.
+describe('Local setup — no starter decks at a physical table', () => {
   beforeEach(() => {
-    searchProducts.mockReset();
-    fetchProductCommanderSummary.mockReset();
-    fetchProduct.mockReset();
     usePlayStore.setState({ local: null, boardVisible: true });
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    const product = {
-      fileName: 'ghoulcaller.json',
-      code: 'xyz',
-      name: 'Ghoulcaller Gisa',
-      type: 'Commander Deck',
-      releaseDate: '2026-01-01',
-    };
-    searchProducts.mockResolvedValue([product]);
-    fetchProductCommanderSummary.mockResolvedValue({
-      name: 'Ghoulcaller Gisa',
-      colorIdentity: ['B'],
-      image: null,
-    });
-    // The starter's full decklist, resolved the way the ban check does it —
-    // a card on the list sits in the 99, not the commander slot.
-    fetchProduct.mockResolvedValue({
-      product,
-      deck: {
-        commander: { name: 'Ghoulcaller Gisa', color_identity: ['B'] },
-        partner: null,
-        companion: null,
-        cards: [
-          { name: 'Sol Ring', color_identity: [] },
-          { name: bannedName, color_identity: [] },
-        ],
-        unresolvedNames: [],
-        fetchErrors: [],
-        detectedFormat: 'commander',
-        cardCount: 2,
-      },
-      physicalCards: [],
-      unresolvedNames: [],
-      fetchErrors: [],
-      physicalCardCount: 2,
-    });
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
-    usePlayStore.setState({ local: null });
-  });
-
-  it('warns once the starter deck resolves, though the seat is never in the decks store', async () => {
+  it('opens the seat picker on your decks with no starter tab', () => {
     renderPage('/play/local');
-    fireEvent.click(screen.getByRole('button', { name: /Format/ }));
-    fireEvent.click(screen.getByRole('option', { name: 'Horde (co-op)' }));
-
-    // Picking a starter is the same "My decks is empty" door every other
-    // starter test goes through — the picker opens straight on that tab.
     fireEvent.click(screen.getAllByRole('button', { name: 'Add deck' })[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Deck' }));
-    await vi.advanceTimersByTimeAsync(400);
-    fireEvent.click(await screen.findByRole('button', { name: /Ghoulcaller Gisa/ }));
-
-    // The seat's picked deck id lands before the fuller lookup this check
-    // needs does — no warning yet, and nothing errors while it's in flight.
-    await waitFor(() => expect(fetchProduct).toHaveBeenCalledWith('ghoulcaller.json'));
-
-    await waitFor(() =>
-      expect(screen.getByRole('status').textContent).toContain(
-        `${bannedName} is on the Horde ban list.`
-      )
-    );
+    expect(screen.queryByRole('tab', { name: 'Starter decks' })).toBeNull();
+    expect(screen.getByText('You have no decks yet.')).toBeTruthy();
+    expect(searchProducts).not.toHaveBeenCalled();
   });
 });
 

@@ -13,18 +13,25 @@ import { FORMAT_OPTIONS, MAX_LOCAL_PLAYERS, MIN_LOCAL_PLAYERS } from '@/lib/play
 import { MAX_COUNTERS_PER_SCOPE, MAX_COUNTER_NAME_LENGTH } from '@spellcontrol/game-core';
 import { SeatPips, Stepper } from '@/components/play/SetupControls';
 import { SwitchRow } from '@/components/shared/form';
-import { starterFileName } from '@/lib/play/starter-decks';
 import { TableProfiles } from '@/components/play/TableProfiles';
 import type { GameFormat } from '@spellcontrol/game-core';
 import { userMessage } from '@/lib/util/user-error';
 import { HordeSetupFields } from '@/components/play/horde/HordeSetupFields';
 import { findBannedCards } from '@/lib/horde/ban-list';
-import { useStarterDeckCardNames } from '@/lib/horde/starter-deck-cards';
 import { HORDE_CATALOG, type HordeLevel, type HordeSettings } from '@/lib/horde';
 import { useHordeGameStore, type HordeSurvivor } from '@/store/horde-game';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { SeatDeck, SeatWho, type SeatPerson } from './SeatControls';
+import type { DeckOwner } from '@/components/play/DeckPickerDialog';
+
+const NO_SEAT_DECK = {
+  deckId: null,
+  deckName: null,
+  commander: null,
+  partner: null,
+  colorIdentity: [] as string[],
+};
 import { blankPlayer, seededPlayer } from './seat-players';
 
 export function LocalSetup({
@@ -254,42 +261,24 @@ export function LocalSetup({
     };
   }
 
-  // A starter seat (never in the decks store) checks against its own
-  // lazily-resolved card list instead — see `useStarterDeckCardNames`. Until
-  // that resolves the seat is silently clean, same as any other soft warning.
-  const hordeStarterFiles = useMemo(
-    () =>
-      isHorde
-        ? Array.from(
-            new Set(
-              players
-                .slice(0, count)
-                .map((p) => (p.deckId ? starterFileName(p.deckId) : null))
-                .filter((f): f is string => Boolean(f))
-            )
-          )
-        : [],
-    [isHorde, players, count]
-  );
-  const hordeStarterCardNames = useStarterDeckCardNames(hordeStarterFiles);
-
-  /** Named seats + their deck's card names, for the Horde ban-list check. */
+  /** Named seats + their deck's card names, for the Horde ban-list check. A
+   *  friend's deck isn't in your decks store, so their seat is silently clean,
+   *  same as any other soft warning without the cards to check. */
   const hordeBanWarnings = useMemo(() => {
     if (!isHorde) return [];
     const seats = players.slice(0, count).map((p, i) => {
       const deck = p.deckId ? decks.find((d) => d.id === p.deckId) : null;
-      const file = p.deckId ? starterFileName(p.deckId) : null;
       const cardNames = deck
         ? [
             deck.commander?.name,
             deck.partnerCommander?.name,
             ...deck.cards.map((c) => c.card.name),
           ].filter((n): n is string => Boolean(n))
-        : ((file ? hordeStarterCardNames.get(file) : undefined) ?? []);
+        : [];
       return { name: p.name.trim() || `Player ${i + 1}`, cardNames };
     });
     return findBannedCards(seats);
-  }, [isHorde, players, count, decks, hordeStarterCardNames]);
+  }, [isHorde, players, count, decks]);
 
   function submitHorde() {
     const survivors: HordeSurvivor[] = players.slice(0, count).map((p, i) => ({
@@ -344,6 +333,15 @@ export function LocalSetup({
     setFormat(next);
     setStartingLife(cfg.defaultLife);
     setCmdDmg(cfg.cmdDmg);
+  }
+
+  /** A friend in a seat plays their own deck, so their picker leads with
+   *  their shelf. You and guests pick from your decks (a guest at a real
+   *  table borrows one of yours). */
+  function seatOwner(userId: string | null | undefined): DeckOwner | undefined {
+    if (!userId || userId === me?.id) return undefined;
+    const friend = friends?.find((f) => f.id === userId);
+    return friend ? { id: friend.id, name: formatIdentity(friend).primary } : undefined;
   }
 
   function setPlayer(i: number, patch: Partial<LocalGameSetup['players'][number]>) {
@@ -575,16 +573,18 @@ export function LocalSetup({
                     )
                   }
                   onChange={(person) =>
-                    setPlayer(
-                      i,
-                      person
+                    setPlayer(i, {
+                      ...(person
                         ? {
                             userId: person.id,
                             username: person.username,
                             name: formatIdentity(person).primary,
                           }
-                        : { userId: null, username: null }
-                    )
+                        : { userId: null, username: null }),
+                      // The deck belonged to whoever sat here before: a new
+                      // person picks from their own shelf.
+                      ...(person?.id !== (p.userId ?? undefined) ? NO_SEAT_DECK : {}),
+                    })
                   }
                 />
               )}
@@ -601,6 +601,8 @@ export function LocalSetup({
                 decks={decks}
                 value={p.deckId}
                 deckName={p.deckName}
+                showStarters={false}
+                owner={seatOwner(p.userId)}
                 onChange={(picked) =>
                   setPlayer(i, {
                     deckId: picked?.id ?? null,
