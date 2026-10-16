@@ -88,6 +88,34 @@ describe('DeckLibrary sort', () => {
     // The rated decks flip; the unrated one stays at the bottom.
     expect(tileNames()).toEqual(['High', 'Low', 'Unrated']);
   });
+
+  it('sorts by price, cheapest first, with an unpriced deck last both ways', () => {
+    renderLibrary([
+      deck({ id: 'none', name: 'Unpriced', estimatedValueUsd: null }),
+      deck({ id: 'hi', name: 'Pricey', estimatedValueUsd: 812.4 }),
+      deck({ id: 'lo', name: 'Budget', estimatedValueUsd: 48 }),
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sort' }));
+    fireEvent.click(screen.getByRole('option', { name: /price/i }));
+    expect(tileNames()).toEqual(['Budget', 'Pricey', 'Unpriced']);
+
+    fireEvent.click(screen.getByRole('button', { name: /reverse sort order/i }));
+    expect(tileNames()).toEqual(['Pricey', 'Budget', 'Unpriced']);
+  });
+
+  it('shows the price on the tile and in its name, and nothing for an unpriced deck', () => {
+    const { container } = renderLibrary([
+      deck({ id: 'hi', name: 'Pricey', estimatedValueUsd: 812.4 }),
+      deck({ id: 'none', name: 'Unpriced', estimatedValueUsd: null }),
+    ]);
+    const prices = container.querySelectorAll('.deck-library-tile-price');
+    expect(prices).toHaveLength(1);
+    expect(prices[0].textContent).toBe('$812');
+    expect(screen.getByRole('link', { name: /^Pricey/ }).getAttribute('aria-label')).toContain(
+      '$812'
+    );
+  });
 });
 
 describe('DeckLibrary tile', () => {

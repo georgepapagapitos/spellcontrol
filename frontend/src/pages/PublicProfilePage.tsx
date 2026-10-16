@@ -177,6 +177,7 @@ function DeckGrid({
         bracket: deck.bracket,
         estimatedBracket: deck.estimatedBracket,
         estimatedBracketFloor: deck.estimatedBracketFloor,
+        estimatedValueUsd: deck.estimatedValueUsd ?? null,
         updatedAt: deck.updatedAt,
         // Publication stats — this surface has them, a friend's library does not.
         statsLine: tileStatsLine(deck),

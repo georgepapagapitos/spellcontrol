@@ -16,6 +16,7 @@ import { buildDeckLandingBody, buildProfileLandingBody } from '../shares/landing
 import { areFriends } from '../friends/relations';
 import { sendGzippedJson } from '../gzip-json';
 import { loadProfileExtras } from '../brewers/profile-stats';
+import { priceStoredDecks } from '../discover/hydrate';
 import { canViewFullCollection, storedCollectionVisibility } from '../collections/visibility';
 import {
   deckPublicationCache,
@@ -204,6 +205,7 @@ publicRouter.post(
 );
 
 interface PublicDeckSummaryRow {
+  deck_id: string;
   slug: string;
   deck_name: string;
   format: string;
@@ -220,7 +222,10 @@ interface PublicDeckSummaryRow {
   updated_at: string;
 }
 
-function toDeckSummary(row: PublicDeckSummaryRow): PublicDeckSummary {
+function toDeckSummary(
+  row: PublicDeckSummaryRow,
+  estimatedValueUsd: number | null
+): PublicDeckSummary {
   return {
     slug: row.slug,
     name: row.deck_name,
@@ -235,6 +240,7 @@ function toDeckSummary(row: PublicDeckSummaryRow): PublicDeckSummary {
     bracket: row.bracket,
     estimatedBracket: row.estimated_bracket,
     estimatedBracketFloor: row.estimated_bracket_floor,
+    estimatedValueUsd,
     viewCount: row.view_count,
     copyCount: row.copy_count,
     publishedAt: Number(row.published_at),
@@ -284,7 +290,7 @@ async function loadPublicUserProfile(username: string): Promise<PublicUserProfil
   // every price refresh, which would shuffle the page for no reason.
   const [decksResult, countResult, extras, resources] = await Promise.all([
     pool.query<PublicDeckSummaryRow>(
-      `SELECT slug, deck_name, format, commander_name, og_art_crop, color_identity,
+      `SELECT deck_id, slug, deck_name, format, commander_name, og_art_crop, color_identity,
               bracket, estimated_bracket, estimated_bracket_floor, card_count, view_count, copy_count, published_at,
               updated_at
          FROM deck_publications
@@ -305,6 +311,13 @@ async function loadPublicUserProfile(username: string): Promise<PublicUserProfil
     listPublishedResources(user.id),
   ]);
 
+  // Priced once per cache fill, like the rest of this row: the library's
+  // Price sort reads it, and a price refresh lands with the next fill.
+  const values = await priceStoredDecks(
+    user.id,
+    decksResult.rows.map((r) => r.deck_id)
+  );
+
   const profile: PublicUserProfile = {
     id: user.id,
     username: user.username,
@@ -319,7 +332,7 @@ async function loadPublicUserProfile(username: string): Promise<PublicUserProfil
     // True total, not decks.length — the 200 cap means those diverge for a
     // heavy publisher.
     deckCount: Number(countResult.rows[0].count),
-    decks: decksResult.rows.map(toDeckSummary),
+    decks: decksResult.rows.map((r) => toDeckSummary(r, values.get(r.deck_id) ?? null)),
     resources,
     ...extras,
   };

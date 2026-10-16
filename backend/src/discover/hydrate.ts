@@ -123,19 +123,68 @@ function priceDeck(
   cached: Map<string, ScryfallCard>
 ): { oracleIds: string[]; estimatedValueUsd: number | null } {
   const oracleIds = new Set<string>();
-  let total = 0;
-  let allPriced = true;
+  const scryfallIds: (string | undefined)[] = [];
   for (const raw of pricedCardsOf(deck)) {
     const { scryfallId, oracleId } = cardIds(raw);
     if (oracleId) oracleIds.add(oracleId);
-    const sc = scryfallId ? cached.get(scryfallId) : undefined;
-    if (!sc) {
-      allPriced = false;
-      continue;
-    }
+    scryfallIds.push(scryfallId);
+  }
+  return { oracleIds: [...oracleIds], estimatedValueUsd: sumUsd(scryfallIds, cached) };
+}
+
+/** The one pricing rule: every id must hit the cache, or the total is null. */
+function sumUsd(
+  scryfallIds: readonly (string | null | undefined)[],
+  cached: Map<string, ScryfallCard>
+): number | null {
+  let total = 0;
+  for (const id of scryfallIds) {
+    const sc = id ? cached.get(id) : undefined;
+    if (!sc) return null;
     total += pickUsdForFinish(sc);
   }
-  return { oracleIds: [...oracleIds], estimatedValueUsd: allPriced ? round2(total) : null };
+  return round2(total);
+}
+
+/**
+ * The same `estimatedValueUsd` Discover shows, for one owner's decks by id:
+ * the public profile's and friend hub's deck libraries sort by it.
+ *
+ * Postgres hands back only the Scryfall ids `pricedCardsOf` would price
+ * (commander, partner, every mainboard slot that has a card), not the deck
+ * JSON: a profile lists up to 200 decks and each card in a stored deck is a
+ * full Scryfall object, so pulling `data` whole would move tens of MB for a
+ * number. A slot whose card has no id stays in the list as NULL, which prices
+ * the deck as unknown, exactly as `priceDeck` does. A deck id with no live row
+ * is simply absent from the result.
+ */
+export async function priceStoredDecks(
+  userId: string,
+  deckIds: readonly string[]
+): Promise<Map<string, number | null>> {
+  if (deckIds.length === 0) return new Map();
+  const { rows } = await getPool().query<{ id: string; scryfall_ids: (string | null)[] }>(
+    `SELECT d.id,
+            ARRAY(
+              SELECT c->>'id' FROM (
+                SELECT d.data->'commander' AS c
+                UNION ALL SELECT d.data->'partnerCommander'
+                UNION ALL SELECT s->'card'
+                  FROM jsonb_array_elements(
+                    CASE WHEN jsonb_typeof(d.data->'cards') = 'array'
+                         THEN d.data->'cards' ELSE '[]'::jsonb END
+                  ) s
+              ) priced
+              WHERE c IS NOT NULL AND c <> 'null'::jsonb
+            ) AS scryfall_ids
+       FROM user_decks d
+      WHERE d.user_id = $1 AND d.id = ANY($2) AND d.deleted_at IS NULL`,
+    [userId, [...deckIds]]
+  );
+  const allIds = new Set<string>();
+  for (const r of rows) for (const id of r.scryfall_ids) if (id) allIds.add(id);
+  const cached = allIds.size > 0 ? getScryfallCache().getMany([...allIds]) : new Map();
+  return new Map(rows.map((r) => [r.id, sumUsd(r.scryfall_ids, cached)]));
 }
 
 export async function hydratePublicationRows(

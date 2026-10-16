@@ -17,6 +17,7 @@ import { sendGzippedJson } from '../gzip-json';
 import { projectWithSignals } from '../shares/project-with-signals';
 import { testAwareLimiter } from '../route-utils';
 import { notifyUser } from '../notify';
+import { priceStoredDecks } from '../discover/hydrate';
 
 export const friendsRouter: Router = Router();
 
@@ -1139,7 +1140,15 @@ friendsRouter.get(
     const owner = await requireFriendship(res, callerId, friendId);
     if (!owner) return;
 
-    const decks = await loadFriendDeckShelf(friendId);
+    const shelf = await loadFriendDeckShelf(friendId);
+    // Priced here, not in the shelf loader: the collection's per-card deck
+    // badges read the same shelf and have no use for a price. Both rungs go
+    // through one call by deck id, so they can't be priced two ways.
+    const values = await priceStoredDecks(
+      friendId,
+      shelf.map((d) => d.deckId)
+    );
+    const decks = shelf.map((d) => ({ ...d, estimatedValueUsd: values.get(d.deckId) ?? null }));
 
     return res.json({
       ownerUsername: owner.username,
