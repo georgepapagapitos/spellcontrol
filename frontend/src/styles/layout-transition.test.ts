@@ -25,6 +25,8 @@ const srcRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const LAYOUT =
   /^(width|height|min-width|min-height|max-width|max-height|margin(-[a-z-]+)?|padding(-[a-z-]+)?|top|left|right|bottom|inset(-[a-z-]+)?|flex-basis|grid-template-(rows|columns)|font-size|line-height|border-width|gap|row-gap|column-gap|all)$/;
 
+const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /** file (relative to src) -> selector -> property -> why the box moves. */
 const ALLOWED: Record<string, Record<string, Record<string, string>>> = {
   'styles/deck-builder-card-list.css': {
@@ -93,7 +95,9 @@ describe('no layout property is animated (STYLE_GUIDE § Motion)', () => {
       for (const [sel, props] of Object.entries(sels)) {
         for (const prop of Object.keys(props)) {
           expect(
-            new RegExp(`${sel.replace(/[.]/g, '\\.')}\\s*\\{[^}]*transition:\\s*${prop}`).test(css),
+            new RegExp(`${escapeRegExp(sel)}\\s*\\{[^}]*transition:\\s*${escapeRegExp(prop)}`).test(
+              css
+            ),
             `${file} ${sel} ${prop}`
           ).toBe(true);
         }
