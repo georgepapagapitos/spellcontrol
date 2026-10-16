@@ -408,7 +408,8 @@
     inset 0 0 40px color-mix(in srgb, var(--win-accent, #ffe07a) 22%, transparent);
   color: var(--table-ink);
   text-align: center;
-  animation: win-card-in 420ms var(--ease-pop);
+  /* A card arriving settles; overshoot (--ease-pop) is for a number jumping. */
+  animation: win-card-in 420ms var(--ease-out-soft);
 }
 
 @keyframes win-card-in {

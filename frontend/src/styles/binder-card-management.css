@@ -1893,12 +1893,11 @@
   }
 }
 
-/* Danger-zone variant for /settings sections: tinted left edge so the
-   destructive section reads at a glance without colour-shifting the
-   whole card body. */
+/* Danger-zone variant for /settings sections: the whole edge tinted toward
+   the error ink and the title in it, so the destructive section reads at a
+   glance without a one-sided stripe or recoloring the card body. */
 .settings-card--danger {
-  border-color: color-mix(in srgb, var(--err-text) 30%, var(--border));
-  border-left: 3px solid var(--err-text);
+  border-color: color-mix(in srgb, var(--err-text) 45%, var(--border));
 }
 
 .settings-card--danger .settings-card-title {

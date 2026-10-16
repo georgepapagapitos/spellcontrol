@@ -444,12 +444,12 @@ select {
 /* ── Index tiles: one hover (§ Index tiles) ──────────────────────────────
    Every tile that opens a deck or a binder (the decks and binders indexes,
    Lists, Discover, profiles, Home's rows) answers the pointer the same way:
-   the frame rings in the tile's own color and lifts, and in grid the cover
-   art zooms. Keyboard focus on the tile's link gets the same answer.
-   It was three behaviors: Discover and profiles zoomed the art, while the
-   decks and binders indexes tinted a border #2486 had removed, so they did
-   nothing. A family adds only what is its own (Discover's quick actions).
-   Guard: styles/index-tile-hover.test.ts. */
+   the frame rings in the tile's own color and lifts one elevation step
+   (--shadow-card → --shadow-card-hover). Keyboard focus on the tile's link
+   gets the same answer. The cover art never moves: a zoom on every tile of
+   every grid was motion that said nothing the ring hadn't (2026-10-16,
+   ui-tells.md "zoom-on-hover images"). A family adds only what is its own
+   (Discover's quick actions). Guard: styles/index-tile-hover.test.ts. */
 :where(.decks-index-card, .binders-index-card) {
   --tile-color: var(--deck-color, var(--binder-color, var(--accent)));
 }
@@ -462,8 +462,8 @@ select {
     0 0 0 1px var(--tile-color);
 }
 
-/* The zoom stays inside the tile: the link clips at the art's own corners.
-   The tile itself can't clip, since its ⋮ menu has to escape it. */
+/* The link clips the cover at the art's own top corners. The tile itself
+   can't clip, since its ⋮ menu has to escape it. */
 :is(.decks-index-list, .binders-index-list).is-grid
   :is(.decks-index-card-link, .binders-index-card-link) {
   overflow: clip;
@@ -481,33 +481,10 @@ select {
   }
 }
 
-/* Motion (the zoom and both transitions) only when the viewer allows it;
-   reduced motion keeps the ring and the lift. */
+/* The ring and the lift ease in only when the viewer allows motion. */
 @media (prefers-reduced-motion: no-preference) {
   :where(.decks-index-card, .binders-index-card) {
-    transition: box-shadow var(--motion-fast) ease;
-  }
-
-  :where(.decks-index-card-art, .binders-index-card-art) {
-    transition: transform var(--motion-base) var(--ease-out-soft);
-  }
-
-  :is(.decks-index-list, .binders-index-list).is-grid
-    :is(.decks-index-card, .binders-index-card):has(
-      > :is(.decks-index-card-link, .binders-index-card-link):focus-visible
-    )
-    :is(.decks-index-card-art, .binders-index-card-art) {
-    transform: scale(1.03);
-  }
-}
-
-@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
-  :is(.decks-index-list, .binders-index-list).is-grid
-    :is(.decks-index-card, .binders-index-card):has(
-      > :is(.decks-index-card-link, .binders-index-card-link)
-    ):hover
-    :is(.decks-index-card-art, .binders-index-card-art) {
-    transform: scale(1.03);
+    transition: box-shadow var(--motion-fast) var(--ease-out-soft);
   }
 }
 
@@ -593,7 +570,8 @@ select {
 .cmdk-option[data-active='true'],
 .discover-search-option.is-highlight,
 .set-filter-result.is-highlight,
-.daily-guess-option.is-highlight {
+.daily-guess-option.is-highlight,
+.upgrade-plan-row.is-new {
   background: var(--accent-light);
   --text-muted: var(--text-muted-tint);
   --text-secondary: var(--text-secondary-tint);

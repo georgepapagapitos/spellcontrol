@@ -1,0 +1,15 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    "ignoreValues": [
+      {
+        "rule": "bounce-easing",
+        "value": "cubic-bezier(0.2, 0.9, 0.25, 1.4)",
+        "files": ["src/styles/tokens.css"],
+        "createdAt": "2026-10-16T05:15:30.189Z",
+        "reason": "ease-pop token: overshoot for numeric pops only, scoped by styles/motion-tokens.test.ts (STYLE_GUIDE Motion)"
+      }
+    ]
+  }
+}

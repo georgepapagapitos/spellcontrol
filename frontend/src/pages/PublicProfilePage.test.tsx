@@ -24,10 +24,6 @@ vi.mock('@/lib/social/profile-client', async (importOriginal) => {
     fetchProfileCollection: fetchProfileCollectionMock,
   };
 });
-vi.mock('@/lib/util/use-panel-cascade', () => ({
-  usePanelCascade: () => ({ animating: false }),
-  panelCascadeClass: () => '',
-}));
 
 import { PublicProfilePage } from './PublicProfilePage';
 

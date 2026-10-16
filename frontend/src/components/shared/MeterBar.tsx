@@ -84,7 +84,12 @@ export function MeterBar({
     ? color
       ? { background: color }
       : undefined
-    : { width: `${pct}%`, ...(color ? { background: color } : undefined) };
+    : // The fill spans the track and is clipped to the value (MeterBar.css), so a
+      // live change glides on clip-path instead of re-laying out a width.
+      ({
+        '--meter-pct': `${pct}%`,
+        ...(color ? { background: color } : undefined),
+      } as CSSProperties);
 
   const ariaProps = role
     ? {

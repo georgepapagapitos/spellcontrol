@@ -264,3 +264,30 @@ describe('motion duration ratchet (T157 W5)', () => {
     });
   }
 });
+
+// --ease-pop's overshoot is for a number jumping (a count bump, a dice face, a
+// life delta), STYLE_GUIDE § Motion. A card or a panel arriving settles on
+// --ease-out-soft: overshoot on anything else is the "bounce easing" tell
+// (trove plugins/polish/reference/ui-tells.md). A new numeric pop joins the list.
+describe('--ease-pop is scoped to numeric pops', () => {
+  const NUMERIC_POPS = new Set([
+    '.dice-slot-result',
+    '.scanner-stack-badge',
+    '.playtest-life-table__delta',
+  ]);
+
+  it('only the listed numeric pops use --ease-pop', () => {
+    const offenders: string[] = [];
+    for (const file of cssFiles(srcRoot)) {
+      const name = relative(srcRoot, file).replace(/\\/g, '/');
+      if (name === 'styles/tokens.css') continue;
+      const css = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+      for (const m of css.matchAll(/([^{}]+)\{([^{}]*var\(--ease-pop\)[^{}]*)\}/g)) {
+        for (const sel of m[1].trim().split(/\s*,\s*/)) {
+          if (!NUMERIC_POPS.has(sel)) offenders.push(`${name}: ${sel}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});

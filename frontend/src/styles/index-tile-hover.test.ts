@@ -6,7 +6,10 @@ import { dirname, join, relative, sep } from 'node:path';
 
 // Every index tile answers the pointer the same way, defined once in
 // styles/base-layout.css (§ Index tiles): the frame rings in the tile's own
-// color and lifts, and in grid the cover art zooms.
+// color and lifts one elevation step (--shadow-card-hover). The cover art does
+// not move: the zoom on every tile of every grid was retired (2026-10-16) as
+// the "zoom-on-hover images" tell in ui-tells.md, motion that told the
+// pointer nothing the ring hadn't.
 //
 // It was three behaviors, each family writing its own: Discover and the
 // profile tiles zoomed the art, while the decks and binders indexes tinted a
@@ -113,7 +116,7 @@ describe('index tiles share one hover (§ Index tiles)', () => {
     expect(discover.some((r) => r.selector.endsWith('.tile-actions'))).toBe(true);
   });
 
-  it('base-layout.css rings, lifts and zooms every tile, pointer and keyboard alike', () => {
+  it('base-layout.css rings and lifts every tile, pointer and keyboard alike', () => {
     const own = all.filter((r) => r.file === OWNER);
     const css = readFileSync(join(srcRoot, OWNER), 'utf8');
     const hover = own.filter((r) => r.selector.endsWith(':hover'));
@@ -121,8 +124,13 @@ describe('index tiles share one hover (§ Index tiles)', () => {
     expect(hover.some((r) => r.props.includes('box-shadow'))).toBe(true);
     expect(focus.some((r) => r.props.includes('box-shadow'))).toBe(true);
     expect(css).toContain('var(--shadow-card-hover),\n    0 0 0 1px var(--tile-color);');
-    expect(
-      own.filter((r) => artIsSubject.test(r.selector) && r.props.includes('transform'))
-    ).toHaveLength(2);
+  });
+
+  it('nothing moves a tile cover, base-layout.css included', () => {
+    const offenders = all
+      .filter((r) => artIsSubject.test(r.selector))
+      .filter((r) => r.props.some((p) => ART_PROPS.includes(p)))
+      .map((r) => `${r.file}: ${r.selector}`);
+    expect(offenders).toEqual([]);
   });
 });

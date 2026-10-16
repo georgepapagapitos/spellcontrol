@@ -171,7 +171,6 @@
   align-items: baseline;
   gap: var(--space-2);
   padding: var(--space-2);
-  border-left: 2px solid var(--accent);
   border-radius: var(--radius);
   background: color-mix(in oklab, var(--surface-raised) 70%, transparent);
   font-size: var(--text-sm);
@@ -181,7 +180,6 @@
 /* The app narrating (a turn boundary, an undo, a reset) reads quieter than
    something you did. */
 .playtest-log-dock__entry--system {
-  border-left-color: var(--text-secondary);
   color: var(--text-secondary);
 }
 

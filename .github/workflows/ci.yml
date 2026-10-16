@@ -213,8 +213,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # lint:ui runs the pinned UI-tells detector (`impeccable`, an exact
+          # devDependency) over src/ as a ratchet against
+          # scripts/ui-tells.baseline.json, which is empty (STYLE_GUIDE § Layout
+          # system and § Motion; trove plugins/polish/reference/ui-tells.md).
+          # About 7s, in this leg so it adds no job and no required check.
           - check: lint
-            run: npm run lint
+            run: npm run lint && npm run lint:ui
           - check: typecheck & format
             run: npm run typecheck && npm run format:check
           # The production build was previously exercised ONLY inside

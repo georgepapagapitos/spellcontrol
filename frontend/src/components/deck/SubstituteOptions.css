@@ -59,10 +59,9 @@
 .substitute-options-list {
   list-style: none;
   margin: var(--space-1) 0 0;
-  /* A grouping rail down the alternatives — reads as "children of the row
-     above" without a heavy indent. */
-  padding-inline-start: var(--space-2);
-  border-inline-start: 2px solid var(--border);
+  /* Indented under the row it offers alternatives for; the indent alone reads
+     as "children of the row above". */
+  padding-inline-start: var(--space-3);
   display: grid;
   gap: var(--space-1);
 }

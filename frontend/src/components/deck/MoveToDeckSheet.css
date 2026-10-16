@@ -122,15 +122,13 @@
   outline-offset: -2px;
 }
 
-/* Cover art with the deck's own color as a slim left edge — the identity cue
-   the old 3px row border carried, without boxing every row. No art: the
-   deck color tints the empty thumb. */
+/* The deck's cover art names it. No art: the deck's own color tints the
+   empty thumb, so the color still reads without a stripe on the art. */
 .move-deck-row-thumb {
   flex-shrink: 0;
   width: 2.75rem;
   height: 2rem;
   border-radius: var(--radius);
-  border-left: 3px solid var(--deck-color, var(--accent));
   overflow: hidden;
   background: color-mix(in srgb, var(--deck-color, var(--accent)) 30%, var(--surface-raised));
 }

@@ -174,6 +174,7 @@
    not `:hover` on the column. A one-card stack, and the last card of any stack,
    move nothing and so need no room. */
 .deck-card-stack {
+  /* impeccable-disable-next-line layout-transition -- the cards move by transform; only the room their open tail needs grows (styles/stack-hover-reachable.test.ts, styles/layout-transition.test.ts) */
   transition: padding-bottom var(--motion-gentle) var(--ease-drawer);
 }
 

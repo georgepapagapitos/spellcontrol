@@ -454,6 +454,36 @@ meanwhile.
   `--border-strong` and `--shadow-tooltip`, all at `--radius-lg`. A family
   keeps its padding (it follows the content) but never the frame; a surface
   nested in another frame drops its own. Guard: `styles/surface-plate.test.ts`.
+- **No stripe down a side (2026-10-16).** A colored border or an inset bar
+  down one side of a tile, row, banner or page title is gone from the app, and
+  none comes back. **Why:** it is the single most recognized tell of
+  generated UI. The outside "does this read as AI-designed" review named it,
+  and so does the shared directive (`plugins/polish/reference/ui-tells.md` in
+  the trove marketplace, "Colored stripe on one side of a card or row"). The
+  app carried 22: deck and binder colors down every index tile, on top of the
+  mana bar under the art that already said the colors; an accent bar beside
+  every page title ("| Play"); warning, verdict and log rails; an inset bar
+  marking a new row; an inline `borderLeftWidth: 3` on every binder tab. Each
+  says its meaning where the reader already looks:
+  - a **state** is a tint (§ Selected state) or the label's ink and weight (a
+    warning section's title in `--warn-text`, the opponent's log line in the
+    accent at 600);
+  - a **verdict** is its chip or a mark beside its words (a `Check` or an
+    `AlertTriangle` at the inline size), never an edge;
+  - an **owner's color** (a deck, a binder) is its banner on a tile, its filled
+    tab, or the 10px identity dot beside its name: the binder route chip's
+    disc, now also at the head of the deck header's meta line and before a
+    binder row's name;
+  - a **warning or danger banner** is its tint and a full edge in the tone;
+  - a **page title** stands on its own.
+
+  The one idiom that keeps a side rule is the **blockquote rule**, in a
+  neutral token, beside text quoted from a card or from Gatherer (a ruling, a
+  commander's ability). A tab's underline is a bottom edge and is not a stripe.
+  Nesting is an indent, not a rail. Guard: `styles/one-sided-stripe.test.ts`
+  reads every stylesheet and every `style` prop; its allowlist takes only a
+  named idiom. The UI-tells detector (`npm run lint:ui`) checks the same.
+
 - **One fact, one place, on every screen.** A number or a list appears once
   per screen, in the place that owns it; everything else links to it. First
   settled for the deck view ([§ Deck view](style-guide/decks.md#deck-view--one-fact-one-place-2026-09-08) — one fact, one place), then found
@@ -1648,6 +1678,23 @@ e.currentTarget) close(); }}`. A full-screen viewer whose backdrop is covered by
 Transform/opacity only — never animate layout properties. Motion expresses
 causality (where did it come from / where did it go), not decoration.
 
+**A box that changes size takes its new size at once; what moves is its
+content (2026-10-16).** Width, height, margin, padding and the insets never
+transition and never sit in a `@keyframes`: each re-lays out the page every
+frame, and "animating width, height or margin" is a named tell of generated UI
+(`plugins/polish/reference/ui-tells.md` in the trove marketplace). So a bar or
+meter fill clips to its value and glides on `clip-path` (`MeterBar`, its
+`--meter-pct`), a wash that rises from the floor scales from it
+(`transform: scaleY()`, the commander-damage fill), and a box that opens (a
+playtest pile, the scanner's zoomed card) snaps to its size while its content
+rises or grows into it by `transform`, with the clip starting at the old
+size so the first frame looks like the last state. The one exception has a
+guard of its own: `.deck-card-stack` grows the `padding-bottom` its open tail
+needs, on the cards' own duration and easing, while every card moves by
+transform (`styles/stack-hover-reachable.test.ts`). Guard:
+`styles/layout-transition.test.ts`; the UI-tells detector (`npm run lint:ui`)
+checks the same.
+
 **Rule: every entry animation has a symmetric exit — no teleport-vanish.**
 A surface that animates in (rise/slide/pop/fade) must play the mirrored exit
 on EVERY dismiss path (backdrop, ✕, Escape, swipe, action-complete
@@ -1697,7 +1744,11 @@ Don't invent a new bezier — if none of these reads right, that's a
 STYLE_GUIDE discussion, not an inline constant.
 
 **`--ease-pop`'s overshoot is scoped to numeric/counter pops** (a value tick,
-a badge count bump) — a spring read that suits a number jumping. This is a
+a badge count bump, a die's face, a life delta) — a spring read that suits a
+number jumping, and nothing else: overshoot on a card or panel arriving is the
+"bounce easing" tell, so the win card settles on `--ease-out-soft` like the
+seal. `styles/motion-tokens.test.ts` lists the selectors allowed to use it; a
+new numeric pop joins that list. This is a
 **documented decision, not an oversight**: `SealBurst` ([§ Completion moments](style-guide/app-shell.md#completion-moments-the-seal))
 deliberately uses `--ease-out-soft` instead. A stamped seal settles into place;
 it doesn't spring. Don't "fix" SealBurst to use `--ease-pop` for consistency
@@ -1719,14 +1770,23 @@ celebration surfaces have different physical characters on purpose.
 6. **Feedback micro** — press = scale(0.97) `--motion-fast`; value change =
    `--ease-pop` one-shot ≤320ms; skeleton shimmer 1.4s; spinner 0.8s linear
    (use the shared `spin` / `skeleton-shimmer` keyframes — don't redeclare).
-7. **Staggered entrance (panels & index cards)** — every cascade goes through
-   `usePanelCascade(key)` + `panelCascadeClass(i, animating)` (the shared
-   `panel-cascade-in` keyframe: 8px rise + fade, 40ms steps, capped at 6
-   slots; reduced-motion gated). Key it to a computation identity (the
-   analysis bento) or a page-scoped once-per-session key (`'decks-index:cascade'`,
-   `'binders-index:cascade'`) — and pass the key **only when the list is
-   non-empty**, or an empty first visit consumes the key with nothing to show.
-   Don't hand-roll a bespoke list stagger.
+7. **Staggered entrance: the analysis board only** — the one cascade left is
+   the deck analysis bento's, when an analysis (re)computes: the panels arrive
+   because the numbers did. It goes through `usePanelCascade(key)` +
+   `panelCascadeClass(i, animating)` (the shared `panel-cascade-in` keyframe:
+   8px rise + fade, 40ms steps, capped at 6 slots; reduced-motion gated), keyed
+   to the computation identity. Index grids (decks, binders, a profile's
+   shelf) and Home render in place (2026-10-16): a fade-and-rise on every
+   section and every tile is the "motion on everything" tell
+   (`plugins/polish/reference/ui-tells.md`, at most one orchestrated moment),
+   and it told the reader nothing on the hundredth visit. Don't add a list
+   stagger anywhere else.
+8. **Index tile hover: the ring and one elevation step** — an index tile under
+   the pointer or keyboard focus rings in its own color and lifts from
+   `--shadow-card` to `--shadow-card-hover` (`--motion-fast`,
+   `--ease-out-soft`), the affordance of the thing you open. The cover art
+   never moves: the hover zoom is retired (2026-10-16, ui-tells "zoom-on-hover
+   images"). Guard: `styles/index-tile-hover.test.ts`.
 
 ### Live values
 
@@ -1898,10 +1958,11 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
   `--accent` ≥ 4.5:1, and `--accent` vs `--surface` ≥ 3:1 (WCAG 1.4.11).
 - **Sleeve matte for index tiles.** `.decks-index-card` / `.binders-index-card`
   sit on the page as card sleeves: `--surface-raised` bg + `--shadow-card`,
-  keeping their identity-color left border. No gloss overlays — the banner is
-  a replaced `<img>` (no pseudo-elements) and the Discover tile stacks
-  scrim/stats/hover-zoom contracts a sheen would fight; the material read
-  comes from matte + paper, not decoration.
+  with no colored edge (§ Layout system, no stripe down a side): a deck's
+  colors are the mana bar under its art, a binder's its banner or the dot
+  beside its name. No gloss overlays — the banner is a replaced `<img>` (no
+  pseudo-elements) and the Discover tile stacks scrim/stats contracts a sheen
+  would fight; the material read comes from matte + paper, not decoration.
 - **Pods tiles join the same sleeve-matte family, without cover art.** Pods
   carry no art/color data by design (a privacy ruling — see `routes/pods.ts`),
   so `.pods-index-card` gets the `--surface-raised` + `--shadow-card` surface

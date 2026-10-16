@@ -50,13 +50,13 @@ describe('MeterBar', () => {
     const track = container.querySelector('.meterbar') as HTMLElement;
     expect(track.getAttribute('aria-hidden')).toBe('true');
     const fill = track.querySelector('.meterbar-fill') as HTMLElement;
-    expect(fill.style.width).toBe('25%');
+    expect(fill.style.getPropertyValue('--meter-pct')).toBe('25%');
   });
 
   it('applies the caller palette and clamps overflow', () => {
     const { container } = render(<MeterBar value={500} max={100} color="var(--warn-text)" />);
     const fill = container.querySelector('.meterbar-fill') as HTMLElement;
-    expect(fill.style.width).toBe('100%');
+    expect(fill.style.getPropertyValue('--meter-pct')).toBe('100%');
     expect(fill.style.background).toContain('--warn-text');
   });
 
@@ -73,7 +73,7 @@ describe('MeterBar', () => {
     const { container } = render(<MeterBar value={0} max={100} minPct={2} role="progressbar" />);
     const track = container.querySelector('.meterbar') as HTMLElement;
     const fill = track.querySelector('.meterbar-fill') as HTMLElement;
-    expect(fill.style.width).toBe('2%');
+    expect(fill.style.getPropertyValue('--meter-pct')).toBe('2%');
     expect(track.getAttribute('aria-valuenow')).toBe('0');
   });
 
@@ -82,7 +82,7 @@ describe('MeterBar', () => {
     const track = container.querySelector('.meterbar') as HTMLElement;
     const fill = track.querySelector('.meterbar-fill') as HTMLElement;
     expect(fill.classList.contains('meterbar-fill--indeterminate')).toBe(true);
-    expect(fill.style.width).toBe('');
+    expect(fill.style.getPropertyValue('--meter-pct')).toBe('');
     expect(track.getAttribute('aria-valuenow')).toBeNull();
   });
 

@@ -37,10 +37,16 @@
   border-radius: inherit;
 }
 
+/* The fill spans the whole track and is clipped to its value (--meter-pct,
+   set inline by MeterBar). Live value changes (progress ticks, readiness
+   refresh) glide on clip-path, which repaints the bar without re-laying it
+   out: never a width transition (STYLE_GUIDE § Motion). The clip keeps the
+   pill cap on the fill's end. */
 .meterbar-fill {
+  width: 100%;
   background: var(--accent);
-  /* Live value changes glide (progress ticks, readiness refresh). */
-  transition: width var(--motion-base) var(--ease-out-soft);
+  clip-path: inset(0 calc(100% - var(--meter-pct, 100%)) 0 0 round 999px);
+  transition: clip-path var(--motion-base) var(--ease-out-soft);
 }
 
 .meterbar-segments {
@@ -79,6 +85,7 @@
    its animation wins at equal specificity. */
 .meterbar-fill--indeterminate {
   width: 40%;
+  clip-path: none;
   transition: none;
   animation: meterbar-indeterminate 1.2s ease-in-out infinite;
 }

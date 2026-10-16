@@ -19,7 +19,6 @@ import { ColorIdentityBar } from '../shared/ColorIdentityBar';
 import { ColorPip } from '../shared/ManaSymbol';
 import { Chip } from '../shared/Chip';
 import { Surface } from '../shared/Surface';
-import { usePanelCascade, panelCascadeClass } from '@/lib/util/use-panel-cascade';
 import { ArtBadge } from '@/components/shared/ArtBadge';
 
 /**
@@ -98,7 +97,6 @@ export function DeckLibrary({
   emptyTagline,
   emptyHint,
   header,
-  cascadeKey = null,
   pinnedId = null,
 }: {
   decks: LibraryDeck[];
@@ -109,13 +107,6 @@ export function DeckLibrary({
   /** Optional content between the toolbar and the grid (e.g. a count line). */
   header?: ReactNode;
   /**
-   * Identity for the tile cascade (STYLE_GUIDE § Motion). `/u/:username`
-   * passes the username so browsing between two people's shelves re-animates;
-   * null opts out. Keyed on the CALLER's identity, never on the filtered
-   * result — otherwise every keystroke would re-run the animation.
-   */
-  cascadeKey?: string | null;
-  /**
    * The deck the owner pinned. While nothing is searched or filtered it leads
    * as a larger "Pinned" tile above the grid (and is left out of the grid so
    * it never shows twice); once the viewer narrows the list it is an ordinary
@@ -123,7 +114,6 @@ export function DeckLibrary({
    */
   pinnedId?: string | null;
 }) {
-  const cascade = usePanelCascade(cascadeKey ?? null);
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<DiscoverFilters>(NO_DISCOVER_FILTERS);
   const [sort, setSort] = useState<LibrarySortKey>('updated');
@@ -217,7 +207,7 @@ export function DeckLibrary({
 
       {featured && (
         <ul className="decks-index-list is-grid deck-library-featured" aria-label="Pinned deck">
-          <DeckLibraryTile deck={featured} index={0} animating={cascade.animating} featured />
+          <DeckLibraryTile deck={featured} featured />
         </ul>
       )}
 
@@ -240,8 +230,8 @@ export function DeckLibrary({
         </div>
       ) : gridDecks.length === 0 ? null : (
         <ul className="decks-index-list is-grid deck-library-grid" aria-label={ariaLabel}>
-          {gridDecks.map((deck, i) => (
-            <DeckLibraryTile key={deck.id} deck={deck} index={i} animating={cascade.animating} />
+          {gridDecks.map((deck) => (
+            <DeckLibraryTile key={deck.id} deck={deck} />
           ))}
         </ul>
       )}
@@ -254,19 +244,8 @@ export function DeckLibrary({
  * the same thing. Same `.decks-index-card` family the owner's own deck index
  * uses, so all three read as one app.
  */
-function DeckLibraryTile({
-  deck,
-  index,
-  animating,
-  featured = false,
-}: {
-  deck: LibraryDeck;
-  index: number;
-  animating: boolean;
-  featured?: boolean;
-}) {
+function DeckLibraryTile({ deck, featured = false }: { deck: LibraryDeck; featured?: boolean }) {
   const colors = deck.colorIdentity.slice(0, 5);
-  const cascadeCls = panelCascadeClass(index, animating);
   // Carries everything the tile shows, including the stats overlay — which is
   // `aria-hidden` on the art, so without it here a screen reader would lose the
   // view/copy counts entirely (the label this replaced on /u/:username spelled
@@ -293,7 +272,7 @@ function DeckLibraryTile({
       variant="sleeve"
       className={`decks-index-card public-profile-tile deck-library-tile${
         featured ? ' is-featured' : ''
-      }${cascadeCls ? ` ${cascadeCls}` : ''}`}
+      }`}
     >
       <Link to={deck.href} className="decks-index-card-link" aria-label={label}>
         <span className="public-profile-tile-banner">

@@ -22,7 +22,6 @@ import {
   Wand2,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { usePanelCascade, panelCascadeClass } from '@/lib/util/use-panel-cascade';
 import { useStoredSort } from '@/lib/util/use-stored-sort';
 import { useStoredView } from '@/lib/util/use-stored-view';
 import { deckCoverArt } from '@/lib/deck/deck-cover';
@@ -320,12 +319,6 @@ export function DecksIndexPage() {
     colorMode,
     deckValues,
   ]);
-
-  // One-shot entrance cascade for the deck cards — same primitive (and
-  // once-per-session consumed registry) as the analysis bento panels. Keyed
-  // only when there's something to animate, so an empty first visit doesn't
-  // burn the key.
-  const cascade = usePanelCascade(sorted.length > 0 ? 'decks-index:cascade' : null);
 
   const [showImport, setShowImport] = useState(false);
   // The command palette's "Import deck" lands here with `{ openImport: true }`
@@ -725,7 +718,7 @@ export function DecksIndexPage() {
               />
             )}
             <ul className={`decks-index-list is-${view}`}>
-              {sorted.map((deck, cardIndex) => {
+              {sorted.map((deck) => {
                 const totalCards =
                   (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0) + deck.cards.length;
                 // The line truncates in a narrow row; the title carries all of it.
@@ -760,10 +753,6 @@ export function DecksIndexPage() {
                     key={deck.id}
                     className={`decks-index-card${sel.selectMode ? ' bulk-selectable' : ''}${
                       selected ? ' bulk-selected' : ''
-                    }${
-                      panelCascadeClass(cardIndex, cascade.animating)
-                        ? ` ${panelCascadeClass(cardIndex, cascade.animating)}`
-                        : ''
                     }`}
                     /* `--deck-color` drives both the resting left-border accent
                    and the hover ring every index tile shares (base-layout.css). */

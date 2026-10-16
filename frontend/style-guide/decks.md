@@ -926,9 +926,10 @@ The **tone semantics** are the load-bearing part: green = safe/gain · blue =
 lateral · gold = tradeoff/caution · red = remove · accent = ownership · neutral =
 no-op. A panel with a finer scale maps onto these tones rather than inventing
 colors — e.g. the Cost panel's drop-in/sidegrade/budget confidence passes
-`tone` + `label` directly (`success`/`info`/`warn`, keeping its own word). When a
-row carries a left accent bar, color it to match the row's verdict tone (Cost and
-Substitution both do this) so the bar and chip agree.
+`tone` + `label` directly (`success`/`info`/`warn`, keeping its own word). A
+row's verdict is its chip (or a mark beside its words), never a left accent bar
+down the row ([§ Layout system](../STYLE_GUIDE.md#layout-system-t135--one-build-of-each-pattern-every-screen), no stripe down a side): the bar only repeated the
+chip.
 
 The badge is **presentational only** — it holds no decision logic; callers map
 their own semantics onto the vocabulary. Adopted in the Substitution and Cost

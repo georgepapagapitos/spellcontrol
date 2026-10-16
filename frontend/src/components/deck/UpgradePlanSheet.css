@@ -247,14 +247,11 @@
   accent-color: var(--accent);
 }
 
-/* The card that took an unticked card's place, marked once. */
-.upgrade-plan-row.is-new {
-  box-shadow: inset 3px 0 var(--accent);
-  background: var(--accent-light);
-  --text-muted: var(--text-muted-tint);
-  --text-secondary: var(--text-secondary-tint);
-  --accent: var(--accent-tint);
-  --accent-hover: var(--accent-hover-tint);
+/* The card that took an unticked card's place, marked once: the shared accent
+   tint (.upgrade-plan-row.is-new joins the list in base-layout.css, STYLE_GUIDE
+   § Selected state) and a "New" label, never an inset bar. */
+.upgrade-plan-new {
+  margin-left: var(--space-2);
 }
 
 .upgrade-plan-row.is-dropped .deck-card-row {
