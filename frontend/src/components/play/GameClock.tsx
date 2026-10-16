@@ -39,6 +39,10 @@ import { useNow } from '@/lib/util/use-now';
  * the state is said exactly once — never color alone (a `Pause` glyph on the
  * button plus the word "paused" in the text).
  *
+ * Before the first real action the total reads 0:00 and the strip says it
+ * starts with the first turn (`clockStartedAt`, game-core); **Start now**
+ * starts it by hand, and Pause is not offered since nothing is running.
+ *
  * Three controls, each a real button: **Start** (before any seat holds the
  * turn — the same recorded-first-player guess `startSeat` always made),
  * **Pause/Resume** (only when the total is shown; pausing pauses the whole
@@ -82,7 +86,12 @@ export function GameClock({
   const isLive = canEdit && game.status === 'active';
   const canStart = isLive && showTurn && !started && startSeat != null;
   const canPass = isLive && showTurn && started;
-  const canPause = isLive && showTotal;
+  // The clock waits for the first real action (2026-10-16 ruling): it reads
+  // 0:00, says so, and offers a manual "Start now" instead of Pause, since
+  // there is nothing running to pause.
+  const waiting = view.waiting && showTotal;
+  const canStartNow = isLive && waiting;
+  const canPause = isLive && showTotal && !waiting;
 
   // The paused note is said exactly once, on whichever reading exists first —
   // never on "Turn not started", which has nothing running to freeze.
@@ -98,6 +107,12 @@ export function GameClock({
       <span className="game-clock-strip-text">
         {showTotal && (
           <span className="game-clock-strip-fixed">{`Game ${formatClock(view.total)}${totalNote}`}</span>
+        )}
+        {waiting && (
+          <>
+            <span className="game-clock-strip-dot" aria-hidden="true" />
+            <span className="game-clock-strip-fixed">Starts with the first turn</span>
+          </>
         )}
         {showTotal && showTurn && <span className="game-clock-strip-dot" aria-hidden="true" />}
         {showTurn &&
@@ -123,6 +138,20 @@ export function GameClock({
           >
             <Play width={14} height={14} strokeWidth={1.8} aria-hidden />
             Start
+          </button>
+        )}
+        {canStartNow && (
+          <button
+            type="button"
+            className="game-clock-strip-btn"
+            aria-label="Start the game clock now"
+            onClick={() => {
+              haptics.tap();
+              dispatch({ type: 'clock-start' });
+            }}
+          >
+            <Play width={14} height={14} strokeWidth={1.8} aria-hidden />
+            Start now
           </button>
         )}
         {canPause && (

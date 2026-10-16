@@ -472,12 +472,24 @@ export interface GameState {
   createdAt: number;
   updatedAt: number;
   startedAt: number | null;
+  /**
+   * When the game clock began running (2026-10-16 ruling): the first real
+   * action after `start` (see `startsGameClock`), not Start game itself, so
+   * shuffling, mulligans and deciding who goes first are not game time.
+   * `null` means "started, still waiting for that first action". OPTIONAL:
+   * persisted rows and local saves that predate it are absent, which reads as
+   * the legacy behavior, a clock that began at `startedAt`. Read it through
+   * `gameClockStart`, never directly. `start` writes `null`; `reset` clears it.
+   */
+  clockStartedAt?: number | null;
   endedAt: number | null;
   version: number;
 }
 
 export type GameAction =
   | { type: 'start'; ts?: number }
+  /** Start the game clock by hand, for a table that does not wait for its first action. */
+  | { type: 'clock-start'; ts?: number }
   /**
    * `coopOutcome` is meaningful only for `format === 'horde'`: when given, it
    * sets `GameState.coopOutcome` and forces `winnerSeat` to null regardless of
@@ -1135,6 +1147,53 @@ function endTeamTurn(horde: HordeTable, actorSeat: number, ts: number): HordeTab
   };
 }
 
+/**
+ * Actions that start the game clock when it is still waiting. The principle:
+ * anything that is play rather than table setup. Turn tracking (`pass-turn`,
+ * `phase`), every life, poison, commander-damage, counter, designation and
+ * elimination change, and a horde step. Not setup or housekeeping: notes,
+ * settings, ready flags, player edits (name, deck), reseating, the pause
+ * toggle itself. The manual "Start now" control dispatches `clock-start`.
+ */
+const CLOCK_STARTING_ACTIONS: ReadonlySet<GameAction['type']> = new Set([
+  'clock-start',
+  'pass-turn',
+  'phase',
+  'life',
+  'set-life',
+  'poison',
+  'cmd-dmg',
+  'counter',
+  'counter-remove',
+  'eliminate',
+  'set-designation',
+  'horde-step',
+]);
+
+/** Whether `action` starts a waiting game clock (see `CLOCK_STARTING_ACTIONS`). */
+export function startsGameClock(action: GameAction): boolean {
+  return CLOCK_STARTING_ACTIONS.has(action.type);
+}
+
+/**
+ * When the game clock started, or null when it has not (a lobby, or an active
+ * game still waiting for its first real action). Every duration (the live
+ * clock, the turn and per-seat totals, the recorded `durationMs`) measures
+ * from here, not from `startedAt`.
+ *
+ * Two fallbacks to `startedAt`: a legacy state with no `clockStartedAt` field
+ * (its clock began at Start game), and a game that FINISHED while still
+ * waiting, so a recorded duration is never silently zero.
+ */
+export function gameClockStart(
+  state: Pick<GameState, 'startedAt' | 'clockStartedAt' | 'status'>
+): number | null {
+  if (state.startedAt == null) return null;
+  if (state.clockStartedAt === undefined) return state.startedAt;
+  if (state.clockStartedAt === null) return state.status === 'finished' ? state.startedAt : null;
+  return state.clockStartedAt;
+}
+
 export function applyAction(prev: GameState, action: GameAction): GameState {
   const ts = action.ts ?? Date.now();
   // Legacy tolerance: old persisted states won't have activeSeat / designations.
@@ -1161,6 +1220,8 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
         ...next,
         status: 'active',
         startedAt: ts,
+        // The clock waits for the first real action (see `clockStartedAt`).
+        clockStartedAt: null,
         // Readiness is a lobby-only statement; it means nothing once the game
         // is live, and a stale `true` would come back on a later `reset`.
         players: prev.players.map((p) => ({ ...p, ready: false })),
@@ -1205,6 +1266,7 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
         status: 'lobby',
         winnerSeat: null,
         startedAt: null,
+        clockStartedAt: null,
         endedAt: null,
         // Reset turn tracking, the on-the-play seat, and designations when the
         // game resets — a reset is a fresh game at the same table, so last
@@ -1593,8 +1655,15 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       };
       break;
     }
+    case 'clock-start': {
+      // Manual start; a no-op unless the game is active and still waiting.
+      if (prev.status !== 'active' || prev.clockStartedAt !== null) return prev;
+      break;
+    }
     case 'clock': {
-      if (prev.status !== 'active' || isClockPaused(prev) === action.paused) return prev;
+      // Nothing is running to pause while the clock waits for its first action.
+      if (prev.status !== 'active' || prev.clockStartedAt === null) return prev;
+      if (isClockPaused(prev) === action.paused) return prev;
       next = {
         ...next,
         events: pushEvent(next, {
@@ -1794,6 +1863,13 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
     next = { ...next, events: markUndone(next.events, action.undoOf) };
   }
 
+  // The clock starts on the first real action, stamped with that action's ts
+  // so server and clients agree. Only an explicit `null` waits: absent is a
+  // legacy state whose clock already runs from `startedAt`.
+  if (next.status === 'active' && next.clockStartedAt === null && startsGameClock(action)) {
+    next = { ...next, clockStartedAt: ts };
+  }
+
   // A horde-done ends the team turn as it lands. A survivor leaving (the
   // leave route's `connected: false`), removed or knocked out shrinks the
   // team with no horde-done, and when everyone left was already done the
@@ -1932,6 +2008,12 @@ export function nextHostSeat(state: GameState): number | null {
   return null;
 }
 
+/** Recorded game length: from the clock's start (see `gameClockStart`), 0 for a game that never started. */
+export function durationFrom(state: GameState, endedAt: number): number {
+  const from = gameClockStart(state);
+  return from ? Math.max(0, endedAt - from) : 0;
+}
+
 export function gameToRecord(state: GameState, endedAt: number = Date.now()): GameRecord {
   return {
     id: state.id,
@@ -1953,7 +2035,7 @@ export function gameToRecord(state: GameState, endedAt: number = Date.now()): Ga
     winnerSeat: state.winnerSeat,
     startedAt: state.startedAt,
     endedAt,
-    durationMs: state.startedAt ? endedAt - state.startedAt : 0,
+    durationMs: durationFrom(state, endedAt),
     mode: state.mode,
     commanderDamageEnabled: state.commanderDamageEnabled,
     poisonEnabled: state.poisonEnabled,

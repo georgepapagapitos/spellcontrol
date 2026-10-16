@@ -90,6 +90,15 @@ export function parseLocalResult(body: unknown): LocalResultParse {
   if (!isInt(g.endedAt) || g.endedAt <= 0) return { ok: false, error: 'endedAt is required.' };
   const startedAt =
     isInt(g.startedAt) && g.startedAt > 0 && g.startedAt <= g.endedAt ? g.startedAt : null;
+  // When the clock began (first real action). Absent or out of range reads as
+  // "never started", which falls back to startedAt for the duration.
+  const clockStartedAt =
+    startedAt != null &&
+    isInt(g.clockStartedAt) &&
+    g.clockStartedAt >= startedAt &&
+    g.clockStartedAt <= g.endedAt
+      ? g.clockStartedAt
+      : undefined;
   const startingSeat = isInt(g.startingSeat) ? g.startingSeat : null;
   // Which way the table sat. Absent means clockwise (see GameState.turnOrder's
   // own convention) — anything present that isn't exactly one of the two
@@ -229,6 +238,7 @@ export function parseLocalResult(body: unknown): LocalResultParse {
       events,
       winnerSeat,
       startedAt,
+      ...(clockStartedAt !== undefined ? { clockStartedAt } : {}),
       endedAt: g.endedAt,
       updatedAt: g.endedAt,
       ...(coopOutcome !== undefined ? { coopOutcome } : {}),

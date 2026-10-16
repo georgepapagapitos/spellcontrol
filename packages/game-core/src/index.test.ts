@@ -3,6 +3,7 @@ import {
   applyAction,
   cmdDamageKey,
   createGameState,
+  gameClockStart,
   gameToRecord,
   isClockPaused,
   makePlayer,
@@ -141,8 +142,9 @@ describe('applyAction', () => {
   it('gameToRecord captures players + winner + duration', () => {
     let s = applyAction(lobby(), { type: 'start', ts: 1_000_000 });
     s = applyAction(s, { type: 'life', seat: 1, delta: -40, actorSeat: 0, ts: 2_000_000 });
-    const rec = gameToRecord(s, 2_000_000);
+    const rec = gameToRecord(s, 3_000_000);
     expect(rec.winnerSeat).toBe(0);
+    // The clock began at the first life change, not at Start game.
     expect(rec.durationMs).toBe(1_000_000);
     expect(rec.players).toHaveLength(2);
   });
@@ -669,6 +671,7 @@ describe('clock', () => {
 
   it('pauses and resumes, pushing one event per tap', () => {
     let s = applyAction(lobby(2), { type: 'start' });
+    s = applyAction(s, { type: 'clock-start', ts: 1500 });
     s = applyAction(s, { type: 'clock', paused: true, actorSeat: null, ts: 2000 });
     expect(isClockPaused(s)).toBe(true);
     expect(s.events.at(-1)).toMatchObject({
@@ -684,6 +687,7 @@ describe('clock', () => {
 
   it('is a no-op when the requested state already holds — no duplicate event, no version bump', () => {
     let s = applyAction(lobby(2), { type: 'start' });
+    s = applyAction(s, { type: 'clock-start', ts: 1500 });
     s = applyAction(s, { type: 'clock', paused: true, actorSeat: null });
     const beforeVersion = s.version;
     const beforeEvents = s.events.length;
@@ -1886,5 +1890,76 @@ describe('horde mode', () => {
     const record = gameToRecord(finished);
     expect(record.coopOutcome).toBe('won');
     expect(record.hordeId).toBe('h1');
+  });
+});
+
+describe('the game clock waits for the first real action', () => {
+  const started = () => applyAction(lobby(), { type: 'start', ts: 5000 });
+
+  it('does not run after Start game', () => {
+    const s = started();
+    expect(s.startedAt).toBe(5000);
+    expect(s.clockStartedAt).toBeNull();
+    expect(gameClockStart(s)).toBeNull();
+  });
+
+  it('is not started by table setup actions', () => {
+    let s = started();
+    s = applyAction(s, { type: 'note', message: 'hi', actorSeat: 0, ts: 6000 });
+    s = applyAction(s, { type: 'update-player', seat: 0, patch: { name: 'Ann' }, ts: 6100 });
+    expect(s.clockStartedAt).toBeNull();
+  });
+
+  it('starts on a life change, stamped with the action ts', () => {
+    const s = applyAction(started(), { type: 'life', seat: 1, delta: -3, actorSeat: 0, ts: 9000 });
+    expect(s.clockStartedAt).toBe(9000);
+    expect(gameClockStart(s)).toBe(9000);
+  });
+
+  it('starts on the turn tracker and does not move afterwards', () => {
+    let s = applyAction(started(), { type: 'pass-turn', actorSeat: null, toSeat: 1, ts: 8000 });
+    expect(s.clockStartedAt).toBe(8000);
+    s = applyAction(s, { type: 'life', seat: 0, delta: -1, actorSeat: 0, ts: 9000 });
+    expect(s.clockStartedAt).toBe(8000);
+  });
+
+  it('starts by hand with clock-start, and only once', () => {
+    let s = applyAction(started(), { type: 'clock-start', ts: 7000 });
+    expect(s.clockStartedAt).toBe(7000);
+    s = applyAction(s, { type: 'clock-start', ts: 7500 });
+    expect(s.clockStartedAt).toBe(7000);
+    expect(applyAction(lobby(), { type: 'clock-start', ts: 1 }).clockStartedAt).toBeUndefined();
+  });
+
+  it('cannot be paused while waiting', () => {
+    const s = started();
+    expect(applyAction(s, { type: 'clock', paused: true, actorSeat: 0, ts: 6000 })).toBe(s);
+  });
+
+  it('records the duration from the clock start, not from Start game', () => {
+    const s = applyAction(started(), { type: 'life', seat: 1, delta: -3, actorSeat: 0, ts: 9000 });
+    expect(gameToRecord(s, 19_000).durationMs).toBe(10_000);
+  });
+
+  it('falls back to startedAt for a game that ends without the clock ever starting', () => {
+    const s = applyAction(started(), { type: 'end', winnerSeat: null, ts: 15_000 });
+    expect(gameClockStart(s)).toBe(5000);
+    expect(gameToRecord(s, 15_000).durationMs).toBe(10_000);
+  });
+
+  it('reads a legacy state without the field as running from startedAt', () => {
+    const { clockStartedAt: _omit, ...legacy } = started();
+    const s = legacy as GameState;
+    expect(gameClockStart(s)).toBe(5000);
+    expect(gameToRecord(s, 8000).durationMs).toBe(3000);
+    const after = applyAction(s, { type: 'life', seat: 0, delta: -1, actorSeat: 0, ts: 6000 });
+    expect(after.clockStartedAt).toBeUndefined();
+  });
+
+  it('reset clears the clock', () => {
+    const live = applyAction(started(), { type: 'clock-start', ts: 7000 });
+    const s = applyAction(live, { type: 'reset', ts: 9000 });
+    expect(s.clockStartedAt).toBeNull();
+    expect(gameClockStart(s)).toBeNull();
   });
 });

@@ -2,7 +2,8 @@
  * Table clocks, derived — not stored.
  *
  * Every number here is a pure function of state the reducer already keeps:
- * `startedAt` for the game, the `turn` events in the log for each turn, and
+ * `clockStartedAt` (via `gameClockStart`: the first real action after Start
+ * game, or `startedAt` for a legacy state) for the game, the `turn` events in the log for each turn, and
  * (since the `clock` action) the `clock` pause/resume events for the
  * stretches that don't count. That is the whole design. A stored, ticking
  * timer would need a reducer action per second (unusable for an online game,
@@ -24,7 +25,7 @@
  * the still-open pause never bleeds into "how long the game ran".
  */
 
-import { isClockPaused } from '@spellcontrol/game-core';
+import { gameClockStart, isClockPaused } from '@spellcontrol/game-core';
 import type { GameEvent, GameState } from '@spellcontrol/game-core';
 
 /**
@@ -107,8 +108,16 @@ export function describeClock(ms: number): string {
  *  Excludes any paused stretch (see the module doc). */
 export function gameElapsed(game: GameState, now: number): number | null {
   if (game.startedAt == null) return null;
+  const from = gameClockStart(game);
+  // Started but waiting for the first real action: the clock sits at 0:00.
+  if (from == null) return 0;
   const end = game.endedAt ?? now;
-  return Math.max(0, end - game.startedAt - pausedMsBetween(game.events, game.startedAt, end));
+  return Math.max(0, end - from - pausedMsBetween(game.events, from, end));
+}
+
+/** True while the game is live but its clock has not started (see `gameClockStart`). */
+export function isClockWaiting(game: GameState): boolean {
+  return game.startedAt != null && game.status === 'active' && gameClockStart(game) == null;
 }
 
 /**
@@ -117,11 +126,12 @@ export function gameElapsed(game: GameState, now: number): number | null {
  * the game hasn't started, so a lobby shows no turn clock.
  */
 export function turnStartedAt(game: GameState): number | null {
-  if (game.startedAt == null) return null;
+  const from = gameClockStart(game);
+  if (from == null) return null;
   for (let i = game.events.length - 1; i >= 0; i--) {
     if (game.events[i].kind === 'turn') return game.events[i].ts;
   }
-  return game.startedAt;
+  return from;
 }
 
 /** Elapsed time on the current turn, or null when there is no running turn.
@@ -166,8 +176,9 @@ export function seatTurnTotals(game: GameState, now: number): Record<number, num
 
   // The opening stretch, before anyone passed: credited to the recorded
   // first player only.
-  if (game.startedAt != null) {
-    add(game.startingSeat, game.startedAt, turns[0]?.ts ?? end);
+  const clockStart = gameClockStart(game);
+  if (clockStart != null) {
+    add(game.startingSeat, clockStart, turns[0]?.ts ?? end);
   }
   for (let i = 0; i < turns.length; i++) {
     add(turns[i].targetSeat, turns[i].ts, turns[i + 1]?.ts ?? end);
@@ -184,6 +195,8 @@ export function seatTurnTotals(game: GameState, now: number): Record<number, num
 export interface ClockView {
   /** Elapsed game time, or null before the game starts (see `gameElapsed`). */
   total: number | null;
+  /** True while the game is live and the clock waits for its first action. */
+  waiting: boolean;
   /** Whether the clock is paused right now (see `isClockPaused`). */
   paused: boolean;
   /** The seat currently holding the turn, or null if turns aren't tracked. */
@@ -197,6 +210,7 @@ export interface ClockView {
 export function clockView(game: GameState, now: number): ClockView {
   return {
     total: gameElapsed(game, now),
+    waiting: isClockWaiting(game),
     paused: isClockPaused(game),
     activeSeat: game.activeSeat,
     // The turn clock is only meaningful once turns are actually being
