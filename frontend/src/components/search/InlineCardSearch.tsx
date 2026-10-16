@@ -83,9 +83,7 @@ export const InlineCardSearch = forwardRef<CardSearchResultsHandle, Props>(
             </button>
           )}
         </div>
-        {q.length < 2 && (
-          <p className="inline-card-search-status">Type at least two characters above.</p>
-        )}
+        {q.length < 2 && <p className="inline-card-search-status">Type at least two characters.</p>}
         {q.length >= 2 && loading && (
           <p className="inline-card-search-status">Searching Scryfall…</p>
         )}

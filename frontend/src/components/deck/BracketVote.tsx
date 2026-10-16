@@ -102,8 +102,8 @@ export function BracketVote({
       <h4 className="bracket-breakdown-heading">Does this look right?</h4>
       <p className="bracket-vote-line">
         {disagrees
-          ? `You set Bracket ${answer}. We estimated Bracket ${estimated}.`
-          : `We estimated Bracket ${estimated}.`}
+          ? `You set Bracket ${answer}. The estimate is Bracket ${estimated}.`
+          : `The estimate is Bracket ${estimated}.`}
       </p>
       <Field
         label="Note (optional)"

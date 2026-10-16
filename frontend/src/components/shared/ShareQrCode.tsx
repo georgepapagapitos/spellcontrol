@@ -59,7 +59,7 @@ export function ShareQrCode({ value, label }: Props) {
   }, [value]);
 
   if (!qr) {
-    return <p className="choice-dialog-body">QR code unavailable. Use the link above.</p>;
+    return <p className="choice-dialog-body">QR code unavailable. Copy the link instead.</p>;
   }
 
   return (

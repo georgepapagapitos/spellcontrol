@@ -9,7 +9,7 @@ import {
   Boxes,
   Crosshair,
   Layers,
-  Sparkles,
+  Link2,
   Sprout,
   Tag as TagIcon,
   Wrench,
@@ -54,7 +54,7 @@ const CATEGORY_ICON_COMPONENTS: Partial<
   cardDraw: BookOpen,
   singleRemoval: Crosshair,
   boardWipes: Bomb,
-  synergy: Sparkles,
+  synergy: Link2,
   utility: Wrench,
 };
 

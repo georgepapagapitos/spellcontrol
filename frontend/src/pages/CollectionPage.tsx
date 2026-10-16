@@ -1,4 +1,4 @@
-import { BarChart3, Download, History, Plus, Share2, Sparkles, Trash2 } from 'lucide-react';
+import { BarChart3, ClipboardList, Download, History, Plus, Share2, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAnimatedNumber } from '@/lib/util/use-animated-number';
@@ -180,8 +180,8 @@ export function CollectionPage() {
                 onClick: () => setShareOpen(true),
               },
               {
-                label: 'What we found',
-                icon: Sparkles,
+                label: 'Collection summary',
+                icon: ClipboardList,
                 menuOnly: true,
                 onClick: reopenMoment,
               },

@@ -1,7 +1,7 @@
 import './YourDecks.css';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, Sparkles } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
 import { useDecksStore, type Deck } from '../../store/decks';
 import { useCollectionStore } from '../../store/collection';
@@ -89,8 +89,7 @@ function DeckTile({ deck, arrivals }: { deck: Deck; arrivals: number }) {
           aria-label={`Review ${arrivals} new card${arrivals === 1 ? '' : 's'} for ${deck.name}`}
         >
           <ArtBadge className="home-deck-arrivals" tone="success">
-            <Sparkles width={12} height={12} strokeWidth={2} aria-hidden="true" />+{arrivals} new
-            card{arrivals === 1 ? '' : 's'}
+            +{arrivals} new card{arrivals === 1 ? '' : 's'}
           </ArtBadge>
         </Link>
       )}

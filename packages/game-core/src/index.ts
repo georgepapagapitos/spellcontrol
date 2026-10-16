@@ -1269,7 +1269,7 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
     }
     case 'transfer-host': {
       const target = requireSeat(prev.players, action.seat);
-      if (target.userId === null) throw new Error('A guest seat cannot host.');
+      if (target.userId === null) throw new Error("A guest seat can't host.");
       next = {
         ...next,
         hostUserId: target.userId,

@@ -56,7 +56,7 @@ export function ManaSymbolPad({ value, onChange }: ManaSymbolPadProps) {
       </div>
       <div className="filter-kit-tray">
         {tray.length === 0 ? (
-          <span className="filter-kit-tray-empty">Tap symbols above</span>
+          <span className="filter-kit-tray-empty">Tap a symbol to add it</span>
         ) : (
           <span className="filter-kit-tray-cost" aria-hidden="true">
             {tray.map((s, i) => (

@@ -1,7 +1,7 @@
 import { useMemo, useState, type JSX } from 'react';
 import { describeTargetMiss } from '@/deck-builder/services/deckBuilder/targetMisses';
 import './BuildReportPanel.css';
-import { AlertOctagon, Check, Loader2, Plus, Sparkles } from 'lucide-react';
+import { AlertOctagon, Check, InfinityIcon, Loader2, Plus } from 'lucide-react';
 import type { BuildReport, DeckDataSource, GenerationMode } from '@/deck-builder/types';
 import type { ComboMatch, ComboSeedContext } from '@/types/combos';
 import { ROLE_TITLES, type RoleKey } from '@/lib/deck-analysis/role-badges';
@@ -295,7 +295,7 @@ export function BuildReportPanel({
               aria-hidden
             />
           ) : (
-            <Sparkles
+            <InfinityIcon
               className="build-report-combo-seed-icon"
               width={14}
               height={14}

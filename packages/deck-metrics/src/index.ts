@@ -872,7 +872,7 @@ export function estimateBracket(
       bracket: 4,
       reason: `${gameChangers.length} Game Changer cards`,
       detail:
-        'Cards that warp the game on resolution — having 4+ pushes into high-power territory.',
+        'These cards take over a game on their own. Four or more puts the deck at high power.',
     });
   } else if (gameChangers.length > 0) {
     hardFloors.push({
@@ -890,7 +890,7 @@ export function estimateBracket(
       bracket: 4,
       reason: `Mass land denial (${massLandDenial.join(', ')})`,
       detail:
-        'Destroying or locking all lands prevents opponents from playing the game — one of the strongest effects in Commander.',
+        'Destroying or locking every land stops opponents from playing at all. Few effects in Commander hit harder.',
     });
   }
 
@@ -1006,15 +1006,14 @@ export function estimateBracket(
     hardFloors.push({
       bracket: 4,
       reason: `${staxPieces.length} stax / lock pieces`,
-      detail:
-        'Heavy stax presence locks opponents out of the game — functionally similar to mass land denial.',
+      detail: 'This much stax locks opponents out of the game, much like mass land denial.',
     });
   } else if (staxPieces.length >= STAX_FLOOR_BRACKET_3_THRESHOLD) {
     hardFloors.push({
       bracket: 3,
       reason: `${staxPieces.length} stax / lock pieces`,
       detail:
-        'Multiple stax pieces signal a deliberate resource-denial plan — generally accepted but pushes power up.',
+        'Several stax pieces make a resource-denial plan. Most tables accept it, but it raises the power.',
     });
   }
 

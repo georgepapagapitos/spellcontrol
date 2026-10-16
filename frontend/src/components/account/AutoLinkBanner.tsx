@@ -26,7 +26,8 @@ export function AutoLinkBanner() {
     <div className="auto-link-banner" role="status" aria-live="polite">
       <div className="auto-link-banner-text">
         <strong>Google sign-in linked.</strong> Your Google account now signs in to
-        {username ? ` @${username}` : ' your account'}. If that wasn&apos;t you, unlink it below.
+        {username ? ` @${username}` : ' your account'}. If that wasn&apos;t you, unlink it from
+        Manage sign-in methods.
       </div>
       <div className="auto-link-banner-actions">
         <Button

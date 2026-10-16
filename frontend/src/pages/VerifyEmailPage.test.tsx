@@ -67,7 +67,7 @@ describe('VerifyEmailPage', () => {
     fireEvent.click(resendButton);
 
     await waitFor(() => expect(mockResend).toHaveBeenCalled());
-    expect(await screen.findByText(/We've sent a new link/)).toBeTruthy();
+    expect(await screen.findByText(/A new link is on its way/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Send a new link' })).toBeNull();
   });
 });

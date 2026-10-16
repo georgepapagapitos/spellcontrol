@@ -76,7 +76,7 @@ describe('PostImportMoment', () => {
     }));
     renderMoment([...filler, legend('Meren', 5), legend('Golgari Guy', 6)]);
 
-    expect(screen.getByText('What we found in your collection')).toBeTruthy();
+    expect(screen.getByText('Collection summary')).toBeTruthy();
     expect(screen.getByText('32 cards')).toBeTruthy();
     expect(screen.getByText('$64')).toBeTruthy();
     // Loading comes first, and says so.
@@ -130,7 +130,7 @@ describe('PostImportMoment', () => {
   it('dismisses', async () => {
     fetchCommanderData.mockResolvedValue({ cardlists: { allNonLand: [] } });
     renderMoment(filler);
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss what we found' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss the collection summary' }));
     expect(usePostImportMoment.getState().open).toBe(false);
   });
 });

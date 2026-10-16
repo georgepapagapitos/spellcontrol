@@ -83,8 +83,8 @@ export default function VerifyEmailPage() {
         {username ? (
           <p className="auth-subtitle">
             {resent
-              ? "We've sent a new link. Check your spam folder too."
-              : 'Request a new link below.'}
+              ? 'A new link is on its way. Check your spam folder too.'
+              : 'Choose Send a new link to get another.'}
           </p>
         ) : (
           <p className="auth-subtitle">Sign in, then request a new verification email from You.</p>

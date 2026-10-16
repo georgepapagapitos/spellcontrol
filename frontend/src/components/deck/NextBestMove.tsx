@@ -1,6 +1,14 @@
 import type { JSX } from 'react';
 import './NextBestMove.css';
-import { ArrowDown, ArrowRight, Loader2, Plus, Sparkles, WandSparkles } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowRight,
+  CircleCheck,
+  ListOrdered,
+  Loader2,
+  Plus,
+  Wand2,
+} from 'lucide-react';
 import type {
   NextBestMove,
   NextBestMoveFocus,
@@ -80,7 +88,7 @@ export function NextBestMove({
   if (moves.length === 0 && !showComboLoading) {
     return (
       <section className="next-best-move is-clear" aria-label="Next best move">
-        <Sparkles className="next-best-move-clear-icon" aria-hidden="true" />
+        <CircleCheck className="next-best-move-clear-icon" aria-hidden="true" />
         <p className="next-best-move-clear-text">Looks dialed in. No changes to suggest.</p>
       </section>
     );
@@ -89,7 +97,7 @@ export function NextBestMove({
   return (
     <section className="next-best-move" aria-label="Next best move">
       <header className="next-best-move-header">
-        <Sparkles className="next-best-move-header-icon" aria-hidden="true" />
+        <ListOrdered className="next-best-move-header-icon" aria-hidden="true" />
         <span className="next-best-move-header-label">Next best move</span>
       </header>
       <ol className="list-stack list-stack--flush next-best-move-list">
@@ -121,7 +129,7 @@ export function NextBestMove({
                 <div className="next-best-move-actions">
                   {canFill && (
                     <button type="button" className="next-best-move-add" onClick={onFill}>
-                      <WandSparkles className="next-best-move-add-icon" aria-hidden="true" />
+                      <Wand2 className="next-best-move-add-icon" aria-hidden="true" />
                       Fill
                     </button>
                   )}

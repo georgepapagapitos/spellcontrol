@@ -115,7 +115,7 @@ export function BinderView({
     return (
       <EmptyState
         tagline="No binder selected."
-        hint="Pick a binder above, or create one with New binder."
+        hint="Pick a binder from the tabs, or create one with New binder."
       />
     );
   }

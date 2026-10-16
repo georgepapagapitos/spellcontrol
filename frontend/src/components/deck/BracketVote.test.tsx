@@ -76,7 +76,7 @@ describe('BracketVote', () => {
 
   it('turns a differing stated bracket into a disagreement, without a second picker', async () => {
     render(<BracketVote deckId="d1" listText="1 Sol Ring" estimation={estimation} stated={3} />);
-    expect(screen.getByText('You set Bracket 3. We estimated Bracket 2.')).toBeTruthy();
+    expect(screen.getByText('You set Bracket 3. The estimate is Bracket 2.')).toBeTruthy();
     expect(screen.queryByRole('radio')).toBeNull();
     const button = screen.getByRole('button', { name: 'Send feedback' });
     await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
