@@ -791,7 +791,6 @@ body[data-felt='slate'] {
      full height, so it has nothing to crop. */
   align-items: flex-start;
   justify-content: center;
-  transition: height var(--motion-fast) var(--ease-out-soft);
 }
 
 /* Opens to the whole card the moment you mean to use the pile — pointing at
@@ -816,6 +815,7 @@ body[data-felt='slate'] {
    click on the card. */
 .playtest-pile:has(.playtest-tax-coin:focus-visible) .playtest-pile__stack {
   height: calc(var(--pt-card-h) * 0.35);
+  animation: none;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -824,12 +824,55 @@ body[data-felt='slate'] {
   .playtest-pile:has(.playtest-tax-coins:hover):hover .playtest-pile__stack {
     height: calc(var(--pt-card-h) * 0.35);
     outline: none;
+    animation: none;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .playtest-pile__stack {
-    transition: none;
+/* The opening is a state, not an animated height: the slot takes the full
+   card height at once, and the card rises into it. The slot's clip starts at
+   the resting slice and the card starts where it rested, so the first frame
+   looks exactly like the peek. Clip-path and transform only, never a height
+   transition (STYLE_GUIDE § Motion). */
+@media (prefers-reduced-motion: no-preference) {
+  .playtest-pile:has(:focus-visible) .playtest-pile__stack,
+  .playtest-pile.is-over .playtest-pile__stack {
+    animation: playtest-pile-open var(--motion-fast) var(--ease-out-soft);
+  }
+
+  .playtest-pile:has(:focus-visible) .playtest-pile__stack > *,
+  .playtest-pile.is-over .playtest-pile__stack > * {
+    animation: playtest-pile-rise var(--motion-fast) var(--ease-out-soft);
+  }
+
+  .playtest-pile:has(.playtest-tax-coin:focus-visible) .playtest-pile__stack > * {
+    animation: none;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .playtest-pile:hover .playtest-pile__stack {
+    animation: playtest-pile-open var(--motion-fast) var(--ease-out-soft);
+  }
+
+  .playtest-pile:hover .playtest-pile__stack > * {
+    animation: playtest-pile-rise var(--motion-fast) var(--ease-out-soft);
+  }
+
+  .playtest-pile:has(.playtest-tax-coins:hover):hover .playtest-pile__stack,
+  .playtest-pile:has(.playtest-tax-coins:hover):hover .playtest-pile__stack > * {
+    animation: none;
+  }
+}
+
+@keyframes playtest-pile-open {
+  from {
+    clip-path: inset(65% 0 0 0);
+  }
+}
+
+@keyframes playtest-pile-rise {
+  from {
+    transform: translateY(calc(var(--pt-card-h) * 0.65));
   }
 }
 

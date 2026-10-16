@@ -95,17 +95,10 @@
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 }
 
-/* In grid mode the color identity moves from the 4px left stripe to
-   the full-width top banner. Drop the left stripe so the banner sits
-   flush against a uniform border on every side — otherwise the
-   stripe creates a "T"-shape notch in the top-left of the tile.
-   No overflow: hidden here — the swatch self-rounds its own top
-   corners below, and clipping the card would also clip the kebab
-   menu's dropdown panel. */
-.binders-index-list.is-grid .binders-index-card {
-  border-left-width: 1px;
-}
-
+/* In grid mode the binder's color is the full-width top banner. No
+   overflow: hidden here — the swatch self-rounds its own top corners
+   below, and clipping the card would also clip the kebab menu's dropdown
+   panel. */
 .binders-index-list.is-grid .binders-index-card-link {
   flex-direction: column;
   align-items: stretch;
@@ -212,8 +205,9 @@
      this. Compact rows shrink it; a coarse pointer grows it (below). */
   --menu-btn: 1.9rem;
   position: relative;
-  /* Sleeve matte (T53) — same treatment as .decks-index-card. */
-  border-left: 4px solid var(--binder-color, var(--accent));
+  /* Sleeve matte (T53), same as .decks-index-card. The binder's color is its
+     banner (grid) or its swatch (list); no colored edge down the tile's side
+     (STYLE_GUIDE § Layout system, stripes). */
 }
 
 /* Lift the card above its siblings while its 3-dot popover is open so
@@ -244,6 +238,19 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* The binder-identity dot beside a row's name: the same 10px disc as
+   .add-to-binder-swatch and the review queue's route chips. */
+.binders-index-card-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: var(--space-1-5);
+  border-radius: 50%;
+  background: var(--binder-color, var(--accent));
+  box-shadow: 0 0 0 0.5px var(--border-strong);
+  vertical-align: 0.05em;
 }
 
 .binders-index-card-meta {
@@ -494,10 +501,9 @@
    suggestions sheet), so it resets the native button chrome. */
 .binders-index-card--uncategorized {
   --binder-color: var(--text-muted);
-  border-style: dashed;
-  /* No binder color to carry, so no 4px color edge: a dashed 4px rail read as
-     a heavy stitch in the list and compact rows. */
-  border-left-width: 1px;
+  /* No binder of its own: an empty sleeve, dashed all round (the dashed
+     open-slot idiom), with no lift. */
+  border: 1px dashed var(--border-strong);
   box-shadow: none;
   background: transparent;
 }

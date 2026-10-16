@@ -41,10 +41,9 @@
   color: var(--text-secondary);
 }
 
-/* The opponent's line — reads distinctly from the player's own actions. */
+/* The opponent's line reads distinctly from the player's own actions through
+   its accent ink and weight, not a rule down its side. */
 .playtest-log-entry--resistance {
-  border-left: 2px solid var(--accent);
-  padding-left: var(--space-2);
   color: var(--accent);
   font-weight: 600;
 }

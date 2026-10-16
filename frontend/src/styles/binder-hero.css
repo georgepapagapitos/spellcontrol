@@ -6,8 +6,8 @@
   flex-direction: column;
   gap: var(--space-0-5);
   margin: var(--space-1) 0 var(--space-3);
-  padding-left: var(--space-2-5);
-  border-left: 3px solid var(--binder-color, var(--accent));
+  /* No rule beside the title: a page title stands on its own, and a binder's
+     own color is already its filled tab (STYLE_GUIDE § Layout system, stripes). */
 }
 
 @media (max-width: 599px) {

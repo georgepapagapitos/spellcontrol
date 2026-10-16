@@ -302,15 +302,18 @@
 .pp-cmd-fill {
   position: absolute;
   z-index: 0;
-  inset: auto 0 0 0;
-  height: calc(var(--fill, 0) * 100%);
+  /* Full height, scaled from the floor: the gradient scales with it, so the
+     wash reads exactly as a height would, without re-laying out per tick. */
+  inset: 0;
+  transform: scaleY(var(--fill, 0));
+  transform-origin: bottom;
   background: linear-gradient(
     0deg,
     rgba(var(--table-danger-rgb), 0.6) 0%,
     rgba(var(--table-danger-rgb), 0.12) 100%
   );
   pointer-events: none;
-  transition: height var(--motion-fast) ease;
+  transition: transform var(--motion-fast) var(--ease-out-soft);
 }
 
 /* The numeral's offset for "N to lethal" below it (--life-size, play-board.css)
@@ -463,15 +466,18 @@
 .pp-cmd-half-fill {
   position: absolute;
   z-index: 0;
-  inset: auto 0 0 0;
-  height: calc(var(--fill, 0) * 100%);
+  /* Full height, scaled from the floor: the gradient scales with it, so the
+     wash reads exactly as a height would, without re-laying out per tick. */
+  inset: 0;
+  transform: scaleY(var(--fill, 0));
+  transform-origin: bottom;
   background: linear-gradient(
     0deg,
     rgba(var(--table-danger-rgb), 0.6) 0%,
     rgba(var(--table-danger-rgb), 0.12) 100%
   );
   pointer-events: none;
-  transition: height var(--motion-fast) ease;
+  transition: transform var(--motion-fast) var(--ease-out-soft);
 }
 
 /* Half-local ± zones. The panel-wide zones are suppressed on a split panel

@@ -13,9 +13,9 @@
   min-width: 0;
   padding: var(--space-2-5) var(--space-3);
   background: var(--surface);
+  /* The band reads in the score's own ink (.sub-score-tile-value), never a
+     rule down one side (STYLE_GUIDE § Layout system, stripes). */
   border: 0.5px solid var(--border);
-  /* Left rule reads as the band accent without flooding the tile with color. */
-  border-left: 2px solid var(--sub-score-color);
   border-radius: var(--radius-lg);
   text-align: left;
   font: inherit;

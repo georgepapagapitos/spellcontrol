@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import { Modal } from '@/components/overlays/Modal';
 import { OverflowMenu } from '@/components/overlays/OverflowMenu';
 import { Button, IconButton } from '../shared/Button';
+import { Chip } from '../shared/Chip';
 import { MeterBar } from '../shared/MeterBar';
 import { EmptyState } from '../shared/EmptyState';
 import { CopyButton } from '../shared/CopyButton';
@@ -640,6 +641,11 @@ export function UpgradePlanSheet({
             onPreview={() => preview(p.change.name)}
             onPreviewOut={p.cutName ? () => preview(p.cutName!) : undefined}
           />
+          {isNew && (
+            <Chip tone="accent" className="upgrade-plan-new">
+              New
+            </Chip>
+          )}
           {p.cutName && (
             <Button variant="link" className="upgrade-plan-keep" onClick={() => keep(p.cutName!)}>
               Keep {p.cutName}

@@ -154,14 +154,12 @@ function ProfileShelf({
 
 function DeckGrid({
   decks,
-  username,
   pinnedSlug,
 }: {
   decks: PublicProfileDeck[];
-  username: string;
   pinnedSlug: string | null;
 }) {
-  // The tiles, cascade and (new) search/sort/filters all live in the shared
+  // The tiles and the search/sort/filters all live in the shared
   // `DeckLibrary` — the same component the friend hub's Decks tab renders, so
   // a person's shelf reads identically whether you are their friend or a
   // stranger. Before this, THIS page had tiles and no controls at all, while
@@ -193,10 +191,6 @@ function DeckGrid({
       ariaLabel="Public decks"
       emptyTagline="No public decks yet."
       emptyHint="Publish a deck from its share menu to feature it here."
-      // Keyed per-username (a "computation identity", STYLE_GUIDE § Motion)
-      // rather than a single static page key — each profile's grid is different
-      // data, so browsing from one to another should cascade again.
-      cascadeKey={decks.length > 0 ? `public-profile:${username}` : null}
       pinnedId={pinnedSlug}
     />
   );
@@ -402,11 +396,7 @@ function PublicProfilePageInner({ username }: { username: string }) {
       <EmptyState tagline={`${heading} hasn't shared any decks yet.`} />
     )
   ) : (
-    <DeckGrid
-      decks={profile.decks}
-      username={profile.username}
-      pinnedSlug={profile.pinnedDeckSlug}
-    />
+    <DeckGrid decks={profile.decks} pinnedSlug={profile.pinnedDeckSlug} />
   );
   const shelves = profile.moderationHidden ? null : (
     <>

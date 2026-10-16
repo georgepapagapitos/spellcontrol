@@ -12,7 +12,7 @@ const COLOR_NAMES: Record<string, string> = {
 interface Props {
   /** The commander's art_crop, drawn as a thumbnail. Absent → no thumbnail. */
   art?: string;
-  /** The deck's own color: the thumbnail's foot, or the title column's rule. */
+  /** The deck's own color: the identity dot at the head of the meta line. */
   color?: string;
   /** The deck's color identity (WUBRG), as pips at the head of the meta line. */
   colors?: readonly string[];
@@ -59,6 +59,12 @@ export function DeckHero({
         {back}
         {title}
         <p className="binder-hero-meta">
+          {color && (
+            /* The deck's own color as the identity dot (the binder route chip's
+               10px disc), never a rule beside the title or a foot under the
+               art (STYLE_GUIDE § Layout system, stripes). */
+            <span className="deck-hero-color-dot" aria-hidden="true" />
+          )}
           {pips.length > 0 && (
             <span
               className="deck-hero-colors"

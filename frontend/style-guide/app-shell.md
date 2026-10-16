@@ -300,9 +300,11 @@ Rulings:
   keeps grid row-stretch and `.home-card-body { flex: 1 1 auto }`, so the
   shorter card's slack is inside its own frame, never a floating gap beside
   it (the #1680 reversal of `align-items: start` still stands).
-- **The entrance cascade is CSS-only** — `.home-page > *` with `:nth-child`
-  delays on the shared `panel-cascade-in` keyframe, capped at 6 slots, inside
-  `prefers-reduced-motion: no-preference`.
+- **Home renders in place: no entrance cascade (2026-10-16).** Its sections
+  used to fade and rise in a stagger on every visit; a cascade on every
+  section is the "motion on everything" tell, and on the page someone opens
+  daily it said nothing ([STYLE_GUIDE § Motion](../STYLE_GUIDE.md#motion),
+  canonical pattern 7: the analysis board is the one cascade left).
 - **Trade-target prices render in the author's stamped currency**, never the
   viewer's display-currency setting — the "as-entered, never converted"
   contract of `ListEntry.currency`. (The full want-list shortfall now lives on

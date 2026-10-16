@@ -124,8 +124,8 @@ export function BinderTabs({ binders }: Props) {
                         ['--binder-ink' as string]: inkOn(b.def.color),
                       }
                     : {
-                        borderLeftColor: b.def.color,
-                        borderLeftWidth: 3,
+                        // An inactive tab names its binder's color with the
+                        // dot beside the label, never a colored left edge.
                         ['--binder-color' as string]: b.def.color,
                       }
                 }

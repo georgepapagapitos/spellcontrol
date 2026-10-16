@@ -34,11 +34,17 @@
   min-width: 0;
 }
 
-/* With no art, the deck's own color (the rename editor's picker sets it)
-   is the title column's rule; with art it is the thumbnail's foot. */
-.deck-editor-hero:not(.deck-editor-hero--art) .deck-editor-hero-text {
-  padding-left: var(--space-3);
-  border-left: 3px solid var(--deck-color, var(--accent));
+/* The deck's own color (the rename editor's picker sets it) is the dot at
+   the head of the meta line, with or without art (DeckHero). */
+.deck-hero-color-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: var(--space-1-5);
+  border-radius: 50%;
+  background: var(--deck-color, var(--accent));
+  box-shadow: 0 0 0 0.5px var(--border-strong);
+  vertical-align: 0.05em;
 }
 
 /* The back link heads the title column. The name under it keeps 0.22em of
@@ -145,7 +151,6 @@
   object-fit: cover;
   object-position: center 25%;
   border-radius: var(--radius-lg);
-  border-bottom: 4px solid var(--deck-color, var(--accent));
   box-shadow: 0 0 0 1px var(--border);
   /* Shows while the art loads. */
   background: var(--surface-raised);
@@ -227,11 +232,6 @@
   .deck-editor-actions {
     flex-basis: 100%;
     margin-left: 0;
-  }
-
-  .deck-editor-hero:not(.deck-editor-hero--art) .deck-editor-hero-text > h1 {
-    padding-left: var(--space-3);
-    border-left: 3px solid var(--deck-color, var(--accent));
   }
 
   .deck-editor-add-btn {

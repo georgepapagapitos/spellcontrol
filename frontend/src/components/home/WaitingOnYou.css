@@ -73,7 +73,6 @@
   height: 100%;
   padding: var(--space-2) var(--space-3) var(--space-2) var(--space-2);
   border-radius: var(--radius-lg);
-  border-left: 3px solid var(--accent);
   background: var(--surface-raised);
   box-shadow: var(--shadow-card);
   color: var(--text-primary);
@@ -138,7 +137,6 @@
 
 .home-task--skeleton {
   flex: 1 0 15.5rem;
-  border-left-color: var(--border);
   background: linear-gradient(90deg, var(--surface) 25%, var(--border) 50%, var(--surface) 75%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.4s ease-in-out infinite;

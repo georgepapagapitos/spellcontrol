@@ -571,46 +571,6 @@
   text-align: right;
 }
 
-/* Mana production */
-
-.deck-mana-prod-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1-5);
-  font-size: var(--text-xs);
-  margin-bottom: var(--space-1);
-}
-
-.deck-mana-prod-swatch {
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 999px;
-}
-
-.deck-mana-prod-name {
-  color: var(--text-primary);
-  flex: 1;
-  min-width: 0;
-}
-
-.deck-mana-prod-meta {
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.deck-mana-prod-bar {
-  height: 4px;
-  background: var(--border);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.deck-mana-prod-bar-fill {
-  height: 100%;
-  border-radius: 2px;
-  transition: width var(--motion-base) ease;
-}
-
 /* Roles */
 
 .deck-roles-row {

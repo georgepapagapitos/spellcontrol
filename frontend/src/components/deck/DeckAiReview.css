@@ -233,13 +233,8 @@
   color: var(--text-muted);
 }
 
-/* The lead section: a quiet attention rail (the app's warning idiom, minus the
-   filled plate — a structural finding is a finding, not an error). */
-.deck-ai-section--weakness {
-  padding-left: var(--space-3);
-  border-left: 3px solid var(--warn-border);
-}
-
+/* The lead section says it is a finding through its title's warning ink and
+   its larger body, not a rail (STYLE_GUIDE § Layout system, stripes). */
 .deck-ai-section--weakness .deck-ai-section-title {
   color: var(--warn-text);
 }
@@ -248,15 +243,10 @@
   font-size: var(--text-base);
 }
 
-/* The fixes: the only part of the reading the reader can act on, so it reads as
-   a list of moves rather than the tail of a paragraph. Rail in the accent
-   (do this) against the weakness's warning rail (this is wrong), and the pair
-   sits tight together as one diagnosis→prescription unit. */
-.deck-ai-section--fixes {
-  padding-left: var(--space-3);
-  border-left: 3px solid var(--accent);
-}
-
+/* The fixes: the only part of the reading the reader can act on, so they are a
+   numbered list of moves under an accent title (do this), against the
+   weakness's warning title (this is wrong), and the pair sits tight together
+   as one diagnosis→prescription unit. */
 /* Tighter than the gap between unrelated sections: these two are one thought. */
 .deck-ai-section--weakness + .deck-ai-section--fixes {
   margin-top: var(--space-3);

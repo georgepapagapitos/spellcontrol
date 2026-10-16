@@ -195,6 +195,30 @@ jobs:
         if: ${{ !cancelled() && steps.seed.outcome == 'success' }}
         run: node scripts/journey.mjs --base http://localhost:3737 --browser firefox --viewports desktop --username journeyadmin --out journey-firefox
 
+      # The UI-tells detector's rendered scan (trove
+      # plugins/polish/reference/ui-tells.md, "Enforcement"): the pinned
+      # `impeccable` from frontend's devDependencies drives the runner's Chrome
+      # over the served bundle and catches what a source scan can't (contrast
+      # on the real ground, content stuck invisible, covered text). The source
+      # scan gates every PR (`npm run lint:ui`); this one only reports for now,
+      # as a guest (no cookie flag), over the routes a guest reaches plus
+      # /dev/catalog, which renders every primitive in every state.
+      - name: UI tells, rendered (report only)
+        if: ${{ !cancelled() && steps.seed.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          IMPECCABLE_BROWSER: /usr/bin/google-chrome
+        run: |
+          mkdir -p journey-ui-tells
+          urls=""
+          for r in / /auth /collection /decks /decks/new /decks/discover /play /rules /search /dev/catalog; do
+            urls="$urls http://localhost:3737$r"
+          done
+          for vp in 390x844 1280x800; do
+            node frontend/node_modules/impeccable/cli/bin/cli.js detect --json --viewport "$vp" $urls \
+              > "journey-ui-tells/$vp.json" || echo "::warning::UI tells at $vp (see journey-ui-tells/$vp.json)"
+          done
+
       - name: Upload screenshots and reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -204,5 +228,6 @@ jobs:
             journey-chrome
             journey-zoom
             journey-firefox
+            journey-ui-tells
             backend.log
           retention-days: 14

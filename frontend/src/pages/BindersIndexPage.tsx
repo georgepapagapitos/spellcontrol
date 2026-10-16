@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import { Chip } from '@/components/shared/Chip';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { usePanelCascade, panelCascadeClass } from '@/lib/util/use-panel-cascade';
 import { useStoredSort } from '@/lib/util/use-stored-sort';
 import { useStoredView } from '@/lib/util/use-stored-view';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -213,12 +212,6 @@ export function BindersIndexPage() {
       return cmp * dirMul;
     });
   }, [materialized, sortField, sortDir, debouncedSearch]);
-
-  // One-shot entrance cascade for the binder cards — same primitive (and
-  // once-per-session consumed registry) as the analysis bento panels. Keyed
-  // only when there's something to animate, so an empty first visit doesn't
-  // burn the key.
-  const cascade = usePanelCascade(sorted.length > 0 ? 'binders-index:cascade' : null);
 
   // A single delete is undoable from the toast, so it doesn't confirm first
   // (T157) — bulk and delete-all below still do, since the toast there only
@@ -476,7 +469,7 @@ export function BindersIndexPage() {
             </p>
           )}
           <ul className={`binders-index-list is-${view}`}>
-            {sorted.map((b, idx) => {
+            {sorted.map((b) => {
               const selected = sel.selected.has(b.def.id);
               const art = coverArts.get(b.def.id);
               // `materialized`/`sorted` come from an unfiltered pass (search: ''
@@ -489,10 +482,6 @@ export function BindersIndexPage() {
                   key={b.def.id}
                   className={`binders-index-card${sel.selectMode ? ' bulk-selectable' : ''}${
                     selected ? ' bulk-selected' : ''
-                  }${
-                    panelCascadeClass(idx, cascade.animating)
-                      ? ` ${panelCascadeClass(idx, cascade.animating)}`
-                      : ''
                   }`}
                   style={{
                     ['--binder-color' as string]: b.def.color,
@@ -514,7 +503,15 @@ export function BindersIndexPage() {
                       <span className="binders-index-card-banner" aria-hidden />
                     )}
                     <div className="binders-index-card-body">
-                      <div className="binders-index-card-name">{b.def.name}</div>
+                      <div className="binders-index-card-name">
+                        {view !== 'grid' && (
+                          /* The binder-identity dot (STYLE_GUIDE § Binder route
+                             headers): in a row, the binder's color sits beside its
+                             name instead of down the tile's edge. */
+                          <span className="binders-index-card-dot" aria-hidden />
+                        )}
+                        {b.def.name}
+                      </div>
                       <div className="binders-index-card-meta">
                         {/* Tags on one line, the card/page/value stats on the next when the
                             row is tight, so a wrap never lands mid-stat with a stray "·". */}

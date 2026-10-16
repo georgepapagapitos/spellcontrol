@@ -33,7 +33,8 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\"",
     "refresh-sld-drops": "node scripts/refresh-sld-drops.mjs --force",
     "refresh-otags": "node scripts/refresh-otag-index.mjs --force",
-    "refresh-daily": "node scripts/refresh-daily-cards.mjs --force"
+    "refresh-daily": "node scripts/refresh-daily-cards.mjs --force",
+    "lint:ui": "node scripts/check-ui-tells.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -74,6 +75,7 @@
     "fake-indexeddb": "^6.2.5",
     "globals": "^17.13.0",
     "happy-dom": "^20.14.5",
+    "impeccable": "4.1.0",
     "js-yaml": "^5.4.3",
     "prettier": "^3.9.9",
     "sharp": "^0.35.5",

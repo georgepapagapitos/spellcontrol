@@ -43,6 +43,23 @@
   border-radius: var(--radius);
 }
 
+/* An inactive tab carries its binder's color as the dot beside its label
+   (the binder-identity disc); the active tab is filled with that color
+   instead, so its dot would vanish into the fill and is hidden. */
+.binder-tab-group .tab-color-dot {
+  display: inline-block;
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  margin-right: var(--space-1-5);
+  border-radius: 50%;
+  box-shadow: 0 0 0 0.5px var(--border-strong);
+}
+
+.binder-tab-group .tab.active .tab-color-dot {
+  display: none;
+}
+
 /* The active tab fills with the binder's own color, so its label takes the
    ink picked for that fill (BinderTabs.tsx), not the fixed --on-accent. */
 .binder-tab-group .tab.active {

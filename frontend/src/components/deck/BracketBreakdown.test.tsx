@@ -81,7 +81,9 @@ describe('BracketBreakdown', () => {
     );
     const meter = container.querySelector('.bracket-breakdown-signal-meter');
     expect(meter).toBeTruthy();
-    expect((meter?.querySelector('.meterbar-fill') as HTMLElement).style.width).toBe('51%');
+    expect(
+      (meter?.querySelector('.meterbar-fill') as HTMLElement).style.getPropertyValue('--meter-pct')
+    ).toBe('51%');
     expect((meter?.querySelector('.meterbar-tick') as HTMLElement).style.left).toBe('66%');
   });
 

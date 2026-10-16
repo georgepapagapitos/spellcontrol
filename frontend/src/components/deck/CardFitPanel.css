@@ -57,18 +57,22 @@
   padding: var(--space-1-5) var(--space-2);
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
-  border-left-width: 2px;
-  border-left-color: var(--border);
   border-radius: var(--radius);
 }
 
-/* Verdict tone accents the left edge: good = engine fit, mixed = off-plan. */
-.card-fit-signal.is-good {
-  border-left-color: var(--success, hsl(140 50% 45%));
+/* The engine verdict's tone is a mark beside its words (good = engine fit,
+   mixed = off-plan), never an edge down the row's side. */
+.card-fit-signal-mark {
+  margin-right: var(--space-1);
+  vertical-align: -0.15em;
 }
 
-.card-fit-signal.is-mixed {
-  border-left-color: var(--warn-border);
+.card-fit-signal.is-good .card-fit-signal-mark {
+  color: var(--success);
+}
+
+.card-fit-signal.is-mixed .card-fit-signal-mark {
+  color: var(--warn-text);
 }
 
 .card-fit-signal-label {

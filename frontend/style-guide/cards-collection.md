@@ -904,8 +904,9 @@ references. Rules:
 - **Every grid tile gets a banner**, art or not — coverless tiles show a solid
   band of the container's identity color (a "plain binder cover"), same
   height, so rows stay uniform. List rows show a small thumb (or nothing when
-  coverless — the colored left border still carries identity); compact rows
-  never show art.
+  coverless); compact rows never show art. In a row, a binder's color is the
+  10px identity dot before its name, never a colored edge down the tile
+  ([§ Layout system](../STYLE_GUIDE.md#layout-system-t135--one-build-of-each-pattern-every-screen), no stripe down a side).
 - **The cover is derived, user-overridable.** Decks use the commander's art;
   binders use the **most valuable card** (price, ties toward the lower EDHREC
   rank — `lib/binder/binder-cover.ts`), overridable per card via "Set cover" /
@@ -934,12 +935,13 @@ references. Rules:
   tiles). A tile that opens a deck or a binder, on any surface and in any
   view, answers the pointer the same way: its frame rings 1px in the tile's
   own color (`--tile-color`: the deck's or binder's color, else accent)
-  and lifts to `--shadow-card-hover`, and in grid its cover art zooms to
-  1.03, clipped by the tile's link at the art's corners. Keyboard focus on
-  the tile's link gets the same answer. Reduced motion keeps the ring and
-  the lift and drops the zoom and the transitions. A family adds only what
-  is its own, such as Discover's quick actions fading in; it never restyles
-  the frame or moves the cover. The hover used to be three behaviors, and
+  and lifts to `--shadow-card-hover`. The cover art stays still: the 1.03
+  zoom was retired (2026-10-16) as the zoom-on-hover tell, motion that said
+  nothing the ring hadn't ([STYLE_GUIDE § Motion](../STYLE_GUIDE.md#motion),
+  pattern 8). Keyboard focus on the tile's link gets the same answer.
+  Reduced motion keeps the ring and the lift and drops the transition. A
+  family adds only what is its own, such as Discover's quick actions fading
+  in; it never restyles the frame or moves the cover. The hover used to be three behaviors, and
   the decks and binders one tinted a border that #2486 had removed, so for a
   day it did nothing. Guard: `styles/index-tile-hover.test.ts`.
 

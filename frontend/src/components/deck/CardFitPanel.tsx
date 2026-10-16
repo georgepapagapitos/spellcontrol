@@ -1,4 +1,5 @@
 import { createPortal } from 'react-dom';
+import { AlertTriangle, Check } from 'lucide-react';
 import './CardFitPanel.css';
 import { type JSX } from 'react';
 import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
@@ -138,7 +139,27 @@ export function CardFitPanel({
         <ul className="card-fit-signals" role="list">
           <li className={`card-fit-signal is-${verdict.tone}`}>
             <span className="card-fit-signal-label">Engine</span>
-            <span className="card-fit-signal-value">{verdict.text}</span>
+            <span className="card-fit-signal-value">
+              {verdict.tone === 'good' && (
+                <Check
+                  className="card-fit-signal-mark"
+                  width={14}
+                  height={14}
+                  strokeWidth={1.8}
+                  aria-hidden
+                />
+              )}
+              {verdict.tone === 'mixed' && (
+                <AlertTriangle
+                  className="card-fit-signal-mark"
+                  width={14}
+                  height={14}
+                  strokeWidth={1.8}
+                  aria-hidden
+                />
+              )}
+              {verdict.text}
+            </span>
           </li>
           <li className="card-fit-signal">
             <span className="card-fit-signal-label">Curve</span>

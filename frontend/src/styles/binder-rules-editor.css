@@ -472,10 +472,10 @@
 }
 
 .manual-mode-banner {
-  /* --surface-2 never existed (silent transparent) — the warn trio matches
-     the banner's own --warn-border rail and every other warning banner. */
+  /* The warn pair: the --warn-bg tint and a full --warn-border edge, like
+     every other warning banner. No one-sided rail. */
   background: var(--warn-bg);
-  border-left: 3px solid var(--warn-border);
+  border: 1px solid var(--warn-border);
   padding: var(--space-3) var(--space-4);
   margin-bottom: var(--space-4);
   border-radius: var(--radius);

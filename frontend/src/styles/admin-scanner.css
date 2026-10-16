@@ -1105,7 +1105,6 @@
   background: var(--surface-raised);
   box-shadow: var(--shadow-modal);
   cursor: zoom-in;
-  transition: width var(--motion-fast) var(--ease-out-soft);
 }
 .scanner-edit-img img {
   width: 100%;
@@ -1117,6 +1116,21 @@
   width: min(100%, 360px);
   margin: 0 auto;
   cursor: zoom-out;
+}
+
+/* The zoom takes its new size at once and grows into it by transform, so no
+   frame re-lays out the sheet (STYLE_GUIDE § Motion). */
+@media (prefers-reduced-motion: no-preference) {
+  .scanner-edit-top.is-zoomed .scanner-edit-img {
+    transform-origin: top center;
+    animation: scanner-edit-zoom var(--motion-fast) var(--ease-out-soft);
+  }
+}
+
+@keyframes scanner-edit-zoom {
+  from {
+    transform: scale(0.5);
+  }
 }
 .scanner-edit-info {
   display: flex;
