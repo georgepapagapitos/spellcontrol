@@ -291,6 +291,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  container: seat-roster / inline-size;
 }
 
 .play-setup-roster-head {
@@ -319,6 +320,58 @@
   border-radius: var(--radius-lg);
   padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
   min-width: 0;
+}
+
+/* A narrow roster can't hold who + name + deck + remove on one line, and
+   letting the flex row wrap stranded the remove × alone on a second line.
+   Two fixed rows instead: who, name and remove on top, the deck under the
+   name. */
+@container seat-roster (max-width: 32rem) {
+  .play-setup-seat {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'num who name remove'
+      '. deck deck deck';
+    column-gap: var(--space-2);
+    row-gap: var(--space-1);
+  }
+
+  /* Signed out there is no who picker; the name takes its column so the
+     deck lines up under it. */
+  .play-setup-seat:not(:has(.play-setup-seat-who)) {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'num name remove'
+      '. deck deck';
+  }
+
+  .play-setup-seat-num {
+    grid-area: num;
+  }
+
+  .play-setup-seat-who {
+    grid-area: who;
+  }
+
+  .play-setup-seat-name {
+    grid-area: name;
+  }
+
+  .play-setup-seat .play-seat-ci {
+    display: none;
+  }
+
+  .play-setup-seat-deck,
+  .play-setup-seat-deck-add {
+    grid-area: deck;
+    justify-self: start;
+    max-width: 100%;
+  }
+
+  .play-setup-seat-remove {
+    grid-area: remove;
+  }
 }
 
 /* Who sits here — guest, you, or a friend. A compact trigger beside the seat
