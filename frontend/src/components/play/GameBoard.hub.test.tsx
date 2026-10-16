@@ -99,6 +99,7 @@ const labels = (sel: string) =>
   [...document.querySelectorAll(sel)].map((el) => el.textContent?.trim());
 const keys = () => labels('.board-hub-key');
 const dockItems = () => labels('.board-hub-dock-item');
+const actionItems = () => labels('.board-hub-action');
 
 const handlers = () => ({
   onEnd: vi.fn(),
@@ -114,10 +115,11 @@ describe('the hub ring', () => {
     );
     openRing();
     expect(keys()).toEqual(['High roll', 'Dice', 'Players', 'Settings', 'Help', 'Restart']);
-    // The default clock position keeps its controls in the dock, ahead of the
-    // away-from-the-table places.
-    expect(dockItems()).toEqual(['Pause', 'Start turns', 'History', 'Rules', 'Leave']);
-    // One menu, one order: keys, then the dock.
+    // The default clock position puts its controls in the actions row over
+    // the dock, so the dock stays three places wide on a phone.
+    expect(actionItems()).toEqual(['Pause', 'Start turns']);
+    expect(dockItems()).toEqual(['History', 'Rules', 'Leave']);
+    // One menu, one order: keys, then the actions, then the dock.
     const ring = screen.getByRole('menu', { name: 'Board menu' });
     expect(
       within(ring)
@@ -153,7 +155,7 @@ describe('the hub ring', () => {
   it('has no Leave in the dock when the board has no way off it', () => {
     render(<GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll />);
     openRing();
-    expect(dockItems()).toEqual(['Pause', 'Start turns', 'History', 'Rules']);
+    expect(dockItems()).toEqual(['History', 'Rules']);
   });
 
   it('turns the hub into a close (✕) button while open', () => {

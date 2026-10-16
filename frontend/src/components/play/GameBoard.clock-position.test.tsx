@@ -78,7 +78,11 @@ import { GameBoard } from './GameBoard';
 const bars = () => [...document.querySelectorAll('.player-panel .pp-turn-bar')];
 const barSeat = () => bars().map((b) => b.closest('.player-panel')?.getAttribute('data-seat'));
 const hub = () => screen.getByRole('button', { name: /^Game menu/ });
-const dock = () => [...document.querySelectorAll('.board-hub-dock-item')].map((e) => e.textContent);
+// The menu's bottom: the actions row (clock controls) and the dock, in order.
+const dock = () =>
+  [...document.querySelectorAll('.board-hub-action, .board-hub-dock-item')].map(
+    (e) => e.textContent
+  );
 const actions = (dispatch: ReturnType<typeof vi.fn>) =>
   dispatch.mock.calls.map(([a]) => a as GameAction);
 
