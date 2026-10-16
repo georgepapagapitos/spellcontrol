@@ -941,6 +941,7 @@ paused, actorSeat }` pushes one `clock` event per tap; `isClockPaused` folds
 
 Four interactive prototypes were built and tried (a seam pill, a "Done"
 button on the active seat, a hub ring, an edge strip); the edge strip won.
+(The "Done" button on the active seat was revisited on 2026-10-16, see "the game time is shared, the turn control follows the turn" below: the strip stays as the `bottom` and `top` clock positions.)
 `GameClock.tsx` now renders a single full-width strip along the board's
 **bottom edge** — the device holder's own edge — as a normal flex child of
 `.game-board` (which is `flex-direction: column`), stacked _below_
@@ -997,6 +998,68 @@ and undo.
   `nextActiveSeat` (game-core, now exported) computes it — the same
   alive/sort/wrap logic `pass-turn` already uses, so the marker can never
   disagree with where a tap would actually go.
+
+## Play board: the game time is shared, the turn control follows the turn (2026-10-16)
+
+The edge strip above carried both readings in one fixed place. A table ruling
+split them: **the game time belongs to everyone, so it stays in one fixed
+place; the turn control belongs to whoever holds the turn, so it moves to
+them and faces them.** The "Done button on the active seat" prototype from
+2026-09-24 was revisited for this reason: it lost then because the seat bar
+had to carry the game total too; now the total lives in the hub, so the
+per-seat control only carries the turn and the objection is gone.
+
+**Clock position** is a per-device board preference (`clockPosition` in the
+play store, set in the board settings sheet under "Clock position", beside
+the Game timer and Turn tracker switches; saved on this device, not per
+table). Four values, a native radio group (never ARIA-only):
+
+- **`seat` (the default, for fresh installs and existing devices):** no
+  strip. The hub (`BoardHubButton`) widens into a stamped rect with the menu
+  glyph, the game total (tabular figures) and a small word: "game", or the
+  state when the clock is not simply running ("paused" with a pause glyph and
+  a dashed edge, "waiting" before the first turn). It is still the table
+  menu button; its accessible name carries the time ("Game menu. Game
+  12:04"). Pause/Resume, Start now (the waiting state) and Start turns (before
+  any seat holds the turn) are keys of the hub menu's **dock**, not of the
+  ring: an eighth ring key forces a radius that does not fit a 320px board.
+  The **active seat's panel** carries an "End turn" bar (`TurnBar`) along its
+  own bottom edge, inside the panel so it takes the seat's rotation (0, 90,
+  180, 270) and faces its player. It shows that turn's time and "End turn",
+  dispatches the same `pass-turn` as the strip's Pass, and moves (with a short
+  rise, none under reduced motion) when the turn passes. Before any seat holds
+  the turn there is no bar.
+- **`hub`:** the same hub time, with a compact chip (time and a chevron, 32px
+  to look, a 44px ghost on touch) on the active seat instead of the bar.
+- **`bottom`:** the edge strip exactly as ruled above.
+- **`top`:** the same strip above the grid, turned 180 degrees to face the far
+  side. It is one component, not a second design.
+
+Rulings that came out of fitting it to every layout:
+
+- **Per-seat sizing is a container query on the seat, never the viewport.** The
+  bar's wrapper is its own `inline-size` container; under 9.5rem (a 6-player
+  seat at 320px is 148px across) it drops the words and keeps time and
+  chevron. The bar is the 44px target on touch (`--turn-bar-h`); a seat reads
+  that variable to lift its numeral, counter badges and vertical-tap stack off
+  the bar, and caps the numeral on its own axis (cell height upright, cell
+  width sideways), the same shape as the commander-damage focus bar.
+- **A hub that shows time stacks on a column seam.** Between side-by-side
+  seats the numerals sit centered a few pixels from the hub, so the readout
+  stacks into a narrow column (glyph, time, word) instead of reaching over
+  either number. A sideways seat's bar also gives up half a bar at its far
+  edge so the numeral is not pushed toward the hub. On a row seam undo steps
+  out past the wider hub (`GameBoard`'s `undoOff`).
+- **It follows the switches.** Game timer off: the hub is the plain round menu
+  button with no time. Turn tracker off: no bar or chip. Both off: nothing, as
+  before. A finished game freezes the hub time and shows no bar; an eliminated
+  seat never carries the bar. A viewer who cannot edit sees the turn time as a
+  readout, not a button.
+- **Shape:** the widened hub, the bar's "End turn" and the chip are rects
+  (`var(--radius)`), not pills (§ Shape language). Guard:
+  `styles/turn-bar.test.ts`.
+- **Where it does not apply:** the horde table and the playtest board never
+  rendered `GameClock`, so the preference changes nothing there.
 
 ## Play board: the remaining Lotus settings, and counterclockwise seating (2026-09-24)
 

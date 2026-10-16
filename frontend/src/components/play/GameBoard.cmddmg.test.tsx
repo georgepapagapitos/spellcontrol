@@ -409,7 +409,7 @@ describe('leaving focus mode', () => {
 
     expect(focusBar()).toBeNull();
     // Back to the menu hub, not a menu opened by the same tap.
-    expect(hub.getAttribute('aria-label')).toBe('Game menu');
+    expect(hub.getAttribute('aria-label')).toMatch(/^Game menu/);
     expect(screen.queryByRole('dialog', { name: 'Local game' })).toBeNull();
   });
 

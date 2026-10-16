@@ -487,6 +487,9 @@
   /* Translucent white edge on the dark chrome — hairline borders and their
      matching hover washes. */
   --table-border: rgba(255, 255, 255, 0.18);
+  /* The near-black plate of the board's own bars (the turn control, the
+     commander-damage focus bar): a seat color never tints it. */
+  --table-chrome-bg: rgb(10, 12, 18);
   /* Subtle tap/press feedback wash over a dark panel (`:active` states). */
   --table-press-wash: rgba(255, 255, 255, 0.06);
   /* Lethal/low-life danger red — base channels only. Usages apply their own

@@ -92,7 +92,7 @@ afterEach(() => {
 });
 
 function openRing() {
-  fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Game menu/ }));
 }
 
 const labels = (sel: string) =>
@@ -114,7 +114,9 @@ describe('the hub ring', () => {
     );
     openRing();
     expect(keys()).toEqual(['High roll', 'Dice', 'Players', 'Settings', 'Help', 'Restart']);
-    expect(dockItems()).toEqual(['History', 'Rules', 'Leave']);
+    // The default clock position keeps its controls in the dock, ahead of the
+    // away-from-the-table places.
+    expect(dockItems()).toEqual(['Pause', 'Start turns', 'History', 'Rules', 'Leave']);
     // One menu, one order: keys, then the dock.
     const ring = screen.getByRole('menu', { name: 'Board menu' });
     expect(
@@ -128,6 +130,8 @@ describe('the hub ring', () => {
       'Settings',
       'Help',
       'Restart',
+      'Pause',
+      'Start turns',
       'History',
       'Rules',
       'Leave',
@@ -136,7 +140,7 @@ describe('the hub ring', () => {
 
   it('lands focus on High roll, never on a destructive key', () => {
     render(<GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll />);
-    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }), { detail: 0 });
+    fireEvent.click(screen.getByRole('button', { name: /^Game menu/ }), { detail: 0 });
     expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'High roll' }));
   });
 
@@ -149,7 +153,7 @@ describe('the hub ring', () => {
   it('has no Leave in the dock when the board has no way off it', () => {
     render(<GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll />);
     openRing();
-    expect(dockItems()).toEqual(['History', 'Rules']);
+    expect(dockItems()).toEqual(['Pause', 'Start turns', 'History', 'Rules']);
   });
 
   it('turns the hub into a close (✕) button while open', () => {
@@ -158,7 +162,7 @@ describe('the hub ring', () => {
     expect(screen.getByRole('button', { name: 'Close menu' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Close menu' }));
     expect(screen.queryByRole('menu', { name: 'Board menu' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Game menu' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Game menu/ })).toBeTruthy();
   });
 
   it('closes on an outside tap', () => {
@@ -188,13 +192,13 @@ describe('the hub ring', () => {
   // through as BoardHubMenu's `openedByKeyboard`.
   it("suppresses the first key's ring on a pointer-triggered open, not on a keyboard one", () => {
     render(<GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll />);
-    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }), { detail: 1 });
+    fireEvent.click(screen.getByRole('button', { name: /^Game menu/ }), { detail: 1 });
     expect(
       document.querySelector('.board-hub-ring')?.classList.contains('board-hub-ring-pointer-opened')
     ).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Close menu' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }), { detail: 0 });
+    fireEvent.click(screen.getByRole('button', { name: /^Game menu/ }), { detail: 0 });
     expect(
       document.querySelector('.board-hub-ring')?.classList.contains('board-hub-ring-pointer-opened')
     ).toBe(false);
@@ -214,7 +218,7 @@ describe('each key and dock item opens one sheet', () => {
       render(
         <GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll {...handlers()} />
       );
-      const hub = screen.getByRole('button', { name: 'Game menu' });
+      const hub = screen.getByRole('button', { name: /^Game menu/ });
       openRing();
       fireEvent.click(screen.getByRole('menuitem', { name: item }));
       // The ring closes as the sheet opens: one tap in, one tap out.

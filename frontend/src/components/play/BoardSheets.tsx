@@ -14,6 +14,8 @@ import { markBoardGesturesSeen } from '@/lib/play/board-gestures-seen';
 import { usePlayStore } from '../../store/play';
 import { Button, IconButton } from '@/components/shared/Button';
 import { SwitchRow } from '../shared/form';
+import { clockPositionOf } from '@/lib/play/clock-position';
+import { ClockPositionPicker } from './ClockPositionPicker';
 import { ViewModeToggle } from '@/components/shared/ViewModeToggle';
 import { boardGestures, type BoardGestureId } from './BoardGestureHint';
 import { GameHistory } from './GameHistory';
@@ -354,6 +356,8 @@ export function SettingsSheet({
   const setGameTimerEnabled = usePlayStore((s) => s.setGameTimerEnabled);
   const turnTrackerEnabled = usePlayStore((s) => s.turnTrackerEnabled);
   const setTurnTrackerEnabled = usePlayStore((s) => s.setTurnTrackerEnabled);
+  const clockPosition = clockPositionOf(usePlayStore((s) => s.clockPosition));
+  const setClockPosition = usePlayStore((s) => s.setClockPosition);
   const lowLifeWarningEnabled = usePlayStore((s) => s.lowLifeWarningEnabled);
   const setLowLifeWarningEnabled = usePlayStore((s) => s.setLowLifeWarningEnabled);
   const underlineSixNine = usePlayStore((s) => s.underlineSixNine);
@@ -397,7 +401,7 @@ export function SettingsSheet({
           />
         </SheetSection>
       )}
-      <SheetSection title="Clock strip">
+      <SheetSection title="Clock">
         <div>
           <SwitchRow label="Game timer" checked={gameTimerEnabled} onChange={setGameTimerEnabled} />
           <SwitchRow
@@ -407,6 +411,9 @@ export function SettingsSheet({
             onChange={setTurnTrackerEnabled}
           />
         </div>
+      </SheetSection>
+      <SheetSection title="Clock position">
+        <ClockPositionPicker value={clockPosition} onChange={setClockPosition} />
       </SheetSection>
       <SheetSection title="Seats">
         <div>

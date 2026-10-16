@@ -111,7 +111,7 @@ describe('Win celebration', () => {
     });
     render(<GameBoard game={game} dispatch={vi.fn()} canControlAll onLeave={vi.fn()} />);
     fireEvent.click(screen.getByRole('dialog', { name: 'Alice wins' }).parentElement!);
-    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Game menu/ }));
     // The dock's Leave says what it does on a finished table (T155).
     expect(screen.getByRole('menuitem', { name: 'Clear the table' })).toBeTruthy();
     expect(screen.queryByRole('menuitem', { name: /Close/ })).toBeNull();
@@ -125,7 +125,7 @@ describe('Board overlays answer Escape', () => {
   it('closes a hub sheet', () => {
     const game = makeTestState([makeTestPlayer()], { mode: 'local', status: 'active' });
     render(<GameBoard game={game} dispatch={vi.fn()} canControlAll />);
-    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Game menu/ }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Dice' }));
     expect(screen.getByRole('dialog', { name: 'Dice' })).toBeTruthy();
 
@@ -136,7 +136,7 @@ describe('Board overlays answer Escape', () => {
   it('closes the hub ring on Escape and returns focus to the hub', () => {
     const game = makeTestState([makeTestPlayer()], { mode: 'local', status: 'active' });
     render(<GameBoard game={game} dispatch={vi.fn()} canControlAll />);
-    const hub = screen.getByRole('button', { name: 'Game menu' });
+    const hub = screen.getByRole('button', { name: /^Game menu/ });
     fireEvent.click(hub);
     expect(screen.getByRole('menu', { name: 'Board menu' })).toBeTruthy();
 
@@ -173,7 +173,7 @@ describe('Right-click belongs to the board', () => {
     render(<GameBoard game={game} dispatch={vi.fn()} canControlAll />);
 
     const board = document.querySelector('.game-board')!;
-    const menuBtn = screen.getByRole('button', { name: 'Game menu' });
+    const menuBtn = screen.getByRole('button', { name: /^Game menu/ });
 
     for (const target of [board, menuBtn]) {
       expect(fireEvent.contextMenu(target)).toBe(false);

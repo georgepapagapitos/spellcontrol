@@ -8,15 +8,12 @@ import {
   Crown,
   Dices,
   LogOut,
-  Menu,
   Repeat,
   RotateCcw,
   SlidersHorizontal,
-  Swords,
   Undo2,
   Users,
   Trophy,
-  X,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { GameAction, GamePlayer, GameState } from '@spellcontrol/game-core';
@@ -56,6 +53,10 @@ import { hasSeenBoardGestures } from '@/lib/play/board-gestures-seen';
 import { BoardGestureHint } from './BoardGestureHint';
 import { BoardHubMenu, type HubPetal } from './BoardHubMenu';
 import { GameClock } from './GameClock';
+import { BoardHubButton } from './BoardHubButton';
+import { TurnBar } from './TurnBar';
+import { useClockPlacement, type TurnControl } from '@/lib/play/use-clock-placement';
+import { buildClockDock } from './clock-dock';
 import {
   HelpSheet,
   HistorySheet,
@@ -138,9 +139,13 @@ export function GameBoard({
   const [sheet, setSheet] = useState<BoardSheetId | null>(null);
   const closeSheet = useCallback(() => setSheet(null), []);
   const openRules = useRulesReferenceStore((s) => s.open);
-  const gameTimerEnabled = usePlayStore((st) => st.gameTimerEnabled);
-  const turnTrackerEnabled = usePlayStore((st) => st.turnTrackerEnabled);
-  const showClockStrip = gameTimerEnabled || turnTrackerEnabled;
+  const {
+    strip: clockStrip,
+    hubShowsTime,
+    turnFor,
+    gameTimerEnabled,
+    turnTrackerEnabled,
+  } = useClockPlacement(game.status === 'active', board, faces);
   // Seats carry no buttons, so a shared board teaches its gestures once per
   // device; the hub's Help sheet shows the same rows on demand.
   const [hintOpen, setHintOpen] = useState(
@@ -343,8 +348,9 @@ export function GameBoard({
   // shape's row count would otherwise land the flat quarter inside a cell
   // rather than on its boundary. See that function's own doc comment.
   const wideFirstRow = board.seats[0]?.colSpan === 2;
-  const undoPlace = seamSatellite(board.seam, board.rows, -1, '3.4rem', wideFirstRow);
-  const undoPlaceLg = seamSatellite(board.seam, board.rows, -1, '4rem', wideFirstRow);
+  const [undoOff, undoOffLg] = hubShowsTime ? ['5.6rem', '6.2rem'] : ['3.4rem', '4rem'];
+  const undoPlace = seamSatellite(board.seam, board.rows, -1, undoOff, wideFirstRow);
+  const undoPlaceLg = seamSatellite(board.seam, board.rows, -1, undoOffLg, wideFirstRow);
   // Read-only "up next" marker: the seat `pass-turn` would move to right now.
   // Null (no marker anywhere) with the turn tracker off, before turn tracking
   // starts, or once only one seat survives — "next" means nothing when
@@ -426,8 +432,29 @@ export function GameBoard({
             ]
           : []),
       ];
+  const stripEl =
+    clockStrip && !cmdFocus ? (
+      <GameClock
+        game={game}
+        dispatch={dispatchTracked}
+        canEdit={canControlAll}
+        showTotal={gameTimerEnabled}
+        showTurn={turnTrackerEnabled}
+        placement={clockStrip}
+      />
+    ) : null;
   const canLeave = isFinished ? !!onLeave : !!(onEnd || onMinimize || onLeave);
   const hubDock: HubPetal[] = [
+    ...(clockStrip
+      ? []
+      : buildClockDock({
+          game,
+          dispatch: dispatchTracked,
+          canEdit: canControlAll,
+          showTotal: gameTimerEnabled,
+          showTurn: turnTrackerEnabled,
+          icon: dockIcon,
+        })),
     {
       id: 'history',
       label: 'History',
@@ -475,6 +502,7 @@ export function GameBoard({
           The board-level life keypad IS inside it (below, alongside the
           other overlays) so it rotates with the board in landscape too. */}
       <div className="game-board-rotator" data-board-rot={boardRotation || undefined}>
+        {clockStrip === 'top' && stripEl}
         <div
           className="game-board-grid"
           style={{
@@ -515,6 +543,7 @@ export function GameBoard({
                 onUndo={onUndo}
                 undoLabel={undoLabel}
                 isActiveTurn={activeSeat === p.seat}
+                turnControl={turnFor(slot, !cmdFocus && activeSeat === p.seat && !p.eliminated)}
                 isNextTurn={nextSeat === p.seat && activeSeat !== p.seat}
                 isMonarch={designations.monarch === p.seat}
                 isInitiative={designations.initiative === p.seat}
@@ -538,10 +567,13 @@ export function GameBoard({
           percentages resolve against the seat area, not the whole
           viewport — .game-board's safe-area padding would otherwise
           push the seam off the real row/column boundary. */}
-          <button
-            type="button"
-            ref={hubBtnRef}
-            className={`game-board-menu-btn${cmdFocus ? ' is-cmd' : ''}`}
+          <BoardHubButton
+            hubRef={hubBtnRef}
+            game={game}
+            showTime={hubShowsTime}
+            stacked={'col' in board.seam}
+            cmdFocus={cmdFocus != null}
+            open={hubOpen}
             style={{
               ['--seam-top-pct' as never]:
                 'row' in board.seam ? `${(board.seam.row / board.rows) * 100}%` : '50%',
@@ -551,11 +583,6 @@ export function GameBoard({
             // In commander-damage mode the hub says so (Lotus's dagger) and is
             // the way back out, from the middle of the table where anyone can
             // reach it. Otherwise it opens/closes the ring of keys.
-            aria-label={cmdFocus ? 'Return to game' : hubOpen ? 'Close menu' : 'Game menu'}
-            aria-haspopup={cmdFocus ? undefined : 'menu'}
-            aria-expanded={cmdFocus ? undefined : hubOpen}
-            onPointerDown={(e) => e.stopPropagation()}
-            onPointerUp={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               if (cmdFocus) {
@@ -567,15 +594,7 @@ export function GameBoard({
               if (!hubOpen) setHubOpenedByKeyboard(e.detail === 0);
               setHubOpen((v) => !v);
             }}
-          >
-            {cmdFocus ? (
-              <Swords width={22} height={22} strokeWidth={2.2} aria-hidden />
-            ) : hubOpen ? (
-              <X width={22} height={22} strokeWidth={2.2} aria-hidden />
-            ) : (
-              <Menu width={22} height={22} strokeWidth={2} aria-hidden />
-            )}
-          </button>
+          />
 
           {hubOpen && (
             <BoardHubMenu
@@ -638,15 +657,7 @@ export function GameBoard({
             damage question. Its space goes back to the seats, which the
             7-10 player boards need for the focused total (a reserved strip
             took 14px from each 90px cell and the total to 19px). */}
-        {showClockStrip && !cmdFocus && (
-          <GameClock
-            game={game}
-            dispatch={dispatchTracked}
-            canEdit={canControlAll}
-            showTotal={gameTimerEnabled}
-            showTurn={turnTrackerEnabled}
-          />
-        )}
+        {clockStrip === 'bottom' && stripEl}
 
         {game.status === 'finished' && (
           // Whole-table moment, not per-seat gameplay: never rotated to the
@@ -815,6 +826,7 @@ function PlayerPanel({
   onUndo,
   undoLabel,
   isActiveTurn,
+  turnControl,
   isNextTurn,
   isMonarch,
   isInitiative,
@@ -850,6 +862,8 @@ function PlayerPanel({
   undoLabel: string | null;
   /** Whether this seat is the active (current turn) seat. */
   isActiveTurn: boolean;
+  /** The active seat's "End turn" bar (`seat`) or chip (`hub`); else null. */
+  turnControl: TurnControl | null;
   /** Whether `pass-turn` would move to this seat right now — a quiet,
    *  read-only cue, never a control. */
   isNextTurn: boolean;
@@ -1136,7 +1150,7 @@ function PlayerPanel({
           lethalFlash ? 'is-lethal-flash' : ''
         } ${isLowLife ? 'is-low-life' : ''} ${elimBeat ? 'is-elim-beat' : ''} ${
           isActiveTurn ? 'is-active-turn' : ''
-        } ${cmdTarget ? 'is-cmd-source' : ''} ${isCmdSelf ? 'is-cmd-self' : ''} ${
+        } ${turnControl ? `has-turn-control has-turn-${turnControl.variant} has-turn-${turnControl.edge}` : ''} ${cmdTarget ? 'is-cmd-source' : ''} ${isCmdSelf ? 'is-cmd-self' : ''} ${
           // Either commander independently reaching 21 is lethal — never the sum.
           cmdTarget && (cmdValue >= 21 || cmdPartnerValue >= 21) ? 'is-cmd-lethal' : ''
         } ${isCmdSplit ? 'is-cmd-split' : ''} ${minimalistMode ? 'is-minimalist' : ''} ${
@@ -1518,6 +1532,18 @@ function PlayerPanel({
               <span className="pp-cmd-focus-done-short">Return</span>
             </button>
           </div>
+        )}
+
+        {turnControl && (
+          <TurnBar
+            game={game}
+            dispatch={dispatch}
+            seat={player.seat}
+            name={player.name}
+            variant={turnControl.variant}
+            edge={turnControl.edge}
+            canPass={canEdit}
+          />
         )}
 
         {drawerOpen && (

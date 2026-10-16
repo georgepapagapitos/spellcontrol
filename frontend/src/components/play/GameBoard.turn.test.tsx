@@ -57,6 +57,9 @@ vi.mock('../../store/play', () => {
       setPreferredLayout: vi.fn(),
       gameTimerEnabled: true,
       turnTrackerEnabled: true,
+      // These pin the edge strip's own controls; the other positions have
+      // their own suite (GameBoard.clock-position.test.tsx).
+      clockPosition: 'bottom',
       setGameTimerEnabled: vi.fn(),
       setTurnTrackerEnabled: vi.fn(),
     });
