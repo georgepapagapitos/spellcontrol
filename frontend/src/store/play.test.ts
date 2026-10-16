@@ -475,6 +475,32 @@ describe('usePlayStore — board / haptics / layout', () => {
   });
 });
 
+describe('usePlayStore — clock position (per-device board preference)', () => {
+  it('starts at "seat" on a fresh install, and an older saved blob (no key) keeps that', () => {
+    expect(usePlayStore.getInitialState().clockPosition).toBe('seat');
+  });
+
+  it('setClockPosition changes only the position, and the choice is persisted', () => {
+    usePlayStore.getState().setClockPosition('top');
+    expect(usePlayStore.getState().clockPosition).toBe('top');
+    expect(usePlayStore.getState().gameTimerEnabled).toBe(true);
+    const { partialize } = (
+      usePlayStore as unknown as {
+        persist: {
+          getOptions: () => { partialize: (s: unknown) => Record<string, unknown> };
+        };
+      }
+    ).persist.getOptions();
+    expect(partialize(usePlayStore.getState()).clockPosition).toBe('top');
+    usePlayStore.getState().setClockPosition('seat');
+  });
+
+  it('an unknown value reads as the default, so a hand-edited blob cannot strand the board', () => {
+    usePlayStore.getState().setClockPosition('sideways' as never);
+    expect(usePlayStore.getState().clockPosition).toBe('seat');
+  });
+});
+
 describe('usePlayStore — persisted store migration (v1 → v2)', () => {
   // The store's `persist` config isn't exported, so this exercises `migrate`
   // as a plain function the way zustand's persist middleware calls it: with

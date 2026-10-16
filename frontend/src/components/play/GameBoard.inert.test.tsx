@@ -118,7 +118,7 @@ describe('the app shell is inert while the board is mounted', () => {
 
   it("doesn't inert the board's own dialogs (a hub sheet, restart confirm)", () => {
     render(<GameBoard game={makeTestState(pair())} dispatch={vi.fn()} canControlAll />);
-    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Game menu/ }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Settings' }));
     // Rendered is not enough: a dialog inside an inert ancestor renders fine
     // and still can't be focused or clicked.
@@ -127,7 +127,7 @@ describe('the app shell is inert while the board is mounted', () => {
     expect(inertAncestor(sheet)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Game menu/ }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Restart' }));
     const confirm = screen.getByRole('button', { name: 'Restart' });
     expect(inertAncestor(confirm)).toBeNull();

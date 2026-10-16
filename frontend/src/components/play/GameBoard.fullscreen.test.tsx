@@ -113,7 +113,7 @@ describe('fullscreen on the first board gesture', () => {
         canControlAll
       />
     );
-    fireEvent.pointerDown(screen.getByRole('button', { name: 'Game menu' }));
+    fireEvent.pointerDown(screen.getByRole('button', { name: /^Game menu/ }));
     expect(enter).toHaveBeenCalledTimes(1);
   });
 });

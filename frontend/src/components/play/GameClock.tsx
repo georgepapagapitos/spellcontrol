@@ -26,6 +26,11 @@ import { useNow } from '@/lib/util/use-now';
  * gates the whole strip's existence on the pair, but this component checks
  * too so it never renders empty.
  *
+ * It is one of four clock positions (`clockPosition` in the play store,
+ * 2026-10-16): the strip serves `bottom` and `top`; on `seat` and `hub` the
+ * game total lives in the hub (`BoardHubButton`) and the turn control follows
+ * the active seat (`TurnBar`), so `GameBoard` doesn't render this at all.
+ *
  * **Screen-relative, never rotated to a seat** — same ruling as the win
  * celebration (B7-01): how long the table has been playing is a fact about
  * the table, not about a seat.
@@ -57,6 +62,7 @@ export function GameClock({
   canEdit,
   showTotal,
   showTurn,
+  placement = 'bottom',
 }: {
   game: GameState;
   dispatch: (a: GameAction) => void;
@@ -65,6 +71,9 @@ export function GameClock({
   showTotal: boolean;
   /** Show the active seat's turn time and the pass-turn control. Setup: "Turn tracker". */
   showTurn: boolean;
+  /** `top` draws the same strip turned to face the far side (clock position
+   *  "Top edge"); the default is the board's bottom edge. */
+  placement?: 'bottom' | 'top';
 }) {
   const finished = game.status === 'finished';
   // Redraws on the readings' own second boundaries (see `msToNextSecond`), so
@@ -100,7 +109,9 @@ export function GameClock({
 
   return (
     <div
-      className={`game-clock-strip ${view.paused ? 'is-paused' : ''}`}
+      className={`game-clock-strip ${view.paused ? 'is-paused' : ''} ${
+        placement === 'top' ? 'is-top' : ''
+      }`}
       role="group"
       aria-label="Table clock"
     >

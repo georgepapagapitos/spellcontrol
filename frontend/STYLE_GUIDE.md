@@ -616,6 +616,7 @@ meanwhile.
   hide rule is keyed on the hub page), `pages/HomePage.test.tsx` ("hero
   counts", at 13,842 cards and 1,204 decks), `pages/CollectionPage.test.tsx`
   ("intro carries the exact count").
+
 - **Ways to start are a list, not a grid of equal cards (2026-10-16).** A
   choice between ways to start (Play's Track a table · Host online · Join with
   a code · Browse games, New deck's starts) is one group of rows split by
@@ -2941,6 +2942,7 @@ must follow goes in the core.
   - [Play board: the hub ring's keys, dock and sheets (2026-09-26, T155)](style-guide/play-table.md#play-board-the-hub-rings-keys-dock-and-sheets-2026-09-26-t155)
   - [Play board: the table clock is pausable and optional at setup (2026-09-24)](style-guide/play-table.md#play-board-the-table-clock-is-pausable-and-optional-at-setup-2026-09-24)
   - [Play board: the table clock is an edge strip, not a seam satellite (2026-09-24)](style-guide/play-table.md#play-board-the-table-clock-is-an-edge-strip-not-a-seam-satellite-2026-09-24)
+  - [Play board: the game time is shared, the turn control follows the turn (2026-10-16)](style-guide/play-table.md#play-board-the-game-time-is-shared-the-turn-control-follows-the-turn-2026-10-16)
   - [Play board: the remaining Lotus settings, and counterclockwise seating (2026-09-24)](style-guide/play-table.md#play-board-the-remaining-lotus-settings-and-counterclockwise-seating-2026-09-24)
   - [Play board: landscape keeps the board still (2026-09-25)](style-guide/play-table.md#play-board-landscape-keeps-the-board-still-2026-09-25)
   - [Play board: the life keypad is a board-level dialog, and the commander-damage focus bar keeps its full copy (2026-09-25)](style-guide/play-table.md#play-board-the-life-keypad-is-a-board-level-dialog-and-the-commander-damage-focus-bar-keeps-its-full-copy-2026-09-25)

@@ -200,7 +200,7 @@ describe('how the board works', () => {
   // the Help petal and went with the menu.
   it("comes back from the hub ring's Help key, as a sheet with the same rows", () => {
     render(<GameBoard game={makeTestState(pod())} dispatch={vi.fn()} canControlAll />);
-    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Game menu/ }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Help' }));
     const sheet = screen.getByRole('dialog', { name: 'How the board works' });
     expect(sheet.textContent).toContain('toward you');

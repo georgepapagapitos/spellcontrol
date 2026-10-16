@@ -34,6 +34,11 @@ import {
   type GameSignalInput,
   type JoinGameInput,
 } from '@/lib/play/games-api';
+import {
+  clockPositionOf,
+  DEFAULT_CLOCK_POSITION,
+  type ClockPosition,
+} from '@/lib/play/clock-position';
 import { subscribeGameEvents } from '@/lib/play/games-sse';
 import { subscribeGameLongPoll, usesLongPoll } from '@/lib/play/games-longpoll';
 import { cancelBoardPublish } from '@/lib/play/games-board';
@@ -315,6 +320,9 @@ interface PlayState {
   /** Show the active seat's turn time and let the clock pass the turn.
    *  Persisted; default on, same split as `gameTimerEnabled`. */
   turnTrackerEnabled: boolean;
+  /** Where the table clock lives on the board. Persisted per device; a blob
+   *  saved before this existed reads as the default (`seat`). */
+  clockPosition: ClockPosition;
   /** Blink a red ring on a seat below 10 life (Lotus's "Low health warning").
    *  Persisted; default on. `prefers-reduced-motion` swaps the blink for a
    *  steady ring (see `play-enhancements.css`). */
@@ -366,6 +374,7 @@ interface PlayState {
   setHaptics(enabled: boolean): void;
   setGameTimerEnabled(enabled: boolean): void;
   setTurnTrackerEnabled(enabled: boolean): void;
+  setClockPosition(position: ClockPosition): void;
   setLowLifeWarningEnabled(enabled: boolean): void;
   setUnderlineSixNine(enabled: boolean): void;
   setMinimalistMode(enabled: boolean): void;
@@ -890,6 +899,7 @@ export const usePlayStore = create<PlayState>()(
       hapticsEnabled: true,
       gameTimerEnabled: true,
       turnTrackerEnabled: true,
+      clockPosition: DEFAULT_CLOCK_POSITION,
       lowLifeWarningEnabled: true,
       underlineSixNine: false,
       minimalistMode: false,
@@ -907,6 +917,7 @@ export const usePlayStore = create<PlayState>()(
       },
       setGameTimerEnabled: (enabled) => set({ gameTimerEnabled: enabled }),
       setTurnTrackerEnabled: (enabled) => set({ turnTrackerEnabled: enabled }),
+      setClockPosition: (position) => set({ clockPosition: clockPositionOf(position) }),
       setLowLifeWarningEnabled: (enabled) => set({ lowLifeWarningEnabled: enabled }),
       setUnderlineSixNine: (enabled) => set({ underlineSixNine: enabled }),
       setMinimalistMode: (enabled) => set({ minimalistMode: enabled }),
@@ -1683,6 +1694,7 @@ export const usePlayStore = create<PlayState>()(
         hapticsEnabled: s.hapticsEnabled,
         gameTimerEnabled: s.gameTimerEnabled,
         turnTrackerEnabled: s.turnTrackerEnabled,
+        clockPosition: s.clockPosition,
         lowLifeWarningEnabled: s.lowLifeWarningEnabled,
         underlineSixNine: s.underlineSixNine,
         minimalistMode: s.minimalistMode,

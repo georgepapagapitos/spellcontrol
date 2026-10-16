@@ -191,7 +191,7 @@ describe('Settings', () => {
     settings();
     expect(
       [...document.querySelectorAll('.form-section-heading')].map((h) => h.textContent)
-    ).toEqual(['Taps', 'Clock strip', 'Seats', 'This device']);
+    ).toEqual(['Taps', 'Clock', 'Clock position', 'Seats', 'This device']);
   });
 
   it('flips every device pref switch to its own setter', () => {

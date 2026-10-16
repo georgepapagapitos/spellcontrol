@@ -306,6 +306,252 @@
   }
 }
 
+/* "Top edge" clock position (2026-10-16): the same strip above the grid, turned
+   to face the far side of the table. The whole strip rotates about its own
+   center, so its box stays where flex put it; the gap moves to the grid side. */
+.game-clock-strip.is-top {
+  margin-top: 0;
+  margin-bottom: var(--space-2);
+  transform: rotate(180deg);
+}
+
+/* ── The turn control that follows the turn (2026-10-16) ──────────────────
+   Clock positions "seat" and "hub": the game total lives in the hub and the
+   active seat carries its own turn control inside its panel, so it inherits
+   the seat's rotation (0/90/180/270) and moves when the turn passes.
+   `--turn-bar-h` is the room the control takes along the seat's bottom edge:
+   the life numeral's box, the counter badges and the vertical-tap stack all
+   step up by it, so the control never sits on a number, and the numeral's cap
+   below only bites where the seat is genuinely short (the same shape as the
+   commander-damage focus bar's reservation). The panel's cell is the size
+   container: a sideways panel reads its swapped axis. */
+.player-panel.has-turn-control {
+  --turn-bar-h: 2.5rem;
+}
+
+@media (pointer: coarse) {
+  .player-panel.has-turn-bar {
+    /* The bar IS the 44px target. */
+    --turn-bar-h: 2.75rem;
+  }
+}
+
+.player-panel.has-turn-control .player-panel-life-wrap {
+  bottom: var(--turn-bar-h);
+}
+
+/* A sideways seat's far edge is the column seam, where the hub sits. The bar
+   alone would push the numeral toward it by half the bar's height, so the
+   numeral's box also gives up half a bar at that edge (a net shift of a
+   quarter bar), and the cap below pays for both. */
+.player-panel.has-turn-control[data-sideways] .player-panel-life-wrap {
+  top: calc(var(--turn-bar-h) / 2);
+}
+
+.player-panel.has-turn-control .player-panel-counters {
+  bottom: calc(var(--space-2) + var(--turn-bar-h));
+}
+
+.player-panel.has-turn-control.is-vertical-taps {
+  --pp-v-bottom: var(--turn-bar-h);
+}
+
+.player-panel.has-turn-control .player-panel-life {
+  font-size: min(
+    calc(var(--life-size) * var(--life-scale, 1)),
+    calc(100cqh - var(--turn-bar-h) - var(--space-2))
+  );
+}
+
+.player-panel.has-turn-control[data-sideways] .player-panel-life {
+  font-size: min(
+    calc(var(--life-size) * var(--life-scale, 1)),
+    calc(100cqw - var(--turn-bar-h) * 1.5 - var(--space-2))
+  );
+}
+
+.pp-turn-bar-wrap {
+  position: absolute;
+  z-index: 4;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  /* Only the control itself takes taps; the seat's tap zones stay live around it. */
+  pointer-events: none;
+}
+
+/* Per-seat sizing is the seat's own width, never the viewport's: a narrow seat
+   (6p at 320px is 148px) drops the words and keeps time + chevron. */
+.pp-turn-bar-wrap.is-bar {
+  container: pp-turn-bar / inline-size;
+}
+
+.pp-turn-bar-wrap.is-chip {
+  left: auto;
+  right: var(--space-2);
+  bottom: var(--space-2);
+}
+
+.pp-turn-bar {
+  pointer-events: auto;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  border: 0;
+  background: var(--table-chrome-bg);
+  color: var(--table-ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+
+button.pp-turn-bar {
+  cursor: pointer;
+}
+
+.pp-turn-bar.is-bar {
+  width: 100%;
+  min-height: var(--turn-bar-h);
+  justify-content: space-between;
+  padding: 0 var(--space-3);
+  border-top: 1px solid var(--table-border);
+}
+
+.pp-turn-bar.is-chip {
+  position: relative;
+  min-height: 2rem;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--table-border);
+  border-radius: var(--radius);
+}
+
+@media (pointer: coarse) {
+  /* The chip is 32px to look; its hit area grows to 44px with a ghost that
+     stays inside the room `--turn-bar-h` already holds. */
+  button.pp-turn-bar.is-chip::before {
+    content: '';
+    position: absolute;
+    inset: -0.375rem;
+  }
+}
+
+.pp-turn-bar.is-paused {
+  border-style: dashed;
+}
+
+.pp-turn-bar-time {
+  flex: 0 0 auto;
+}
+
+.pp-turn-bar-paused {
+  flex: 0 0 auto;
+  margin-inline-end: calc(var(--space-1) * -1);
+}
+
+.pp-turn-bar-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* On the bar the call to action reads as a button inside the button: a rect,
+   one height, so "End turn" is plainly the thing to press. */
+.pp-turn-bar.is-bar .pp-turn-bar-cta {
+  min-height: 1.75rem;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--table-border);
+  border-radius: var(--radius);
+  background: var(--table-border);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button.pp-turn-bar:hover .pp-turn-bar-cta,
+  button.pp-turn-bar.is-chip:hover {
+    background: color-mix(in srgb, var(--table-border), white 12%);
+  }
+}
+
+button.pp-turn-bar:active {
+  background: color-mix(in srgb, var(--table-chrome-bg), white 8%);
+}
+
+button.pp-turn-bar:focus-visible {
+  outline: 2px solid var(--table-focus-ring);
+  outline-offset: -4px;
+}
+
+button.pp-turn-bar.is-chip:focus-visible {
+  outline-offset: 2px;
+}
+
+.pp-turn-bar-wrap.is-top-edge {
+  top: 0;
+  bottom: auto;
+}
+
+.pp-turn-bar-wrap.is-chip.is-top-edge {
+  top: var(--space-2);
+}
+
+.pp-turn-bar-wrap.is-top-edge .pp-turn-bar.is-bar {
+  border-top: 0;
+  border-bottom: 1px solid var(--table-border);
+}
+
+/* An unrotated board (desktop, online) whose seat has the hub on its bottom
+   edge takes the control on its top edge instead, and everything the bottom
+   edge reserved moves with it: the numeral's box, the counters back to their
+   corner, the name and the designation rail down below the control. */
+.player-panel.has-turn-control.has-turn-top .player-panel-life-wrap {
+  top: var(--turn-bar-h);
+  bottom: 0;
+}
+
+.player-panel.has-turn-control.has-turn-top .player-panel-counters {
+  bottom: var(--space-2);
+}
+
+.player-panel.has-turn-control.has-turn-top .player-panel-corner,
+.player-panel.has-turn-control.has-turn-top .pp-designation-chips {
+  margin-top: var(--turn-bar-h);
+}
+
+.player-panel.has-turn-control.has-turn-top.is-vertical-taps {
+  --pp-v-bottom: 0px;
+  --pp-v-top: calc(var(--space-2) + var(--seam-keepout) + 1.4rem + var(--turn-bar-h));
+}
+
+@container pp-turn-bar (max-width: 9.5rem) {
+  .pp-turn-bar-label {
+    display: none;
+  }
+
+  .pp-turn-bar.is-bar {
+    padding-inline: var(--space-2);
+  }
+}
+
+/* The control arrives on the next seat with a short rise; reduced motion
+   places it without moving. */
+@media (prefers-reduced-motion: no-preference) {
+  .pp-turn-bar-wrap {
+    animation: pp-turn-bar-in var(--motion-fast) var(--ease-out-soft) both;
+  }
+}
+
+@keyframes pp-turn-bar-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+}
+
 /* ── Low-life warning — alive but below 10, Lotus's "blinking red alert" ──
    A thin ring alone read as barely-there next to Lotus's own effect. This
    layers a translucent red WASH across the whole panel (`background`, not

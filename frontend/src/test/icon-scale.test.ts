@@ -95,9 +95,8 @@ const SITE_ALLOWLIST = new Set<string>([
   'components/deck/DeckHoverPeek.tsx::ImageOff::22',
   // Primary live-game hub control — oversized on purpose for touch
   // ergonomics during play.
-  'components/play/GameBoard.tsx::Swords::22',
-  'components/play/GameBoard.tsx::X::22',
-  'components/play/GameBoard.tsx::Menu::22',
+  'components/play/BoardHubButton.tsx::Swords::22',
+  'components/play/BoardHubButton.tsx::X::22',
   // Seat-avatar placeholder glyph sized to the avatar circle, not an action.
   'components/play/OnlineLobby.tsx::UserRound::22',
   // Large camera/scan CTA and scanner-overlay glyphs (STYLE_GUIDE calls out
