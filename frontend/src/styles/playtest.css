@@ -4157,7 +4157,7 @@ button.playtest-card-pt__value--editable {
    top-anchored: it is the only thing to read on the screen. */
 .modal-backdrop.playtest-rotate-backdrop {
   align-items: center;
-  background: color-mix(in oklab, var(--bg) 82%, transparent);
+  background: color-mix(in oklab, var(--bg) 92%, transparent);
   backdrop-filter: blur(6px);
 }
 

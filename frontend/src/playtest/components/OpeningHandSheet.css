@@ -366,8 +366,15 @@
  *  The DOM order is header → cards → footer → stats → status → variants,
  *  which is the reading AND tab order. */
 
+/*  The ground is --bg at 92%, blurred. The board moves under it (the hand is
+ *  dealt over a live table), so the blur keeps the table's impression without
+ *  its detail (STYLE_GUIDE § Color & spacing, "Blur is for a surface over moving
+ *  content"). At 82% the board's darkest and brightest pixels pulled the
+ *  --text-secondary hint ("Click a card to enlarge.") to a 3.7:1 median, under
+ *  AA. At 92% it clears 5.1:1 over a pure black or white board pixel in every
+ *  theme (styles/opening-hand-ground.test.ts). */
 .playtest-opening-root.is-takeover {
-  background: color-mix(in oklab, var(--bg) 82%, transparent);
+  background: color-mix(in oklab, var(--bg) 92%, transparent);
   backdrop-filter: blur(6px);
 }
 

@@ -256,8 +256,6 @@
   inset: 0;
   z-index: 20;
   background: rgba(6, 8, 13, 0.74);
-  -webkit-backdrop-filter: blur(2px);
-  backdrop-filter: blur(2px);
   animation: pp-fade-in var(--motion-base) var(--ease-out-soft);
 }
 

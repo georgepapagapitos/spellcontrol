@@ -858,7 +858,7 @@
   left: var(--seam-left-pct, 50%);
   transform: translate(-50%, -50%);
   z-index: 10;
-  background: rgba(14, 17, 24, 0.95);
+  background: rgb(14, 17, 24);
   border: 1px solid rgba(255, 255, 255, 0.22);
   color: var(--table-ink);
   width: 2.6rem;
@@ -872,8 +872,6 @@
   justify-content: center;
   cursor: pointer;
   touch-action: manipulation;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
 }
 
 @media (min-width: 600px) {

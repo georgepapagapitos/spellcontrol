@@ -11,8 +11,6 @@
   align-items: flex-end;
   justify-content: center;
   background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
   animation: pp-fade-in 160ms var(--ease-out-soft);
 }
 

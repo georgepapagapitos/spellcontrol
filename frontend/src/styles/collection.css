@@ -820,9 +820,7 @@
   top: var(--collection-controls-sticky-h, 6.9rem);
   z-index: var(--z-dropdown); /* 50 — below sticky chrome (--z-popover: 60) */
   padding: 0;
-  background: color-mix(in srgb, var(--bg) 92%, transparent);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: var(--bg);
   box-shadow: 0 1px 0 var(--border);
   /* Bleed full-width to match the search / controls rows */
   margin-left: calc(var(--page-gutter, var(--space-4)) * -1);
