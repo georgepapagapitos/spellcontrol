@@ -211,7 +211,8 @@ export function CollectionPage() {
         loadingCollection || isEmpty ? undefined : (
           <>
             <span aria-label="Collection totals" role="group">
-              {collectionCardCount.toLocaleString()} {collectionCardCount === 1 ? 'card' : 'cards'} · Worth{' '}
+              {collectionCardCount.toLocaleString()} {collectionCardCount === 1 ? 'card' : 'cards'}{' '}
+              · Worth{' '}
               {(isRefreshingPrices && priceRefreshProgress) ||
               (!isEmpty && !pricesEverLoaded && collectionValue === 0) ? (
                 // The prominent total must not read as a settled figure

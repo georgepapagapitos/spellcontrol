@@ -165,7 +165,9 @@ describe('CollectionPage – hero total while pricing', () => {
     // dropped it here and left only the rounded chip, and the owner noticed.
     useCollectionStore.setState({ cards: priced(1234, 1) });
     renderPage('/collection');
-    expect(screen.getByRole('group', { name: 'Collection totals' }).textContent).toMatch(/^1,234 cards · Worth /);
+    expect(screen.getByRole('group', { name: 'Collection totals' }).textContent).toMatch(
+      /^1,234 cards · Worth /
+    );
   });
 
   it('keeps the total visible during an untracked background re-price', () => {
