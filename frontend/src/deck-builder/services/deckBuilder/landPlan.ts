@@ -13,17 +13,17 @@
  *  - land removal: the land destroys a land, and the deck runs four or more
  *    spells that destroy, exile or force the sacrifice of lands, or turn
  *    nonbasics into basics (Blood Moon);
- *  - artifacts: an artifact land, in a deck invested in artifacts;
- *  - tokens: a land that makes creature tokens, in a token deck;
- *  - sacrifice: a land that sacrifices creatures, in a sacrifice deck.
- * The last three read the deck's own synergy axes (deckSynergy.ts); land
- * removal has no axis, so the deck's spells are read here.
+ *  - artifacts: an artifact land, in a deck invested in artifacts (the deck's
+ *    own synergy axis, deckSynergy.ts).
+ * Token makers and sacrifice outlets are left out on purpose: read the same way
+ * in the E1030 ship gate, they took Krenko's Nykthos and Three Tree City and The
+ * Ur-Dragon's shocklands for Kher Keep and The Lonely Mountain. A token deck's
+ * page already rates the token lands worth playing.
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import { analyzeDeckSynergy } from '../synergy/deckSynergy';
-import type { AxisKey } from '../synergy/axes';
 
-export type LandPlanJob = 'land-removal' | 'artifacts' | 'tokens' | 'sacrifice';
+export type LandPlanJob = 'land-removal' | 'artifacts';
 
 /** Spells that attack lands before land removal reads as the deck's plan. */
 export const LAND_REMOVAL_PLAN_MIN = 4;
@@ -64,9 +64,6 @@ const ATTACKS_LANDS = [
   /\bnonbasic lands are\b/,
 ];
 
-const SACRIFICES_CREATURES =
-  /\bsacrifice (?:a|an|another|one|two|three|four|five|x) [^.:\n]{0,20}?creatures?\b/;
-
 /** The jobs a card's land faces do besides making mana. */
 export function landPlanJobs(card: ScryfallCard): LandPlanJob[] {
   const lands = facesOf(card).filter(isLandFace);
@@ -74,8 +71,6 @@ export function landPlanJobs(card: ScryfallCard): LandPlanJob[] {
   const jobs: LandPlanJob[] = [];
   if (DESTROYS_LAND.some((re) => re.test(text))) jobs.push('land-removal');
   if (lands.some((f) => f.type.includes('artifact'))) jobs.push('artifacts');
-  if (/\bcreate [^.\n]*\bcreature tokens?\b/.test(text)) jobs.push('tokens');
-  if (SACRIFICES_CREATURES.test(text)) jobs.push('sacrifice');
   return jobs;
 }
 
@@ -88,12 +83,6 @@ export function attacksLands(card: ScryfallCard): boolean {
   return ATTACKS_LANDS.some((re) => re.test(text));
 }
 
-const AXIS_JOBS: [LandPlanJob, AxisKey][] = [
-  ['artifacts', 'artifacts'],
-  ['tokens', 'tokens'],
-  ['sacrifice', 'sacrifice'],
-];
-
 /** The jobs this deck is built around, read from its nonland cards and commanders. */
 export function readDeckLandPlan(
   nonLandCards: readonly ScryfallCard[],
@@ -102,8 +91,7 @@ export function readDeckLandPlan(
   const plan = new Set<LandPlanJob>();
   const spells = [...commanders, ...nonLandCards];
   if (spells.filter(attacksLands).length >= LAND_REMOVAL_PLAN_MIN) plan.add('land-removal');
-  const invested = new Set(analyzeDeckSynergy(spells).invested);
-  for (const [job, axis] of AXIS_JOBS) if (invested.has(axis)) plan.add(job);
+  if (analyzeDeckSynergy(spells).invested.includes('artifacts')) plan.add('artifacts');
   return plan;
 }
 

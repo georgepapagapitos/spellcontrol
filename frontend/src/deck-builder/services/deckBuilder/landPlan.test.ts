@@ -46,6 +46,16 @@ describe('landPlanJobs', () => {
     expect(landPlanJobs(real('Lindblum, Industrial Regency // Mage Siege'))).toEqual([]);
   });
 
+  it('leaves token makers and sacrifice outlets to the page', () => {
+    // Read as plan lands in the ship gate, they cost Krenko Nykthos and Three
+    // Tree City, and The Ur-Dragon its shocklands.
+    const abbey = fixture('invariant-cards.fixture.json').find((c) =>
+      c.name.startsWith('Westvale Abbey')
+    );
+    expect(abbey).toBeDefined();
+    expect(landPlanJobs(abbey!)).toEqual([]);
+  });
+
   it('never reads a spell as a plan land', () => {
     expect(landPlanJobs(real('Cleansing Wildfire'))).toEqual([]);
   });
