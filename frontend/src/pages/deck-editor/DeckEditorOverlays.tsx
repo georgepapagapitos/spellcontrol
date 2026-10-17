@@ -5,6 +5,10 @@ import { useDeckHistoryStore } from '@/store/deck-history';
 import { DeckAiRefine } from '@/components/deck/DeckAiRefine';
 import { DeckTokensSheet } from '@/components/deck/DeckTokensSheet';
 import { DeckPrimerSheet } from '@/components/deck/DeckPrimerSheet';
+import { RecheckLandsSheet } from '@/components/deck/RecheckLandsSheet';
+import { applyUpgradePlan } from '@/lib/coach/apply-upgrade-plan';
+import { generatedListAfter, landSwapSteps } from '@/lib/deck/recheck-lands';
+import { useDeckBuilderStore } from '@/deck-builder/store';
 import { AppendDeckDialog } from '@/components/deck/AppendDeckDialog';
 import { BulkEditDeckDialog } from '@/components/deck/BulkEditDeckDialog';
 import { PullListSheet } from '@/components/deck/PullListSheet';
@@ -97,6 +101,8 @@ export function DeckEditorOverlays({
     setTokensOpen,
     primerOpen,
     setPrimerOpen,
+    recheckLandsOpen,
+    setRecheckLandsOpen,
     appendOpen,
     setAppendOpen,
     bulkEditOpen,
@@ -242,6 +248,39 @@ export function DeckEditorOverlays({
 
       {tokensOpen && <DeckTokensSheet tokens={deckTokens} onClose={() => setTokensOpen(false)} />}
       {primerOpen && <DeckPrimerSheet deck={deck} onClose={() => setPrimerOpen(false)} />}
+      {recheckLandsOpen && (
+        <RecheckLandsSheet
+          deck={deck}
+          env={{
+            collection: collectionCards,
+            decks: useDecksStore.getState().decks,
+            cubes: savedCubes,
+            bannedCards: useDeckBuilderStore.getState().customization.bannedCards,
+          }}
+          ownershipFor={ownershipFor}
+          onClose={() => setRecheckLandsOpen(false)}
+          onApply={async (swaps) => {
+            const n = await applyUpgradePlan(deck.id, landSwapSteps(swaps), {
+              label: (count) => `re-check lands (${count} ${count === 1 ? 'swap' : 'swaps'})`,
+              patch: (d, applied) => ({ generationContext: generatedListAfter(d, applied) }),
+            });
+            if (n === 0) {
+              pushToast({ message: "Couldn't find those lands. Nothing changed.", tone: 'error' });
+              return;
+            }
+            pushToast({
+              message:
+                n === swaps.length
+                  ? `Swapped ${n} ${n === 1 ? 'land' : 'lands'}`
+                  : `Swapped ${n} of ${swaps.length} lands. The rest couldn't be found`,
+              tone: 'success',
+              actionLabel: 'Undo',
+              onAction: () => undoEdit(deck.id),
+            });
+            haptics.tap();
+          }}
+        />
+      )}
       {appendOpen && <AppendDeckDialog deck={deck} onClose={() => setAppendOpen(false)} />}
       {bulkEditOpen && <BulkEditDeckDialog deck={deck} onClose={() => setBulkEditOpen(false)} />}
       {resyncOpen && (

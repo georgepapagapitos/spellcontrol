@@ -17,6 +17,7 @@ import {
   mergeImprove,
   mergeMisfitCuts,
   parsePrice,
+  isOffMetaChange,
 } from './deck-change';
 import type { BrewCandidate } from '@/deck-builder/services/deckBuilder/brewSlots';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
@@ -888,5 +889,23 @@ describe('mergeMisfitCuts', () => {
   it('is a no-op with no misfits', () => {
     const cuts = [optimizeCut('Ornithopter')];
     expect(mergeMisfitCuts(cuts, [])).toEqual(cuts);
+  });
+});
+
+describe('isOffMetaChange', () => {
+  const swap = (typeLine: string, inclusion?: number): Change => ({
+    id: 'x',
+    type: 'swap',
+    lane: 'lands',
+    name: 'Card',
+    inName: 'Other',
+    typeLine,
+    inclusion,
+  });
+  it('calls an unrated nonbasic off-meta and never a basic land', () => {
+    expect(isOffMetaChange(swap('Land'))).toBe(true);
+    expect(isOffMetaChange(swap('Land', 40))).toBe(false);
+    expect(isOffMetaChange(swap('Basic Land — Island'))).toBe(false);
+    expect(isOffMetaChange(swap('Basic Snow Land — Forest'))).toBe(false);
   });
 });

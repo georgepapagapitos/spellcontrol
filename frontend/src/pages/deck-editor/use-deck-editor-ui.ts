@@ -43,6 +43,7 @@ export function useDeckEditorUi({ deck }: { deck: Deck }) {
   const [tokensOpen, setTokensOpen] = useState(false);
   const [pullListOpen, setPullListOpen] = useState(false);
   const [primerOpen, setPrimerOpen] = useState(false);
+  const [recheckLandsOpen, setRecheckLandsOpen] = useState(false);
   const [appendOpen, setAppendOpen] = useState(false);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [resyncOpen, setResyncOpen] = useState(false);
@@ -73,6 +74,8 @@ export function useDeckEditorUi({ deck }: { deck: Deck }) {
     setPullListOpen,
     primerOpen,
     setPrimerOpen,
+    recheckLandsOpen,
+    setRecheckLandsOpen,
     appendOpen,
     setAppendOpen,
     bulkEditOpen,

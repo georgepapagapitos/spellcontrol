@@ -525,12 +525,15 @@ export function fromCrossDeckMove(move: CrossDeckMove): Change {
 /**
  * A genuine "spicy" off-meta pick (E88): no EDHREC play-rate evidence. Only
  * lanes that come FROM EDHREC-rated candidates can be off-meta; a combo
- * completion is proven by the combo, and a Your-decks move is a card you
- * already own moving over, so neither carries a play-rate to be missing.
+ * completion is proven by the combo, a Your-decks move is a card you already
+ * own moving over, and a basic land is in every deck, so none of them carries
+ * a play-rate to be missing.
  * The one rule behind both the row's "Off-meta" chip and the feed's count.
  */
 export function isOffMetaChange(change: Change): boolean {
   if (change.lane === 'combos' || change.lane === 'decks') return false;
+  // A basic land has no play rate to be missing: every deck runs them.
+  if (/\bBasic\b/.test(change.typeLine ?? change.card?.type_line ?? '')) return false;
   return classifyInclusion(change.inclusion).kind === 'offmeta';
 }
 

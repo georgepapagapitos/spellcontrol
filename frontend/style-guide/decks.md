@@ -465,11 +465,11 @@ toolbar's, Paste cards, Bulk edit, Resync and the printing fixes in the
 header's. Finding Export meant opening both. Now every menu on the page is a
 named button, and each holds exactly one kind of thing:
 
-| Menu       | Where          | Holds                                                                                                                                                                                                                   |
-| ---------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Deck ▾** | header actions | the deck as a whole: Play (Playtest on a phone, Test hand), At the table (Pull list, Tokens to prep, Print proxies), Share (Export, Primer, Get feedback), This deck (Duplicate, Build report, Regenerate), then Delete |
-| **Edit ▾** | toolbar        | changes to the card list: Select cards, Paste cards, Bulk edit, Resync from a list, Match my copies, Cheapest printings for missing, Suggest groups                                                                     |
-| **View**   | toolbar, last  | the display only: whatever layout/group/size control the row folded, row details, the role key and the symbol key. Never an action.                                                                                     |
+| Menu       | Where          | Holds                                                                                                                                                                                                                                   |
+| ---------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Deck ▾** | header actions | the deck as a whole: Play (Playtest on a phone, Test hand), At the table (Pull list, Tokens to prep, Print proxies), Share (Export, Primer, Get feedback), This deck (Duplicate, Build report, Regenerate, Re-check lands), then Delete |
+| **Edit ▾** | toolbar        | changes to the card list: Select cards, Paste cards, Bulk edit, Resync from a list, Match my copies, Cheapest printings for missing, Suggest groups                                                                                     |
+| **View**   | toolbar, last  | the display only: whatever layout/group/size control the row folded, row details, the role key and the symbol key. Never an action.                                                                                                     |
 
 - **Suggest groups files only untouched slots** (no user tags, not already
   filed) into the generator's buckets, shown under the Tags lens. A generated
@@ -484,6 +484,19 @@ named button, and each holds exactly one kind of thing:
 - **Deck ▾ is two columns from 600px** (Play + At the table, Share + This
   deck) so the whole menu shows without a scroll; one column on a phone, in
   the same order.
+- **Re-check lands sits beside Regenerate** and is the narrow half of it: the
+  whole generator again, with the deck's saved settings, every spell in the
+  deck pinned and the collection as it is today (this deck's own copies count
+  as free), keeping only its lands. The land step alone is not enough: later
+  phases reshape the mana base, so on its own it disagreed with what the
+  generator ships even when nothing had changed. It lists swaps, all checked,
+  in the house review sheet (`ReviewSheet.css`, shared with Fill the rest) and
+  changes nothing until Apply, which is one undo entry. Lands the player added
+  by hand stay and cards they cut stay out, the same rule as Regenerate's "Keep
+  my edits". Applied swaps become the build's own picks in the saved snapshot,
+  so the next re-check doesn't treat them as edits. It shows only on a deck
+  generated from the collection by the EDHREC pipeline, the one case where
+  re-running against the collection means something.
 - **A shared deck** has no Deck ▾ and no edits: its Test hand and Export keep
   a kebab in the toolbar, after View. With no header menu on that page there
   is no second kebab to mistake it for.

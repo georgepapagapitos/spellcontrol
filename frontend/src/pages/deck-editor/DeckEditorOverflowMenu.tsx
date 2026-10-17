@@ -20,6 +20,7 @@ export function DeckEditorOverflowMenu({
   onPrimer,
   onBuildReport,
   onRegenerate,
+  onRecheckLands,
   onPlaytest,
   onTokens,
   onPullList,
@@ -47,6 +48,9 @@ export function DeckEditorOverflowMenu({
    *  Present only on a generated deck, the one kind with settings to replay;
    *  it used to live only in the decks index's tile menu. */
   onRegenerate?: () => void;
+  /** Runs the land step again against today's collection, as reviewable
+   *  swaps. Present only on a deck generated from the collection. */
+  onRecheckLands?: () => void;
   onPlaytest?: () => void;
   /** Present only when the deck makes tokens. */
   onTokens?: () => void;
@@ -139,6 +143,7 @@ export function DeckEditorOverflowMenu({
     { key: 'duplicate', label: 'Duplicate', onClick: onDuplicate },
     onBuildReport && { key: 'build-report', label: 'Build report', onClick: onBuildReport },
     onRegenerate && { key: 'regenerate', label: 'Regenerate', onClick: onRegenerate },
+    onRecheckLands && { key: 'recheck-lands', label: 'Re-check lands', onClick: onRecheckLands },
   ].filter((r): r is Row => !!r);
 
   const renderRow = (row: Row) => (

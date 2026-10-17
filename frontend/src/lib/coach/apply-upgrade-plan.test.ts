@@ -86,6 +86,25 @@ describe('applyUpgradePlan', () => {
     expect(names()).toEqual(['Simic Signet', 'Ash Barrens', 'Island']);
   });
 
+  it('writes a caller patch with the cards, under its own label, in the same undo entry', async () => {
+    const patch = vi.fn((_deck: Deck, _applied: unknown[]) => ({ name: 'Zimone, patched' }));
+    await applyUpgradePlan(
+      'd1',
+      [
+        { addName: 'Harrow', cutName: 'Simic Signet' },
+        { addName: 'Not A Card', cutName: 'Ash Barrens' },
+      ],
+      { label: (n) => `re-check lands (${n})`, patch }
+    );
+    await flush();
+    expect(patch.mock.calls[0][1]).toEqual([{ addName: 'Harrow', cutName: 'Simic Signet' }]);
+    expect(useDecksStore.getState().decks[0].name).toBe('Zimone, patched');
+    expect(persistDecksState).toHaveBeenCalledTimes(1);
+    expect(useDeckHistoryStore.getState().undoLabel('d1')).toBe('re-check lands (1)');
+    useDeckHistoryStore.getState().undo('d1');
+    expect(useDecksStore.getState().decks[0].name).toBe('Zimone');
+  });
+
   it('does nothing for a deck that is not there', async () => {
     expect(await applyUpgradePlan('nope', [{ addName: 'Harrow', cutName: null }])).toBe(0);
   });

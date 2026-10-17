@@ -1,4 +1,5 @@
 import { createPortal } from 'react-dom';
+import './ReviewSheet.css';
 import './FillDeckSheet.css';
 import { type JSX, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -168,7 +169,7 @@ export function FillDeckSheet({
       role="presentation"
     >
       <div
-        className={`card-picker-sheet fill-deck-sheet${isClosing ? ' is-closing' : ''}`}
+        className={`card-picker-sheet review-sheet fill-deck-sheet${isClosing ? ' is-closing' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -176,19 +177,19 @@ export function FillDeckSheet({
       >
         <div className="card-picker-handle" aria-hidden />
         <div className="card-picker-header">
-          <p id={titleId} className="fill-deck-title">
+          <p id={titleId} className="review-sheet-title">
             Fill the rest
           </p>
-          <p className="fill-deck-subtitle">
+          <p className="review-sheet-subtitle">
             {open === 1 ? '1 open slot' : `${open} open slots`} · {deck.cards.length} of {target}{' '}
             cards picked
           </p>
         </div>
 
-        <div className="fill-deck-body">
+        <div className="review-sheet-body">
           {phase.kind === 'setup' && (
             <>
-              <p className="fill-deck-lead">Your picks stay.</p>
+              <p className="review-sheet-lead">Your picks stay.</p>
               <fieldset className="bracket-pill-row fill-deck-lean" aria-label="Lean toward">
                 {LEANS.map((l) => (
                   <label
@@ -208,7 +209,7 @@ export function FillDeckSheet({
                   </label>
                 ))}
               </fieldset>
-              {rule && <p className="fill-deck-lead fill-deck-rule">{RULE_LINE[rule]}</p>}
+              {rule && <p className="review-sheet-lead fill-deck-rule">{RULE_LINE[rule]}</p>}
               {!rule && ownedNames.size > 0 && (
                 <label className="field-checkbox fill-deck-owned">
                   <input
@@ -223,14 +224,14 @@ export function FillDeckSheet({
           )}
 
           {phase.kind === 'building' && (
-            <div className="fill-deck-progress" aria-live="polite">
+            <div className="review-sheet-progress" aria-live="polite">
               <MeterBar
                 value={phase.percent}
                 size="md"
                 role="progressbar"
                 label="Building the rest of the deck"
               />
-              <p className="fill-deck-progress-text">{phase.message}</p>
+              <p className="review-sheet-progress-text">{phase.message}</p>
             </div>
           )}
 
@@ -243,12 +244,12 @@ export function FillDeckSheet({
           {phase.kind === 'review' && (
             <>
               {phase.result.notes.map((n) => (
-                <p key={n} className="fill-deck-note">
+                <p key={n} className="review-sheet-note">
                   {n}
                 </p>
               ))}
               {additions.length === 0 ? (
-                <p className="fill-deck-lead">
+                <p className="review-sheet-lead">
                   Nothing to add. Try another lean, or add cards by hand.
                 </p>
               ) : (
@@ -274,13 +275,13 @@ export function FillDeckSheet({
                 ))
               )}
               {phase.result.plan.declined.length > 0 && (
-                <p className="fill-deck-note">
+                <p className="review-sheet-note">
                   Left out: {phase.result.plan.declined.map((d) => d.card.name).join(', ')}. They
                   score worse here or break a build rule.
                 </p>
               )}
               {phase.result.plan.stillOpen > 0 && (
-                <p className="fill-deck-note">
+                <p className="review-sheet-note">
                   {phase.result.plan.stillOpen === 1
                     ? '1 slot stays open'
                     : `${phase.result.plan.stillOpen} slots stay open`}
