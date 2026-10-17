@@ -42,6 +42,7 @@ import {
   planBasicColorSplit,
   weightedColorDemand,
   colorsNeedingSources,
+  fetchedBasicRequirement,
   WUBRG,
 } from './manabaseMath';
 import { producedManaColors } from '@/lib/deck-analysis/mana-sources';
@@ -403,10 +404,26 @@ export async function generateLands(
     // that only adds color. The color-demand and merit boosts above pay a land
     // for its colors alone, so without this a mono-red stax deck seated Great
     // Furnace and Cori Mountain Monastery over the Tectonic Edge it owned.
+    //
+    // E1033: in two or more colors, fixing comes first. A plan land there earns
+    // the boost only when it fixes too: it supplies two of the deck's colors,
+    // tapping for them or as a fetch that finds a nonbasic dual (Wooded
+    // Foothills, not Cabaretti Courtyard's "basic Forest"). Boosting fetchers of
+    // basics and one-color cycling lands cost a landfall Tatyova five Simic duals
+    // in the gate. The others keep their page rank and their place as non-filler.
     const plan = readDeckLandPlan(nonLandCards);
     const servesPlan = (card: ScryfallCard) => planJobServed(card, plan) !== undefined;
+    const fixes = (name: string, card: ScryfallCard) => {
+      const colors = new Set(
+        producedManaColors(card, identitySet, readingFor(name)).filter((c) => identitySet.has(c))
+      );
+      const fetch = fetchedBasicRequirement(card);
+      const findsDuals = !!fetch && !fetch.anyBasic && !/\bbasic\b/i.test(card.oracle_text ?? '');
+      if (findsDuals) for (const c of fetch.colors) if (identitySet.has(c)) colors.add(c);
+      return colors.size >= 2;
+    };
     for (const [name, card] of landCardMap) {
-      if (servesPlan(card))
+      if (servesPlan(card) && (colorIdentity.length < 2 || fixes(name, card)))
         landPenalties.set(name, (landPenalties.get(name) ?? 0) + PLAN_LAND_BOOST);
     }
 

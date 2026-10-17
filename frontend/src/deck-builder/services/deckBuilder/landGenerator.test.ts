@@ -1296,8 +1296,10 @@ describe('a land that does the deck job outranks one that only adds color (E1030
     expect(await pick(spells)).toEqual(['Volatile Fault', 'Tectonic Edge']);
   });
 
-  it('in two colors too, where a second colorless land reads as filler', async () => {
-    expect(await pick(spells, ['B', 'R'])).toEqual(['Volatile Fault', 'Tectonic Edge']);
+  // E1033: in two colors fixing comes first, so a plan land that makes no deck
+  // color keeps its page rank instead of the boost.
+  it('in two colors keeps the color lands, as fixing comes first', async () => {
+    expect(await pick(spells, ['B', 'R'])).toEqual(['Cori Mountain Monastery', 'Great Furnace']);
   });
 
   it('leaves a red deck without the plan to its color lands, as before', async () => {

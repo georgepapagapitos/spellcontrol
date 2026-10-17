@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 import { computeLandUpgrades, isUtilityLand, landSlotMerit } from './landUpgrades';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -235,5 +238,37 @@ describe('computeLandUpgrades — real cards (T171)', () => {
     expect(moves).toHaveLength(1);
     expect(moves[0].fixesShortColors).toEqual([]);
     expect(moves[0].reason).not.toContain('short on');
+  });
+});
+
+// E1033: "Re-analyze lands" never offers a land doing the deck's job as the cut.
+// Real Scryfall oracle text: Omnath, Locus of Rage landfall (land-synergy.fixture).
+describe('computeLandUpgrades keeps a plan land (E1033)', () => {
+  const fx = JSON.parse(
+    readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), '__fixtures__', 'land-synergy.fixture.json'),
+      'utf8'
+    )
+  ) as { decks: Record<string, { spells: string[] }>; cards: ScryfallCard[] };
+  const real = (n: string) => structuredClone(fx.cards.find((c) => c.name === n)!);
+  const RG = new Set(['R', 'G']);
+  const lands = () => [
+    real('Evolving Wilds'),
+    ...Array.from({ length: 12 }, () => real('Forest')),
+    ...Array.from({ length: 12 }, () => real('Mountain')),
+  ];
+  const cuts = (spells: ScryfallCard[]) =>
+    computeLandUpgrades([...lands(), ...spells], RG, [real('Rootbound Crag')], new Set()).map(
+      (m) => m.outName
+    );
+
+  it('keeps Evolving Wilds in the landfall deck', () => {
+    const spells = fx.decks.landfall.spells.map(real);
+    expect(cuts(spells)).not.toContain('Evolving Wilds');
+  });
+
+  it('still trades it for a dual in the same colors without landfall payoffs', () => {
+    const spells = ['Harrow', 'Cultivate', 'Explosive Vegetation'].map(real);
+    expect(cuts(spells)).toContain('Evolving Wilds');
   });
 });

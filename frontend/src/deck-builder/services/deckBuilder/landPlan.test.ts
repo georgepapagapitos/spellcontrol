@@ -19,9 +19,13 @@ const read = <T>(file: string) =>
     readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '__fixtures__', file), 'utf8')
   ) as T;
 const fixture = (file: string) => read<{ cards: ScryfallCard[] }>(file).cards;
-const ZOZU = read<{ decklist: string[]; controlPackage: string[]; cards: ScryfallCard[] }>(
-  'zozu-deck.fixture.json'
-);
+const ZOZU = read<{
+  decklist: string[];
+  seated: string[];
+  controlPackage: string[];
+  cards: ScryfallCard[];
+}>('zozu-deck.fixture.json');
+const ZOZU_SEATED = ZOZU.seated;
 const real = (name: string) => structuredClone(ZOZU.cards.find((c) => c.name === name)!);
 const isLand = (c: ScryfallCard) => /\bland\b/i.test(c.type_line ?? '');
 const ZOZU_SPELLS = ZOZU.decklist.map(real).filter((c) => !isLand(c));
@@ -31,19 +35,52 @@ const NO_LD_SPELLS = [
   ...ZOZU.controlPackage.map(real),
 ];
 
+// Real Scryfall oracle text for three more land-synergy decks (E1033): landfall
+// (Omnath, Locus of Rage), land recursion (Titania, Protector of Argoth) and
+// Gates. Each lists the spells that make its plan, the lands that serve it, and
+// lands that only add color or value.
+interface SynergyDeck {
+  commander: string;
+  spells: string[];
+  planLands: string[];
+  genericLands: string[];
+}
+const SYNERGY = read<{ decks: Record<string, SynergyDeck>; cards: ScryfallCard[] }>(
+  'land-synergy.fixture.json'
+);
+const card = (name: string) => structuredClone(SYNERGY.cards.find((c) => c.name === name)!);
+const ARCHETYPES: [string, string][] = [
+  ['landfall', 'more-lands'],
+  ['recursion', 'land-recursion'],
+  ['gates', 'land-type:gate'],
+];
+/** The deck's spells that carry no land job of their own, without the commander. */
+const planless = (deck: SynergyDeck) =>
+  deck.spells.map(card).filter((c) => readDeckLandPlan([], [c]).size === 0);
+
 describe('landPlanJobs', () => {
   it('reads the land-destruction lands', () => {
     for (const name of ['Tectonic Edge', 'Volatile Fault', 'Wasteland', 'Ghost Quarter']) {
-      expect(landPlanJobs(real(name))).toEqual(['land-removal']);
+      expect(landPlanJobs(real(name))).toContain('land-removal');
     }
   });
 
-  it('reads Great Furnace as an artifact land and the rest as nothing', () => {
+  it('reads Great Furnace as an artifact land and the rest as nothing Zo-Zu builds on', () => {
+    const zozu = readDeckLandPlan(ZOZU_SPELLS, [real('Zo-Zu the Punisher')]);
     expect(landPlanJobs(real('Great Furnace'))).toEqual(['artifacts']);
     expect(landPlanJobs(real('Cori Mountain Monastery'))).toEqual([]);
     expect(landPlanJobs(real('Mountain'))).toEqual([]);
-    // Its token is made by the spell face, not the land.
-    expect(landPlanJobs(real('Lindblum, Industrial Regency // Mage Siege'))).toEqual([]);
+    // A Town: it serves a deck that names Towns, not this one.
+    expect(landPlanJobs(real('Lindblum, Industrial Regency // Mage Siege'))).toEqual([
+      'land-type:town',
+    ]);
+    for (const name of ZOZU_SEATED) expect(planJobServed(real(name), zozu)).toBeUndefined();
+  });
+
+  it.each(ARCHETYPES)('reads the %s lands, and not the generic ones', (deck, job) => {
+    const d = SYNERGY.decks[deck];
+    for (const name of d.planLands) expect(landPlanJobs(card(name))).toContain(job);
+    for (const name of d.genericLands) expect(landPlanJobs(card(name))).not.toContain(job);
   });
 
   it('leaves token makers and sacrifice outlets to the page', () => {
@@ -73,6 +110,40 @@ describe('readDeckLandPlan', () => {
     expect(NO_LD_SPELLS.length).toBeGreaterThan(60);
     expect(NO_LD_SPELLS.filter(attacksLands)).toEqual([]);
     expect(readDeckLandPlan(NO_LD_SPELLS).has('land-removal')).toBe(false);
+  });
+
+  it.each(ARCHETYPES)('reads the %s deck as %s, and its plan lands as serving it', (deck, job) => {
+    const d = SYNERGY.decks[deck];
+    const plan = readDeckLandPlan(d.spells.map(card), [card(d.commander)]);
+    expect(plan.has(job as never)).toBe(true);
+    for (const name of d.planLands) expect(planJobServed(card(name), plan)).toBeDefined();
+    for (const name of d.genericLands) expect(planJobServed(card(name), plan)).toBeUndefined();
+  });
+
+  it.each(ARCHETYPES)('reads no plan in the %s deck without its plan spells', (deck) => {
+    const d = SYNERGY.decks[deck];
+    const control = planless(d);
+    expect(control.length).toBeGreaterThan(0);
+    expect([...readDeckLandPlan(control)]).toEqual([]);
+  });
+
+  it('reads no land plan in a red deck without one, and none of these lands serve it', () => {
+    const plan = readDeckLandPlan(NO_LD_SPELLS);
+    expect([...plan]).toEqual([]);
+    for (const c of SYNERGY.cards) expect(planJobServed(c, plan)).toBeUndefined();
+  });
+
+  it('reads land commanders as their own plan, and nothing in most commanders', () => {
+    const { cards } = read<{ cards: Record<string, ScryfallCard> }>(
+      'commander-profile.keywords4.fixture.json'
+    );
+    const planOf = (name: string) => [...readDeckLandPlan([], [cards[name]])];
+    expect(planOf('Omnath, Locus of Rage')).toEqual(['more-lands']);
+    expect(planOf('Tatyova, Benthic Druid')).toEqual(['more-lands']);
+    expect(planOf('Hazezon, Shaper of Sand')).toContain('land-type:desert');
+    expect(planOf('Mishra, Claimed by Gix')).toEqual([]);
+    const withPlan = Object.values(cards).filter((c) => readDeckLandPlan([], [c]).size > 0);
+    expect(withPlan.length).toBeLessThan(Object.keys(cards).length / 15);
   });
 
   it('protects Tectonic Edge only in the deck that destroys lands', () => {
