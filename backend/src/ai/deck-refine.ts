@@ -490,14 +490,21 @@ export function parseRefineOutput(
 
 /**
  * `raw` with its tweaks tail replaced by `tweaks`, so the stored row replays
- * the checked lines. Everything before the delimiter stays as the model wrote it.
+ * the checked lines. Everything before the delimiter stays as the model wrote it,
+ * unless `strategy` is given: then the reply is rebuilt around the checked prose
+ * (E1029), and the research narration before the marker is not kept.
  */
-export function withTweaks(raw: string, tweaks: RefineTweak[]): string {
+export function withTweaks(raw: string, tweaks: RefineTweak[], strategy?: string): string {
+  const tail = JSON.stringify(tweaks.map(({ add, cut, why }) => ({ add, cut, why })));
+  if (strategy !== undefined)
+    return `${STRATEGY_MARK}
+${strategy}
+${TWEAKS_DELIMITER}
+${tail}`;
   const idx = raw.indexOf(TWEAKS_DELIMITER);
   if (idx === -1) return raw;
-  const tail = tweaks.map(({ add, cut, why }) => ({ add, cut, why }));
   return `${raw.slice(0, idx + TWEAKS_DELIMITER.length)}
-${JSON.stringify(tail)}`;
+${tail}`;
 }
 
 /** Assemble the user message: decklist + stats + the pool the model may use. */

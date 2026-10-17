@@ -27,21 +27,17 @@ import { commandZone, renderAnalysis, type OracleEntry } from './deck-review';
  * it in `whyCheck.unchecked`.
  */
 
-/** Part of the refine cache key: a check change must not replay old answers. */
-export const WHY_CHECK_VERSION = 'v3';
+/**
+ * Part of the refine cache key: a check change must not replay old answers.
+ * v4 (E1029): the strategy prose is checked too, see `prose-check.ts`.
+ */
+export const WHY_CHECK_VERSION = 'v4';
 
-export const WHY_CHECK_SYSTEM_PROMPT = `You check the reason a deck analyst gave for one change to a Magic: The
-Gathering Commander deck. You do not propose changes, you do not rewrite the
-reason, and you do not judge whether the change is a good idea. You check
-whether the reason is TRUE, using only the text in front of you.
-
-You will be given the commander, the change (an ADD, an optional CUT, and a
-WHY), the full card text of every card the reason touches, the decklist with
-each card's type line, and the deck's statistics.
-
-Split the WHY into its factual claims and check each one:
-
-- What a card does, what it costs, its card type, what an ability costs to
+/**
+ * How a claim is read, shared with the strategy check (`prose-check.ts`) so
+ * the two passes judge a card the same way.
+ */
+export const CLAIM_RULES = `- What a card does, what it costs, its card type, what an ability costs to
   activate, what it fetches or creates. Compare against that card's text.
 - WHO each effect touches. Read the exact words: "you", "each opponent",
   "each player", "target player", "that land's controller". A trigger that
@@ -67,7 +63,20 @@ claims; leave them out.
 Read each claim the way a Magic player means it, not hunting for a second
 meaning: "Kiki-Jiki copies" are the tokens Kiki-Jiki makes, "your lands" are
 the lands you control. This never rescues a claim about WHO an effect hits
-or whether two effects stack: those are read exactly as above.
+or whether two effects stack: those are read exactly as above.`;
+
+export const WHY_CHECK_SYSTEM_PROMPT = `You check the reason a deck analyst gave for one change to a Magic: The
+Gathering Commander deck. You do not propose changes, you do not rewrite the
+reason, and you do not judge whether the change is a good idea. You check
+whether the reason is TRUE, using only the text in front of you.
+
+You will be given the commander, the change (an ADD, an optional CUT, and a
+WHY), the full card text of every card the reason touches, the decklist with
+each card's type line, and the deck's statistics.
+
+Split the WHY into its factual claims and check each one:
+
+${CLAIM_RULES}
 
 Reply with one JSON array holding one object, and nothing before or after
 it. For each claim, "text" quotes the words that settle it (or "none"), and
@@ -97,7 +106,7 @@ export function namedIn(text: string, names: string[]): string[] {
   );
 }
 
-function cardLine(o: OracleEntry): string {
+export function cardLine(o: OracleEntry): string {
   const head = [o.name, o.manaCost, o.typeLine ? `— ${o.typeLine}` : ''].filter(Boolean).join(' ');
   return o.oracleText
     ? `${head}: ${o.oracleText.replace(/\n/g, ' ')}`
@@ -155,12 +164,19 @@ export interface WhyCheckResult {
 }
 
 /**
- * Apply the checker's claim lists: a change survives only when every claim it
- * makes holds. Returns null when the reply isn't a claim list for every change:
- * a half-read check is no check, and the caller keeps the originals rather than
- * guess which ones were looked at.
+ * One entry of a checker reply: the claims that failed, and (prose check only,
+ * E1029) the damage claims the checker says also hit the deck's owner.
  */
-export function applyWhyCheck(raw: string, tweaks: RefineTweak[]): WhyCheckResult | null {
+export interface ClaimVerdict {
+  failed: string[];
+  hitsOwner: string[];
+}
+
+/**
+ * The checker's reply as `n` → its verdict (`failed` empty when all hold).
+ * Null when the reply isn't a claim list at all, or a claim has no verdict.
+ */
+export function parseClaimLists(raw: string): Map<number, ClaimVerdict> | null {
   const start = raw.indexOf('[');
   const end = raw.lastIndexOf(']');
   if (start === -1 || end <= start) return null;
@@ -172,24 +188,37 @@ export function applyWhyCheck(raw: string, tweaks: RefineTweak[]): WhyCheckResul
   }
   if (!Array.isArray(parsed)) return null;
 
-  const failedBy = new Map<number, string[]>();
+  const verdicts = new Map<number, ClaimVerdict>();
   for (const entry of parsed) {
     if (typeof entry !== 'object' || entry === null) continue;
     const { n, claims } = entry as Record<string, unknown>;
     if (typeof n !== 'number' || !Array.isArray(claims)) continue;
-    const failed: string[] = [];
+    const verdict: ClaimVerdict = { failed: [], hitsOwner: [] };
     for (const c of claims) {
       if (typeof c !== 'object' || c === null) return null;
-      const { claim, holds } = c as Record<string, unknown>;
+      const { claim, holds, hits_owner } = c as Record<string, unknown>;
       if (typeof holds !== 'boolean') return null;
-      if (!holds) failed.push(typeof claim === 'string' ? claim : '');
+      const text = typeof claim === 'string' ? claim : '';
+      if (!holds) verdict.failed.push(text);
+      if (hits_owner === true) verdict.hitsOwner.push(text);
     }
-    failedBy.set(n, failed);
+    verdicts.set(n, verdict);
   }
+  return verdicts;
+}
 
+/**
+ * Apply the checker's claim lists: a change survives only when every claim it
+ * makes holds. Returns null when the reply isn't a claim list for every change:
+ * a half-read check is no check, and the caller keeps the originals rather than
+ * guess which ones were looked at.
+ */
+export function applyWhyCheck(raw: string, tweaks: RefineTweak[]): WhyCheckResult | null {
+  const failedBy = parseClaimLists(raw);
+  if (!failedBy) return null;
   const out: WhyCheckResult = { tweaks: [], dropped: [] };
   for (const [i, t] of tweaks.entries()) {
-    const failed = failedBy.get(i + 1);
+    const failed = failedBy.get(i + 1)?.failed;
     if (!failed) return null;
     if (failed.length === 0) out.tweaks.push(t);
     else out.dropped.push({ add: t.add, why: t.why, failed });

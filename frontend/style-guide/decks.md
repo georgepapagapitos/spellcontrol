@@ -1931,6 +1931,13 @@ Model-written text always says so. The rulings:
   withheld server-side so it can never flicker on screen as prose. A stream
   that ends without its terminator is a failure, not a short answer: drop the
   partial and offer the retry, because half a finding still reads as a finding.
+- **A checked stream holds text back; it never takes it back (E1029).** When a
+  pass checks its own claims against the card text (the refine strategy, a
+  sentence at a time), the server streams each unit only once it has passed,
+  so the reader never sees a claim that is later withdrawn and the text never
+  reflows under them. A failing sentence is dropped, never rewritten. The cost
+  is a later first word (about 3s on refine), which the skeleton covers; don't
+  "fix" it by streaming first and pruning on completion.
 - **An AI surface that proposes actions shows the whole move on the row**
   (T102): what comes in, what goes out, and why, so the move can be judged
   without expanding anything. Accepting routes through the app's existing apply

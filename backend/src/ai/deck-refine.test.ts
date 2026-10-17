@@ -455,6 +455,20 @@ Your deck ramps.`)
   it('leaves a reply with no tail alone', () => {
     expect(withTweaks('Just prose.', [])).toBe('Just prose.');
   });
+
+  it('rebuilds the reply around checked prose, so a replay serves only what passed (E1029)', () => {
+    const raw = `thinking
+${STRATEGY_MARK}
+${reply("Your deck burns. Lands and Zo-Zu's trigger turn each land drop into damage.", [])}`;
+    const stored = withTweaks(raw, [], 'Your deck burns.');
+    expect(stored).not.toContain('thinking');
+    expect(parseRefineOutput(stored, REQ)).toMatchObject({
+      strategy: 'Your deck burns.',
+      tweaks: [],
+    });
+    // A truncated reply with no tail still stores as a whole reply.
+    expect(parseRefineOutput(withTweaks('Cut off', [], 'Cut off'), REQ).strategy).toBe('Cut off');
+  });
 });
 
 describe('hashRefineInput — the check is part of the key', () => {
