@@ -1246,3 +1246,66 @@ describe('basic slots the free copies can not fill', () => {
     expect(lands.map((c) => c.name)).toEqual(['Wastes']);
   });
 });
+
+// E1030, owner report 2026-10-17: a Zo-Zu land-destruction build seated Great
+// Furnace, Cori Mountain Monastery and Lindblum (none on the commander's page)
+// over the Tectonic Edge and Volatile Fault it had. Inclusion is the share of
+// Zo-Zu's 2,818 EDHREC decks (2026-10-17); oracle text is Scryfall's.
+describe('a land that does the deck job outranks one that only adds color (E1030)', () => {
+  const fx = JSON.parse(
+    readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), '__fixtures__', 'zozu-deck.fixture.json'),
+      'utf8'
+    )
+  ) as { decklist: string[]; seated: string[]; controlPackage: string[]; cards: ScryfallCard[] };
+  const zozu = (n: string) => structuredClone(fx.cards.find((c) => c.name === n)!);
+  const PAGE: Record<string, number> = {
+    'Volatile Fault': (589 / 2818) * 100,
+    'Tectonic Edge': (265 / 2818) * 100,
+  };
+  const candidates = ['Tectonic Edge', 'Volatile Fault', ...fx.seated];
+  const spells = fx.decklist.map(zozu).filter((c) => !/\bland\b/i.test(c.type_line));
+  const pick = async (deckSpells: ScryfallCard[], identity = ['R']) => {
+    // An earlier test in this file can leave a queued value behind.
+    vi.mocked(getCardsByNames)
+      .mockReset()
+      .mockImplementation(async () => new Map())
+      .mockResolvedValueOnce(new Map(candidates.map((n) => [n, zozu(n)])));
+    const lands = await generateLands(
+      candidates.map((name) => ({
+        name,
+        sanitized: name.toLowerCase(),
+        primary_type: 'Land',
+        inclusion: PAGE[name] ?? 0,
+        num_decks: Math.round(((PAGE[name] ?? 0) / 100) * 2818),
+      })),
+      identity,
+      3,
+      new Set(),
+      1,
+      99,
+      deckSpells,
+      undefined,
+      new Set(),
+      null
+    );
+    return lands.map((c) => c.name).filter((n) => n !== 'Mountain');
+  };
+
+  it('seats Tectonic Edge and Volatile Fault in the deck that destroys lands', async () => {
+    expect(await pick(spells)).toEqual(['Volatile Fault', 'Tectonic Edge']);
+  });
+
+  it('in two colors too, where a second colorless land reads as filler', async () => {
+    expect(await pick(spells, ['B', 'R'])).toEqual(['Volatile Fault', 'Tectonic Edge']);
+  });
+
+  it('leaves a red deck without the plan to its color lands, as before', async () => {
+    const { attacksLands } = await import('./landPlan');
+    const names = await pick([
+      ...spells.filter((c) => !attacksLands(c)),
+      ...fx.controlPackage.map(zozu),
+    ]);
+    expect(names).toEqual(['Cori Mountain Monastery', 'Great Furnace']);
+  });
+});

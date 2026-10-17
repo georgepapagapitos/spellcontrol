@@ -970,4 +970,73 @@ describe('applyCoherenceRepair', () => {
       expect(nonBasics).toHaveLength(3);
     });
   });
+
+  // E1030, owner report 2026-10-17: a Zo-Zu land-destruction build lost Tectonic
+  // Edge and Volatile Fault to the owned Cori Mountain Monastery, Great Furnace
+  // and Lindblum. Red read 36 sources of 42, so every colorless land read as a
+  // squatter, though each one destroys a land. Real oracle text: the fixture-8
+  // list from Scryfall.
+  describe('colorless lands that do the deck job (E1030)', () => {
+    const ZOZU = JSON.parse(
+      readFileSync(
+        resolve(
+          dirname(fileURLToPath(import.meta.url)),
+          '..',
+          '__fixtures__',
+          'zozu-deck.fixture.json'
+        ),
+        'utf8'
+      )
+    ) as { decklist: string[]; seated: string[]; controlPackage: string[]; cards: ScryfallCard[] };
+    const real = (n: string) => structuredClone(ZOZU.cards.find((c) => c.name === n)!);
+    const LD_LANDS = [
+      'Field of Ruin',
+      'Ghost Quarter',
+      'Tectonic Edge',
+      'Volatile Fault',
+      'Wasteland',
+    ];
+    const SPARES = ZOZU.seated;
+    const spells = ZOZU.decklist.map(real).filter((c) => !/\bland\b/i.test(c.type_line));
+    const build = (deckSpells: ScryfallCard[]) => {
+      const state = makeState();
+      state.context.commander = real('Zo-Zu the Punisher');
+      state.context.colorIdentity = ['R'];
+      state.categories.synergy = deckSpells.map((c) => structuredClone(c));
+      state.usedNames = new Set(deckSpells.map((c) => c.name));
+      // Every spell is a page card, so no spell finding takes the swap budget.
+      state.edhrecData!.cardlists.allNonLand = deckSpells.map((c) => edhrecCard(c.name, 30));
+      state.categories.lands = [
+        ...LD_LANDS.map(real),
+        ...Array.from({ length: 27 }, () => real('Mountain')),
+      ];
+      for (const l of state.categories.lands) state.usedNames.add(l.name);
+      return state;
+    };
+    const repairLands = async (state: GenerationState) => {
+      const { repairs } = await applyCoherenceRepair(
+        state,
+        makeCtx(state, { landSpares: SPARES.map(real), nonBasicTarget: 5 })
+      );
+      return repairs.filter((r) => SPARES.includes(r.added));
+    };
+
+    it('keeps Tectonic Edge and Volatile Fault in the deck that destroys lands', async () => {
+      const state = build(spells);
+      expect(await repairLands(state)).toEqual([]);
+      for (const n of LD_LANDS) expect(state.categories.lands.map((l) => l.name)).toContain(n);
+      for (const n of SPARES) expect(state.categories.lands.map((l) => l.name)).not.toContain(n);
+    });
+
+    it('still trades them for red lands in the same deck without a land-destruction plan', async () => {
+      const { attacksLands } = await import('../landPlan');
+      const state = build([
+        ...spells.filter((c) => !attacksLands(c)),
+        ...ZOZU.controlPackage.map(real),
+      ]);
+      const swaps = await repairLands(state);
+      expect(swaps.length).toBeGreaterThan(0);
+      expect(swaps.every((r) => LD_LANDS.includes(r.cut))).toBe(true);
+    });
+  });
 });
