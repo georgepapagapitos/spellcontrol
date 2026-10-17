@@ -10,27 +10,26 @@ const mockState = {
   /** The refine "why" check (E1027), kept apart so refine counts stay one call. */
   check: vi.fn(),
 };
-vi.mock('../ai/client', async (importOriginal) => {
-  const { WHY_CHECK_SYSTEM_PROMPT } = await import('../ai/why-check');
-  return {
-    AI_MODEL: 'test-model',
-    REFINE_MODEL: 'test-refine-model',
-    REVIEW_GENERATION: { model: 'test-model', thinking: 'off' },
-    // Real pricing math: the global spend cap reads it.
-    estimateUsd: (await importOriginal<typeof import('../ai/client')>()).estimateUsd,
-    aiEnabled: () => mockState.enabled,
-    generateReview: (
-      system: string,
-      user: string,
-      onDelta?: (t: string) => void,
-      signal?: AbortSignal,
-      options?: unknown
-    ) =>
-      system === WHY_CHECK_SYSTEM_PROMPT
-        ? mockState.check(system, user)
-        : mockState.generate(system, user, onDelta, signal, options),
-  };
-});
+vi.mock('../ai/client', async (importOriginal) => ({
+  AI_MODEL: 'test-model',
+  REFINE_MODEL: 'test-refine-model',
+  REVIEW_GENERATION: { model: 'test-model', thinking: 'off' },
+  // Real pricing math: the global spend cap reads it.
+  estimateUsd: (await importOriginal<typeof import('../ai/client')>()).estimateUsd,
+  aiEnabled: () => mockState.enabled,
+  generateReview: async (
+    system: string,
+    user: string,
+    onDelta?: (t: string) => void,
+    signal?: AbortSignal,
+    options?: unknown
+  ) =>
+    // Imported at call time: why-check imports this mocked module, so importing
+    // it from the factory waits on itself and hangs the file.
+    system === (await import('../ai/why-check')).WHY_CHECK_SYSTEM_PROMPT
+      ? mockState.check(system, user)
+      : mockState.generate(system, user, onDelta, signal, options),
+}));
 
 /** A check reply for one change: every claim in `holds` order, none failing by default. */
 function checkReply(...holds: boolean[]): string {
