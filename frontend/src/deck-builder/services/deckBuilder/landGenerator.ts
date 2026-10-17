@@ -406,20 +406,24 @@ export async function generateLands(
     // Furnace and Cori Mountain Monastery over the Tectonic Edge it owned.
     //
     // E1033: in two or more colors, fixing comes first. A plan land there earns
-    // the boost only when it is itself a source of a deck color, directly or as a
-    // typed fetch that finds a dual. Boosting basic-only fetchers cost a landfall
-    // Tatyova seven Simic duals in the gate, leaving one Island for six fetches
-    // to share. The others keep their page rank and their place as non-filler.
+    // the boost only when it fixes too: it supplies two of the deck's colors,
+    // tapping for them or as a fetch that finds a nonbasic dual (Wooded
+    // Foothills, not Cabaretti Courtyard's "basic Forest"). Boosting fetchers of
+    // basics and one-color cycling lands cost a landfall Tatyova five Simic duals
+    // in the gate. The others keep their page rank and their place as non-filler.
     const plan = readDeckLandPlan(nonLandCards);
     const servesPlan = (card: ScryfallCard) => planJobServed(card, plan) !== undefined;
-    const makesDeckColor = (name: string, card: ScryfallCard) => {
-      if (producedManaColors(card, identitySet, readingFor(name)).some((c) => identitySet.has(c)))
-        return true;
+    const fixes = (name: string, card: ScryfallCard) => {
+      const colors = new Set(
+        producedManaColors(card, identitySet, readingFor(name)).filter((c) => identitySet.has(c))
+      );
       const fetch = fetchedBasicRequirement(card);
-      return !!fetch && !fetch.anyBasic && fetch.colors.some((c) => identitySet.has(c));
+      const findsDuals = !!fetch && !fetch.anyBasic && !/\bbasic\b/i.test(card.oracle_text ?? '');
+      if (findsDuals) for (const c of fetch.colors) if (identitySet.has(c)) colors.add(c);
+      return colors.size >= 2;
     };
     for (const [name, card] of landCardMap) {
-      if (servesPlan(card) && (colorIdentity.length < 2 || makesDeckColor(name, card)))
+      if (servesPlan(card) && (colorIdentity.length < 2 || fixes(name, card)))
         landPenalties.set(name, (landPenalties.get(name) ?? 0) + PLAN_LAND_BOOST);
     }
 

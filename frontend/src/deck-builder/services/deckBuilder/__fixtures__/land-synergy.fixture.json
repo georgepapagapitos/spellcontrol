@@ -20,7 +20,8 @@
         "Myriad Landscape",
         "Fabled Passage",
         "Wooded Foothills",
-        "Gruul Turf"
+        "Gruul Turf",
+        "Cabaretti Courtyard"
       ],
       "genericLands": ["Rootbound Crag", "Cinder Glade", "Kessig Wolf Run"]
     },
@@ -130,6 +131,24 @@
       "rarity": "common",
       "set": "fdn",
       "type_line": "Land — Gate"
+    },
+    {
+      "cmc": 0,
+      "color_identity": [],
+      "colors": [],
+      "id": "c54ddd4e-f668-4ec8-b123-59afa977eba4",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Cabaretti Courtyard",
+      "oracle_id": "65424bea-fd53-4f85-9757-0b91a6d40ba4",
+      "oracle_text": "When this land enters, sacrifice it. When you do, search your library for a basic Mountain, Forest, or Plains card, put it onto the battlefield tapped, then shuffle and you gain 1 life.",
+      "rarity": "common",
+      "set": "eoc",
+      "type_line": "Land"
     },
     {
       "cmc": 0,

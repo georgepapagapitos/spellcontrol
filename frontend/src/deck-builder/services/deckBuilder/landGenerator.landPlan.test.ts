@@ -46,14 +46,19 @@ const fx = JSON.parse(
 const card = (name: string) => structuredClone(fx.cards.find((c) => c.name === name)!);
 
 /** The deck's one nonbasic slot, between one plan land and one generic land at the same page rate. */
-async function seat(deck: SynergyDeck, spells: ScryfallCard[], planLand: string, generic: string) {
+async function seat(
+  deck: SynergyDeck,
+  spells: ScryfallCard[],
+  planLand: string,
+  generic: string,
+  identity = card(deck.commander).color_identity
+) {
   const candidates = [planLand, generic];
   vi.mocked(getCardsByNames)
     .mockReset()
     .mockImplementation(async () => new Map())
     .mockResolvedValueOnce(new Map(candidates.map((n) => [n, card(n)])));
   vi.mocked(getCardByName).mockImplementation(async (n: string) => card(n) ?? null);
-  const identity = card(deck.commander).color_identity;
   const lands = await generateLands(
     candidates.map((name) => ({
       name,
@@ -103,20 +108,24 @@ describe('a land that serves the deck plan takes the slot (E1033)', () => {
     }
   );
 
-  // The gate's regression: boosting basic-only fetchers cost a landfall Tatyova
-  // seven Simic duals. In two colors a plan land that makes no deck color keeps
-  // its page rank, so the dual stays.
+  // The gate's regression: boosting fetchers of basics and one-color cycling
+  // lands cost a landfall Tatyova five Simic duals. In two or more colors a plan
+  // land that does not supply two of the deck's colors keeps its page rank, so
+  // the dual stays.
   it.each([
-    ['landfall', 'Evolving Wilds', 'Rootbound Crag'],
-    ['landfall', 'Myriad Landscape', 'Cinder Glade'],
-    ['gates', "Maze's End", 'Exotic Orchard'],
+    ['landfall', 'Evolving Wilds', 'Rootbound Crag', ['R', 'G']],
+    ['landfall', 'Myriad Landscape', 'Cinder Glade', ['R', 'G']],
+    ['gates', "Maze's End", 'Exotic Orchard', ['W', 'U', 'R']],
+    // Titania's recursion deck played in two colors: a green cycling land.
+    ['recursion', 'Tranquil Thicket', 'Pendelhaven', ['R', 'G']],
+    // A fetch of basics finds no dual, whatever basic types it names.
+    ['landfall', 'Cabaretti Courtyard', 'Rootbound Crag', ['R', 'G', 'W']],
   ])(
     '%s in two or more colors: fixing first, %s does not take %s’s slot',
-    async (name, planLand, generic) => {
+    async (name, planLand, generic, identity) => {
       const deck = fx.decks[name];
       const spells = [card(deck.commander), ...deck.spells.map(card)];
-      expect(card(deck.commander).color_identity.length).toBeGreaterThan(1);
-      expect(await seat(deck, spells, planLand, generic)).toEqual([generic]);
+      expect(await seat(deck, spells, planLand, generic, identity)).toEqual([generic]);
     }
   );
 });
