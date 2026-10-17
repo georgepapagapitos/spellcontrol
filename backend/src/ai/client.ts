@@ -27,9 +27,10 @@ export const REVIEW_GENERATION = { model: AI_MODEL, thinking: 'off' } as const;
  * The refine pass's model. Split from AI_MODEL on 2026-10-15 (E1017): on the
  * ai-prompt-eval blind critic, Haiku 5.5 cut refine's factual errors from 4.8 to
  * 2.0 per reading and raised sound swaps from 31% to 64% across three fixtures,
- * at a tenth of the price. The review stays on 4.5 until its own gate passes:
- * there, adaptive thinking spent the writing pass's budget and 1 run in 6 came
- * back empty.
+ * at a tenth of the price. The review followed in #2956 once its own gate
+ * passed with thinking off (see REVIEW_GENERATION), so both now run Haiku 5.5.
+ * Refine keeps the model's default thinking; the "why" check (why-check.ts)
+ * runs on this model with thinking off.
  */
 export const REFINE_MODEL = 'claude-haiku-5-5';
 
