@@ -48,7 +48,6 @@ import {
   DECK_REFINE_PROMPT_VERSION,
   DECK_REFINE_SYSTEM_PROMPT,
   STRATEGY_MARK,
-  TWEAKS_DELIMITER,
   buildRefineMessage,
   hashRefineInput,
   parseRefineOutput,
@@ -58,6 +57,7 @@ import {
   type RefineTweak,
 } from '../ai/deck-refine';
 import { checkRefineWhys } from '../ai/why-check';
+import { checkedRefineProse, makeProseGate } from '../ai/prose-check';
 
 /**
  * Oracle facts don't expire the way prices do, so card lookups that only read
@@ -656,55 +656,6 @@ function bracketTools(
   ];
 }
 
-/**
- * Emit only the prose half of a refine reply as it streams.
- *
- * The model writes a marker, then prose, then a delimiter, then JSON. Both the
- * marker and the JSON are machine output and must never flicker across the
- * user's screen, so this drops the opening marker, forwards everything up to
- * the delimiter, and then goes quiet. Deltas split wherever the model happens
- * to chunk, so it holds back a delimiter-length tail rather than risk emitting
- * half of `---TWEAKS---` as if it were prose.
- *
- * The marker arrives here because the tool loop's gate releases text FROM the
- * marker onward — that is what tells it the research is over. Stripping it is
- * this gate's job; `parseRefineOutput` does the same for the stored copy.
- */
-function makeProseGate(emit: (text: string) => void): (delta: string) => void {
-  let acc = '';
-  let sent = 0;
-  let done = false;
-  let markerHandled = false;
-  return (delta: string) => {
-    if (done) return;
-    acc += delta;
-    if (!markerHandled) {
-      const markAt = acc.indexOf(STRATEGY_MARK);
-      if (markAt !== -1) {
-        acc = acc.slice(markAt + STRATEGY_MARK.length).replace(/^\r?\n/, '');
-        markerHandled = true;
-      } else if (acc.length < STRATEGY_MARK.length) {
-        // Could still be the marker arriving a character at a time.
-        return;
-      } else {
-        // No marker in a reply long enough to hold one — a v3-shaped answer.
-        markerHandled = true;
-      }
-    }
-    const at = acc.indexOf(TWEAKS_DELIMITER);
-    if (at !== -1) {
-      if (at > sent) emit(acc.slice(sent, at));
-      done = true;
-      return;
-    }
-    const safe = acc.length - TWEAKS_DELIMITER.length;
-    if (safe > sent) {
-      emit(acc.slice(sent, safe));
-      sent = safe;
-    }
-  };
-}
-
 interface RefineDone {
   /** The strategy prose only — the tweaks tail is parsed out. */
   content: string;
@@ -830,12 +781,15 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
     ...request.pool.map((c) => c.name),
   ]);
 
+  // The strategy is checked a paragraph at a time and streams only once checked
+  // (E1029), so nothing the reader has seen is ever taken back.
+  const prose = checkedRefineProse(request, oracle, ac.signal, (text) => send({ delta: text }));
   let generation;
   try {
     generation = await generateReview(
       DECK_REFINE_SYSTEM_PROMPT,
       buildRefineMessage(request, oracle),
-      makeProseGate((text) => send({ delta: text })),
+      makeProseGate(prose.push),
       ac.signal,
       {
         // Same deck scoping as the review, plus the owned-only restriction:
@@ -864,24 +818,33 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
 
   const out = parseRefineOutput(generation.content, request, resolveCandidate);
 
-  // Every "why" is checked against the card text (E1027). The prose has already
-  // streamed; the client is told the wait before the swaps is the check.
-  let checkUsage = { inputTokens: 0, outputTokens: 0, cacheWriteTokens: 0, cacheReadTokens: 0 };
-  let whyCheck: Grounding['whyCheck'];
-  if (out.tweaks.length > 0) {
-    send({ checking: true });
-    const adds = hydrateOracle(out.tweaks.map((t) => t.add));
-    try {
-      const known = [...oracle, ...(generation.fetched ?? []), ...adds];
-      const run = await checkRefineWhys(request, out.tweaks, known, ac.signal);
-      out.tweaks = run.tweaks;
-      checkUsage = run.usage;
-      whyCheck = run.grounding;
-    } catch (err) {
-      if (err instanceof APIUserAbortError || ac.signal.aborted) return res.end();
-      throw err;
-    }
+  // Every "why" is checked against the card text (E1027) while the prose's last
+  // sentences finish theirs; the client is told the wait after the prose is the check.
+  const swaps = out.tweaks.length
+    ? checkRefineWhys(
+        request,
+        out.tweaks,
+        [...oracle, ...(generation.fetched ?? []), ...hydrateOracle(out.tweaks.map((t) => t.add))],
+        ac.signal
+      )
+    : null;
+  swaps?.catch(() => {});
+  const raw = out.strategy;
+  let checked, run;
+  try {
+    checked = await prose.finish(raw);
+    if (swaps) send({ checking: true });
+    run = await swaps;
+  } catch (err) {
+    if (err instanceof APIUserAbortError || ac.signal.aborted) return res.end();
+    throw err;
   }
+  out.strategy = checked.strategy;
+  if (run) out.tweaks = run.tweaks;
+  const whyCheck = run?.grounding;
+  const checkUsage = { ...checked.usage };
+  for (const k of Object.keys(checkUsage) as (keyof typeof checkUsage)[])
+    checkUsage[k] += run?.usage[k] ?? 0;
 
   // Rejected names mean the prompt's grounding rule slipped. They never reach
   // the user, but they're the signal that the prompt needs another eval run.
@@ -942,12 +905,13 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
     recalled,
     rejected: out.rejected,
     protectedCuts: out.protectedCuts,
-    suggestedAsDeck: suggestedAsDeck(out.strategy, request, generation.fetched),
+    suggestedAsDeck: suggestedAsDeck(raw, request, generation.fetched),
     ...(whyCheck ? { whyCheck } : {}),
+    proseCheck: checked.grounding,
     ...(generation.truncated ? { truncated: true } : {}),
   };
-  // Stored with the CHECKED tail, so a cache hit replays only the changes that
-  // passed; what was dropped, and why, is in `grounding.whyCheck`.
+  // Stored CHECKED, prose and tail, so a cache hit replays only what passed;
+  // what was dropped, and why, is in `grounding.proseCheck` and `.whyCheck`.
   const inputTokens = generation.inputTokens + checkUsage.inputTokens;
   const outputTokens = generation.outputTokens + checkUsage.outputTokens;
 
@@ -962,7 +926,7 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
       DECK_REFINE_FEATURE,
       inputHash,
       REFINE_MODEL,
-      whyCheck ? withTweaks(generation.content, out.tweaks) : generation.content,
+      withTweaks(generation.content, out.tweaks, out.strategy),
       inputTokens,
       outputTokens,
       (generation.cacheWriteTokens ?? 0) + checkUsage.cacheWriteTokens,

@@ -9,6 +9,8 @@ const mockState = {
   generate: vi.fn(),
   /** The refine "why" check (E1027), kept apart so refine counts stay one call. */
   check: vi.fn(),
+  /** The refine strategy check (E1029), one call per sentence; same reason. */
+  prose: vi.fn(),
 };
 vi.mock('../ai/client', async (importOriginal) => ({
   AI_MODEL: 'test-model',
@@ -24,11 +26,13 @@ vi.mock('../ai/client', async (importOriginal) => ({
     signal?: AbortSignal,
     options?: unknown
   ) =>
-    // Imported at call time: why-check imports this mocked module, so importing
-    // it from the factory waits on itself and hangs the file.
+    // Imported at call time: both checks import this mocked module, so importing
+    // them from the factory waits on itself and hangs the file.
     system === (await import('../ai/why-check')).WHY_CHECK_SYSTEM_PROMPT
       ? mockState.check(system, user)
-      : mockState.generate(system, user, onDelta, signal, options),
+      : system === (await import('../ai/prose-check')).PROSE_CHECK_SYSTEM_PROMPT
+        ? mockState.prose(system, user)
+        : mockState.generate(system, user, onDelta, signal, options),
 }));
 
 /** A check reply for one change: every claim in `holds` order, none failing by default. */
@@ -77,6 +81,10 @@ beforeEach(() => {
     outputTokens: 20,
     fetched: [],
   }));
+  // Free by default, so the refine usage totals below stay the generation's and
+  // the swap check's; the strategy-check tests bill it explicitly.
+  mockState.prose.mockReset();
+  mockState.prose.mockImplementation(async () => ({ content: checkReply(), fetched: [] }));
   // Emit the text in two chunks, the way a real stream arrives, so the route's
   // delta forwarding is exercised rather than assumed.
   // The review is TWO calls: a research pass (tools, no streaming, prose
@@ -1621,6 +1629,122 @@ describe('POST /api/ai/deck-refine', () => {
     });
   });
 
+  describe('the strategy check (E1029)', () => {
+    // The owner's Zo-Zu reading after #2996: Zo-Zu damages the land's
+    // CONTROLLER, so the owner's own land drops hurt the owner.
+    const SHELL = 'Your deck is a punisher shell built around its commander.';
+    const LAND_DROPS =
+      "Lands and Zo-Zu's trigger together turn each land drop into a source of damage.";
+    const TWEAK = { add: 'Eternal Witness', cut: 'Sol Ring', why: 'Recursion beats a rock here.' };
+
+    beforeEach(() => {
+      mockState.generate.mockImplementation(
+        async (_s: string, _u: string, onDelta?: (t: string) => void) => {
+          const raw = `---STRATEGY---\n${SHELL} ${LAND_DROPS}\n\n---TWEAKS---\n${JSON.stringify([TWEAK])}`;
+          // Chunked, so the sentences complete mid-stream.
+          for (let i = 0; i < raw.length; i += 9) onDelta?.(raw.slice(i, i + 9));
+          return { content: raw, inputTokens: 500, outputTokens: 120, fetched: [] };
+        }
+      );
+      // What Haiku 5.5 wrote on that sentence: it holds, and the owner takes it.
+      mockState.prose.mockImplementation(async (_s: string, user: string) => ({
+        content: user.includes(`## Sentence to check\n\n${LAND_DROPS}`)
+          ? JSON.stringify([
+              {
+                n: 1,
+                claims: [
+                  {
+                    claim: 'each land drop deals damage',
+                    text: 'q',
+                    reading: 'r',
+                    holds: true,
+                    hits_owner: true,
+                  },
+                ],
+              },
+            ])
+          : checkReply(),
+        inputTokens: 40,
+        outputTokens: 10,
+        fetched: [],
+      }));
+    });
+
+    async function storedRow(username: string) {
+      const { getPool } = await import('../db');
+      const rows = await getPool().query<{ content: string; grounding: Record<string, unknown> }>(
+        `SELECT r.content, r.grounding FROM ai_reviews r JOIN users u ON u.id = r.user_id WHERE u.username = $1`,
+        [username]
+      );
+      expect(rows.rows).toHaveLength(1);
+      return rows.rows[0];
+    }
+
+    it('never streams a sentence whose check fails, and stores and replays the checked prose', async () => {
+      const cookie = await makeUser('ai-prose-drop');
+      await optIn(cookie);
+      const body = refineBody();
+      const res = await request(app).post('/api/ai/deck-refine').set('Cookie', cookie).send(body);
+      const { streamed, done } = parseStream(res.text);
+      expect(streamed).toBe(SHELL);
+      expect(done).toMatchObject({ content: SHELL, tweaks: [TWEAK] });
+      // One check per sentence, the text before it as context.
+      expect(mockState.prose).toHaveBeenCalledTimes(2);
+      expect(mockState.prose.mock.calls[1][1]).toContain(
+        `## Text before it (context only)\n\n${SHELL}`
+      );
+      // Billed with the reading: generation 500 + swap check 300 + 2 x 40.
+      expect((done as { usage: unknown }).usage).toEqual({ inputTokens: 880, outputTokens: 160 });
+
+      const row = await storedRow('ai-prose-drop');
+      expect(row.content).not.toContain('land drop');
+      expect(row.grounding.proseCheck).toEqual({
+        dropped: [{ sentence: LAND_DROPS, failed: ['hits you too: each land drop deals damage'] }],
+      });
+
+      const again = await request(app).post('/api/ai/deck-refine').set('Cookie', cookie).send(body);
+      expect(parseStream(again.text).done).toMatchObject({
+        cached: true,
+        content: SHELL,
+        tweaks: [TWEAK],
+      });
+      expect(mockState.prose).toHaveBeenCalledTimes(2);
+    });
+
+    it('says the swaps are being checked only after the last of the prose', async () => {
+      const cookie = await makeUser('ai-prose-order');
+      await optIn(cookie);
+      mockState.prose.mockImplementation(async () => ({ content: checkReply(), fetched: [] }));
+      const res = await request(app)
+        .post('/api/ai/deck-refine')
+        .set('Cookie', cookie)
+        .send(refineBody());
+      const lines = res.text.trim().split('\n');
+      const checking = lines.indexOf('{"checking":true}');
+      expect(checking).toBeGreaterThan(-1);
+      expect(lines.slice(checking).some((l) => l.startsWith('{"delta"'))).toBe(false);
+      expect(parseStream(res.text).streamed).toBe(`${SHELL} ${LAND_DROPS}`);
+    });
+
+    it('streams a sentence its check could not read as written, and counts it', async () => {
+      const cookie = await makeUser('ai-prose-throws');
+      await optIn(cookie);
+      mockState.prose.mockImplementation(async (_s: string, user: string) => {
+        if (user.includes(`## Sentence to check\n\n${LAND_DROPS}`)) throw new Error('overloaded');
+        return { content: checkReply(), fetched: [] };
+      });
+      const res = await request(app)
+        .post('/api/ai/deck-refine')
+        .set('Cookie', cookie)
+        .send(refineBody());
+      expect(parseStream(res.text).done).toMatchObject({ content: `${SHELL} ${LAND_DROPS}` });
+      expect((await storedRow('ai-prose-throws')).grounding.proseCheck).toEqual({
+        dropped: [],
+        unchecked: 1,
+      });
+    });
+  });
+
   it('is stored under its own feature key, not the review’s', async () => {
     const cookie = await makeUser('ai-refine-feature');
     await optIn(cookie);
@@ -1710,6 +1834,7 @@ describe('grounding verdict on the stored row', () => {
       protectedCuts: [],
       suggestedAsDeck: [],
       whyCheck: { dropped: [] },
+      proseCheck: { dropped: [] },
     });
   });
 

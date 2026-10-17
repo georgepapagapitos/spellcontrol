@@ -23,6 +23,14 @@ export interface Grounding {
     dropped: { add: string; why: string; failed: string[] }[];
     unchecked?: string[];
   };
+  /**
+   * Refine only (E1029): strategy sentences the prose check dropped, with the
+   * claims that failed, and how many paragraphs shipped unchecked after an error.
+   */
+  proseCheck?: {
+    dropped: { sentence: string; failed: string[] }[];
+    unchecked?: number;
+  };
   truncated?: true;
 }
 
