@@ -34,19 +34,6 @@
   min-width: 0;
 }
 
-/* The deck's own color (the rename editor's picker sets it) is the dot at
-   the head of the meta line, with or without art (DeckHero). */
-.deck-hero-color-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  margin-right: var(--space-1-5);
-  border-radius: 50%;
-  background: var(--deck-color, var(--accent));
-  box-shadow: 0 0 0 0.5px var(--border-strong);
-  vertical-align: 0.05em;
-}
-
 /* The back link heads the title column. The name under it keeps 0.22em of
    slack above its text (see .deck-editor-name), which reaches past the
    column gap; the link's margin keeps that slack off the link, at the
@@ -154,6 +141,17 @@
   box-shadow: 0 0 0 1px var(--border);
   /* Shows while the art loads. */
   background: var(--surface-raised);
+}
+
+/* The deck's own color (the rename editor's picker sets it) frames the art:
+   a 2px ring past a 2px gap in the page color. It used to be a 10px dot at
+   the head of the meta line, where it sat beside the mana pips and read as
+   one more color. With no art there is nothing to frame; the deck's tile
+   and the picker still show it. */
+.deck-editor-hero--color .deck-editor-hero-art {
+  box-shadow:
+    0 0 0 2px var(--bg),
+    0 0 0 4px var(--deck-color);
 }
 
 @media (min-width: 600px) {

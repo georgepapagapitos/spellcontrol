@@ -19,6 +19,25 @@ describe('DeckHero', () => {
     expect(container.querySelector('.deck-hero-colors')).toBeNull();
   });
 
+  it("frames the art with the deck's own color, never a dot beside the pips", () => {
+    // A purple dot before a red pip read as a second color identity.
+    const { container } = render(
+      <DeckHero
+        title={<h1>Zo-Zu</h1>}
+        meta="Commander"
+        art="https://x/art.jpg"
+        color="#7c5cbf"
+        colors={['R']}
+      />
+    );
+    const hero = container.querySelector<HTMLElement>('header.deck-editor-hero--color')!;
+    expect(hero.style.getPropertyValue('--deck-color')).toBe('#7c5cbf');
+    // The pips open the meta line; nothing of the deck's color is in it.
+    const meta = container.querySelector('.binder-hero-meta')!;
+    expect(meta.firstElementChild?.className).toBe('deck-hero-colors');
+    expect(meta.children).toHaveLength(1);
+  });
+
   it('draws the commander art as a thumbnail beside the title column', () => {
     const { container } = render(
       <DeckHero title={<h1>Odds and Ends</h1>} meta="Commander" art="https://x/art.jpg" />

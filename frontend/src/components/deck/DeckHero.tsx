@@ -12,7 +12,8 @@ const COLOR_NAMES: Record<string, string> = {
 interface Props {
   /** The commander's art_crop, drawn as a thumbnail. Absent → no thumbnail. */
   art?: string;
-  /** The deck's own color: the identity dot at the head of the meta line. */
+  /** The deck's own color: a ring around the art thumbnail. Never a dot in the
+   *  meta line, where it sat beside the mana pips and read as one more color. */
   color?: string;
   /** The deck's color identity (WUBRG), as pips at the head of the meta line. */
   colors?: readonly string[];
@@ -51,7 +52,7 @@ export function DeckHero({
   const pips = Object.keys(COLOR_NAMES).filter((c) => colors?.includes(c));
   return (
     <header
-      className={`deck-editor-hero${art ? ' deck-editor-hero--art' : ''}${className ? ` ${className}` : ''}`}
+      className={`deck-editor-hero${art ? ' deck-editor-hero--art' : ''}${color ? ' deck-editor-hero--color' : ''}${className ? ` ${className}` : ''}`}
       style={color ? ({ '--deck-color': color } as CSSProperties) : undefined}
     >
       {art && <img className="deck-editor-hero-art" src={art} alt="" aria-hidden="true" />}
@@ -59,12 +60,6 @@ export function DeckHero({
         {back}
         {title}
         <p className="binder-hero-meta">
-          {color && (
-            /* The deck's own color as the identity dot (the binder route chip's
-               10px disc), never a rule beside the title or a foot under the
-               art (STYLE_GUIDE § Layout system, stripes). */
-            <span className="deck-hero-color-dot" aria-hidden="true" />
-          )}
           {pips.length > 0 && (
             <span
               className="deck-hero-colors"
