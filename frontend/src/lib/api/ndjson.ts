@@ -7,7 +7,7 @@
  * The caller owns the meaning of the lines; this only guarantees each parsed
  * object arrives once, in order.
  */
-export type NdjsonLine = { delta?: unknown; done?: unknown; error?: unknown };
+export type NdjsonLine = { delta?: unknown; checking?: unknown; done?: unknown; error?: unknown };
 
 /**
  * Read the whole body, handing each parsed line to `onLine`.

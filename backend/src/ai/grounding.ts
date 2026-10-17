@@ -15,6 +15,14 @@ export interface Grounding {
   protectedCuts?: string[];
   /** Refine only: suggested or looked-up cards the STRATEGY prose names as if in the deck. */
   suggestedAsDeck?: string[];
+  /**
+   * Refine only (E1027): changes the "why" check dropped, with the claims that
+   * failed, and the adds whose check errored or didn't parse (kept as written).
+   */
+  whyCheck?: {
+    dropped: { add: string; why: string; failed: string[] }[];
+    unchecked?: string[];
+  };
   truncated?: true;
 }
 

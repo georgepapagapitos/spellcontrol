@@ -61,12 +61,15 @@ export interface DeckRefinePayload {
  * Same NDJSON contract as the review: `{delta}` lines carry prose only (the
  * server withholds the machine-readable tail), `{done}` terminates with the
  * strategy plus the verified tweaks, `{error}` reports a post-200 failure. A
- * stream that ends without `{done}` was truncated.
+ * stream that ends without `{done}` was truncated. `{checking: true}` arrives
+ * once the prose is complete and the server is checking each swap's reason
+ * against the card text (E1027), so the wait before `{done}` can be named.
  */
 export async function requestDeckRefine(
   payload: DeckRefinePayload,
   onText?: (textSoFar: string) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onChecking?: () => void
 ): Promise<DeckRefineResult> {
   const res = await authedFetch('/api/ai/deck-refine', {
     method: 'POST',
@@ -84,6 +87,8 @@ export async function requestDeckRefine(
     if (typeof msg.delta === 'string') {
       text += msg.delta;
       onText?.(text);
+    } else if (msg.checking === true) {
+      onChecking?.();
     } else if (typeof msg.error === 'string') {
       failure = msg.error;
     } else if (msg.done && typeof msg.done === 'object') {
