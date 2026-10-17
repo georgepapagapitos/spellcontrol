@@ -76,12 +76,14 @@ async function seat(deck: SynergyDeck, spells: ScryfallCard[], planLand: string,
 }
 
 const CASES: [string, string, string][] = [
-  ['landfall', 'Myriad Landscape', 'Rootbound Crag'],
-  ['landfall', 'Evolving Wilds', 'Cinder Glade'],
+  // Two colors: the plan lands that fix (a typed fetch, a karoo) win the slot.
+  ['landfall', 'Wooded Foothills', 'Rootbound Crag'],
+  ['landfall', 'Wooded Foothills', 'Cinder Glade'],
+  // One color (Titania): any plan land does. Three colors: a Guildgate fixes.
   ['recursion', 'Strip Mine', 'Pendelhaven'],
   ['recursion', 'Tranquil Thicket', 'Pendelhaven'],
   ['gates', 'Azorius Guildgate', 'Command Tower'],
-  ['gates', "Maze's End", 'Exotic Orchard'],
+  ['gates', 'Boros Guildgate', 'Exotic Orchard'],
 ];
 
 describe('a land that serves the deck plan takes the slot (E1033)', () => {
@@ -98,6 +100,23 @@ describe('a land that serves the deck plan takes the slot (E1033)', () => {
       const control = deck.spells.map(card).filter((c) => readDeckLandPlan([], [c]).size === 0);
       expect([...readDeckLandPlan(control)]).toEqual([]);
       expect(await seat(deck, control, planLand, generic)).toEqual([generic]);
+    }
+  );
+
+  // The gate's regression: boosting basic-only fetchers cost a landfall Tatyova
+  // seven Simic duals. In two colors a plan land that makes no deck color keeps
+  // its page rank, so the dual stays.
+  it.each([
+    ['landfall', 'Evolving Wilds', 'Rootbound Crag'],
+    ['landfall', 'Myriad Landscape', 'Cinder Glade'],
+    ['gates', "Maze's End", 'Exotic Orchard'],
+  ])(
+    '%s in two or more colors: fixing first, %s does not take %s’s slot',
+    async (name, planLand, generic) => {
+      const deck = fx.decks[name];
+      const spells = [card(deck.commander), ...deck.spells.map(card)];
+      expect(card(deck.commander).color_identity.length).toBeGreaterThan(1);
+      expect(await seat(deck, spells, planLand, generic)).toEqual([generic]);
     }
   );
 });
