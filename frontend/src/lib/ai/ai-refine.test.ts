@@ -142,6 +142,16 @@ describe('requestDeckRefine', () => {
     expect((mock.mock.calls[0] as [string])[0]).toBe('/api/ai/deck-refine');
   });
 
+  it('says when the server starts checking the swaps, without touching the prose', async () => {
+    stub([{ delta: 'Your deck grinds.' }, { checking: true }, { done: DONE }]);
+    const seen: string[] = [];
+    const onChecking = vi.fn();
+    const result = await requestDeckRefine(payload, (t) => seen.push(t), undefined, onChecking);
+    expect(onChecking).toHaveBeenCalledTimes(1);
+    expect(seen).toEqual(['Your deck grinds.']);
+    expect(result).toEqual(DONE);
+  });
+
   it('accepts an empty tweak list as a real answer', async () => {
     stub([{ delta: 'Nothing to change.' }, { done: { ...DONE, tweaks: [] } }]);
     await expect(requestDeckRefine(payload)).resolves.toMatchObject({ tweaks: [] });

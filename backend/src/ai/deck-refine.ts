@@ -14,6 +14,7 @@ import {
   type OracleEntry,
   type PriceCurrency,
 } from './deck-review';
+import { WHY_CHECK_VERSION } from './why-check';
 
 /**
  * The post-generation refine step (T102 slice 4). The deterministic generator
@@ -328,6 +329,7 @@ export function hashRefineInput(req: RefineRequest): string {
     .update(
       stableStringify({
         promptVersion: DECK_REFINE_PROMPT_VERSION,
+        whyCheck: WHY_CHECK_VERSION,
         commander: commanderLabel(req),
         cards: [...req.cards].sort(byName),
         pool: [...req.pool].sort(byName).map((c) => c.name),
@@ -484,6 +486,18 @@ export function parseRefineOutput(
   }
 
   return { strategy, tweaks, rejected, protectedCuts };
+}
+
+/**
+ * `raw` with its tweaks tail replaced by `tweaks`, so the stored row replays
+ * the checked lines. Everything before the delimiter stays as the model wrote it.
+ */
+export function withTweaks(raw: string, tweaks: RefineTweak[]): string {
+  const idx = raw.indexOf(TWEAKS_DELIMITER);
+  if (idx === -1) return raw;
+  const tail = tweaks.map(({ add, cut, why }) => ({ add, cut, why }));
+  return `${raw.slice(0, idx + TWEAKS_DELIMITER.length)}
+${JSON.stringify(tail)}`;
 }
 
 /** Assemble the user message: decklist + stats + the pool the model may use. */

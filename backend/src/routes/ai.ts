@@ -54,8 +54,10 @@ import {
   parseRefineOutput,
   parseRefineRequest,
   suggestedAsDeck,
+  withTweaks,
   type RefineTweak,
 } from '../ai/deck-refine';
+import { checkRefineWhys } from '../ai/why-check';
 
 /**
  * Oracle facts don't expire the way prices do, so card lookups that only read
@@ -716,7 +718,7 @@ interface RefineDone {
   /** Cards the model looked up — see {@link ReviewDone.fetched}. */
   fetched?: string[];
 }
-type RefineLine = { delta: string } | { done: RefineDone } | { error: string };
+type RefineLine = { delta: string } | { checking: true } | { done: RefineDone } | { error: string };
 
 // ────────────────────────────────────────────────
 // POST /api/ai/deck-refine — the post-generation second pass (T102 slice 4).
@@ -861,6 +863,26 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
   }
 
   const out = parseRefineOutput(generation.content, request, resolveCandidate);
+
+  // Every "why" is checked against the card text (E1027). The prose has already
+  // streamed; the client is told the wait before the swaps is the check.
+  let checkUsage = { inputTokens: 0, outputTokens: 0, cacheWriteTokens: 0, cacheReadTokens: 0 };
+  let whyCheck: Grounding['whyCheck'];
+  if (out.tweaks.length > 0) {
+    send({ checking: true });
+    const adds = hydrateOracle(out.tweaks.map((t) => t.add));
+    try {
+      const known = [...oracle, ...(generation.fetched ?? []), ...adds];
+      const run = await checkRefineWhys(request, out.tweaks, known, ac.signal);
+      out.tweaks = run.tweaks;
+      checkUsage = run.usage;
+      whyCheck = run.grounding;
+    } catch (err) {
+      if (err instanceof APIUserAbortError || ac.signal.aborted) return res.end();
+      throw err;
+    }
+  }
+
   // Rejected names mean the prompt's grounding rule slipped. They never reach
   // the user, but they're the signal that the prompt needs another eval run.
   if (out.rejected.length > 0) {
@@ -921,8 +943,13 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
     rejected: out.rejected,
     protectedCuts: out.protectedCuts,
     suggestedAsDeck: suggestedAsDeck(out.strategy, request, generation.fetched),
+    ...(whyCheck ? { whyCheck } : {}),
     ...(generation.truncated ? { truncated: true } : {}),
   };
+  // Stored with the CHECKED tail, so a cache hit replays only the changes that
+  // passed; what was dropped, and why, is in `grounding.whyCheck`.
+  const inputTokens = generation.inputTokens + checkUsage.inputTokens;
+  const outputTokens = generation.outputTokens + checkUsage.outputTokens;
 
   await pool.query(
     `INSERT INTO ai_reviews
@@ -935,11 +962,11 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
       DECK_REFINE_FEATURE,
       inputHash,
       REFINE_MODEL,
-      generation.content,
-      generation.inputTokens,
-      generation.outputTokens,
-      generation.cacheWriteTokens ?? 0,
-      generation.cacheReadTokens ?? 0,
+      whyCheck ? withTweaks(generation.content, out.tweaks) : generation.content,
+      inputTokens,
+      outputTokens,
+      (generation.cacheWriteTokens ?? 0) + checkUsage.cacheWriteTokens,
+      (generation.cacheReadTokens ?? 0) + checkUsage.cacheReadTokens,
       Date.now(),
       request.deckId,
       DECK_REFINE_PROMPT_VERSION,
@@ -955,7 +982,7 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
       tweaks: out.tweaks,
       cached: false,
       model: REFINE_MODEL,
-      usage: { inputTokens: generation.inputTokens, outputTokens: generation.outputTokens },
+      usage: { inputTokens, outputTokens },
       ...(generation.truncated ? { truncated: true } : {}),
       ...(fetchedNames.length ? { fetched: fetchedNames } : {}),
     },

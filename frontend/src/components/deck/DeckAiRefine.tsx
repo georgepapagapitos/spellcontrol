@@ -153,6 +153,8 @@ export function DeckAiRefine({
   const abortRef = useRef<AbortController | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [streamed, setStreamed] = useState('');
+  /** The prose is done and the server is checking each swap's reason. */
+  const [checking, setChecking] = useState(false);
   const [strategy, setStrategy] = useState<string | null>(null);
   /** Cards the pass looked up — chipped alongside the deck's own. */
   const [suggested, setSuggested] = useState<string[] | undefined>(undefined);
@@ -197,6 +199,7 @@ export function DeckAiRefine({
     setPhase('working');
     setError(null);
     setStreamed('');
+    setChecking(false);
     setStrategy(null);
     setSuggested(undefined);
     setTweaks([]);
@@ -222,9 +225,11 @@ export function DeckAiRefine({
         analysis,
       },
       setStreamed,
-      controller.signal
+      controller.signal,
+      () => setChecking(true)
     )
       .then((result) => {
+        setChecking(false);
         setStrategy(result.content);
         setSuggested(result.fetched);
         // A full deck can't take a pure add — in the replace posture a
@@ -235,6 +240,7 @@ export function DeckAiRefine({
         if (!result.cached) noteAiSpend();
       })
       .catch((err: Error & { status?: number }) => {
+        setChecking(false);
         // A pass the reader stopped is not a failure: return to idle with no
         // error card, and nothing has been spent.
         if (err.name === 'AbortError' || controller.signal.aborted) {
@@ -593,7 +599,14 @@ export function DeckAiRefine({
           <span className="sr-only" role="status">
             Reading the build…
           </span>
-          <RefineProse content={streamed} cardsByName={cardsByName} streaming />
+          {/* Once the check starts the prose is complete, so it settles into
+              its chipped form while the swaps wait. */}
+          <RefineProse content={streamed} cardsByName={cardsByName} streaming={!checking} />
+          {checking && (
+            <p className="deck-ai-tweak-none" role="status">
+              Checking each swap against the card text…
+            </p>
+          )}
         </div>
       )}
 

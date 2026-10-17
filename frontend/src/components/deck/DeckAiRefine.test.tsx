@@ -577,6 +577,56 @@ describe('DeckAiRefine', () => {
  * 500ms sample across a whole stream, and zero `AbortController` in either AI
  * component.
  */
+describe('DeckAiRefine — the swap check (E1027)', () => {
+  it('names the wait while the server checks each swap, then shows the swaps', async () => {
+    let finish: () => void = () => {};
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url === '/api/ai/deck-refine') {
+          const enc = new TextEncoder();
+          const line = (l: unknown) => enc.encode(`${JSON.stringify(l)}\n`);
+          const body = new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(line({ delta: STRATEGY }));
+              controller.enqueue(line({ checking: true }));
+              finish = () => {
+                controller.enqueue(
+                  line({
+                    done: {
+                      content: STRATEGY,
+                      tweaks: [{ add: "Hell's Caretaker", cut: 'Swamp', why: 'Recurs a body.' }],
+                      cached: false,
+                      model: 'm',
+                      usage: {},
+                    },
+                  })
+                );
+                controller.close();
+              };
+            },
+          });
+          return new Response(body, {
+            status: 200,
+            headers: { 'Content-Type': 'application/x-ndjson' },
+          });
+        }
+        return new Response(JSON.stringify({ optIn: true, used: 0, limit: 10 }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      })
+    );
+    renderPanel(() => {});
+    fireEvent.click(await screen.findByRole('button', { name: 'Refine this build' }));
+    expect(await screen.findByText('Checking each swap against the card text…')).toBeTruthy();
+
+    finish();
+    expect(await screen.findByText('Recurs a body.')).toBeTruthy();
+    expect(screen.queryByText('Checking each swap against the card text…')).toBeNull();
+  });
+});
+
 describe('DeckAiRefine — stopping a pass', () => {
   it('passes an abort signal and returns to idle when the reader stops, with no error card', async () => {
     let captured: AbortSignal | undefined;

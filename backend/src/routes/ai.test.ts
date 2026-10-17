@@ -7,6 +7,8 @@ import type { Server } from 'node:http';
 const mockState = {
   enabled: true,
   generate: vi.fn(),
+  /** The refine "why" check (E1027), kept apart so refine counts stay one call. */
+  check: vi.fn(),
 };
 vi.mock('../ai/client', async (importOriginal) => ({
   AI_MODEL: 'test-model',
@@ -15,14 +17,26 @@ vi.mock('../ai/client', async (importOriginal) => ({
   // Real pricing math: the global spend cap reads it.
   estimateUsd: (await importOriginal<typeof import('../ai/client')>()).estimateUsd,
   aiEnabled: () => mockState.enabled,
-  generateReview: (
+  generateReview: async (
     system: string,
     user: string,
     onDelta?: (t: string) => void,
     signal?: AbortSignal,
     options?: unknown
-  ) => mockState.generate(system, user, onDelta, signal, options),
+  ) =>
+    // Imported at call time: why-check imports this mocked module, so importing
+    // it from the factory waits on itself and hangs the file.
+    system === (await import('../ai/why-check')).WHY_CHECK_SYSTEM_PROMPT
+      ? mockState.check(system, user)
+      : mockState.generate(system, user, onDelta, signal, options),
 }));
+
+/** A check reply for one change: every claim in `holds` order, none failing by default. */
+function checkReply(...holds: boolean[]): string {
+  return JSON.stringify([
+    { n: 1, claims: holds.map((h) => ({ claim: 'a claim', text: 'q', reading: 'r', holds: h })) },
+  ]);
+}
 
 // The route imports this class by name from the real SDK to distinguish an
 // abort from a genuine failure — that import is untouched by the mock above,
@@ -56,6 +70,13 @@ beforeEach(() => {
   // The 'admin-only flag' describe covers the gate itself.
   process.env.AI_PUBLIC = '1';
   mockState.generate.mockReset();
+  mockState.check.mockReset();
+  mockState.check.mockImplementation(async () => ({
+    content: checkReply(true),
+    inputTokens: 300,
+    outputTokens: 20,
+    fetched: [],
+  }));
   // Emit the text in two chunks, the way a real stream arrives, so the route's
   // delta forwarding is exercised rather than assumed.
   // The review is TWO calls: a research pass (tools, no streaming, prose
@@ -1487,6 +1508,119 @@ describe('POST /api/ai/deck-refine', () => {
     expect(mockState.generate).toHaveBeenCalledTimes(1);
   });
 
+  describe('the "why" check (E1027)', () => {
+    const FIRST = { add: 'Eternal Witness', cut: 'Sol Ring', why: 'Doubles up with Sol Ring.' };
+    const SECOND = { add: 'Viscera Seer', cut: null, why: 'A free sac outlet this deck lacks.' };
+
+    beforeEach(() => {
+      mockState.generate.mockImplementation(async () => ({
+        content: refineReply(PROSE, [FIRST, SECOND]),
+        inputTokens: 500,
+        outputTokens: 120,
+        fetched: [],
+      }));
+    });
+
+    async function storedRow(username: string) {
+      const { getPool } = await import('../db');
+      const rows = await getPool().query<{
+        content: string;
+        input_tokens: number;
+        output_tokens: number;
+        grounding: Record<string, unknown>;
+      }>(
+        `SELECT r.content, r.input_tokens, r.output_tokens, r.grounding
+           FROM ai_reviews r JOIN users u ON u.id = r.user_id WHERE u.username = $1`,
+        [username]
+      );
+      expect(rows.rows).toHaveLength(1);
+      return rows.rows[0];
+    }
+
+    it('checks each change in its own call, with the text of the cards its reason names', async () => {
+      const cookie = await makeUser('ai-check-message');
+      await optIn(cookie);
+      const res = await request(app)
+        .post('/api/ai/deck-refine')
+        .set('Cookie', cookie)
+        .send(refineBody());
+      expect(mockState.check).toHaveBeenCalledTimes(2);
+      const users = mockState.check.mock.calls.map((c) => c[1] as string);
+      expect(users.find((u) => u.includes('1. ADD Eternal Witness / CUT Sol Ring'))).toContain(
+        '## Decklist'
+      );
+      expect(users.some((u) => u.includes('1. ADD Viscera Seer (no cut)'))).toBe(true);
+      // The client hears that the wait after the prose is the check.
+      expect(res.text).toContain('{"checking":true}');
+    });
+
+    it('drops a change whose reason fails before the player sees it, and stores the checked list', async () => {
+      const cookie = await makeUser('ai-check-drop');
+      await optIn(cookie);
+      mockState.check.mockImplementation(async (_s: string, user: string) => ({
+        content: user.includes('ADD Viscera Seer') ? checkReply(true, false) : checkReply(true),
+        inputTokens: 300,
+        outputTokens: 20,
+        fetched: [],
+      }));
+      const body = refineBody();
+      const res = await request(app).post('/api/ai/deck-refine').set('Cookie', cookie).send(body);
+      const done = parseStream(res.text).done as {
+        tweaks: unknown[];
+        usage: { inputTokens: number; outputTokens: number };
+      };
+      expect(done.tweaks).toEqual([FIRST]);
+      // Both checks are billed to the same reading.
+      expect(done.usage).toEqual({ inputTokens: 1100, outputTokens: 160 });
+
+      const row = await storedRow('ai-check-drop');
+      expect(row.input_tokens).toBe(1100);
+      expect(row.grounding.whyCheck).toEqual({
+        dropped: [{ add: SECOND.add, why: SECOND.why, failed: ['a claim'] }],
+      });
+
+      // A cache hit replays the checked list without calling either model again.
+      const again = await request(app).post('/api/ai/deck-refine').set('Cookie', cookie).send(body);
+      const replay = parseStream(again.text).done as { cached: boolean; tweaks: unknown[] };
+      expect(replay).toMatchObject({ cached: true, tweaks: [FIRST] });
+      expect(mockState.generate).toHaveBeenCalledTimes(1);
+      expect(mockState.check).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps a change its check could not read, and lists it', async () => {
+      const cookie = await makeUser('ai-check-throws');
+      await optIn(cookie);
+      mockState.check.mockImplementation(async (_s: string, user: string) => {
+        if (user.includes('ADD Eternal Witness')) throw new Error('overloaded');
+        return { content: 'Looks right to me.', inputTokens: 300, outputTokens: 20, fetched: [] };
+      });
+      const res = await request(app)
+        .post('/api/ai/deck-refine')
+        .set('Cookie', cookie)
+        .send(refineBody());
+      expect(res.status).toBe(200);
+      expect((parseStream(res.text).done as { tweaks: unknown[] }).tweaks).toEqual([FIRST, SECOND]);
+      expect((await storedRow('ai-check-throws')).grounding.whyCheck).toEqual({
+        dropped: [],
+        unchecked: [FIRST.add, SECOND.add],
+      });
+    });
+
+    it('skips the check when there is nothing to check', async () => {
+      const cookie = await makeUser('ai-check-none');
+      await optIn(cookie);
+      mockState.generate.mockImplementation(async () => ({
+        content: refineReply(PROSE, []),
+        inputTokens: 500,
+        outputTokens: 120,
+        fetched: [],
+      }));
+      await request(app).post('/api/ai/deck-refine').set('Cookie', cookie).send(refineBody());
+      expect(mockState.check).not.toHaveBeenCalled();
+      expect((await storedRow('ai-check-none')).grounding.whyCheck).toBeUndefined();
+    });
+  });
+
   it('is stored under its own feature key, not the review’s', async () => {
     const cookie = await makeUser('ai-refine-feature');
     await optIn(cookie);
@@ -1575,6 +1709,7 @@ describe('grounding verdict on the stored row', () => {
       rejected: ['Mana Crypt'],
       protectedCuts: [],
       suggestedAsDeck: [],
+      whyCheck: { dropped: [] },
     });
   });
 

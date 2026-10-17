@@ -9,6 +9,7 @@ import {
   parseRefineOutput,
   parseRefineRequest,
   suggestedAsDeck,
+  withTweaks,
   type RefineRequest,
 } from './deck-refine';
 
@@ -427,5 +428,37 @@ describe('deck format on the AI request schemas (E612)', () => {
       expect(parse({ ...base, format: 'duel-commander' }).ok).toBe(false);
       expect(parse({ ...base, format: 5 }).ok).toBe(false);
     }
+  });
+});
+
+describe('withTweaks — the stored row replays the checked lines', () => {
+  it('replaces only the tail, and the result parses back to the new list', () => {
+    const raw = `thinking
+${STRATEGY_MARK}
+${reply('Your deck ramps.', [
+  { add: 'Boros Signet', cut: 'Sol Ring', why: 'Wrong.' },
+  { add: 'Orzhov Signet', cut: null, why: 'Also wrong.' },
+])}`;
+    const checked = [{ add: 'Boros Signet', cut: 'Sol Ring', why: 'Fixes both colors.' }];
+    const stored = withTweaks(raw, checked);
+    expect(
+      stored.startsWith(`thinking
+${STRATEGY_MARK}
+Your deck ramps.`)
+    ).toBe(true);
+    expect(parseRefineOutput(stored, REQ)).toMatchObject({
+      strategy: 'Your deck ramps.',
+      tweaks: checked,
+    });
+  });
+
+  it('leaves a reply with no tail alone', () => {
+    expect(withTweaks('Just prose.', [])).toBe('Just prose.');
+  });
+});
+
+describe('hashRefineInput — the check is part of the key', () => {
+  it('is stable for the same request', () => {
+    expect(hashRefineInput(REQ)).toBe(hashRefineInput({ ...REQ }));
   });
 });
