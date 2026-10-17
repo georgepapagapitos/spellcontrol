@@ -48,6 +48,7 @@ import { producedManaColors } from '@/lib/deck-analysis/mana-sources';
 import { isColorlessOnlyLand, landPowerScore, untappedConditionOutOfReach } from './landPower';
 import { COMMANDER_STAPLE_INCLUSION } from './premiumCards';
 import { computeManaPhilosophyBoosts } from './manaPhilosophy';
+import { planJobServed, readDeckLandPlan } from './landPlan';
 
 /** Ceiling for the color-deficit nonbasic boost — a bounded re-rank (below the
  *  MDFC/channel boosts), never a new eligibility path. */
@@ -67,6 +68,10 @@ export const MDFC_LAND_BOOST = 50;
  *  yet (0 inclusion) can compete with mid-inclusion staples, without steamrolling
  *  a proven high-inclusion pick. Sized between COLOR_DEMAND (25) and MDFC (50). */
 export const LAND_POWER_BOOST_MAX = 40;
+/** Boost for a land that serves the deck's plan (landPlan.ts, E1030): the most
+ *  the color-demand and merit boosts can pay a land for its colors alone, so a
+ *  plan land at the same page inclusion is never out-ranked on colors. */
+export const PLAN_LAND_BOOST = COLOR_DEMAND_BOOST_MAX + LAND_POWER_BOOST_MAX;
 
 /** Pushes a second colorless-only land in a multicolor deck below every real
  *  candidate (inclusion tops out near 100). */
@@ -393,12 +398,25 @@ export async function generateLands(
       }
     }
 
+    // Plan boost (E1030): a land doing the deck's job (Tectonic Edge in a
+    // land-destruction deck, Great Furnace in an artifact deck) outranks a land
+    // that only adds color. The color-demand and merit boosts above pay a land
+    // for its colors alone, so without this a mono-red stax deck seated Great
+    // Furnace and Cori Mountain Monastery over the Tectonic Edge it owned.
+    const plan = readDeckLandPlan(nonLandCards);
+    const servesPlan = (card: ScryfallCard) => planJobServed(card, plan) !== undefined;
+    for (const [name, card] of landCardMap) {
+      if (servesPlan(card))
+        landPenalties.set(name, (landPenalties.get(name) ?? 0) + PLAN_LAND_BOOST);
+    }
+
     // Fallback ranker guards (E1004). In a multicolor deck a land that taps for
     // {C} only (Voldaren Estate, Unclaimed Territory: their colors are restricted
     // to a creature type) takes a slot a fixer needs, and the coherence repair
     // swaps two or more of them for basics when a color runs short, shipping the
     // deck under its nonbasic target. Keep the best one; the rest rank below every
-    // real candidate, so they only fill a pool with nothing else in it.
+    // real candidate, so they only fill a pool with nothing else in it. A plan
+    // land is not filler.
     if (colorIdentity.length >= 2) {
       let keeper: string | undefined;
       for (const [name, card] of landCardMap) {
@@ -406,7 +424,12 @@ export async function generateLands(
         if (!keeper || (inclusionOf.get(name) ?? 0) > (inclusionOf.get(keeper) ?? 0)) keeper = name;
       }
       for (const [name, card] of landCardMap) {
-        if (name === keeper || !isColorlessOnlyLand(card, readingFor(name)) || isMdfcLand(card)) {
+        if (
+          name === keeper ||
+          !isColorlessOnlyLand(card, readingFor(name)) ||
+          isMdfcLand(card) ||
+          servesPlan(card)
+        ) {
           continue;
         }
         landPenalties.set(name, (landPenalties.get(name) ?? 0) - COLORLESS_FILLER_PENALTY);

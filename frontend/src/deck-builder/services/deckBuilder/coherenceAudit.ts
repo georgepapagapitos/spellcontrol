@@ -26,6 +26,7 @@ import { nonboFindings, qualifiedTriggerFindings } from './nonbo';
 import { isChannelLand } from '@/deck-builder/services/scryfall/client';
 import { COMMANDER_STAPLE_INCLUSION } from './premiumCards';
 import { BASIC_TYPE_COLORS, fetchedBasicRequirement, WUBRG, type ManaColor } from './manabaseMath';
+import { planJobServed, readDeckLandPlan } from './landPlan';
 import type { CoherenceFinding } from '@/deck-builder/types';
 
 const AXIS_LABELS = new Map(AXES.map((a) => [a.key, a.label]));
@@ -211,11 +212,16 @@ function landSanityFindings(input: CoherenceAuditInput): CoherenceFinding[] {
   //    manabase summary already calls short AND several colorless-only
   //    nonbasic lands squatting on slots a basic needs. (The shortfall itself
   //    is already the manabase note; this names the slots to free up.)
+  //    A colorless land doing the deck's job is not squatting: Tectonic Edge in a
+  //    land-destruction deck (E1030, Zo-Zu lost it and Volatile Fault to
+  //    Great Furnace and two red taplands).
   const shortColor = manabase?.lines.some((l) => l.short) ? bestBasicFixColor(manabase) : undefined;
   if (shortColor) {
+    const plan = readDeckLandPlan(nonLandCards, commanders);
     const colorlessOnly = lands.filter((land, i) => {
       if (land.isMustInclude || /\bbasic\b/.test(landTypeLines[i])) return false;
       if (fetchedBasicRequirement(land)) return false;
+      if (planJobServed(land, plan)) return false;
       // Positive evidence required: the land demonstrably taps for {C} and
       // nothing colored. Zero mana signal (thin/absent oracle data) must NOT
       // read as colorless — that's missing data, not a colorless land.
