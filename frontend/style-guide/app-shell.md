@@ -131,9 +131,11 @@ different from desktop; it is not _absent_.
 - **Deck header: a thumbnail at every width (2026-10-08, T179).** The deck
   page is where the user works on the list, so its header is a compact bar
   that gives the deck the screen: the commander's art as a thumbnail (84×64
-  on a phone, 120×88 on a tablet, 152×108 on a desktop, the deck's color as
-  its foot), then back link, title and the meta line in a column, then the
-  actions. The meta line opens with the deck's color pips.
+  on a phone, 120×88 on a tablet, 152×108 on a desktop, ringed in the deck's
+  own color), then back link, title and the meta line in a column, then the
+  actions. The meta line opens with the deck's color pips and nothing else:
+  the deck's own color was a dot there, and beside a red pip a purple dot
+  read as a second color (2026-10-17).
   **A phone stacks rows, not columns:** the back link alone, the thumbnail
   beside the title only, the meta line at full width, then the actions. On a
   phone, sharing is a labeled header action (the visibility glyph and "Private") beside Add cards

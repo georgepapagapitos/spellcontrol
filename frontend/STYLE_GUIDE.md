@@ -481,9 +481,10 @@ meanwhile.
   - a **verdict** is its chip or a mark beside its words (a `Check` or an
     `AlertTriangle` at the inline size), never an edge;
   - an **owner's color** (a deck, a binder) is its banner on a tile, its filled
-    tab, or the 10px identity dot beside its name: the binder route chip's
-    disc, now also at the head of the deck header's meta line and before a
-    binder row's name;
+    tab, the 10px identity dot beside its name (the binder route chip's
+    disc, also before a binder row's name), or a ring around the deck
+    header's art. Never a dot beside mana pips, where it reads as one more
+    color (2026-10-17);
   - a **warning or danger banner** is its tint and a full edge in the tone;
   - a **page title** stands on its own.
 
