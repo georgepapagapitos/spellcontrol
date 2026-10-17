@@ -1,0 +1,41 @@
+/* RecheckLandsSheet: the land re-check review. The shell parts it shares with
+   Fill the rest live in ReviewSheet.css; each swap here is the shared
+   DeckCardRow behind a checkbox. */
+
+.recheck-lands-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  border-bottom: 0.5px solid var(--border);
+}
+
+.recheck-lands-row > :last-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The box stays upgrade-plan size; its label is the 44px touch target. */
+.recheck-lands-hit {
+  flex: none;
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.recheck-lands-check {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.recheck-lands-row > .deck-card-row {
+  border-bottom: 0;
+}
+
+.recheck-lands-row.is-off > .deck-card-row {
+  opacity: 0.6;
+}

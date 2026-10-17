@@ -1,0 +1,66 @@
+/* The review sheets (Fill the rest, Re-check lands): a generator run listed
+   for review before anything changes. They ride the house .card-picker-*
+   overlay (bottom sheet on phones, centered from 1024px); this file styles
+   the parts they share, the title block, the one scroll region, the lead and
+   note lines and the progress state, so the two read as one family. */
+
+.review-sheet-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.review-sheet-subtitle {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* ONE scroll region between header and footer (see STYLE_GUIDE § Overlays). */
+.review-sheet-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  /* Same side inset as the shell's header and footer. */
+  padding: var(--space-2) var(--space-4) var(--space-4);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* A review list is something you work in: the dense-dialog width tier. */
+@media (min-width: 1024px) {
+  .card-picker-sheet.review-sheet {
+    width: min(40rem, calc(100vw - 4rem));
+    max-height: min(52rem, 85vh);
+  }
+}
+
+.review-sheet-lead,
+.review-sheet-note {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.review-sheet-note {
+  color: var(--text-muted);
+}
+
+.review-sheet-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5) 0;
+}
+
+.review-sheet-progress-text {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  text-align: center;
+}

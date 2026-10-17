@@ -1,4 +1,5 @@
 import { canRegenerate, regenerateHref, regenerateState } from '@/lib/deck/regenerate-prefill';
+import { canRecheckLands } from '@/lib/deck/recheck-lands';
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 // Editor-only stylesheets ship with this chunk, not the boot payload (E265).
 import '@/styles/deck-builder-export.css';
@@ -165,6 +166,7 @@ function DeckEditor({ deck }: { deck: Deck }) {
     handleToggleAddPanel,
     setFeedbackOpen,
     setPrimerOpen,
+    setRecheckLandsOpen,
     setShowBuildReport,
     setTokensOpen,
     setPullListOpen,
@@ -529,6 +531,7 @@ function DeckEditor({ deck }: { deck: Deck }) {
                 ? () => navigate(regenerateHref(deck), { state: regenerateState(deck) })
                 : undefined
             }
+            onRecheckLands={canRecheckLands(deck) ? () => setRecheckLandsOpen(true) : undefined}
             onPlaytest={isPhone ? () => navigate(`/decks/${deck.id}/playtest`) : undefined}
             onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
             onPullList={hasPullSlots ? () => setPullListOpen(true) : undefined}

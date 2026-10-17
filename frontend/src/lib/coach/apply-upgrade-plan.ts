@@ -4,7 +4,7 @@
  * undo entry. The target deck is a parameter so "Apply to a copy" can apply
  * the same plan to a duplicate.
  */
-import { useDecksStore, type DeckCard } from '@/store/decks';
+import { useDecksStore, type Deck, type DeckCard } from '@/store/decks';
 import { useCollectionStore } from '@/store/collection';
 import { useCubeStore } from '@/store/cube';
 import { useDeckHistoryStore } from '@/store/deck-history';
@@ -24,7 +24,17 @@ export interface PlanStep {
 
 /** Returns how many steps landed. A card that won't resolve is skipped and
  *  its cut stays in the deck, so the deck never loses a slot. */
-export async function applyUpgradePlan(deckId: string, steps: PlanStep[]): Promise<number> {
+export async function applyUpgradePlan(
+  deckId: string,
+  steps: PlanStep[],
+  options: {
+    /** History label; defaults to the upgrade plan's. */
+    label?: (count: number) => string;
+    /** More fields to write with the cards, in the same store write and undo
+     *  entry, given the steps that landed. */
+    patch?: (deck: Deck, applied: PlanStep[]) => Partial<Deck>;
+  } = {}
+): Promise<number> {
   const cards = await getCardsByNames(steps.map((s) => s.addName));
   const deck = useDecksStore.getState().decks.find((d) => d.id === deckId);
   if (!deck) return 0;
@@ -42,6 +52,7 @@ export async function applyUpgradePlan(deckId: string, steps: PlanStep[]): Promi
 
   const cut = new Set<string>();
   const added: DeckCard[] = [];
+  const applied: PlanStep[] = [];
   for (const step of steps) {
     const card = cards.get(step.addName);
     if (!card) continue;
@@ -59,6 +70,7 @@ export async function applyUpgradePlan(deckId: string, steps: PlanStep[]): Promi
       );
     }
     if (slotId) cut.add(slotId);
+    applied.push(step);
     added.push({
       slotId: genId('slot'),
       card,
@@ -72,14 +84,14 @@ export async function applyUpgradePlan(deckId: string, steps: PlanStep[]): Promi
   const before = history.begin(deckId);
   useDecksStore.getState().replaceDeck(deckId, {
     ...deck,
+    ...options.patch?.(deck, applied),
     cards: [...deck.cards.filter((c) => !cut.has(c.slotId)), ...added],
   });
   if (before) {
-    history.commit(
-      deckId,
-      `apply upgrade plan (${added.length} ${added.length === 1 ? 'card' : 'cards'})`,
-      before
-    );
+    const label =
+      options.label?.(added.length) ??
+      `apply upgrade plan (${added.length} ${added.length === 1 ? 'card' : 'cards'})`;
+    history.commit(deckId, label, before);
   }
   return added.length;
 }
