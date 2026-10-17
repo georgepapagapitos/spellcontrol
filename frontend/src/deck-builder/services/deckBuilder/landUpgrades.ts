@@ -40,6 +40,7 @@ import { isChannelLand, isMdfcLand } from '../scryfall/client';
 import { buildManabaseSummary, fetchedBasicRequirement } from './manabaseMath';
 import { countBasicFetchers } from './deckAnalyzer';
 import { isPremiumCard } from './premiumCards';
+import { planJobServed, readDeckLandPlan } from './landPlan';
 
 /** Only cut plain lands below this merit — an untapped or checked dual never is. */
 const WEAK_LAND_CEILING = 50;
@@ -287,10 +288,12 @@ export function computeLandUpgrades(
     currentLands.filter((c) => isBasicLandName(c.name)).length -
     BASICS_PER_FETCHER * countBasicFetchers([...deckCards]);
 
-  // Weakest current lands first — these are the cut targets.
+  // Weakest current lands first — these are the cut targets. A land doing the
+  // deck's job stays whatever its colors (Evolving Wilds in a landfall deck).
+  const plan = readDeckLandPlan(nonLands);
   const cutTargets = currentLands
     .map((c) => ({ card: c, score: landSlotMerit(c, identity), colors: sourceColors(c, identity) }))
-    .filter((l) => cuttable(l.card, l.score))
+    .filter((l) => cuttable(l.card, l.score) && !planJobServed(l.card, plan))
     .filter(
       (l) =>
         isBasicLandName(l.card.name) ||

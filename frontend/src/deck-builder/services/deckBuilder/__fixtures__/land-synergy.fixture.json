@@ -1,0 +1,1001 @@
+{
+  "_source": "Scryfall /cards/collection, 2026-10-17. Three land-synergy decks for E1033: each lists its commander, the spells that make the plan, the lands that serve it, and generic lands that only add color or value.",
+  "decks": {
+    "landfall": {
+      "commander": "Omnath, Locus of Rage",
+      "spells": [
+        "Scute Swarm",
+        "Avenger of Zendikar",
+        "Rampaging Baloths",
+        "Lotus Cobra",
+        "Tireless Provisioner",
+        "Valakut Exploration",
+        "Retreat to Valakut",
+        "Harrow",
+        "Cultivate",
+        "Explosive Vegetation"
+      ],
+      "planLands": [
+        "Evolving Wilds",
+        "Myriad Landscape",
+        "Fabled Passage",
+        "Wooded Foothills",
+        "Gruul Turf"
+      ],
+      "genericLands": ["Rootbound Crag", "Cinder Glade", "Kessig Wolf Run"]
+    },
+    "recursion": {
+      "commander": "Titania, Protector of Argoth",
+      "spells": [
+        "Crucible of Worlds",
+        "Life from the Loam",
+        "Ramunap Excavator",
+        "Splendid Reclamation",
+        "Conduit of Worlds",
+        "Sakura-Tribe Elder",
+        "Eternal Witness",
+        "Beast Within"
+      ],
+      "planLands": ["Strip Mine", "Evolving Wilds", "Tranquil Thicket", "Myriad Landscape"],
+      "genericLands": ["Pendelhaven", "Gaea's Cradle", "Castle Garenbrig"]
+    },
+    "gates": {
+      "commander": "Kasla, the Broken Halo",
+      "spells": [
+        "Guild Summit",
+        "Gatebreaker Ram",
+        "Gatekeeper Gargoyle",
+        "Circuitous Route",
+        "Heraldic Banner",
+        "Swords to Plowshares",
+        "Counterspell",
+        "Wrath of God"
+      ],
+      "planLands": ["Azorius Guildgate", "Boros Guildgate", "Izzet Guildgate", "Maze's End"],
+      "genericLands": ["Command Tower", "Exotic Orchard", "Path of Ancestry"]
+    }
+  },
+  "basics": ["Forest", "Mountain"],
+  "cards": [
+    {
+      "cmc": 7,
+      "color_identity": ["G"],
+      "colors": ["G"],
+      "id": "c6f1e60f-a195-4590-80b0-86767de6c423",
+      "keywords": ["Landfall"],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{5}{G}{G}",
+      "name": "Avenger of Zendikar",
+      "oracle_id": "4ba5b3f6-503b-43e6-b66e-4f8c55cffed7",
+      "oracle_text": "When this creature enters, create a 0/1 green Plant creature token for each land you control.\nLandfall — Whenever a land you control enters, you may put a +1/+1 counter on each Plant creature you control.",
+      "rarity": "mythic",
+      "set": "ecc",
+      "type_line": "Creature — Elemental"
+    },
+    {
+      "cmc": 0,
+      "color_identity": ["U", "W"],
+      "colors": [],
+      "id": "f98a7264-0a83-42c8-a94d-05ad4c234242",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Azorius Guildgate",
+      "oracle_id": "ad1712d8-809f-410c-8b91-ffe6fb8a69a1",
+      "oracle_text": "This land enters tapped.\n{T}: Add {W} or {U}.",
+      "produced_mana": ["U", "W"],
+      "rarity": "common",
+      "set": "fdn",
+      "type_line": "Land — Gate"
+    },
+    {
+      "cmc": 3,
+      "color_identity": ["G"],
+      "colors": ["G"],
+      "id": "400b43aa-c1d2-4435-b863-061f43889422",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{2}{G}",
+      "name": "Beast Within",
+      "oracle_id": "7735eeba-693b-47e2-bd51-414379cf1016",
+      "oracle_text": "Destroy target permanent. Its controller creates a 3/3 green Beast creature token.",
+      "rarity": "uncommon",
+      "set": "msc",
+      "type_line": "Instant"
+    },
+    {
+      "cmc": 0,
+      "color_identity": ["R", "W"],
+      "colors": [],
+      "id": "3e3c74ea-40e9-4ad9-a491-c208403b68ad",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Boros Guildgate",
+      "oracle_id": "73c423b7-cab8-4e69-8070-9edbf96a6c2c",
+      "oracle_text": "This land enters tapped.\n{T}: Add {R} or {W}.",
+      "produced_mana": ["R", "W"],
+      "rarity": "common",
+      "set": "fdn",
+      "type_line": "Land — Gate"
+    },
+    {
+      "cmc": 0,
+      "color_identity": ["G"],
+      "colors": [],
+      "id": "e3c2c66c-f7f0-41d5-a805-a129aeaf1b75",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Castle Garenbrig",
+      "oracle_id": "de75e5dd-8a52-406c-b55c-96d686885500",
+      "oracle_text": "This land enters tapped unless you control a Forest.\n{T}: Add {G}.\n{2}{G}{G}, {T}: Add six {G}. Spend this mana only to cast creature spells or activate abilities of creatures.",
+      "produced_mana": ["G"],
+      "rarity": "rare",
+      "set": "eld",
+      "type_line": "Land"
+    },
+    {
+      "cmc": 0,
+      "color_identity": ["G", "R"],
+      "colors": [],
+      "id": "ec93087a-5728-40e8-8625-a1d175d5252c",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Cinder Glade",
+      "oracle_id": "dfac0258-e148-4d7d-8ded-fc2466d9caa6",
+      "oracle_text": "({T}: Add {R} or {G}.)\nThis land enters tapped unless you control two or more basic lands.",
+      "produced_mana": ["G", "R"],
+      "rarity": "rare",
+      "set": "msc",
+      "type_line": "Land — Mountain Forest"
+    },
+    {
+      "cmc": 4,
+      "color_identity": ["G"],
+      "colors": ["G"],
+      "id": "a806dec2-d4f9-4f8d-a1dd-170777941131",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{3}{G}",
+      "name": "Circuitous Route",
+      "oracle_id": "30afacd9-4680-4aac-8c22-584f9418822d",
+      "oracle_text": "Search your library for up to two basic land cards and/or Gate cards, put them onto the battlefield tapped, then shuffle.",
+      "rarity": "uncommon",
+      "set": "fdn",
+      "type_line": "Sorcery"
+    },
+    {
+      "cmc": 0,
+      "color_identity": [],
+      "colors": [],
+      "id": "1ac6cb62-45da-4e9a-84c6-09e6eacf0664",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Command Tower",
+      "oracle_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "produced_mana": ["B", "G", "R", "U", "W"],
+      "rarity": "common",
+      "set": "frc",
+      "type_line": "Land"
+    },
+    {
+      "cmc": 4,
+      "color_identity": ["G"],
+      "colors": ["G"],
+      "id": "8380eb8d-d1c3-4f96-b3b9-54845188c1d1",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{2}{G}{G}",
+      "name": "Conduit of Worlds",
+      "oracle_id": "ed14be15-8f8d-4fe3-a147-f5da8ed873bf",
+      "oracle_text": "You may play lands from your graveyard.\n{T}: Choose target nonland permanent card in your graveyard. If you haven't cast a spell this turn, you may cast that card. If you do, you can't cast additional spells this turn. Activate only as a sorcery.",
+      "rarity": "rare",
+      "set": "msc",
+      "type_line": "Artifact"
+    },
+    {
+      "cmc": 2,
+      "color_identity": ["U"],
+      "colors": ["U"],
+      "id": "4f616706-ec97-4923-bb1e-11a69fbaa1f8",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{U}{U}",
+      "name": "Counterspell",
+      "oracle_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+      "oracle_text": "Counter target spell.",
+      "rarity": "uncommon",
+      "set": "dsc",
+      "type_line": "Instant"
+    },
+    {
+      "cmc": 3,
+      "color_identity": [],
+      "colors": [],
+      "id": "7f4893ef-f983-418b-b7a4-5f073c844545",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{3}",
+      "name": "Crucible of Worlds",
+      "oracle_id": "33c722cf-b4bf-431f-aefd-ee96241a7fbf",
+      "oracle_text": "You may play lands from your graveyard.",
+      "rarity": "mythic",
+      "set": "2x2",
+      "type_line": "Artifact"
+    },
+    {
+      "cmc": 3,
+      "color_identity": ["G"],
+      "colors": ["G"],
+      "id": "e60deb92-f7dd-4f4e-9036-e47dd586f985",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{2}{G}",
+      "name": "Cultivate",
+      "oracle_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+      "oracle_text": "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.",
+      "rarity": "common",
+      "set": "msc",
+      "type_line": "Sorcery"
+    },
+    {
+      "cmc": 3,
+      "color_identity": ["G"],
+      "colors": ["G"],
+      "id": "39704000-65d3-4d39-849e-a3b617376bbc",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{1}{G}{G}",
+      "name": "Eternal Witness",
+      "oracle_id": "30b24e8e-3b0e-4d8e-90f3-f66eb7c1858c",
+      "oracle_text": "When this creature enters, you may return target card from your graveyard to your hand.",
+      "rarity": "uncommon",
+      "set": "cmm",
+      "type_line": "Creature — Human Shaman"
+    },
+    {
+      "cmc": 0,
+      "color_identity": [],
+      "colors": [],
+      "id": "c0318a48-30e4-4ef7-be3d-5e561c5ce428",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Evolving Wilds",
+      "oracle_id": "a75445d3-1303-4bb5-89ad-26ea93fecd48",
+      "oracle_text": "{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
+      "rarity": "common",
+      "set": "msc",
+      "type_line": "Land"
+    },
+    {
+      "cmc": 0,
+      "color_identity": [],
+      "colors": [],
+      "id": "d11c5fe0-1528-4c94-a8cc-42bcab9d7487",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Exotic Orchard",
+      "oracle_id": "27b047e3-0d41-45e2-98e9-9391d7923a1e",
+      "oracle_text": "{T}: Add one mana of any color that a land an opponent controls could produce.",
+      "produced_mana": ["B", "G", "R", "U", "W"],
+      "rarity": "rare",
+      "set": "mbc",
+      "type_line": "Land"
+    },
+    {
+      "cmc": 4,
+      "color_identity": ["G"],
+      "colors": ["G"],
+      "id": "8de3fdf8-d55e-4ffc-8f8b-6314d4d467ce",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{3}{G}",
+      "name": "Explosive Vegetation",
+      "oracle_id": "a0abd957-01a0-4aa9-8fc8-0e6840d21606",
+      "oracle_text": "Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.",
+      "rarity": "uncommon",
+      "set": "dsc",
+      "type_line": "Sorcery"
+    },
+    {
+      "cmc": 0,
+      "color_identity": [],
+      "colors": [],
+      "id": "76edd22f-808e-4a7c-b941-13c0f5e30418",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Fabled Passage",
+      "oracle_id": "0c85b8f7-0bd0-4680-9ec5-d4b110460a54",
+      "oracle_text": "{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle. Then if you control four or more lands, untap that land.",
+      "rarity": "rare",
+      "set": "frc",
+      "type_line": "Land"
+    },
+    {
+      "cmc": 0,
+      "color_identity": ["G"],
+      "colors": [],
+      "id": "2e781bfd-f8cb-4d20-b977-4359f3a21311",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Forest",
+      "oracle_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+      "oracle_text": "({T}: Add {G}.)",
+      "produced_mana": ["G"],
+      "rarity": "common",
+      "set": "mdd",
+      "type_line": "Basic Land — Forest"
+    },
+    {
+      "cmc": 0,
+      "color_identity": ["G"],
+      "colors": [],
+      "id": "25b0b816-0583-44aa-9dc5-f3ff48993a51",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Gaea's Cradle",
+      "oracle_id": "7c427c3d-ecd8-45ef-bebd-8f10f4a311db",
+      "oracle_text": "{T}: Add {G} for each creature you control.",
+      "produced_mana": ["G"],
+      "rarity": "rare",
+      "set": "usg",
+      "type_line": "Legendary Land"
+    },
+    {
+      "cmc": 3,
+      "color_identity": ["G"],
+      "colors": ["G"],
+      "id": "5ef592d1-e5e1-4252-8741-402c32d65dfd",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{2}{G}",
+      "name": "Gatebreaker Ram",
+      "oracle_id": "3b0a97e2-e125-4f91-8581-307e3fa6b048",
+      "oracle_text": "This creature gets +1/+1 for each Gate you control.\nAs long as you control two or more Gates, this creature has vigilance and trample.",
+      "rarity": "uncommon",
+      "set": "rna",
+      "type_line": "Creature — Sheep"
+    },
+    {
+      "cmc": 6,
+      "color_identity": [],
+      "colors": [],
+      "id": "4bbdd54e-5d7e-4e4b-8d59-4e3f46877d39",
+      "keywords": ["Flying"],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{6}",
+      "name": "Gatekeeper Gargoyle",
+      "oracle_id": "a175de44-3a7e-4165-8f9a-8173c0df13d6",
+      "oracle_text": "Flying\nThis creature enters with a +1/+1 counter on it for each Gate you control.",
+      "rarity": "uncommon",
+      "set": "grn",
+      "type_line": "Artifact Creature — Gargoyle"
+    },
+    {
+      "cmc": 0,
+      "color_identity": ["G", "R"],
+      "colors": [],
+      "id": "f19d2b68-1415-4a0c-bb68-cfacb611c4d2",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Gruul Turf",
+      "oracle_id": "657243dd-e479-4f4b-99d2-09b55d833a35",
+      "oracle_text": "This land enters tapped.\nWhen this land enters, return a land you control to its owner's hand.\n{T}: Add {R}{G}.",
+      "produced_mana": ["G", "R"],
+      "rarity": "uncommon",
+      "set": "ecc",
+      "type_line": "Land"
+    },
+    {
+      "cmc": 3,
+      "color_identity": ["U"],
+      "colors": ["U"],
+      "id": "d952259f-9e0a-49af-9dfb-3cad1a1bb3a8",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{2}{U}",
+      "name": "Guild Summit",
+      "oracle_id": "38a3e144-93ad-497b-9b29-7040b6f337e1",
+      "oracle_text": "When this enchantment enters, you may tap any number of untapped Gates you control. Draw a card for each Gate tapped this way.\nWhenever a Gate you control enters, draw a card.",
+      "rarity": "uncommon",
+      "set": "grn",
+      "type_line": "Enchantment"
+    },
+    {
+      "cmc": 3,
+      "color_identity": ["G"],
+      "colors": ["G"],
+      "id": "3e76be46-cf81-4fef-bc5b-f87666cb0413",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{2}{G}",
+      "name": "Harrow",
+      "oracle_id": "705509e9-a034-4a5a-9c65-66f58748b8a2",
+      "oracle_text": "As an additional cost to cast this spell, sacrifice a land.\nSearch your library for up to two basic land cards, put them onto the battlefield, then shuffle.",
+      "rarity": "common",
+      "set": "eoc",
+      "type_line": "Instant"
+    },
+    {
+      "cmc": 3,
+      "color_identity": [],
+      "colors": [],
+      "id": "743ea709-dbb3-4db8-a2ce-544f47eb6339",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{3}",
+      "name": "Heraldic Banner",
+      "oracle_id": "3525e263-e29a-49bf-a29f-fb3ce43bbd33",
+      "oracle_text": "As this artifact enters, choose a color.\nCreatures you control of the chosen color get +1/+0.\n{T}: Add one mana of the chosen color.",
+      "produced_mana": ["B", "G", "R", "U", "W"],
+      "rarity": "uncommon",
+      "set": "fdn",
+      "type_line": "Artifact"
+    },
+    {
+      "cmc": 0,
+      "color_identity": ["R", "U"],
+      "colors": [],
+      "id": "db9e6fc9-813d-4a71-8a68-8e0f83fa945d",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Izzet Guildgate",
+      "oracle_id": "bf75a3d1-f184-4b48-a913-21caee1db084",
+      "oracle_text": "This land enters tapped.\n{T}: Add {U} or {R}.",
+      "produced_mana": ["R", "U"],
+      "rarity": "common",
+      "set": "fdn",
+      "type_line": "Land — Gate"
+    },
+    {
+      "cmc": 6,
+      "color_identity": ["R", "U", "W"],
+      "colors": ["R", "U", "W"],
+      "id": "a209bda2-f0bf-4417-94f9-b73eff0b4217",
+      "keywords": ["Scry", "Flying", "Vigilance", "Haste", "Convoke"],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{3}{U}{R}{W}",
+      "name": "Kasla, the Broken Halo",
+      "oracle_id": "b2d4ce3c-00b1-4a72-b652-4c129475080f",
+      "oracle_text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nFlying, vigilance, haste\nWhenever you cast another spell that has convoke, scry 2, then draw a card.",
+      "rarity": "mythic",
+      "set": "moc",
+      "type_line": "Legendary Creature — Angel Ally"
+    },
+    {
+      "cmc": 0,
+      "color_identity": ["G", "R"],
+      "colors": [],
+      "id": "32da0d6c-64dd-4aec-b63e-953e96164603",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Kessig Wolf Run",
+      "oracle_id": "c6911265-54ef-4c16-bcf2-1ffb24b7d426",
+      "oracle_text": "{T}: Add {C}.\n{X}{R}{G}, {T}: Target creature gets +X/+0 and gains trample until end of turn.",
+      "produced_mana": ["C"],
+      "rarity": "rare",
+      "set": "tdc",
+      "type_line": "Land"
+    },
+    {
+      "cmc": 2,
+      "color_identity": ["G"],
+      "colors": ["G"],
+      "id": "cdb6432f-3f56-4c92-b09a-2a5b64620c04",
+      "keywords": ["Dredge", "Mill"],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{1}{G}",
+      "name": "Life from the Loam",
+      "oracle_id": "ac8fba34-512c-4f24-999a-ab72f1ce4acb",
+      "oracle_text": "Return up to three target land cards from your graveyard to your hand.\nDredge 3 (If you would draw a card, you may mill three cards instead. If you do, return this card from your graveyard to your hand.)",
+      "rarity": "rare",
+      "set": "tdc",
+      "type_line": "Sorcery"
+    },
+    {
+      "cmc": 2,
+      "color_identity": ["G"],
+      "colors": ["G"],
+      "id": "a4b759f0-901f-4be3-93fa-224609b08d48",
+      "keywords": ["Landfall"],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{1}{G}",
+      "name": "Lotus Cobra",
+      "oracle_id": "8ad91f64-ccab-4edc-bd54-b2ee9267d614",
+      "oracle_text": "Landfall — Whenever a land you control enters, add one mana of any color.",
+      "produced_mana": ["B", "G", "R", "U", "W"],
+      "rarity": "rare",
+      "set": "znr",
+      "type_line": "Creature — Snake"
+    },
+    {
+      "cmc": 0,
+      "color_identity": [],
+      "colors": [],
+      "id": "ea9a4d1a-79dd-4b15-8e3b-f111f16d6bfc",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Maze's End",
+      "oracle_id": "49479778-c4c0-43ba-a7b7-45f00d067462",
+      "oracle_text": "This land enters tapped.\n{T}: Add {C}.\n{3}, {T}, Return this land to its owner's hand: Search your library for a Gate card, put it onto the battlefield, then shuffle. If you control ten or more Gates with different names, you win the game.",
+      "produced_mana": ["C"],
+      "rarity": "mythic",
+      "set": "fdn",
+      "type_line": "Land"
+    },
+    {
+      "cmc": 0,
+      "color_identity": ["R"],
+      "colors": [],
+      "id": "85177bd7-6c50-48da-b692-ae5fe7bd357c",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Mountain",
+      "oracle_id": "a3fb7228-e76b-4e96-a40e-20b5fed75685",
+      "oracle_text": "({T}: Add {R}.)",
+      "produced_mana": ["R"],
+      "rarity": "common",
+      "set": "mdd",
+      "type_line": "Basic Land — Mountain"
+    },
+    {
+      "cmc": 0,
+      "color_identity": [],
+      "colors": [],
+      "id": "a0e2098f-1d94-491a-a7e9-a45a9f69e3a8",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Myriad Landscape",
+      "oracle_id": "2549bc57-9ffb-4053-9f10-f2a5f792b845",
+      "oracle_text": "This land enters tapped.\n{T}: Add {C}.\n{2}, {T}, Sacrifice this land: Search your library for up to two basic land cards that share a land type, put them onto the battlefield tapped, then shuffle.",
+      "produced_mana": ["C"],
+      "rarity": "uncommon",
+      "set": "eoc",
+      "type_line": "Land"
+    },
+    {
+      "cmc": 7,
+      "color_identity": ["G", "R"],
+      "colors": ["G", "R"],
+      "id": "637c5910-f835-496e-b1b9-445bfb71da97",
+      "keywords": ["Landfall"],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{3}{R}{R}{G}{G}",
+      "name": "Omnath, Locus of Rage",
+      "oracle_id": "1816eede-c5bd-49df-958f-a3af64cb2932",
+      "oracle_text": "Landfall — Whenever a land you control enters, create a 5/5 red and green Elemental creature token.\nWhenever Omnath or another Elemental you control dies, Omnath deals 3 damage to any target.",
+      "rarity": "mythic",
+      "set": "ecc",
+      "type_line": "Legendary Creature — Elemental"
+    },
+    {
+      "cmc": 0,
+      "color_identity": [],
+      "colors": [],
+      "id": "b1aaa7b0-1cac-4a92-b880-7ef1ac00618f",
+      "keywords": ["Scry"],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Path of Ancestry",
+      "oracle_id": "b473e293-59e3-4e04-acf2-622604aeb25f",
+      "oracle_text": "This land enters tapped.\n{T}: Add one mana of any color in your commander's color identity. When that mana is spent to cast a creature spell that shares a creature type with your commander, scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
+      "produced_mana": ["B", "G", "R", "U", "W"],
+      "rarity": "common",
+      "set": "mbc",
+      "type_line": "Land"
+    },
+    {
+      "cmc": 0,
+      "color_identity": ["G"],
+      "colors": [],
+      "id": "acf85879-4d14-4d86-978c-b155c47b7dcd",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Pendelhaven",
+      "oracle_id": "f70e72e1-9abe-485b-9fea-e8b35352f5b3",
+      "oracle_text": "{T}: Add {G}.\n{T}: Target 1/1 creature gets +1/+2 until end of turn.",
+      "produced_mana": ["G"],
+      "rarity": "rare",
+      "set": "a25",
+      "type_line": "Legendary Land"
+    },
+    {
+      "cmc": 6,
+      "color_identity": ["G"],
+      "colors": ["G"],
+      "id": "84aa18de-6acc-46cc-8e28-3046790a6751",
+      "keywords": ["Trample", "Landfall"],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{4}{G}{G}",
+      "name": "Rampaging Baloths",
+      "oracle_id": "2d3e6549-6cc6-434f-a189-ba3b55e64c34",
+      "oracle_text": "Trample\nLandfall — Whenever a land you control enters, create a 4/4 green Beast creature token.",
+      "rarity": "rare",
+      "set": "eoc",
+      "type_line": "Creature — Beast"
+    },
+    {
+      "cmc": 3,
+      "color_identity": ["G"],
+      "colors": ["G"],
+      "id": "3f8a0a0e-81f7-40a2-b393-bdc1423549f6",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{2}{G}",
+      "name": "Ramunap Excavator",
+      "oracle_id": "4f819ba4-52ef-4fdd-8e4c-5ae3b2f44db5",
+      "oracle_text": "You may play lands from your graveyard.",
+      "rarity": "rare",
+      "set": "otc",
+      "type_line": "Creature — Snake Cleric"
+    },
+    {
+      "cmc": 3,
+      "color_identity": ["R"],
+      "colors": ["R"],
+      "id": "f7a9ce97-ef6d-468c-b389-8d19c76174c2",
+      "keywords": ["Landfall"],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{2}{R}",
+      "name": "Retreat to Valakut",
+      "oracle_id": "91108ed7-5b24-4b51-b01d-85005998c69d",
+      "oracle_text": "Landfall — Whenever a land you control enters, choose one —\n• Target creature gets +2/+0 until end of turn.\n• Target creature can't block this turn.",
+      "rarity": "uncommon",
+      "set": "bfz",
+      "type_line": "Enchantment"
+    },
+    {
+      "cmc": 0,
+      "color_identity": ["G", "R"],
+      "colors": [],
+      "id": "42d174e5-b8c2-45eb-8e08-1b94fc27cbee",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Rootbound Crag",
+      "oracle_id": "9516c4c1-d72d-434f-97e1-6a862434a169",
+      "oracle_text": "This land enters tapped unless you control a Mountain or a Forest.\n{T}: Add {R} or {G}.",
+      "produced_mana": ["G", "R"],
+      "rarity": "rare",
+      "set": "msc",
+      "type_line": "Land"
+    },
+    {
+      "cmc": 2,
+      "color_identity": ["G"],
+      "colors": ["G"],
+      "id": "7a8b1c49-8594-426d-b585-41140235bb0e",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{1}{G}",
+      "name": "Sakura-Tribe Elder",
+      "oracle_id": "e3afc704-220f-498f-9eaa-0821b17dc24c",
+      "oracle_text": "Sacrifice this creature: Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
+      "rarity": "common",
+      "set": "soc",
+      "type_line": "Creature — Snake Shaman"
+    },
+    {
+      "cmc": 3,
+      "color_identity": ["G"],
+      "colors": ["G"],
+      "id": "ea630ba1-22f9-4a10-bdc6-0d03128214f4",
+      "keywords": ["Landfall"],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{2}{G}",
+      "name": "Scute Swarm",
+      "oracle_id": "aa854d50-444c-49d9-bfb1-5476b33c1c0b",
+      "oracle_text": "Landfall — Whenever a land you control enters, create a 1/1 green Insect creature token. If you control six or more lands, create a token that's a copy of this creature instead.",
+      "rarity": "rare",
+      "set": "dsc",
+      "type_line": "Creature — Insect"
+    },
+    {
+      "cmc": 4,
+      "color_identity": ["G"],
+      "colors": ["G"],
+      "id": "63c7f172-0aec-4629-967c-37253aed0f0d",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{3}{G}",
+      "name": "Splendid Reclamation",
+      "oracle_id": "13fe5e46-77a6-45d8-ac0b-c3d740eccf86",
+      "oracle_text": "Return all land cards from your graveyard to the battlefield tapped.",
+      "rarity": "rare",
+      "set": "eoc",
+      "type_line": "Sorcery"
+    },
+    {
+      "cmc": 0,
+      "color_identity": [],
+      "colors": [],
+      "id": "f57fd4c9-0004-4f71-a30f-2720943f57ca",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Strip Mine",
+      "oracle_id": "d21a89eb-7c5b-459a-acc7-12b20b13bf79",
+      "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice this land: Destroy target land.",
+      "produced_mana": ["C"],
+      "rarity": "rare",
+      "set": "vma",
+      "type_line": "Land"
+    },
+    {
+      "cmc": 1,
+      "color_identity": ["W"],
+      "colors": ["W"],
+      "id": "f7e12477-d59f-442b-a678-1be746d0b7be",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{W}",
+      "name": "Swords to Plowshares",
+      "oracle_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+      "oracle_text": "Exile target creature. Its controller gains life equal to its power.",
+      "rarity": "uncommon",
+      "set": "frc",
+      "type_line": "Instant"
+    },
+    {
+      "cmc": 3,
+      "color_identity": ["G"],
+      "colors": ["G"],
+      "id": "a1e048e0-19d2-4076-892d-f8b3104dee37",
+      "keywords": ["Treasure", "Food", "Landfall"],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{2}{G}",
+      "name": "Tireless Provisioner",
+      "oracle_id": "ab8d5f5c-1976-4f77-8ed2-8d28ee666741",
+      "oracle_text": "Landfall — Whenever a land you control enters, create a Food token or a Treasure token. (Food is an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\" Treasure is an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+      "produced_mana": ["B", "G", "R", "U", "W"],
+      "rarity": "uncommon",
+      "set": "moc",
+      "type_line": "Creature — Elf Scout"
+    },
+    {
+      "cmc": 5,
+      "color_identity": ["G"],
+      "colors": ["G"],
+      "id": "732c208b-cd9e-48a9-9b9d-aba63066ba53",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{3}{G}{G}",
+      "name": "Titania, Protector of Argoth",
+      "oracle_id": "d0ade00d-a496-441d-9b7e-7dc033d3292c",
+      "oracle_text": "When Titania enters, return target land card from your graveyard to the battlefield.\nWhenever a land you control is put into a graveyard from the battlefield, create a 5/3 green Elemental creature token.",
+      "rarity": "mythic",
+      "set": "eoc",
+      "type_line": "Legendary Creature — Elemental"
+    },
+    {
+      "cmc": 0,
+      "color_identity": ["G"],
+      "colors": [],
+      "id": "7aed7d9d-d796-493e-98fd-c5b1a26621ed",
+      "keywords": ["Cycling"],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Tranquil Thicket",
+      "oracle_id": "9f8fe514-77ed-41b4-a6f3-c6f095bb97be",
+      "oracle_text": "This land enters tapped.\n{T}: Add {G}.\nCycling {G} ({G}, Discard this card: Draw a card.)",
+      "produced_mana": ["G"],
+      "rarity": "common",
+      "set": "dsc",
+      "type_line": "Land"
+    },
+    {
+      "cmc": 3,
+      "color_identity": ["R"],
+      "colors": ["R"],
+      "id": "18cb7bf6-9c7c-4e62-a678-7b75862e2f64",
+      "keywords": ["Landfall"],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{2}{R}",
+      "name": "Valakut Exploration",
+      "oracle_id": "d6861319-ae16-4e6c-af87-a264f667d694",
+      "oracle_text": "Landfall — Whenever a land you control enters, exile the top card of your library. You may play that card for as long as it remains exiled.\nAt the beginning of your end step, if there are cards exiled with this enchantment, put them into their owner's graveyard, then this enchantment deals that much damage to each opponent.",
+      "rarity": "rare",
+      "set": "znr",
+      "type_line": "Enchantment"
+    },
+    {
+      "cmc": 0,
+      "color_identity": [],
+      "colors": [],
+      "id": "4e11ea8a-f895-438d-a3b7-f070238e4161",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "",
+      "name": "Wooded Foothills",
+      "oracle_id": "6587a463-a108-4854-b6d1-944e89b8c8a4",
+      "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a Mountain or Forest card, put it onto the battlefield, then shuffle.",
+      "rarity": "rare",
+      "set": "mh3",
+      "type_line": "Land"
+    },
+    {
+      "cmc": 4,
+      "color_identity": ["W"],
+      "colors": ["W"],
+      "id": "537d2b05-3f52-45d6-8fe3-26282085d0c6",
+      "keywords": [],
+      "layout": "normal",
+      "legalities": {
+        "commander": "legal"
+      },
+      "mana_cost": "{2}{W}{W}",
+      "name": "Wrath of God",
+      "oracle_id": "34515b16-c9a4-4f98-8c77-416a7a523407",
+      "oracle_text": "Destroy all creatures. They can't be regenerated.",
+      "rarity": "rare",
+      "set": "cmm",
+      "type_line": "Sorcery"
+    }
+  ]
+}

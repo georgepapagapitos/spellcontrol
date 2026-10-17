@@ -66,6 +66,50 @@ describe('rankReplacementCuts — slot type', () => {
     expect(cuts[1].reason).toBe('One of 2 Forests');
   });
 
+  // E1033: a Guildgate enters tapped, so it is a cut candidate in a deck that
+  // does nothing with Gates. In a Gates deck it is never the cut.
+  // Real oracle text: land-synergy.fixture.
+  describe('a land doing the deck job (E1033)', () => {
+    const fx = JSON.parse(
+      readFileSync(
+        resolve(
+          here,
+          '../../deck-builder/services/deckBuilder/__fixtures__/land-synergy.fixture.json'
+        ),
+        'utf8'
+      )
+    ) as { decks: { gates: { spells: string[] } }; cards: ScryfallCard[] };
+    const fxCard = (name: string) => structuredClone(fx.cards.find((c) => c.name === name)!);
+    const GATE_SPELLS = [
+      'Guild Summit',
+      'Gatebreaker Ram',
+      'Gatekeeper Gargoyle',
+      'Circuitous Route',
+    ];
+    const cutsWith = (spells: string[]) =>
+      cutNames(
+        rankReplacementCuts({
+          addCard: real('Overgrown Tomb'),
+          deckCards: [
+            ...slots(['Forest', 'Forest', 'Command Tower']),
+            ...['Azorius Guildgate', ...spells].map((name, i) => ({
+              slotId: `g${i}`,
+              card: fxCard(name),
+            })),
+          ],
+        })
+      );
+
+    it('is never offered in the deck that builds around it', () => {
+      expect(cutsWith(GATE_SPELLS)).not.toContain('Azorius Guildgate');
+    });
+
+    it('is offered as before in a deck that does nothing with it', () => {
+      const others = fx.decks.gates.spells.filter((s) => !GATE_SPELLS.includes(s));
+      expect(cutsWith(others)).toContain('Azorius Guildgate');
+    });
+  });
+
   it('makes room for a spell with a spell, even when a tapland is the flagged cut', () => {
     const cuts = rankReplacementCuts({
       addCard: real('Doom Blade'),

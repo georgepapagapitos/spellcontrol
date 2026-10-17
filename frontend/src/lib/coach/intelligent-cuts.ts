@@ -44,6 +44,7 @@ import { buildCommanderProfileFromCache } from '@/deck-builder/services/deckBuil
 import { roleIsIncidental } from '@/deck-builder/services/deckBuilder/incidentalRole';
 import type { WinConditionAnalysis } from '@/deck-builder/services/winConditions/types';
 import { isUtilityLand, landSlotMerit } from '@/deck-builder/services/deckBuilder/landUpgrades';
+import { planJobServed, readDeckLandPlan } from '@/deck-builder/services/deckBuilder/landPlan';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { isBasicLandName } from '@/lib/collection/allocations';
 import {
@@ -438,9 +439,14 @@ function rankLandCuts(
   const copies = new Map<string, number>();
   for (const { card } of eligible) copies.set(card.name, (copies.get(card.name) ?? 0) + 1);
 
+  // A land doing the deck's job is never the cut either (Evolving Wilds in a
+  // landfall deck, landPlan.ts).
+  const plan = readDeckLandPlan(
+    deckCards.map(({ card }) => card).filter((card) => !isLandSlot(card))
+  );
   const seen = new Set<string>();
   const scored = eligible
-    .filter(({ card }) => !isUtilityLand(card))
+    .filter(({ card }) => !isUtilityLand(card) && !planJobServed(card, plan))
     .filter(({ card }) => (seen.has(card.name) ? false : (seen.add(card.name), true)))
     .map(({ slotId, card }) => {
       const flagReason = flagged.get(card.name.toLowerCase())?.reason;
