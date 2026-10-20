@@ -42,7 +42,7 @@
 }
 
 /* The Rules door takes the syntax toggle's shape: the two are the pill's
-   footnote tools, one opening the cheatsheet below, one leaving for /rules. */
+   footnote tools, one opening the cheatsheet popover, one leaving for /rules. */
 .search-syntax-toggle,
 .search-rules-door {
   display: inline-flex;
@@ -99,8 +99,13 @@
   }
 }
 
-.search-syntax-panel {
-  margin-top: var(--space-2);
+/* The cheatsheet floats over the results (ToolbarPopover, left-aligned to
+   the toggle) instead of pushing them down. Doubled class: the toolbar panel's
+   own padding/height live in a global sheet whose order against this chunk
+   isn't fixed. The panel scrolls when the viewport is short. */
+.search-syntax-panel.toolbar-popover-panel {
+  width: min(32rem, calc(100vw - 2rem));
+  max-height: min(34rem, calc(100dvh - 8rem));
   padding: var(--space-3);
 }
 

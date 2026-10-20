@@ -53,7 +53,7 @@ afterEach(() => {
 });
 
 describe('SearchPage syntax helper', () => {
-  it('starts collapsed and toggles the cheatsheet panel', () => {
+  it('starts closed and toggles the cheatsheet popover', () => {
     renderPage();
     const toggle = screen.getByRole('button', { name: /search syntax/i });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
@@ -68,10 +68,14 @@ describe('SearchPage syntax helper', () => {
     expect(screen.queryByText('Card type')).toBeNull();
   });
 
-  it('persists the open state to localStorage', () => {
-    renderPage();
+  // Inline, the open cheatsheet pushed the results a screen down. It floats now:
+  // portaled out of the page flow, so the results keep their place.
+  it('floats the cheatsheet outside the page flow', () => {
+    const { container } = renderPage('/search?q=t%3Adragon');
     fireEvent.click(screen.getByRole('button', { name: /search syntax/i }));
-    expect(window.localStorage.getItem('mtg-search-syntax-collapsed')).toBe('0');
+    const panel = screen.getByRole('dialog', { name: 'Search syntax' });
+    expect(container.contains(panel)).toBe(false);
+    expect(panel.style.position).toBe('fixed');
   });
 
   it('inserts a tapped example into the empty query and focuses the input', () => {
@@ -82,6 +86,7 @@ describe('SearchPage syntax helper', () => {
     const input = screen.getByRole('textbox', { name: 'Search any card' });
     expect((input as HTMLInputElement).value).toBe('t:dragon');
     expect(document.activeElement).toBe(input);
+    expect(screen.queryByRole('dialog', { name: 'Search syntax' })).toBeNull();
   });
 
   it('appends a tapped example to an existing query with a space', () => {

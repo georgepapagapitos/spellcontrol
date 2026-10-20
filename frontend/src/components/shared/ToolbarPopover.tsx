@@ -1,7 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
-import { computePopoverPlacement, getSafeViewport } from '@/lib/overlays/popover-placement';
+import {
+  computePopoverPlacement,
+  getSafeViewport,
+  type PopoverAlign,
+} from '@/lib/overlays/popover-placement';
 import { useMenuKeyboard } from '@/lib/overlays/use-menu-keyboard';
 import { markMenuTarget } from '@/lib/overlays/context-menu';
 import { Surface } from './Surface';
@@ -29,6 +33,7 @@ export function ToolbarPopover({
   panelRole,
   panelAriaLabel,
   itemHost,
+  align = 'right',
   children,
 }: {
   label?: string;
@@ -53,6 +58,9 @@ export function ToolbarPopover({
    *  closest ancestor, the item the menu acts on. It is marked while the menu
    *  is open, the same as an OverflowMenu's `contextHost`. */
   itemHost?: string;
+  /** Which trigger edge the panel lines up with. 'left' for a trigger at the
+   *  start of a row whose panel opens wide (the search syntax cheatsheet). */
+  align?: PopoverAlign;
   children: (close: () => void) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -72,7 +80,7 @@ export function ToolbarPopover({
       buttonRef.current.getBoundingClientRect(),
       panelRef.current.getBoundingClientRect(),
       safe,
-      'right',
+      align,
       6
     );
     setPanelPos({
@@ -81,7 +89,7 @@ export function ToolbarPopover({
       left: placement.left,
       right: placement.right,
     });
-  }, [open]);
+  }, [open, align]);
 
   // Dismiss/focus/back semantics come from the shared hook every other popover
   // in the app already uses. This component used to hand-roll them and was the
@@ -111,11 +119,12 @@ export function ToolbarPopover({
       const rect = buttonRef.current.getBoundingClientRect();
       const safe = getSafeViewport();
       const spaceBelow = safe.bottom - rect.bottom;
-      const right = Math.max(0, safe.right - rect.right);
+      const side =
+        align === 'left' ? { left: rect.left } : { right: Math.max(0, safe.right - rect.right) };
       setPanelPos(
         spaceBelow >= 160
-          ? { top: rect.bottom + 6, right }
-          : { bottom: window.innerHeight - rect.top + 6, right }
+          ? { top: rect.bottom + 6, ...side }
+          : { bottom: window.innerHeight - rect.top + 6, ...side }
       );
     }
     setOpen((v) => !v);
