@@ -17,15 +17,39 @@
   flex: 1;
   min-height: 0;
   overflow: clip;
+  /* The smallest-phone layout below asks this box, not the viewport. */
+  container: horde-table / inline-size;
+}
+
+/* ── Top chrome: life | status | corner, one grid ───────────────────────── */
+
+/* One grid, not three absolutes: the status can't drift onto a corner when
+   the screen narrows (it used to center with left: 50% and sat on the life
+   box and the piles on a phone held upright). The grid spans the felt, so it
+   passes taps through and only its clusters take them. */
+.horde-table-top {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  right: var(--space-3);
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-areas: 'life status corner';
+  align-items: start;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+
+.horde-table-top > * {
+  pointer-events: auto;
 }
 
 /* ── Top-left: survivors' shared life ───────────────────────────────────── */
 
 .horde-table-life {
-  position: absolute;
-  top: var(--space-3);
-  left: var(--space-3);
-  z-index: 2;
+  grid-area: life;
+  justify-self: start;
   display: flex;
   flex-direction: column;
   gap: var(--space-0-5);
@@ -46,11 +70,8 @@
 /* ── Top-centre: name + status ──────────────────────────────────────────── */
 
 .horde-table-status {
-  position: absolute;
-  top: var(--space-3);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 2;
+  grid-area: status;
+  justify-self: center;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -85,10 +106,8 @@
 /* ── Top-right: library meter + piles + game menu ───────────────────────── */
 
 .horde-table-corner {
-  position: absolute;
-  top: var(--space-3);
-  right: var(--space-3);
-  z-index: 2;
+  grid-area: corner;
+  justify-self: end;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -159,13 +178,31 @@
   height: var(--pt-card-h);
 }
 
-/* ── Bottom-right: the two horde actions ─────────────────────────────────── */
+/* ── Bottom strip: the combat total, then the two horde actions ─────────── */
 
-.horde-table-actions {
+/* Anchored by `bottom` and laid out as a row, so the total sits in the band
+   `autoPlace` keeps free of cards (`measureRect` reserves this strip's real
+   height). On a narrow screen the total wraps onto its own line above the
+   actions instead of squeezing them. */
+.horde-table-bottom {
   position: absolute;
   bottom: var(--space-3);
+  left: var(--space-3);
   right: var(--space-3);
   z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: flex-end;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+
+.horde-table-bottom > * {
+  pointer-events: auto;
+}
+
+.horde-table-actions {
   display: flex;
   gap: var(--space-2);
 }
@@ -174,25 +211,33 @@
   min-height: 44px;
 }
 
-/* ── Attack banner (floats top-centre, under the status cluster) ────────── */
+.horde-table-bottom .horde-attack-banner {
+  flex: 1 1 20rem;
+  max-width: 40rem;
+}
 
+/* ── Attack banner: one row, placed by its parent strip ─────────────────── */
+
+/* Static on every board: the paper table's bottom strip and the solo half's
+   `.horde-half-combat` both place it. It used to float top-center and cover
+   the horde's row of attackers on a short landscape phone. */
 .horde-attack-banner {
-  position: absolute;
-  top: calc(var(--space-3) + 4.5rem);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 3;
   display: flex;
-  flex-direction: column;
+  flex-flow: row wrap;
+  justify-content: center;
   align-items: center;
-  gap: var(--space-2);
-  max-width: 36rem;
-  padding: var(--space-3);
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
   background: color-mix(in oklab, var(--surface) 94%, transparent);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-tooltip);
   text-align: center;
+}
+
+.horde-attack-banner p {
+  margin: 0;
+  font-size: var(--text-sm);
 }
 
 .horde-attack-banner-input {
@@ -231,7 +276,92 @@
     max-width: 60vw;
   }
 
-  .horde-table-meter {
+  /* The wrap, not the bar: the boss ticks are placed as a % of the wrap, so a
+     narrower bar inside a 10rem wrap drew the half-way tick at 83% of it. */
+  .horde-table-meter-wrap {
     width: 6rem;
+  }
+}
+
+/* A phone held upright (after Skip on the rotate prompt). The corner is too
+   wide to share a row with the life box, so its two halves become grid items
+   of their own: the meter and the table's buttons across the top, life and the
+   piles under it, the status on a row of its own. Every control stays on
+   screen down to 320px. */
+@media (max-width: 599px) {
+  .horde-table-top {
+    grid-template-columns: auto auto;
+    grid-template-areas:
+      'meter meter'
+      'life piles'
+      'status status';
+    justify-content: space-between;
+  }
+
+  .horde-table-corner {
+    display: contents;
+  }
+
+  .horde-table-corner-top {
+    grid-area: meter;
+    justify-self: end;
+  }
+
+  .horde-table-piles {
+    grid-area: piles;
+    justify-self: end;
+    gap: var(--space-1);
+  }
+
+  .horde-table-life .playtest-life-table__total {
+    font-size: var(--text-xl);
+  }
+
+  .horde-table-status {
+    max-width: none;
+  }
+
+  .horde-table-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+
+/* The smallest phones (320px): the meter's row is too wide for its buttons, so
+   the buttons join the piles' row and the meter (its label wrapping) sits
+   beside life. */
+@container horde-table (max-width: 359px) {
+  .horde-table-top {
+    grid-template-columns: 1fr auto auto;
+    grid-template-areas:
+      'piles min menu'
+      'life meter meter'
+      'status status status';
+  }
+
+  .horde-table-corner-top {
+    display: contents;
+  }
+
+  .horde-table-piles {
+    justify-self: start;
+  }
+
+  .horde-table-meter-block {
+    grid-area: meter;
+    justify-self: end;
+  }
+
+  .horde-table-meter-label {
+    white-space: normal;
+    text-align: end;
+  }
+
+  .horde-table-corner-top > .overflow-menu-trigger {
+    grid-area: min;
+  }
+
+  .horde-table-corner-top > .overflow-menu {
+    grid-area: menu;
   }
 }

@@ -29,6 +29,10 @@ const EMPTY_SET: ReadonlySet<string> = new Set();
  *  the table's corner chrome is built landscape-first (design point 3). */
 const PORTRAIT_TABLET = '(orientation: portrait) and (min-width: 768px) and (pointer: coarse)';
 
+/** A phone on its side: too short for the combat total's full sentence to
+ *  fit the reserved bottom strip (the CSS's own short-landscape tier). */
+const COMPACT_COMBAT = '(max-height: 500px) and (orientation: landscape)';
+
 function levelLabel(level: string): string {
   return level.charAt(0).toUpperCase() + level.slice(1);
 }
@@ -48,23 +52,40 @@ function cardsUntilNextBoss(
   return Math.max(0, remaining - nextRemaining);
 }
 
+/** The reserved bands' floors: the corner chrome on a landscape tablet. */
+const RESERVED_TOP = 0.18;
+const RESERVED_BOTTOM = 0.24;
+
 /** Reads the live battlefield box for `autoPlace`: the felt's pixel size plus
- *  the card box the CSS density var currently resolves to. Reserved
- *  fractions are rough constants (the horde table's own corner
- *  chrome, not the main board's) rather than a measured value — good enough
- *  for keeping a fresh permanent out from under the status/action clusters. */
+ *  the card box the CSS density var currently resolves to. The reserved bands
+ *  are the chrome as measured, never less than the tablet floors:
+ *  - top: the status's bottom (on a narrow screen it is a row of its own
+ *    under the corners, and a fresh permanent must land below it);
+ *  - bottom: the bottom bar's top;
+ *  - right: the piles' width, only when they hang down past the top band
+ *    into the rows (a phone on its side), so a long row wraps before it runs
+ *    under them. The piles, not the corner: on a narrow screen the corner is
+ *    `display: contents` and has no box of its own. */
 function measureRect(el: HTMLElement): Rect {
   const box = el.getBoundingClientRect();
   const style = getComputedStyle(el);
   const cardW = parseFloat(style.getPropertyValue('--pt-card-w'));
   const cardH = parseFloat(style.getPropertyValue('--pt-card-h'));
+  const status = el.querySelector('.horde-table-status')?.getBoundingClientRect();
+  const bottom = el.querySelector('.horde-table-bottom')?.getBoundingClientRect();
+  const piles = el.querySelector('.horde-table-piles')?.getBoundingClientRect();
+  const fracH = (px: number) => (box.height > 0 ? Math.max(0, px) / box.height : 0);
+  const fracW = (px: number) => (box.width > 0 ? Math.max(0, px) / box.width : 0);
+  const reservedTop = Math.max(RESERVED_TOP, status ? fracH(status.bottom - box.top) : 0);
+  const pilesInRows = piles && piles.bottom - box.top > reservedTop * box.height;
   return {
     width: box.width,
     height: box.height,
     cardW: Number.isFinite(cardW) && cardW > 0 ? cardW : undefined,
     cardH: Number.isFinite(cardH) && cardH > 0 ? cardH : undefined,
-    reservedTop: 0.18,
-    reservedBottom: 0.24,
+    reservedTop,
+    reservedBottom: Math.max(RESERVED_BOTTOM, bottom ? fracH(box.bottom - bottom.top) : 0),
+    reservedRight: pilesInRows ? fracW(box.right - piles.left) : 0,
   };
 }
 
@@ -110,6 +131,7 @@ export function HordeTable() {
   const [pendingLeave, setPendingLeave] = useState<'discard' | 'end' | null>(null);
   const [portraitSkipped, setPortraitSkipped] = useState(false);
   const isPortraitTablet = useMediaQuery(PORTRAIT_TABLET);
+  const compactCombat = useMediaQuery(COMPACT_COMBAT);
 
   const [isFullscreen, setIsFullscreen] = useState(
     () => typeof document !== 'undefined' && document.fullscreenElement !== null
@@ -167,101 +189,103 @@ export function HordeTable() {
     <div className="horde-table-page">
       <RotatePrompt fullscreen={isFullscreen} />
       <div ref={wrapRef} className="horde-table-wrap playtest-battlefield-wrap">
-        <div className="horde-table-life">
-          <span className="horde-table-life-label">Survivors · {config.survivors.length}</span>
-          <LifeStrip
-            life={survivorsLife}
-            isNarrow={false}
-            monarch={false}
-            initiative={false}
-            citysBlessing={false}
-            playerCounters={{}}
-            onAdjustLife={(delta) => {
-              // A direct life edit outside a resolved attack — reuse resolveAttack's
-              // math by folding it into the next attack step would be wrong here
-              // (there's no attack in progress), so this is its own tiny store write.
-              useHordeGameStore.setState((s) => ({
-                survivorsLife: Math.max(0, s.survivorsLife + delta),
-              }));
-            }}
-            onAdjustCounter={() => {}}
-            onlineTable={null}
-            variant="table"
-          />
-        </div>
-
-        <div className="horde-table-status">
-          <span className="horde-table-status-name">{config.hordeName}</span>
-          <span className="horde-table-status-line">
-            {levelLabel(config.level)} · {statusLine()}
-          </span>
-          {phase === 'setup' && (
-            <button type="button" className="horde-table-next-turn" onClick={endSurvivorTurn}>
-              Next turn
-            </button>
-          )}
-        </div>
-
-        <div className="horde-table-corner">
-          <div className="horde-table-corner-top">
-            <div className="horde-table-meter-block">
-              <span className="horde-table-meter-label">
-                Horde library · {libraryRemaining} / {librarySizeAtStart}
-              </span>
-              <div className="horde-table-meter-wrap">
-                <MeterBar
-                  className="horde-table-meter"
-                  value={libraryRemaining}
-                  max={librarySizeAtStart}
-                />
-                {config.settings.bossTicks.map((tick, i) => (
-                  <span
-                    key={tick}
-                    className={`horde-table-meter-tick${bossTicksCrossed.includes(i) ? ' is-crossed' : ''}`}
-                    style={{ left: `${(1 - tick) * 100}%` }}
-                    aria-hidden
-                  />
-                ))}
-              </div>
-              {nextBossIn != null && (
-                <span className="horde-table-meter-next">Next boss in {nextBossIn}</span>
-              )}
-            </div>
-            <IconButton
-              className="overflow-menu-trigger"
-              onClick={hideBoard}
-              label="Minimize the table"
-              icon={<Minimize2 width={16} height={16} strokeWidth={2} />}
-            />
-            <OverflowMenu
-              ariaLabel="Horde game menu"
-              items={[
-                { label: 'Undo', onClick: undo, disabled: undoCount === 0 },
-                ...(phase !== 'ended'
-                  ? [{ label: 'End game', onClick: () => setPendingLeave('end'), danger: true }]
-                  : []),
-                {
-                  label: 'Leave the table',
-                  onClick: () => (phase === 'ended' ? leaveGame() : setPendingLeave('discard')),
-                },
-              ]}
+        <div className="horde-table-top">
+          <div className="horde-table-life">
+            <span className="horde-table-life-label">Survivors · {config.survivors.length}</span>
+            <LifeStrip
+              life={survivorsLife}
+              isNarrow={false}
+              monarch={false}
+              initiative={false}
+              citysBlessing={false}
+              playerCounters={{}}
+              onAdjustLife={(delta) => {
+                // A direct life edit outside a resolved attack — reuse resolveAttack's
+                // math by folding it into the next attack step would be wrong here
+                // (there's no attack in progress), so this is its own tiny store write.
+                useHordeGameStore.setState((s) => ({
+                  survivorsLife: Math.max(0, s.survivorsLife + delta),
+                }));
+              }}
+              onAdjustCounter={() => {}}
+              onlineTable={null}
+              variant="table"
             />
           </div>
-          <div className="horde-table-piles">
-            <ZonePile
-              zone="library"
-              label="Library"
-              cards={board.zones.library}
-              click={{ label: 'Horde library', onClick: () => {}, disabled: true }}
-              onMenu={() => {}}
-            />
-            <ZonePile
-              zone="graveyard"
-              label="Graveyard"
-              cards={board.zones.graveyard}
-              click={{ label: 'View graveyard', onClick: () => {}, disabled: true }}
-              onMenu={() => {}}
-            />
+
+          <div className="horde-table-status">
+            <span className="horde-table-status-name">{config.hordeName}</span>
+            <span className="horde-table-status-line">
+              {levelLabel(config.level)} · {statusLine()}
+            </span>
+            {phase === 'setup' && (
+              <button type="button" className="horde-table-next-turn" onClick={endSurvivorTurn}>
+                Next turn
+              </button>
+            )}
+          </div>
+
+          <div className="horde-table-corner">
+            <div className="horde-table-corner-top">
+              <div className="horde-table-meter-block">
+                <span className="horde-table-meter-label">
+                  Horde library · {libraryRemaining} / {librarySizeAtStart}
+                </span>
+                <div className="horde-table-meter-wrap">
+                  <MeterBar
+                    className="horde-table-meter"
+                    value={libraryRemaining}
+                    max={librarySizeAtStart}
+                  />
+                  {config.settings.bossTicks.map((tick, i) => (
+                    <span
+                      key={tick}
+                      className={`horde-table-meter-tick${bossTicksCrossed.includes(i) ? ' is-crossed' : ''}`}
+                      style={{ left: `${(1 - tick) * 100}%` }}
+                      aria-hidden
+                    />
+                  ))}
+                </div>
+                {nextBossIn != null && (
+                  <span className="horde-table-meter-next">Next boss in {nextBossIn}</span>
+                )}
+              </div>
+              <IconButton
+                className="overflow-menu-trigger"
+                onClick={hideBoard}
+                label="Minimize the table"
+                icon={<Minimize2 width={16} height={16} strokeWidth={2} />}
+              />
+              <OverflowMenu
+                ariaLabel="Horde game menu"
+                items={[
+                  { label: 'Undo', onClick: undo, disabled: undoCount === 0 },
+                  ...(phase !== 'ended'
+                    ? [{ label: 'End game', onClick: () => setPendingLeave('end'), danger: true }]
+                    : []),
+                  {
+                    label: 'Leave the table',
+                    onClick: () => (phase === 'ended' ? leaveGame() : setPendingLeave('discard')),
+                  },
+                ]}
+              />
+            </div>
+            <div className="horde-table-piles">
+              <ZonePile
+                zone="library"
+                label="Library"
+                cards={board.zones.library}
+                click={{ label: 'Horde library', onClick: () => {}, disabled: true }}
+                onMenu={() => {}}
+              />
+              <ZonePile
+                zone="graveyard"
+                label="Graveyard"
+                cards={board.zones.graveyard}
+                click={{ label: 'View graveyard', onClick: () => {}, disabled: true }}
+                onMenu={() => {}}
+              />
+            </div>
           </div>
         </div>
 
@@ -283,28 +307,32 @@ export function HordeTable() {
           />
         </DndContext>
 
-        <div className="horde-table-actions">
-          <Button
-            onClick={() => setDamageSheetOpen(true)}
-            disabled={board.zones.library.length === 0 && board.zones.graveyard.length === 0}
-          >
-            Damage the horde
-          </Button>
-          <Button variant="primary" onClick={handleHordeTurn} disabled={phase !== 'live'}>
-            {phase === 'setup'
-              ? `Horde arrives after turn ${config.settings.setupTurns}`
-              : 'Horde turn'}
-          </Button>
+        {/* The bottom strip: in combat the total sits here, beside the actions,
+            never over a horde card (same ruling as the solo half, #2946). */}
+        <div className="horde-table-bottom">
+          {pendingAttack && phase === 'combat' && (
+            <HordeAttackBanner
+              attackers={pendingAttack.attackers}
+              power={pendingAttack.power}
+              groups={pendingAttack.groups}
+              onTake={resolveAttack}
+              compact={compactCombat}
+            />
+          )}
+          <div className="horde-table-actions">
+            <Button
+              onClick={() => setDamageSheetOpen(true)}
+              disabled={board.zones.library.length === 0 && board.zones.graveyard.length === 0}
+            >
+              Damage the horde
+            </Button>
+            <Button variant="primary" onClick={handleHordeTurn} disabled={phase !== 'live'}>
+              {phase === 'setup'
+                ? `Horde arrives after turn ${config.settings.setupTurns}`
+                : 'Horde turn'}
+            </Button>
+          </div>
         </div>
-
-        {pendingAttack && phase === 'combat' && (
-          <HordeAttackBanner
-            attackers={pendingAttack.attackers}
-            power={pendingAttack.power}
-            groups={pendingAttack.groups}
-            onTake={resolveAttack}
-          />
-        )}
       </div>
 
       {pendingReveal && (

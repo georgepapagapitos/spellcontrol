@@ -233,10 +233,23 @@ playtest components, never a bespoke card grid.
   numeric field with the horde's full power and lets the number go down (a
   survivor blocked or removed some of it) — it never recomputes the total
   itself. Taking 0 reads as "Skip", not "Take 0".
-- **Landscape-first, tablet-first.** The table's four-corner layout assumes
-  the ≥1024px table tier by construction; a phone or tablet held in portrait
+- **Landscape-first, tablet-first, and still playable after Skip.** The
+  table is built for a landscape tablet; a phone or tablet held in portrait
   gets a "turn it sideways" prompt (reusing playtest's `RotatePrompt` on a
-  phone) rather than a squeezed version of the corner chrome.
+  phone). The prompt offers Skip / Continue anyway, so the portrait table must
+  still work: the top chrome is one grid (`.horde-table-top`: life, status,
+  corner), never three absolutes, and under 600px it stacks into rows (meter
+  and buttons, then life and piles, then the status), with a 320px layer as an
+  `@container horde-table` query. Every control stays on screen down to
+  320px (E1035). At 320×640 upright the felt is shorter than a card once the
+  combat total opens, so attackers sit under it there; turning sideways is
+  the fix, which is what the prompt asks.
+- **Placement reserves the chrome it can measure.** `HordeTable`'s
+  `measureRect` reserves the status's bottom, the bottom strip's top and, when
+  the piles hang down into the rows (a phone on its side), the piles' width on
+  the right (`Rect.reservedRight`), each never below the tablet floors. Any
+  new top or bottom chrome joins one of those two clusters, or `autoPlace`
+  will put cards under it.
 - **No piles for the horde's own board.** Every horde permanent is its own
   card on the felt, exactly like a real player's battlefield — the "no piles"
   rule that governs the rest of the table applies here too, even though
@@ -315,7 +328,14 @@ these are the rulings specific to sharing one board with a real, live game.
   where `autoPlace` never puts a card), beside "Damage the horde". It used to
   float at the top of YOUR half in `.playtest-banners` and covered your top
   row, which is where your artifacts and enchantments land (T144, 2026-10-13);
-  `horde-combat-strip.test.ts` keeps it bottom-anchored and one row. When any
+  `horde-combat-strip.test.ts` keeps it bottom-anchored and one row. The paper
+  table follows the same ruling (E1035): the total sits in `.horde-table-bottom`
+  beside "Damage the horde" / "Horde turn", wrapping onto its own line above
+  them on a narrow screen. It used to float top-center and hid the 4th
+  attacker onward on a phone on its side. On a short landscape screen
+  (`max-height: 500px`) it takes the band's compact wording ("Attacks · 7
+  power"), since the full sentence wraps taller than the strip. The banner's
+  one-row layout is its base rule; neither board floats it. When any
   attacker's power is variable (`*`), the field is not capped at the printed
   total and the copy names the variable attackers, on the paper table too.
 - **A (re-)load never leaves a blank half.** Whenever `hordeLoad.status` is

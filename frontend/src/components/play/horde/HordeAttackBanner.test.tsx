@@ -69,6 +69,24 @@ describe('HordeAttackBanner', () => {
     );
   });
 
+  it('compact reads in the phone band wording on one line, variable attackers included', () => {
+    const onTake = vi.fn();
+    render(
+      <HordeAttackBanner
+        attackers={2}
+        power={2}
+        groups={[NUMERIC_GROUP, VARIABLE_GROUP]}
+        onTake={onTake}
+        compact
+      />
+    );
+    const status = screen.getByRole('status');
+    expect(status.textContent).toContain('Attacks · 2 power + 1 variable');
+    expect(status.textContent).not.toContain('How much got through');
+    fireEvent.click(screen.getByRole('button', { name: 'Take 2' }));
+    expect(onTake).toHaveBeenCalledWith(2);
+  });
+
   it('says nothing extra when every attacker is numeric', () => {
     render(<HordeAttackBanner attackers={1} power={2} groups={[NUMERIC_GROUP]} onTake={vi.fn()} />);
     expect(screen.getByRole('status').textContent).toContain(

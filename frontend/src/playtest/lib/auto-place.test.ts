@@ -82,6 +82,20 @@ describe('autoPlace', () => {
     expect(reserved.y).toBeGreaterThan(free.y);
   });
 
+  it('wraps a row before it runs under a reserved right band (the horde corner)', () => {
+    const cardW = 90;
+    const r = { ...rect, cardW, cardH: 126, reservedRight: 0.3 };
+    const field: BattlefieldCard[] = [];
+    for (let i = 0; i < 12; i++) {
+      const c = card(`c${i}`, { typeLine: 'Creature' });
+      const pos = autoPlace(c, field, r);
+      // The card's right edge in px stays left of the reserved band.
+      const rightPx = pos.x * (rect.width - cardW) + cardW;
+      expect(rightPx).toBeLessThanOrEqual(rect.width * 0.7 + 1e-6);
+      field.push({ ...bf(c), x: pos.x, y: pos.y });
+    }
+  });
+
   it('cascades horizontally for siblings of the same row', () => {
     const creature1 = card('c1', { typeLine: 'Creature' });
     const first = autoPlace(creature1, [], rect);

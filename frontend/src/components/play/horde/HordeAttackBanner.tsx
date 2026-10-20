@@ -7,6 +7,9 @@ interface Props {
   power: number;
   groups: readonly AttackerGroup[];
   onTake(damage: number): void;
+  /** One line in the phone band's wording ("Attacks · 7 power"), for a short
+   *  screen where the full sentence wraps taller than the reserved strip. */
+  compact?: boolean;
 }
 
 /**
@@ -17,17 +20,23 @@ interface Props {
  * only clamps to `power` when every attacker's power IS a number; otherwise
  * it accepts anything up to a sane ceiling (#2178).
  */
-export function HordeAttackBanner({ attackers, power, groups, onTake }: Props) {
+export function HordeAttackBanner({ attackers, power, groups, onTake, compact }: Props) {
   const [value, setValue] = useState(power);
   const variable = variablePowerCount(groups);
   const max = variable > 0 ? VARIABLE_POWER_CEILING : power;
 
   return (
     <div className="horde-attack-banner" role="status">
-      <p>
-        The horde attacks: {attackers} creature{attackers === 1 ? '' : 's'}, {power} power
-        {variable > 0 ? `, plus ${variable} with variable power` : ''}. How much got through?
-      </p>
+      {compact ? (
+        <p>
+          Attacks · {power} power{variable > 0 ? ` + ${variable} variable` : ''}
+        </p>
+      ) : (
+        <p>
+          The horde attacks: {attackers} creature{attackers === 1 ? '' : 's'}, {power} power
+          {variable > 0 ? `, plus ${variable} with variable power` : ''}. How much got through?
+        </p>
+      )}
       <div className="horde-attack-banner-input">
         <label htmlFor="horde-attack-amount">Damage</label>
         <input

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { createPlaytestState, type PlaytestCard } from '@/lib/playtest';
 import { resolveHordeSettings, type HordeSettings } from '@/lib/horde';
 import { useHordeGameStore, type HordeConfig } from '@/store/horde-game';
@@ -89,6 +89,30 @@ describe('HordeTable', () => {
     expect(screen.getByRole('button', { name: /You: \d+ life/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Damage the horde' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Horde turn' })).toBeTruthy();
+  });
+
+  it('puts the combat total in the bottom strip beside the actions, never over the felt', () => {
+    seed();
+    useHordeGameStore.setState({
+      phase: 'combat',
+      pendingAttack: { attackers: 4, power: 7, groups: [] },
+    });
+    render(<HordeTable />);
+    const take = screen.getByRole('button', { name: 'Take 7' });
+    const strip = take.closest('.horde-table-bottom');
+    expect(strip, 'the total renders inside .horde-table-bottom').toBeTruthy();
+    expect(strip!.querySelector('.horde-table-actions')).toBeTruthy();
+  });
+
+  it('keeps life, status and corner in one top grid, so they cannot drift onto each other', () => {
+    seed({ setupTurns: 3 });
+    useHordeGameStore.setState({ phase: 'setup' });
+    render(<HordeTable />);
+    const top = document.querySelector('.horde-table-top');
+    expect(top).toBeTruthy();
+    for (const cls of ['.horde-table-life', '.horde-table-status', '.horde-table-corner'])
+      expect(top!.querySelector(`:scope > ${cls}`), cls).toBeTruthy();
+    expect(within(top as HTMLElement).getByRole('button', { name: 'Next turn' })).toBeTruthy();
   });
 
   it('shows the library meter with a boss tick per bossTicks entry and the next-boss countdown', () => {
