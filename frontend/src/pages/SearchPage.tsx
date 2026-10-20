@@ -1,4 +1,3 @@
-import { Surface } from '../components/shared/Surface';
 import { AlignJustify, BookOpen, ChevronRight, HelpCircle, LayoutGrid, List } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -6,8 +5,8 @@ import './SearchPage.css';
 import { SearchPill } from '@/components/search/SearchPill';
 import { InlineCardSearch, type InlineCardSearchView } from '@/components/search/InlineCardSearch';
 import { BrowseRails } from '../components/browse/BrowseRails';
+import { ToolbarPopover } from '@/components/shared/ToolbarPopover';
 import { ViewModeToggle } from '@/components/shared/ViewModeToggle';
-import { useCollapsedPref } from '@/lib/util/use-collapsed-pref';
 import { useResultsKeys } from '@/lib/search/use-results-keys';
 import { useStoredView } from '@/lib/util/use-stored-view';
 import { offlineDataAvailable, useOfflineStore } from '../store/offline';
@@ -61,7 +60,7 @@ const SYNTAX_ENTRIES: SyntaxEntry[] = [
  * shareable and survives back/forward. Results, owned-count badges, the
  * full-card preview carousel, and the add-a-copy action are all
  * {@link InlineCardSearch}, shared with the collection add flow — this page
- * only owns the input, the layout toggle, the syntax helper, and the landing.
+ * only owns the input, the layout toggle, the syntax popover, and the landing.
  * With no query the landing is the browse rails ({@link BrowseRails}): top and
  * new commanders, top cards, Game Changers, salt and bans, each with a door to
  * its full list at `/search/top/:list`.
@@ -100,7 +99,6 @@ export function SearchPage() {
     ['grid', 'list', 'compact'],
     'grid'
   );
-  const [syntaxCollapsed, setSyntaxCollapsed] = useCollapsedPref('mtg-search-syntax-collapsed');
   // Offline bundle present → searches are served by the local interpreter,
   // which only understands a subset of operators; surface the "online" notes.
   const offlineActive = useOfflineStore(offlineDataAvailable);
@@ -117,9 +115,12 @@ export function SearchPage() {
     resetKey: query,
   });
 
-  const insertExample = (snippet: string) => {
+  // Tapping an example closes the cheatsheet and hands focus back to the box,
+  // so the next keystroke extends the query the tap just built.
+  const insertExample = (snippet: string, close: () => void) => {
     const next = query.trim() ? `${query.replace(/\s+$/, '')} ${snippet}` : snippet;
     commitQuery(next);
+    close();
     inputRef.current?.focus();
   };
 
@@ -155,16 +156,59 @@ export function SearchPage() {
       />
       <div className="search-syntax">
         <div className="search-tools">
-          <button
-            type="button"
-            className="search-syntax-toggle"
-            aria-expanded={!syntaxCollapsed}
-            aria-controls="search-syntax-panel"
-            onClick={() => setSyntaxCollapsed((v) => !v)}
+          {/* An anchored popover, not an inline panel: opened in the page
+              flow, the cheatsheet pushed every result a screen down. */}
+          <ToolbarPopover
+            haspopup="dialog"
+            align="left"
+            wrapperClassName="search-syntax-anchor"
+            triggerClassName="search-syntax-toggle"
+            triggerContent={
+              <>
+                <HelpCircle width={14} height={14} strokeWidth={1.8} aria-hidden />
+                Search syntax
+              </>
+            }
+            panelClassName="toolbar-popover-panel toolbar-popover-panel--fixed search-syntax-panel"
+            panelRole="dialog"
+            panelAriaLabel="Search syntax"
           >
-            <HelpCircle width={14} height={14} strokeWidth={1.8} aria-hidden />
-            Search syntax
-          </button>
+            {(close) => (
+              <>
+                <ul className="search-syntax-list" role="list">
+                  {SYNTAX_ENTRIES.map((entry) => (
+                    <li key={entry.example} className="search-syntax-row">
+                      <button
+                        type="button"
+                        className="search-syntax-example"
+                        onClick={() => insertExample(entry.example, close)}
+                        aria-label={`Insert ${entry.example} into the search`}
+                      >
+                        <code>{entry.example}</code>
+                      </button>
+                      <span className="search-syntax-desc">
+                        {entry.label}
+                        {entry.onlineOnly && offlineActive && (
+                          <span className="search-syntax-online">online</span>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="search-syntax-note">
+                  <code>otag:</code> searches Scryfall's functional card tags, such as{' '}
+                  <code>otag:repeatable-creature-tokens</code>.{' '}
+                  <a
+                    href="https://scryfall.com/docs/syntax"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Full syntax reference
+                  </a>
+                </p>
+              </>
+            )}
+          </ToolbarPopover>
           {/* The phone's Rules door. The header carries Rules beside Search,
               but the header is gone below 1024px and the tab bar has no room,
               so on a phone Rules rides in the Search tab it sits beside on
@@ -175,42 +219,6 @@ export function SearchPage() {
             Rules
           </Link>
         </div>
-        {!syntaxCollapsed && (
-          <Surface
-            as="div"
-            variant="framed"
-            className="search-syntax-panel"
-            id="search-syntax-panel"
-          >
-            <ul className="search-syntax-list" role="list">
-              {SYNTAX_ENTRIES.map((entry) => (
-                <li key={entry.example} className="search-syntax-row">
-                  <button
-                    type="button"
-                    className="search-syntax-example"
-                    onClick={() => insertExample(entry.example)}
-                    aria-label={`Insert ${entry.example} into the search`}
-                  >
-                    <code>{entry.example}</code>
-                  </button>
-                  <span className="search-syntax-desc">
-                    {entry.label}
-                    {entry.onlineOnly && offlineActive && (
-                      <span className="search-syntax-online">online</span>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <p className="search-syntax-note">
-              <code>otag:</code> searches Scryfall's functional card tags, such as{' '}
-              <code>otag:repeatable-creature-tokens</code>.{' '}
-              <a href="https://scryfall.com/docs/syntax" target="_blank" rel="noopener noreferrer">
-                Full syntax reference
-              </a>
-            </p>
-          </Surface>
-        )}
       </div>
       {searching ? (
         <>
