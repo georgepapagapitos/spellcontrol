@@ -85,6 +85,10 @@ export interface Rect {
   /** Same idea for the top: the life panel floats over the board's top-left
    *  at the table tier, so the permanents row starts under it. */
   reservedTop?: number;
+  /** Fraction (0..1) of the width at the RIGHT that chrome covers down into
+   *  the rows (the Horde table's library/graveyard corner): a row wraps to
+   *  its next sub-row before running under it. */
+  reservedRight?: number;
 }
 
 /**
@@ -110,7 +114,10 @@ export function autoPlace(
 
   const leftPad = 16;
   const rightPad = 16;
-  const usableWidth = Math.max(cardW, r.width - leftPad - rightPad);
+  const usableWidth = Math.max(
+    cardW,
+    r.width * (1 - clamp01(r.reservedRight ?? 0)) - leftPad - rightPad
+  );
   const inRow = battlefield.filter((b) => rowForCard(b.card) === row).length;
 
   // Whole cards side by side until the row is full (a real table: lands in
