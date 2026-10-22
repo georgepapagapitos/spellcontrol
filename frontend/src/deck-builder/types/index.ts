@@ -569,15 +569,13 @@ export interface BuildReport extends TargetMissFields {
   /** Disclosure when the archetype-aware auto land count adjusted the 37-land default (e.g.
    *  tribal/dork-dense decks running fewer). Undefined when set explicitly or unchanged. */
   landCountNote?: string;
-  /** Disclosure when the card pool ran dry (an invalid/narrow Scryfall filter, a thin
-   *  owned-only collection, or a plain budget/price/rarity/arena/bracket squeeze) and the
-   *  shortfall got padded with extra basic lands — names the cause and how many slots it
-   *  cost. Undefined when the final land count is within a few of the pre-generation plan. */
+  /** Disclosure when the card pool ran dry (a narrow filter, a thin owned-only collection,
+   *  or a price/rarity/arena/bracket squeeze) and basics padded the shortfall — names the
+   *  cause and the slots it cost. Undefined when lands land within a few of the plan. */
   poolExhaustionNote?: string;
-  /** E282: owned-only build — the slots the commander's EDHREC data couldn't
-   *  fill from the collection, weakest first, so the user knows what to swap. */
-  thinPoolFillNote?: string;
+  thinPoolFillNote?: string; // E282: owned-only build — slots filled from outside the page, weakest first
   unownedLeftOutNote?: string; // E576: owned-only build — staples (40%+) left out as unowned
+  priceCapLeftOutNote?: string; // E1032: staples (rocks, 40%+) left out for costing more than the max card price
   /** Disclosure when an explicit (user/deck) must-include couldn't be seated —
    *  off-color, over the rarity/CMC cap, not on Arena, or unresolvable. Names
    *  each dropped pick with its reason so a forced card never vanishes
@@ -871,6 +869,7 @@ export interface GeneratedDeck extends TargetMissFields {
   poolExhaustionNote?: string; // e.g. an invalid filter / thin collection / other caps ran the pool dry and basics padded the gap
   thinPoolFillNote?: string; // E282: owned-only build — N slots filled from the collection outside the commander's EDHREC data, weakest first
   unownedLeftOutNote?: string; // E576: owned-only build — staples left out because the user doesn't own them
+  priceCapLeftOutNote?: string; // E1032: staples left out because they cost more than the max card price
   mustIncludeSkippedNote?: string; // e.g. a forced pick was off-color / over a cap / not on Arena and couldn't be seated
   mustIncludeOverrideNote?: string; // e.g. a forced pick was seated over the game-changer limit or max card price
   budgetNote?: string; // e.g. a combo upgrade was skipped to honor the budget cap

@@ -195,6 +195,8 @@ export interface GenerationState {
   wholeDeckSearch?: WholeDeckSearchResult;
   /** The cards the role-surplus rebalance cut: the roles it trimmed stay trimmed for the search. */
   surplusCuts?: string[];
+  /** E1032: staple rocks the price cap kept out, as fetched, so the report can name their price. */
+  priceCappedStaples?: Map<string, ScryfallCard>;
   gapAnalysis: GapAnalysisCard[] | undefined;
   deckScore: number | undefined;
   cardInclusionMap: Record<string, number> | undefined;

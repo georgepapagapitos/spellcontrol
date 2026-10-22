@@ -206,6 +206,7 @@ export function assembleBuildReport(input: {
   if (generated.poolExhaustionNote) report.poolExhaustionNote = generated.poolExhaustionNote;
   if (generated.thinPoolFillNote) report.thinPoolFillNote = generated.thinPoolFillNote;
   if (generated.unownedLeftOutNote) report.unownedLeftOutNote = generated.unownedLeftOutNote;
+  if (generated.priceCapLeftOutNote) report.priceCapLeftOutNote = generated.priceCapLeftOutNote;
   if (generated.mustIncludeSkippedNote)
     report.mustIncludeSkippedNote = generated.mustIncludeSkippedNote;
   if (generated.mustIncludeOverrideNote)

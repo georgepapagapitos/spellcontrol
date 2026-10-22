@@ -217,6 +217,7 @@ export function BuildReportPanel({
     poolExhaustionNote,
     thinPoolFillNote,
     unownedLeftOutNote,
+    priceCapLeftOutNote,
     mustIncludeSkippedNote,
     mustIncludeOverrideNote,
     brewDialNote,
@@ -386,6 +387,9 @@ export function BuildReportPanel({
       {thinPoolFillNote && <p className="build-report-flag">{thinPoolFillNote}</p>}
       {unownedLeftOutNote && (
         <p className="build-report-line build-report-source">{unownedLeftOutNote}</p>
+      )}
+      {priceCapLeftOutNote && (
+        <p className="build-report-line build-report-source">{priceCapLeftOutNote}</p>
       )}
 
       {/* Combo builds already surface this note in the confirmation banner

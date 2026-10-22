@@ -84,7 +84,11 @@ export async function stapleManaRocksPhase(
           dynamicCap != null && heldForRocks > 0
             ? Math.min(state.cfg.maxCardPrice ?? Infinity, Math.max(dynamicCap, heldForRocks))
             : (dynamicCap ?? state.cfg.maxCardPrice);
-        if (!ownedExempt && exceedsMaxPrice(card, cap, state.cfg.currency)) continue;
+        if (!ownedExempt && exceedsMaxPrice(card, cap, state.cfg.currency)) {
+          // E1032: the cap stands; the report names the rock and its price (priceCapLeftOut.ts).
+          (state.priceCappedStaples ??= new Map()).set(staple.name, card);
+          continue;
+        }
         if (
           !isOwnedRarityExempt(
             staple.name,
