@@ -569,14 +569,11 @@ export interface BuildReport extends TargetMissFields {
   /** Disclosure when the archetype-aware auto land count adjusted the 37-land default (e.g.
    *  tribal/dork-dense decks running fewer). Undefined when set explicitly or unchanged. */
   landCountNote?: string;
-  /** Disclosure when the card pool ran dry (an invalid/narrow Scryfall filter, a thin
-   *  owned-only collection, or a plain budget/price/rarity/arena/bracket squeeze) and the
-   *  shortfall got padded with extra basic lands — names the cause and how many slots it
-   *  cost. Undefined when the final land count is within a few of the pre-generation plan. */
+  /** Disclosure when the card pool ran dry (a narrow filter, a thin owned-only collection,
+   *  or a price/rarity/arena/bracket squeeze) and basics padded the shortfall — names the
+   *  cause and the slots it cost. Undefined when lands land within a few of the plan. */
   poolExhaustionNote?: string;
-  /** E282: owned-only build — the slots the commander's EDHREC data couldn't
-   *  fill from the collection, weakest first, so the user knows what to swap. */
-  thinPoolFillNote?: string;
+  thinPoolFillNote?: string; // E282: owned-only build — slots filled from outside the page, weakest first
   unownedLeftOutNote?: string; // E576: owned-only build — staples (40%+) left out as unowned
   priceCapLeftOutNote?: string; // E1032: staples (rocks, 40%+) left out for costing more than the max card price
   /** Disclosure when an explicit (user/deck) must-include couldn't be seated —
