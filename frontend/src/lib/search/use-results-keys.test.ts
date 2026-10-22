@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import type { KeyboardEvent } from 'react';
-import { useResultsKeys } from './use-results-keys';
+import { jumpTarget, useResultsKeys } from './use-results-keys';
 import type { CardSearchResultsHandle } from '@/lib/search/use-results-keys';
 
 function keyEvent(
@@ -118,5 +118,53 @@ describe('useResultsKeys({ enterNeedsNav: true })', () => {
 
     act(() => result.current.onKeyDown(keyEvent('Enter').event));
     expect(handle.addActive).not.toHaveBeenCalled();
+  });
+});
+
+// E1008: Home/End reach the ends of the list without taking the input's caret.
+describe('jumpTarget / Home and End', () => {
+  const press = (key: string, value: string, mods: Record<string, boolean> = {}) =>
+    jumpTarget({ key, currentTarget: { value }, ...mods });
+
+  it('Ctrl or Cmd with Home/End always jumps', () => {
+    expect(press('Home', 'sol', { ctrlKey: true })).toBe('first');
+    expect(press('End', 'sol', { ctrlKey: true })).toBe('last');
+    expect(press('End', 'sol', { metaKey: true })).toBe('last');
+  });
+
+  it('plain Home/End jump only while the box is empty; otherwise they move the caret', () => {
+    expect(press('End', '')).toBe('last');
+    expect(press('Home', '')).toBe('first');
+    expect(press('End', 'sol')).toBeNull();
+    expect(press('Home', 'sol')).toBeNull();
+  });
+
+  it('Shift (text selection) and Alt are left alone, and other keys are not jumps', () => {
+    expect(press('End', 'sol', { ctrlKey: true, shiftKey: true })).toBeNull();
+    expect(press('Home', '', { altKey: true })).toBeNull();
+    expect(press('ArrowDown', '')).toBeNull();
+  });
+
+  it('the hook moves the active row to either end and swallows the key', () => {
+    const { result } = renderHook(() => useResultsKeys());
+    const handle: CardSearchResultsHandle = { moveActive: vi.fn(), addActive: vi.fn() };
+    result.current.resultsRef.current = handle;
+    act(() => result.current.onActiveChange({ id: 'a', name: 'Sol Ring' } as never));
+
+    const end = {
+      key: 'End',
+      ctrlKey: true,
+      currentTarget: { value: 'sol' },
+      nativeEvent: { isComposing: false },
+      preventDefault: vi.fn(),
+    } as unknown as KeyboardEvent<HTMLInputElement>;
+    act(() => result.current.onKeyDown(end));
+    expect(handle.moveActive).toHaveBeenLastCalledWith('last');
+    expect(end.preventDefault).toHaveBeenCalled();
+
+    const caret = { ...end, ctrlKey: false, preventDefault: vi.fn() };
+    act(() => result.current.onKeyDown(caret as unknown as KeyboardEvent<HTMLInputElement>));
+    expect(handle.moveActive).toHaveBeenCalledTimes(1);
+    expect(caret.preventDefault).not.toHaveBeenCalled();
   });
 });

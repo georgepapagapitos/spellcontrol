@@ -23,7 +23,8 @@ interface UseResultsKeysOptions {
 }
 
 /**
- * ↑/↓ moves the active {@link CardSearchResults} row, Enter adds it — the
+ * ↑/↓ moves the active {@link CardSearchResults} row, {@link jumpTarget}'s
+ * Home/End jump it to either end, Enter adds it — the
  * pattern `AddCardSearchPanel` established for its own input, shared here by
  * every host that owns a query input elsewhere in the tree and drives
  * `CardSearchResults` (directly, or through `InlineCardSearch`'s forwarded
@@ -56,6 +57,7 @@ export function useResultsKeys(opts: UseResultsKeysOptions = {}) {
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.nativeEvent.isComposing || !hasActive) return;
+    const jump = jumpTarget(e);
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       // With Enter gated, nothing is selected yet, so the first arrow selects
@@ -63,6 +65,10 @@ export function useResultsKeys(opts: UseResultsKeysOptions = {}) {
       const step = enterNeedsNav && !navigated ? 0 : e.key === 'ArrowDown' ? 1 : -1;
       setNavigated(true);
       resultsRef.current?.moveActive(step);
+    } else if (jump) {
+      e.preventDefault();
+      setNavigated(true);
+      resultsRef.current?.moveActive(jump);
     } else if (e.key === 'Enter') {
       if (enterNeedsNav && !navigated) return;
       e.preventDefault();
@@ -73,12 +79,36 @@ export function useResultsKeys(opts: UseResultsKeysOptions = {}) {
   return { resultsRef, onActiveChange, onKeyDown };
 }
 
+/**
+ * Which end of the results a Home/End press jumps the highlight to, or null
+ * when the key belongs to the input. A text input's Home/End move the caret
+ * (the ARIA combobox pattern keeps them there), so the jump takes
+ * Ctrl+Home/Ctrl+End (Cmd on a Mac), which in a one-line input only repeat
+ * what plain Home/End already do, and plain Home/End only while the input is
+ * empty, when there is no caret to move. Shift is text selection, Alt is left
+ * to the browser.
+ */
+export function jumpTarget(e: {
+  key: string;
+  ctrlKey?: boolean;
+  metaKey?: boolean;
+  shiftKey?: boolean;
+  altKey?: boolean;
+  currentTarget?: { value?: string } | null;
+}): 'first' | 'last' | null {
+  if (e.key !== 'Home' && e.key !== 'End') return null;
+  if (e.shiftKey || e.altKey) return null;
+  const empty = !(e.currentTarget?.value ?? '');
+  if (!e.ctrlKey && !e.metaKey && !empty) return null;
+  return e.key === 'Home' ? 'first' : 'last';
+}
+
 /** Imperative keyboard-nav surface for a host that owns a search input
  *  elsewhere in the tree (this component renders no input of its own). */
 export interface CardSearchResultsHandle {
-  /** Move the active row by one row (list/compact views only). 0 keeps the
-   *  row and just shows it as selected. */
-  moveActive: (delta: 1 | 0 | -1) => void;
+  /** Move the active row by one row (list/compact views only), or to the
+   *  first or last shown row. 0 keeps the row and just shows it as selected. */
+  moveActive: (delta: 1 | 0 | -1 | 'first' | 'last') => void;
   /** Add the active row's card, same as clicking its "+". */
   addActive: () => void;
 }

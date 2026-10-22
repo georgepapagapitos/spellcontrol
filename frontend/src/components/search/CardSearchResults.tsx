@@ -12,7 +12,13 @@ import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import { imageFromCard } from '@/lib/cards/card-thumbs';
 import { availableFinishes } from '@/lib/scanner/scanner-feedback';
 import { haptics } from '@/lib/util/haptics';
-import { rowAnnouncement, rowStatuses, useLiveAnnouncer } from '@/lib/search/row-announcement';
+import {
+  rowAnnouncement,
+  rowStatuses,
+  settledAnnouncement,
+  useLiveAnnouncer,
+  useSettleTimer,
+} from '@/lib/search/row-announcement';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '@/types/index';
 import { Button, IconButton } from '@/components/shared/Button';
@@ -70,6 +76,15 @@ interface Props {
    * an inspector for the active row instead (desktop Add-cards workbench).
    */
   hideRowDisclosure?: boolean;
+  /**
+   * The query `results` answers, once the search has settled; undefined while
+   * it is pending, failed or too short to run. A host whose input drives this
+   * list (through `useResultsKeys`) passes it, and a new result set is then
+   * spoken once it settles: the count and the highlighted row ("12 results.
+   * Sol Ring, 1 of 12. Enter adds it.", or "No results."). Hosts with no
+   * keyboard wiring leave it off, since the row text promises Enter.
+   */
+  resultsFor?: string;
 }
 
 const DEFAULT_PAGE = 10;
@@ -107,6 +122,7 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
       addToList,
       onActiveChange,
       hideRowDisclosure,
+      resultsFor,
     },
     ref
   ) {
@@ -132,6 +148,7 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
     // The list's arrow-key moves are spoken here: the host's input drives the
     // highlight, so nothing else tells a screen reader which row it is on.
     const { message: moveAnnouncement, announce: announceMove } = useLiveAnnouncer();
+    const { schedule: scheduleSettle, cancel: cancelSettle } = useSettleTimer();
     const listRef = useRef<HTMLUListElement>(null);
     const [openPrintingsId, setOpenPrintingsId] = useState<string | null>(null);
     const [visible, setVisible] = useState(pageSize ?? Infinity);
@@ -307,28 +324,68 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
       if (last) void removeCopies(id, [last]);
     };
 
+    // What the row at `index` says, from the rendered row's own badges.
+    const describeRow = (index: number, edge?: 'first' | 'last'): string | null => {
+      const card = results[index];
+      if (!card) return null;
+      return rowAnnouncement({
+        name: card.name,
+        statuses: rowStatuses(listRef.current?.children[index] ?? null),
+        index,
+        total: Math.min(results.length, visible),
+        edge,
+      });
+    };
+
+    // A new result set (not a next page appended to this one) is spoken once
+    // it settles: the count and the row Enter would add. The timer reads the
+    // latest render through the ref, after the reset above has moved the
+    // highlight back to the top; an arrow press or Enter cancels it.
+    const settleRead = useRef({ describeRow, activeIndex, count: total ?? results.length });
+    useEffect(() => {
+      settleRead.current = { describeRow, activeIndex, count: total ?? results.length };
+    });
+    const settledFor = useRef<{ results: ScryfallCard[]; resultsFor?: string }>({ results: [] });
+    useEffect(() => {
+      const prev = settledFor.current;
+      settledFor.current = { results, resultsFor };
+      if (resultsFor === undefined) {
+        cancelSettle();
+        return;
+      }
+      const appended =
+        prev.resultsFor === resultsFor &&
+        prev.results.length > 0 &&
+        results.length > prev.results.length &&
+        results[0]?.id === prev.results[0]?.id;
+      if (appended || (prev.resultsFor === resultsFor && prev.results === results)) return;
+      scheduleSettle(() => {
+        const { describeRow: rowAt, activeIndex: at, count } = settleRead.current;
+        announceMove(settledAnnouncement(count, rowAt(at)));
+      });
+      // The timer helpers are recreated per render and read nothing stale.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [results, resultsFor]);
+
     useImperativeHandle(
       ref,
       () => ({
         moveActive: (delta) => {
+          cancelSettle();
           setNavigated(true);
           const last = Math.min(results.length, visible) - 1;
-          const next = Math.min(last, Math.max(0, activeIndex + delta));
+          const target = delta === 'first' ? 0 : delta === 'last' ? last : activeIndex + delta;
+          const next = Math.min(last, Math.max(0, target));
           setActiveIndex(next);
-          const card = results[next];
-          if (!card) return;
-          announceMove(
-            rowAnnouncement({
-              name: card.name,
-              statuses: rowStatuses(listRef.current?.children[next] ?? null),
-              index: next,
-              total: last + 1,
-              edge:
-                delta !== 0 && next === activeIndex ? (delta > 0 ? 'last' : 'first') : undefined,
-            })
+          const forward = delta === 'last' || (typeof delta === 'number' && delta > 0);
+          const text = describeRow(
+            next,
+            delta !== 0 && next === activeIndex ? (forward ? 'last' : 'first') : undefined
           );
+          if (text) announceMove(text);
         },
         addActive: () => {
+          cancelSettle();
           const card = results[Math.min(activeIndex, results.length - 1)];
           if (card) void quickAdd(card);
         },
@@ -366,7 +423,17 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
       }
     }, [pagedIn, visible, hasMore, results.length]);
 
-    if (results.length === 0) return null;
+    // No role="status": a page can hold several, and that would make this one
+    // match every bare getByRole('status') query (STYLE_GUIDE § Copy). First
+    // in both returns below, so it stays mounted when the results empty out
+    // and "No results." still reaches it.
+    const moveLive = (
+      <div aria-live="polite" className="inline-card-search-sr-only">
+        {moveAnnouncement}
+      </div>
+    );
+
+    if (results.length === 0) return <>{moveLive}</>;
 
     const shown = results.slice(0, visible);
     const moreToReveal = results.length > shown.length;
@@ -385,6 +452,7 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
 
     return (
       <>
+        {moveLive}
         {view === 'grid' ? (
           <ul className="inline-card-search-grid" aria-label="Search results">
             {shown.map((c, idx) => {
@@ -589,11 +657,6 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
             })}
           </ul>
         )}
-        {/* No role="status": a page can hold several, and that would make this
-            one match every bare getByRole('status') query (STYLE_GUIDE § Copy). */}
-        <div aria-live="polite" className="inline-card-search-sr-only">
-          {moveAnnouncement}
-        </div>
         {addToList && (
           <div role="status" aria-live="polite" className="inline-card-search-sr-only">
             {addListAnnouncement}
