@@ -686,6 +686,8 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
     const max = visibleResultsRef.current.length;
     if (e.key === 'Escape') {
       if (query) {
+        // Claim the key so the hosting sheet (useSheetExit) stays open.
+        e.preventDefault();
         setQuery('');
       } else {
         onClose?.();

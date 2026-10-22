@@ -51,7 +51,9 @@ function owned(name: string, colorIdentity: string[], legal = 'legal'): Enriched
   } as unknown as EnrichedCard;
 }
 
-function renderPanel(opts: { counts?: [string, number][]; limit?: string[] } = {}) {
+function renderPanel(
+  opts: { counts?: [string, number][]; limit?: string[]; onClose?: () => void } = {}
+) {
   render(
     <CardSearchPanel
       deckId="deck-1"
@@ -59,7 +61,7 @@ function renderPanel(opts: { counts?: [string, number][]; limit?: string[] } = {
       existingCardCounts={new Map(opts.counts ?? [])}
       atCopyLimit={(n) => (opts.limit ?? []).includes(n)}
       onAdd={vi.fn()}
-      onClose={() => {}}
+      onClose={opts.onClose ?? (() => {})}
       addZone="main"
       enableSuggestions
     />
@@ -273,5 +275,25 @@ describe('add-cards results speak their count and highlighted row once they sett
     fireEvent.click(screen.getByRole('tab', { name: /Collection/ }));
     type('zzzz');
     await waitFor(() => expect(live()?.textContent).toBe('No results.'), { timeout: 2000 });
+  });
+});
+
+// E1036: Escape cleared the query but left the key unclaimed, so the hosting
+// card-picker sheet's useSheetExit listener (it stands down on defaultPrevented)
+// closed the whole sheet in the same keystroke.
+describe('Escape in the add-cards search', () => {
+  it('with a query clears it and claims the key; the next Escape closes', () => {
+    const onClose = vi.fn();
+    renderPanel({ onClose });
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'bolt' } });
+
+    // fireEvent returns false when the handler called preventDefault.
+    expect(fireEvent.keyDown(input, { key: 'Escape' })).toBe(false);
+    expect(input.value).toBe('');
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

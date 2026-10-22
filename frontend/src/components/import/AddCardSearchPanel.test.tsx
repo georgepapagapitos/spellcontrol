@@ -183,6 +183,25 @@ describe('AddCardSearchPanel', () => {
     expect(h.replaceAllCards.mock.calls[0][0]).toEqual([{ copyId: 'keep', name: 'Forest' }]);
   });
 
+  // E1036: Escape cleared the query but left the key unclaimed, so the hosting
+  // sheet's own Escape listener (Modal, useSheetExit: both stand down on
+  // defaultPrevented) closed the whole sheet in the same keystroke.
+  it('Escape with a query clears it and claims the key; the next Escape bubbles up', async () => {
+    const onEscape = vi.fn();
+    render(<AddCardSearchPanel autoFocus={false} onEscape={onEscape} />);
+    await act(async () => {});
+    const input = screen.getByRole('textbox', { name: 'Search Scryfall' }) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'sol' } });
+
+    // fireEvent returns false when the handler called preventDefault.
+    expect(fireEvent.keyDown(input, { key: 'Escape' })).toBe(false);
+    expect(input.value).toBe('');
+    expect(onEscape).not.toHaveBeenCalled();
+
+    expect(fireEvent.keyDown(input, { key: 'Escape' })).toBe(true);
+    expect(onEscape).toHaveBeenCalledTimes(1);
+  });
+
   it('Enter adds the keyboard-active row, same as clicking its +', async () => {
     h.results = [card('a'), card('b', { name: 'Ash Barrens', collector_number: '456' })];
     await mount();

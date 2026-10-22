@@ -52,6 +52,9 @@ export function AddCardSearchPanel({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Escape') {
       if (query) {
+        // Claim the key, or the hosting sheet's own Escape listener closes it
+        // too (Modal and useSheetExit stand down on defaultPrevented).
+        e.preventDefault();
         setQuery('');
         return;
       }
