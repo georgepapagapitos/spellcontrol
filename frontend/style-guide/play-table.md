@@ -138,6 +138,9 @@ One `TaxCoins` component draws them everywhere: floating above the table's
 command pile, and inline in the phone's command tile, which is where a phone's
 command zone lives. The phone had shown the tax only for a card still in the
 zone, so a cast commander's tax was nowhere on screen until the coins came.
+A coin is at least 24px tall for every pointer (WCAG 2.5.8; a mouse measured
+it at 34x22, E1035), with the shared 44px `.touch-ghost` on top for a thumb. It
+has no background at rest, so the floor costs nothing visible.
 
 **Every key has a pointer twin.** A shortcut that exists only on the keyboard
 is not shipped: each one is also a card-menu item, a table-menu item, or a
@@ -233,6 +236,16 @@ playtest components, never a bespoke card grid.
   numeric field with the horde's full power and lets the number go down (a
   survivor blocked or removed some of it) — it never recomputes the total
   itself. Taking 0 reads as "Skip", not "Take 0".
+- **No creature, no combat stop (E1035).** When a horde turn leaves the horde
+  nothing to attack with, the turn passes the moment the reveal is confirmed,
+  in the same undo step, with exactly what Skip writes (no life lost, the next
+  survivors' turn). It never shows "0 creatures, 0 power. How much got
+  through?". The status line says "nothing attacked" until the next horde turn;
+  there is no toast, since the reveal sheet the survivors just closed showed
+  it. Solo already passed this way (its log reads "The horde has nothing to
+  attack with"). Removing the last attacker by hand mid-combat still leaves
+  the total open: damage may already have landed. The online table still
+  stops, because its combat ends only on a logged `take` step (follow-up).
 - **Landscape-first, tablet-first, and still playable after Skip.** The
   table is built for a landscape tablet; a phone or tablet held in portrait
   gets a "turn it sideways" prompt (reusing playtest's `RotatePrompt` on a
@@ -338,6 +351,13 @@ these are the rulings specific to sharing one board with a real, live game.
   one-row layout is its base rule; neither board floats it. When any
   attacker's power is variable (`*`), the field is not capped at the printed
   total and the copy names the variable attackers, on the paper table too.
+- **The "Fight a horde" sheet names every horde without a scroll on a phone
+  on its side (E1035).** At `(max-height: 500px) and (orientation: landscape)`
+  the body is ~150px between the header and the sticky footer, so the tiles go
+  one row wide (`repeat(auto-fill, minmax(7.5rem, 1fr))`) with a 5:2 art crop,
+  and a five-color tile's badge wraps under its pips. At 844x390 all six names
+  and the row's bottom edge clear the footer. Taller screens keep the 16:9
+  three-up grid. Art alone never identifies a horde.
 - **A (re-)load never leaves a blank half.** Whenever `hordeLoad.status` is
   `loading` or `error` — the setup sheet's own submit, or a Reset re-arming
   the same settings — the half/band shows a quiet "Loading the horde…" or an

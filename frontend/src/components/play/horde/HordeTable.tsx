@@ -111,6 +111,7 @@ export function HordeTable() {
   const cardsMilledByDamage = useHordeGameStore((s) => s.cardsMilledByDamage);
   const undoCount = useHordeGameStore((s) => s.past.length);
   const bossTicksCrossed = useHordeGameStore((s) => s.bossTicksCrossed);
+  const nothingAttacked = useHordeGameStore((s) => s.nothingAttacked);
 
   const endSurvivorTurn = useHordeGameStore((s) => s.endSurvivorTurn);
   const startHordeTurn = useHordeGameStore((s) => s.startHordeTurn);
@@ -151,7 +152,12 @@ export function HordeTable() {
   function statusLine(): string {
     if (phase === 'setup')
       return `survivors' turn ${survivorTurn} of ${config!.settings.setupTurns} setup`;
-    if (phase === 'live') return `horde turn ${hordeTurn + 1} next`;
+    // A turn with no creature to attack passes without a combat stop; this
+    // is the only note that it happened (no toast: the reveal sheet showed it).
+    if (phase === 'live')
+      return nothingAttacked
+        ? `nothing attacked · horde turn ${hordeTurn + 1} next`
+        : `horde turn ${hordeTurn + 1} next`;
     if (phase === 'reveal') return 'the horde reveals';
     if (phase === 'combat') return 'the horde attacks';
     return outcome === 'won' ? 'the horde is gone' : 'overrun';

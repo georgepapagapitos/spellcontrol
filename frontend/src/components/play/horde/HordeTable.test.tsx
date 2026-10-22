@@ -59,6 +59,7 @@ function seed(settingsOverride?: Partial<HordeSettings>) {
     startedAt: Date.now(),
     cardsMilledByDamage: 0,
     damageTaken: 0,
+    nothingAttacked: false,
     past: [],
     finished: [],
   });
@@ -141,6 +142,28 @@ describe('HordeTable', () => {
     expect(screen.getByRole('dialog', { name: 'The horde reveals' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
     expect(screen.queryByRole('dialog', { name: 'The horde reveals' })).toBeNull();
+  });
+
+  it('a wave with no creature passes the turn on Confirm, never a 0-power combat stop (E1035)', () => {
+    seed();
+    const spells: PlaytestCard[] = Array.from({ length: 4 }, (_, i) => ({
+      ...SPELL,
+      id: `s${i}`,
+    }));
+    useHordeGameStore.setState({
+      board: createPlaytestState({ library: spells, command: [], seed: 1, openingHandSize: 0 }),
+      librarySizeAtStart: spells.length,
+    });
+    render(<HordeTable />);
+    fireEvent.click(screen.getByRole('button', { name: 'Horde turn' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    expect(screen.queryByText(/How much got through/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Skip' })).toBeNull();
+    expect(screen.getByText(/nothing attacked · horde turn 2 next/)).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Horde turn' }) as HTMLButtonElement).disabled).toBe(
+      false
+    );
+    expect(useHordeGameStore.getState().survivorTurn).toBe(2);
   });
 
   it('opens the damage sheet and mills the library on confirm', () => {
