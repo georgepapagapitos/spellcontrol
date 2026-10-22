@@ -578,6 +578,7 @@ export interface BuildReport extends TargetMissFields {
    *  fill from the collection, weakest first, so the user knows what to swap. */
   thinPoolFillNote?: string;
   unownedLeftOutNote?: string; // E576: owned-only build — staples (40%+) left out as unowned
+  priceCapLeftOutNote?: string; // E1032: staples (rocks, 40%+) left out for costing more than the max card price
   /** Disclosure when an explicit (user/deck) must-include couldn't be seated —
    *  off-color, over the rarity/CMC cap, not on Arena, or unresolvable. Names
    *  each dropped pick with its reason so a forced card never vanishes
@@ -871,6 +872,7 @@ export interface GeneratedDeck extends TargetMissFields {
   poolExhaustionNote?: string; // e.g. an invalid filter / thin collection / other caps ran the pool dry and basics padded the gap
   thinPoolFillNote?: string; // E282: owned-only build — N slots filled from the collection outside the commander's EDHREC data, weakest first
   unownedLeftOutNote?: string; // E576: owned-only build — staples left out because the user doesn't own them
+  priceCapLeftOutNote?: string; // E1032: staples left out because they cost more than the max card price
   mustIncludeSkippedNote?: string; // e.g. a forced pick was off-color / over a cap / not on Arena and couldn't be seated
   mustIncludeOverrideNote?: string; // e.g. a forced pick was seated over the game-changer limit or max card price
   budgetNote?: string; // e.g. a combo upgrade was skipped to honor the budget cap

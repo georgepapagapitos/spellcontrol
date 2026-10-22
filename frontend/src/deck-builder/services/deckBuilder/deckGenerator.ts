@@ -143,6 +143,7 @@ import {
   gapsOutsideDeck,
   survivingSubstitutionRows,
 } from './finalDeckDisclosure';
+import { buildPriceCapLeftOutNote, findPriceCapLeftOut } from './priceCapLeftOut';
 import { resolveMultiCopyCards } from './multiCopy';
 import { generateLands, CHANNEL_LAND_BOOST, MDFC_LAND_BOOST } from './landGenerator';
 import { resolveManaPhilosophy } from './manaPhilosophy';
@@ -4779,6 +4780,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     ownedOnlyBuild && (collectionStrategy === 'full' || collectionStrategy === 'available')
       ? buildUnownedLeftOutNote(finalGaps, collectionStrategy)
       : undefined;
+  const priceCapLeftOutNote = buildPriceCapLeftOutNote(
+    findPriceCapLeftOut(state, scryfallCardMap, inFinalDeck),
+    maxCardPrice,
+    currency
+  );
 
   // Bounded to the final deck (not the whole lift index) so the build report
   // only explains cards actually in the deck.
@@ -5026,6 +5032,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     poolExhaustionNote,
     thinPoolFillNote,
     unownedLeftOutNote,
+    priceCapLeftOutNote,
     mustIncludeSkippedNote,
     mustIncludeOverrideNote,
     budgetNote,
