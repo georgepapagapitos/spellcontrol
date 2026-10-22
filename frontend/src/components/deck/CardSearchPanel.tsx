@@ -83,14 +83,8 @@ import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { SuggestionsHandoff, suggestionPreviewEntries } from './suggestions-results-parts';
 import type { CardPreviewAction } from '@/components/card/CardPreview';
 import { InDeckCount, NotLegalBadge, OffColorBadge } from './row-badges';
-import {
-  rowAnnouncement,
-  rowStatuses,
-  settledAnnouncement,
-  useLiveAnnouncer,
-  useSettleTimer,
-} from '@/lib/search/row-announcement';
 import { jumpTarget } from '@/lib/search/use-results-keys';
+import { useAddResultsAnnouncer, type PublishVisible } from './use-add-results-announcer';
 
 import { userMessage } from '@/lib/util/user-error';
 import { printedName } from '@spellcontrol/binder-routing';
@@ -521,9 +515,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   const [mode, setMode] = useState<Mode>(() => (enableSuggestions ? 'suggestions' : 'collection'));
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<AddSort>('default');
-  const { message: announce, announce: speak } = useLiveAnnouncer();
   const [activeIndex, setActiveIndex] = useState(0);
-  const { schedule: scheduleSettle, cancel: cancelSettle } = useSettleTimer();
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Binder-location discovery hint (see lib/home/wedge-hints.ts) — dismissed
@@ -661,69 +653,11 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   }, [commanderKey]);
   const effectiveTopCardCounts = commanderKey ? topCardCounts : EMPTY_CARD_COUNTS;
 
-  // The two result lists publish their currently-visible cards here so the
-  // panel-level "Enter to add the first result" handler is independent of
-  // which tab is active.
-  const visibleResultsRef = useRef<ScryfallCard[]>([]);
-  const addCurrentRef = useRef<((index: number) => Promise<void> | void) | null>(null);
-  // False while the active tab's list is still loading (Scryfall's debounce
-  // and fetch, Suggestions' deck analysis): its count isn't the answer yet.
-  const visibleReadyRef = useRef(false);
-
-  // What the row at `index` says, read off the rendered row and its badges.
-  const describeRow = (index: number, total: number, edge?: 'first' | 'last'): string | null => {
-    const row = document.getElementById(`card-search-result-${index}`);
-    const rowName = row?.dataset.resultName;
-    if (!row || !rowName) return null;
-    return rowAnnouncement({
-      name: rowName,
-      statuses: rowStatuses(row),
-      index,
-      total,
-      atCopyLimit: row.dataset.atLimit !== undefined,
-      edge,
-    });
-  };
-
-  // A new result set (a typed query, a tab or sort switch, the first load) is
-  // spoken once it settles: the count and the highlighted row, in one message
-  // (`settledAnnouncement`). Every publish while it waits restarts the timer,
-  // so a typed word is spoken once; an arrow press or an add takes over and
-  // drops it, so it never talks over the row the user just moved to.
-  const awaitingSettle = useRef(true);
-  const activeIndexRef = useRef(activeIndex);
-  useEffect(() => {
-    activeIndexRef.current = activeIndex;
-  });
-  const settle = () =>
-    scheduleSettle(() => {
-      // Still loading: the publish that ends the load schedules it again.
-      if (!visibleReadyRef.current) return;
-      awaitingSettle.current = false;
-      const total = visibleResultsRef.current.length;
-      speak(settledAnnouncement(total, describeRow(activeIndexRef.current, total)));
-    });
-  const publishVisible = (
-    cards: ScryfallCard[],
-    addAt: (index: number) => Promise<void> | void,
-    ready = true
-  ) => {
-    visibleResultsRef.current = cards;
-    addCurrentRef.current = addAt;
-    visibleReadyRef.current = ready;
-    if (awaitingSettle.current) settle();
-  };
-  // The user's own move (an arrow, Home/End, an add) speaks for itself. Once
-  // the list is ready nothing is left to settle; a move on a list that is
-  // still loading leaves the wait on, so the set that lands is still spoken.
-  const takeOver = () => {
-    cancelSettle();
-    if (visibleReadyRef.current) awaitingSettle.current = false;
-  };
-  const handleAnnounce = (msg: string) => {
-    takeOver();
-    speak(msg);
-  };
+  // The tab's result list publishes its visible cards here, so the panel's
+  // arrow/Enter handlers work whichever tab is open; the hook also speaks a
+  // settled result set (E1008).
+  const sr = useAddResultsAnnouncer(activeIndex, `${query}\u0000${mode}\u0000${sort}`);
+  const { visibleResultsRef, addCurrentRef, publishVisible, takeOver } = sr;
 
   useImperativeHandle(ref, () => ({
     focusInput: () => inputRef.current?.focus(),
@@ -769,12 +703,12 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
       // The rows are list items holding their own buttons, not options, so the
       // input cannot point at the row with aria-activedescendant: say it instead,
       // with the same badges the row shows (off-color, in deck, ...).
-      const text = describeRow(
+      const text = sr.describeRow(
         next,
         max,
         next === activeIndex ? (forward ? 'last' : 'first') : undefined
       );
-      if (text) speak(text);
+      if (text) sr.speak(text);
     };
     const jump = jumpTarget(e);
     if (jump) {
@@ -827,14 +761,6 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   // alongside the reset.
   useEffect(() => {
     document.getElementById('card-search-tabpanel')?.scrollTo({ top: 0 });
-  }, [query, activeMode, sort]);
-
-  // A new query, tab or sort is a new result set to speak once it settles.
-  useEffect(() => {
-    awaitingSettle.current = true;
-    settle();
-    // settle reads refs only; re-running on its identity would fire per render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, activeMode, sort]);
 
   return (
@@ -968,7 +894,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             onActiveChange={setActiveIndex}
             onAdd={onAdd}
             onPreviewFit={onPreviewFit}
-            onAnnounce={handleAnnounce}
+            onAnnounce={sr.announceFromRow}
             publishVisible={publishVisible}
             compiledSupertype={compiledSupertype}
             compiledTypes={compiledTypes}
@@ -1009,7 +935,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
               onActiveChange={setActiveIndex}
               onAdd={onAdd}
               onPreviewFit={onPreviewFit}
-              onAnnounce={handleAnnounce}
+              onAnnounce={sr.announceFromRow}
               publishVisible={publishVisible}
               suggestions={suggestions}
               oneAwayCombos={oneAwayCombos}
@@ -1034,7 +960,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             onActiveChange={setActiveIndex}
             onAdd={onAdd}
             onPreviewFit={onPreviewFit}
-            onAnnounce={handleAnnounce}
+            onAnnounce={sr.announceFromRow}
             publishVisible={publishVisible}
             gapByName={gapByName}
             comboProducesByName={comboProducesByName}
@@ -1047,7 +973,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
       </div>
 
       <div className="sr-only" role="status" aria-live="polite">
-        {announce}
+        {sr.message}
       </div>
     </Surface>
   );
@@ -1064,12 +990,7 @@ interface ResultsProps {
   onAdd: (choice: AddCardChoice) => void;
   onPreviewFit?: (card: ScryfallCard) => void;
   onAnnounce: (msg: string) => void;
-  /** `ready` false while the list is still loading, so its count isn't spoken yet. */
-  publishVisible: (
-    cards: ScryfallCard[],
-    addAt: (index: number) => Promise<void> | void,
-    ready?: boolean
-  ) => void;
+  publishVisible: PublishVisible;
   /** Card names never offered as an add (the deck's commander/partner). */
   excludeNames: ReadonlySet<string>;
 }
@@ -1836,8 +1757,7 @@ function ScryfallResults({
   const decks = useDecksStore((s) => s.decks);
   const savedCubes = useCubeStore((s) => s.saved);
   const [results, setResults] = useState<ScryfallCard[]>([]);
-  // The query `results` answers. Until it matches the box (the debounce, the
-  // fetch) the list on screen is the last query's, so its count isn't spoken.
+  // The query `results` answers; until it matches the box its count isn't spoken.
   const [resultsFor, setResultsFor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
