@@ -35,6 +35,7 @@ beforeEach(() => {
     startedAt: null,
     cardsMilledByDamage: 0,
     damageTaken: 0,
+    nothingAttacked: false,
     past: [],
     finished: [],
   });
@@ -172,6 +173,49 @@ describe('a horde turn', () => {
     expect(s.pendingAttack).toBeNull();
     expect(s.attackingIds).toEqual([]);
     expect(['live', 'ended']).toContain(s.phase);
+  });
+
+  // E1035: a reveal that leaves the horde no creature used to stop on "The
+  // horde attacks: 0 creatures, 0 power. How much got through?" + Skip.
+  it('a reveal that leaves nothing to attack passes the turn without a combat stop', async () => {
+    await readyLiveGame();
+    useHordeGameStore.getState().startHordeTurn();
+    // Swap the wave for one with nothing in it, on a felt with no creatures.
+    useHordeGameStore.setState((s) => ({
+      pendingReveal: { revealed: [], toBattlefield: [], toResolve: [], waveEndId: null },
+      board: { ...s.board!, battlefield: [] },
+    }));
+    const before = useHordeGameStore.getState();
+    useHordeGameStore.getState().confirmReveal();
+    const s = useHordeGameStore.getState();
+    expect(s.phase).toBe('live');
+    expect(s.pendingAttack).toBeNull();
+    expect(s.attackingIds).toEqual([]);
+    expect(s.survivorTurn).toBe(before.survivorTurn + 1);
+    expect(s.survivorsLife).toBe(before.survivorsLife);
+    expect(s.damageTaken).toBe(before.damageTaken);
+    expect(s.nothingAttacked).toBe(true);
+    // One undo step, back to the open reveal, the same as the turn's other steps.
+    expect(s.past.length).toBe(before.past.length + 1);
+    useHordeGameStore.getState().undo();
+    expect(useHordeGameStore.getState().phase).toBe('reveal');
+    // The next horde turn clears the note.
+    useHordeGameStore.getState().confirmReveal();
+    expect(useHordeGameStore.getState().nothingAttacked).toBe(true);
+    useHordeGameStore.getState().startHordeTurn();
+    expect(useHordeGameStore.getState().nothingAttacked).toBe(false);
+  });
+
+  it('an empty library and no creature to attack with ends the fight, never a 0-power stop', async () => {
+    await readyLiveGame();
+    useHordeGameStore.setState((s) => ({
+      board: { ...s.board!, battlefield: [], zones: { ...s.board!.zones, library: [] } },
+    }));
+    useHordeGameStore.getState().startHordeTurn();
+    const s = useHordeGameStore.getState();
+    expect(s.pendingAttack).toBeNull();
+    expect(s.phase).toBe('ended');
+    expect(s.outcome).toBe('won');
   });
 });
 

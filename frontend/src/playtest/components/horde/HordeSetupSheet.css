@@ -9,6 +9,29 @@
   }
 }
 
+/* A phone on its side: the sheet's body is ~150px between the header and the
+   sticky footer, and three 16:9 tiles a row put every horde's name below it,
+   so you saw only art (E1035). Here the tiles go one row wide with a 5:2 crop,
+   which puts every name, pip row and record above the footer. Taller screens
+   keep the 16:9 grid. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .horde-setup-sheet .horde-tile-grid {
+    grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+    gap: var(--space-2);
+  }
+
+  .horde-setup-sheet .horde-tile-banner {
+    aspect-ratio: 5 / 2;
+  }
+
+  /* A five-color horde's pips fill the narrow tile; the badge and record
+     wrap under them instead of clipping at the tile's edge. */
+  .horde-setup-sheet .horde-tile-meta {
+    flex-wrap: wrap;
+    row-gap: var(--space-1);
+  }
+}
+
 .horde-setup-sheet__intro {
   margin: var(--space-1) 0 0;
   color: var(--text-secondary);

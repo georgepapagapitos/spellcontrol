@@ -718,6 +718,10 @@ body[data-felt='slate'] {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+  /* WCAG 2.5.8's 24px floor for every pointer (a mouse measured 34x22); the
+     coarse 44px ghost below is the thumb's floor. No background at rest, so
+     the extra 2px only shows in the hover tint. */
+  min-height: 24px;
   padding: 0 var(--space-1);
   border: 0;
   background: none;

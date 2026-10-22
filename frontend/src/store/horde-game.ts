@@ -106,6 +106,9 @@ interface HordeData {
   startedAt: number | null;
   cardsMilledByDamage: number;
   damageTaken: number;
+  /** The last horde turn passed with no creature to attack, so it never
+   *  stopped on the combat total (E1035). Only the status line reads it. */
+  nothingAttacked: boolean;
 }
 
 const MAX_HORDE_UNDO = 30;
@@ -134,6 +137,7 @@ function initialData(): HordeData {
     startedAt: null,
     cardsMilledByDamage: 0,
     damageTaken: 0,
+    nothingAttacked: false,
   };
 }
 
@@ -215,7 +219,28 @@ function captureData(s: HordeStore): HordeData {
     startedAt: s.startedAt,
     cardsMilledByDamage: s.cardsMilledByDamage,
     damageTaken: s.damageTaken,
+    nothingAttacked: s.nothingAttacked,
   };
+}
+
+/** What `resolveAttack(0)` (Skip) writes, for a horde turn with no creature
+ *  to attack: no life lost, back to the survivors, the next survivor turn. */
+function passedTurn(s: HordeStore, outcome: 'won' | 'lost' | null): Partial<HordeData> {
+  return {
+    pendingReveal: null,
+    attackingIds: [],
+    pendingAttack: null,
+    phase: outcome ? 'ended' : 'live',
+    survivorTurn: s.survivorTurn + 1,
+    outcome,
+    nothingAttacked: !outcome,
+  };
+}
+
+function announceBosses(bosses: readonly HordeBossArrival[]): void {
+  for (const boss of bosses) {
+    toast.show({ message: `${bossTickPhrase(boss.tick)} ${boss.name} joins the battlefield.` });
+  }
 }
 
 /**
@@ -374,7 +399,12 @@ export const useHordeGameStore = create<HordeStore>()(
         const past = [...s.past, captureData(s)].slice(-MAX_HORDE_UNDO);
         const nextTurn = s.survivorTurn + 1;
         const setupTurns = s.config?.settings.setupTurns ?? 0;
-        set({ past, survivorTurn: nextTurn, phase: nextTurn > setupTurns ? 'live' : 'setup' });
+        set({
+          past,
+          survivorTurn: nextTurn,
+          phase: nextTurn > setupTurns ? 'live' : 'setup',
+          nothingAttacked: false,
+        });
       },
 
       startHordeTurn(rect) {
@@ -395,13 +425,24 @@ export const useHordeGameStore = create<HordeStore>()(
         if (revealed.length === 0) {
           // Nothing left to reveal — the horde still attacks with whatever it
           // already controls.
+          const attackingIds = creatureIds(s.board);
+          if (attackingIds.length === 0) {
+            const outcome = hordeOutcome(s.board, s.survivorsLife);
+            set({ past, hordeTurn: nextHordeTurn, ...passedTurn(s, outcome) });
+            if (outcome) {
+              const record = recordFinished(get(), outcome);
+              if (record) set({ finished: [record, ...get().finished].slice(0, 20) });
+            }
+            return;
+          }
           set({
             past,
             hordeTurn: nextHordeTurn,
             phase: 'combat',
             pendingReveal: null,
-            attackingIds: creatureIds(s.board),
+            attackingIds,
             pendingAttack: attackSummary(s.board.battlefield),
+            nothingAttacked: false,
           });
           return;
         }
@@ -414,6 +455,7 @@ export const useHordeGameStore = create<HordeStore>()(
           hordeTurn: nextHordeTurn,
           phase: 'reveal',
           pendingReveal: { revealed, toBattlefield, toResolve, waveEndId },
+          nothingAttacked: false,
         });
       },
 
@@ -440,6 +482,17 @@ export const useHordeGameStore = create<HordeStore>()(
 
         const outcome = hordeOutcome(board, s.survivorsLife);
         const attackingIds = outcome ? [] : creatureIds(board);
+        const bossFields = {
+          bossTicksCrossed: dealt.crossed,
+          bossesRemaining: Math.max(0, s.bossesRemaining - dealt.bossesEntered.length),
+        };
+        if (!outcome && attackingIds.length === 0) {
+          // Nothing can attack, so there is no combat to resolve: the turn
+          // passes in this same undo step, exactly as Skip would.
+          set({ past, board, ...bossFields, ...passedTurn(s, null) });
+          announceBosses(dealt.bossesEntered);
+          return;
+        }
         const pendingAttack = outcome ? null : attackSummary(board.battlefield);
         set({
           past,
@@ -448,15 +501,10 @@ export const useHordeGameStore = create<HordeStore>()(
           pendingReveal: null,
           attackingIds,
           pendingAttack,
-          bossTicksCrossed: dealt.crossed,
-          bossesRemaining: Math.max(0, s.bossesRemaining - dealt.bossesEntered.length),
+          ...bossFields,
           outcome,
         });
-        for (const boss of dealt.bossesEntered) {
-          toast.show({
-            message: `${bossTickPhrase(boss.tick)} ${boss.name} joins the battlefield.`,
-          });
-        }
+        announceBosses(dealt.bossesEntered);
         if (outcome) {
           const record = recordFinished(get(), outcome);
           if (record) set({ finished: [record, ...get().finished].slice(0, 20) });
@@ -479,6 +527,7 @@ export const useHordeGameStore = create<HordeStore>()(
           phase: outcome ? 'ended' : 'live',
           survivorTurn: s.survivorTurn + 1,
           outcome,
+          nothingAttacked: false,
         });
         if (outcome) {
           const record = recordFinished(get(), outcome);
