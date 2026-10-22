@@ -15,7 +15,7 @@ export const SYNTAX_TIP = (
       <li>
         <code>-t:land</code> excludes · <code>OR</code> combines
       </li>
-      <li>↑ ↓ navigate · Enter adds · Esc closes</li>
+      <li>↑ ↓ navigate · Ctrl+Home/End first, last · Enter adds · Esc closes</li>
     </ul>
   </>
 );

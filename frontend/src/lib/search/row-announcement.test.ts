@@ -7,7 +7,12 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { inDeckStatus, rowAnnouncement, rowStatuses } from './row-announcement';
+import {
+  inDeckStatus,
+  rowAnnouncement,
+  rowStatuses,
+  settledAnnouncement,
+} from './row-announcement';
 
 describe('rowAnnouncement', () => {
   it('names the card, then the warnings, then the position, then the action', () => {
@@ -48,6 +53,32 @@ describe('rowAnnouncement', () => {
     expect(
       rowAnnouncement({ name: 'Sol Ring', statuses: [], index: 0, total: 2, atCopyLimit: true })
     ).toBe('Sol Ring, 1 of 2. At its copy limit.');
+  });
+
+  it('a list of one is the only result, whichever end the key hit', () => {
+    for (const edge of [undefined, 'first', 'last'] as const) {
+      expect(
+        rowAnnouncement({ name: 'Sol Ring', statuses: ['Unowned'], index: 0, total: 1, edge })
+      ).toBe('Sol Ring, Unowned, only result. Enter adds it.');
+    }
+  });
+});
+
+describe('settledAnnouncement', () => {
+  const row = 'Sol Ring, 1 of 12. Enter adds it.';
+  it('says the count, then the highlighted row', () => {
+    expect(settledAnnouncement(12, row)).toBe(`12 results. ${row}`);
+    expect(settledAnnouncement(1200, row)).toBe(`1,200 results. ${row}`);
+  });
+  it('a single result is the row alone, which already says "only result"', () => {
+    const only = 'Sol Ring, only result. Enter adds it.';
+    expect(settledAnnouncement(1, only)).toBe(only);
+  });
+  it('an empty set says so', () => {
+    expect(settledAnnouncement(0, null)).toBe('No results.');
+  });
+  it('the count alone when the row is not rendered yet', () => {
+    expect(settledAnnouncement(3, null)).toBe('3 results.');
   });
 });
 

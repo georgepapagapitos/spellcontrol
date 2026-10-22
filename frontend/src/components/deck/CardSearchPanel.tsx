@@ -83,7 +83,8 @@ import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { SuggestionsHandoff, suggestionPreviewEntries } from './suggestions-results-parts';
 import type { CardPreviewAction } from '@/components/card/CardPreview';
 import { InDeckCount, NotLegalBadge, OffColorBadge } from './row-badges';
-import { rowAnnouncement, rowStatuses, useLiveAnnouncer } from '@/lib/search/row-announcement';
+import { jumpTarget } from '@/lib/search/use-results-keys';
+import { useAddResultsAnnouncer, type PublishVisible } from './use-add-results-announcer';
 
 import { userMessage } from '@/lib/util/user-error';
 import { printedName } from '@spellcontrol/binder-routing';
@@ -514,7 +515,6 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   const [mode, setMode] = useState<Mode>(() => (enableSuggestions ? 'suggestions' : 'collection'));
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<AddSort>('default');
-  const { message: announce, announce: handleAnnounce } = useLiveAnnouncer();
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -653,11 +653,11 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   }, [commanderKey]);
   const effectiveTopCardCounts = commanderKey ? topCardCounts : EMPTY_CARD_COUNTS;
 
-  // The two result lists publish their currently-visible cards here so the
-  // panel-level "Enter to add the first result" handler is independent of
-  // which tab is active.
-  const visibleResultsRef = useRef<ScryfallCard[]>([]);
-  const addCurrentRef = useRef<((index: number) => Promise<void> | void) | null>(null);
+  // The tab's result list publishes its visible cards here, so the panel's
+  // arrow/Enter handlers work whichever tab is open; the hook also speaks a
+  // settled result set (E1008).
+  const sr = useAddResultsAnnouncer(activeIndex, `${query}\u0000${mode}\u0000${sort}`);
+  const { visibleResultsRef, addCurrentRef, publishVisible, takeOver } = sr;
 
   useImperativeHandle(ref, () => ({
     focusInput: () => inputRef.current?.focus(),
@@ -695,43 +695,44 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
     // Keyboard moves scroll the highlight into view (block: nearest, so the
     // list only moves when the cursor leaves it). Mouse-hover activation
     // deliberately doesn't — scrolling would yank the list under the cursor.
-    const moveActive = (delta: number) => {
-      const next = Math.min(max - 1, Math.max(0, activeIndex + delta));
+    const moveActive = (target: number, forward: boolean) => {
+      takeOver();
+      const next = Math.min(max - 1, Math.max(0, target));
       setActiveIndex(next);
-      const row = document.getElementById(`card-search-result-${next}`);
-      row?.scrollIntoView({ block: 'nearest' });
+      document.getElementById(`card-search-result-${next}`)?.scrollIntoView({ block: 'nearest' });
       // The rows are list items holding their own buttons, not options, so the
       // input cannot point at the row with aria-activedescendant: say it instead,
       // with the same badges the row shows (off-color, in deck, ...).
-      const rowName = row?.dataset.resultName;
-      if (rowName) {
-        handleAnnounce(
-          rowAnnouncement({
-            name: rowName,
-            statuses: rowStatuses(row),
-            index: next,
-            total: max,
-            atCopyLimit: row.dataset.atLimit !== undefined,
-            edge: next === activeIndex ? (delta > 0 ? 'last' : 'first') : undefined,
-          })
-        );
-      }
+      const text = sr.describeRow(
+        next,
+        max,
+        next === activeIndex ? (forward ? 'last' : 'first') : undefined
+      );
+      if (text) sr.speak(text);
     };
+    const jump = jumpTarget(e);
+    if (jump) {
+      if (max === 0) return;
+      e.preventDefault();
+      moveActive(jump === 'first' ? 0 : max - 1, jump === 'last');
+      return;
+    }
     if (e.key === 'ArrowDown') {
       if (max === 0) return;
       e.preventDefault();
-      moveActive(1);
+      moveActive(activeIndex + 1, true);
       return;
     }
     if (e.key === 'ArrowUp') {
       if (max === 0) return;
       e.preventDefault();
-      moveActive(-1);
+      moveActive(activeIndex - 1, false);
       return;
     }
     if (e.key === 'Enter') {
       if (max === 0) return;
       e.preventDefault();
+      takeOver();
       const idx = Math.min(activeIndex, max - 1);
       addCurrentRef.current?.(idx);
     }
@@ -893,11 +894,8 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             onActiveChange={setActiveIndex}
             onAdd={onAdd}
             onPreviewFit={onPreviewFit}
-            onAnnounce={handleAnnounce}
-            publishVisible={(cards, addAt) => {
-              visibleResultsRef.current = cards;
-              addCurrentRef.current = addAt;
-            }}
+            onAnnounce={sr.announceFromRow}
+            publishVisible={publishVisible}
             compiledSupertype={compiledSupertype}
             compiledTypes={compiledTypes}
             compiledSubtype={compiledSubtype}
@@ -937,11 +935,8 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
               onActiveChange={setActiveIndex}
               onAdd={onAdd}
               onPreviewFit={onPreviewFit}
-              onAnnounce={handleAnnounce}
-              publishVisible={(cards, addAt) => {
-                visibleResultsRef.current = cards;
-                addCurrentRef.current = addAt;
-              }}
+              onAnnounce={sr.announceFromRow}
+              publishVisible={publishVisible}
               suggestions={suggestions}
               oneAwayCombos={oneAwayCombos}
               hiddenGems={hiddenGems}
@@ -965,11 +960,8 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             onActiveChange={setActiveIndex}
             onAdd={onAdd}
             onPreviewFit={onPreviewFit}
-            onAnnounce={handleAnnounce}
-            publishVisible={(cards, addAt) => {
-              visibleResultsRef.current = cards;
-              addCurrentRef.current = addAt;
-            }}
+            onAnnounce={sr.announceFromRow}
+            publishVisible={publishVisible}
             gapByName={gapByName}
             comboProducesByName={comboProducesByName}
             topCardCounts={effectiveTopCardCounts}
@@ -981,7 +973,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
       </div>
 
       <div className="sr-only" role="status" aria-live="polite">
-        {announce}
+        {sr.message}
       </div>
     </Surface>
   );
@@ -998,7 +990,7 @@ interface ResultsProps {
   onAdd: (choice: AddCardChoice) => void;
   onPreviewFit?: (card: ScryfallCard) => void;
   onAnnounce: (msg: string) => void;
-  publishVisible: (cards: ScryfallCard[], addAt: (index: number) => Promise<void> | void) => void;
+  publishVisible: PublishVisible;
   /** Card names never offered as an add (the deck's commander/partner). */
   excludeNames: ReadonlySet<string>;
 }
@@ -1532,15 +1524,17 @@ function SuggestionsResults({
     // While analysis is pending we show a loading message, not rows — clear the
     // parent's visible list so Enter can't add from a stale result set.
     if (pending) {
-      publishVisible([], () => {});
+      publishVisible([], () => {}, false);
       return;
     }
     publishVisible(
       rows.map((r) => ({ name: r.name }) as unknown as ScryfallCard),
-      addAtIndex
+      addAtIndex,
+      // A failed analysis with nothing to show says so through its own alert.
+      !(failed && rows.length === 0)
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, pending]);
+  }, [rows, pending, failed]);
 
   if (pending) {
     return <DeckAnalysisSkeleton status="pending" />;
@@ -1763,6 +1757,8 @@ function ScryfallResults({
   const decks = useDecksStore((s) => s.decks);
   const savedCubes = useCubeStore((s) => s.saved);
   const [results, setResults] = useState<ScryfallCard[]>([]);
+  // The query `results` answers; until it matches the box its count isn't spoken.
+  const [resultsFor, setResultsFor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The query is a Scryfall link, but not to a card (a search, a set page).
@@ -1823,7 +1819,10 @@ function ScryfallResults({
           // know they're outside the deck's color identity.
           found = (await searchCards(q, colorIdentity, { skipColorFilter: true })).data;
         }
-        if (!cancelled) setResults(found.filter((c) => !excludeNames.has(c.name)).slice(0, 60));
+        if (!cancelled) {
+          setResults(found.filter((c) => !excludeNames.has(c.name)).slice(0, 60));
+          setResultsFor(q);
+        }
       } catch (e) {
         if (!cancelled) {
           setError(
@@ -1905,10 +1904,12 @@ function ScryfallResults({
     card: c,
   }));
 
+  const trimmed = query.trim();
+  const ready = !loading && !error && trimmed.length >= 2 && resultsFor === trimmed;
   useLayoutEffect(() => {
-    publishVisible(display, addAtIndex);
+    publishVisible(display, addAtIndex, ready);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [display]);
+  }, [display, ready]);
 
   if (query.trim().length < 2) {
     return <p className="card-search-empty">Type at least two characters to search Scryfall.</p>;

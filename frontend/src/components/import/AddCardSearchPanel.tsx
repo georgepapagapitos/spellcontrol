@@ -93,6 +93,7 @@ export function AddCardSearchPanel({
             onActiveChange?.(card);
           }}
           hideRowDisclosure={hideRowDisclosure}
+          resultsFor={!loading && !error && query.trim().length >= 2 ? query.trim() : undefined}
         />
       </div>
     </div>

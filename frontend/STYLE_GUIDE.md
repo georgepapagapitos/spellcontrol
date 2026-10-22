@@ -1738,9 +1738,22 @@ e.currentTarget) close(); }}`. A full-screen viewer whose backdrop is covered by
   announcement is the name, then the row's own warnings in its own order
   (off-color, not legal, ownership, in deck, copy limit), then "N of M" and
   the action: each badge carries `data-status` and `lib/search/row-announcement`
-  reads it back, so a new badge is marked or `row-announcement.test.ts` fails. The
-  nightly overlay walk (`scripts/journey-overlays.mjs`) gates this at zero, with
-  no allowance list.
+  reads it back, so a new badge is marked or `row-announcement.test.ts` fails. A
+  list of one says "only result" in place of "1 of 1", whichever arrow was
+  pressed. The nightly overlay walk (`scripts/journey-overlays.mjs`) gates this
+  at zero, with no allowance list.
+- **A result list speaks once it settles, not per keystroke.** A new result set
+  (a typed query, a tab or sort switch, the first load) waits
+  `RESULTS_SETTLE_MS` after its last change, then says the count and the
+  highlighted row in one message ("12 results. Sol Ring, 1 of 12. Enter adds
+  it." or "No results."), so the top row Enter would add is heard without an
+  arrow press and the count never races the row. A list still loading says
+  nothing, and the user's own arrow, Home/End or add inside the window cancels
+  it. In a text input Home/End keep the caret (the ARIA combobox pattern), so
+  the jump to the first or last row is Ctrl+Home/Ctrl+End (Cmd on a Mac), and
+  plain Home/End only while the box is empty (`jumpTarget` in
+  `lib/search/use-results-keys`). A `CardSearchResults` with no keyboard host
+  (no `resultsFor`) stays silent, since its row text promises Enter.
 - **Labels label a control.** `<label>` sits on a real input via `htmlFor`,
   or becomes a `<span id>` the custom control points at with
   `aria-labelledby`. A label wrapping an icon-only control carries its text

@@ -32,9 +32,11 @@ const scryfall = (name: string, ci: string[]) => ({
   legalities: { commander: 'legal' },
 });
 vi.mock('@/deck-builder/services/scryfall/client', () => ({
-  searchCards: () =>
+  searchCards: (q: string) =>
     Promise.resolve({
-      data: [scryfall('Sol Ring', []), scryfall('Solemn Offering', ['W'])],
+      data: q.includes('ring')
+        ? [scryfall('Sol Ring', [])]
+        : [scryfall('Sol Ring', []), scryfall('Solemn Offering', ['W'])],
     }),
   getCardByNameResilient: (name: string) => Promise.resolve({ id: name, name }),
 }));
@@ -161,13 +163,115 @@ describe('add-cards keyboard announcement carries the row status (E1008)', () =>
     expect(live()?.textContent).toBe('');
     await waitFor(() => expect(live()?.textContent).toContain('2 of 2'));
   });
+});
 
-  it('typing a new query announces nothing by itself', async () => {
+/**
+ * Every non-empty text the live region shows, in order. The region is emptied
+ * before each refill, so one entry is one announcement.
+ */
+function recordLive(): string[] {
+  const seen: string[] = [];
+  const node = live();
+  if (!node) throw new Error('no live region');
+  new MutationObserver(() => {
+    const text = node.textContent ?? '';
+    if (text) seen.push(text);
+  }).observe(node, { childList: true, characterData: true, subtree: true });
+  return seen;
+}
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const type = (value: string) =>
+  fireEvent.change(screen.getByRole('textbox'), { target: { value } });
+const key = (k: string, mods: { ctrlKey?: boolean; metaKey?: boolean } = {}) =>
+  fireEvent.keyDown(screen.getByRole('textbox'), { key: k, ...mods });
+
+describe('add-cards results speak their count and highlighted row once they settle (E1008)', () => {
+  beforeEach(() => {
+    useCollectionStore.setState({
+      cards: [owned('Ancient Tomb', ['R']), owned('Lightning Bolt', ['R'])],
+    });
+  });
+
+  async function scryfallTab() {
     renderPanel();
     fireEvent.click(screen.getByRole('tab', { name: /Scryfall/ }));
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'sol' } });
+    // Let the tab switch's own settle pass ("type two characters" says nothing).
+    await wait(700);
+  }
+
+  it('a typed query is spoken once, as the count then the top row Enter would add', async () => {
+    await scryfallTab();
+    const seen = recordLive();
+    type('s');
+    type('so');
+    type('sol');
     await screen.findByText('Solemn Offering');
-    await new Promise((r) => setTimeout(r, 250));
-    expect(live()?.textContent).toBe('');
+    await waitFor(() => expect(seen).toHaveLength(1), { timeout: 2000 });
+    await wait(700);
+    expect(seen).toEqual(['2 results. Sol Ring, Unowned, 1 of 2. Enter adds it.']);
+  });
+
+  it('a single result is the only result whichever way the arrow goes', async () => {
+    await scryfallTab();
+    const seen = recordLive();
+    type('sol ring');
+    await waitFor(() => expect(seen).toHaveLength(1), { timeout: 2000 });
+    expect(seen[0]).toBe('Sol Ring, Unowned, only result. Enter adds it.');
+    key('ArrowDown');
+    await waitFor(() => expect(seen).toHaveLength(2));
+    key('ArrowUp');
+    await waitFor(() => expect(seen).toHaveLength(3));
+    expect(seen.slice(1)).toEqual([
+      'Sol Ring, Unowned, only result. Enter adds it.',
+      'Sol Ring, Unowned, only result. Enter adds it.',
+    ]);
+  });
+
+  it('an arrow press before the list settles takes over: no count talks over it', async () => {
+    await scryfallTab();
+    const seen = recordLive();
+    type('sol');
+    await screen.findByText('Solemn Offering');
+    key('ArrowDown');
+    await wait(900);
+    expect(seen).toEqual(['Solemn Offering, Off-color, Unowned, 2 of 2. Enter adds it.']);
+  });
+
+  it('Ctrl+End and Ctrl+Home jump to the ends; plain Home/End stay with the caret', async () => {
+    await scryfallTab();
+    type('sol');
+    await screen.findByText('Solemn Offering');
+    const seen = recordLive();
+    key('End', { ctrlKey: true });
+    await waitFor(() => expect(seen).toHaveLength(1));
+    expect(seen[0]).toBe('Solemn Offering, Off-color, Unowned, 2 of 2. Enter adds it.');
+    key('Home', { metaKey: true });
+    await waitFor(() => expect(seen).toHaveLength(2));
+    expect(seen[1]).toBe('Sol Ring, Unowned, 1 of 2. Enter adds it.');
+    // With text in the box, plain Home/End move the caret: not prevented, not spoken.
+    expect(key('End')).toBe(true);
+    expect(key('Home')).toBe(true);
+    await wait(300);
+    expect(seen).toHaveLength(2);
+  });
+
+  it('with the box empty, plain End and Home jump too (there is no caret to move)', async () => {
+    renderPanel();
+    fireEvent.click(screen.getByRole('tab', { name: /Collection/ }));
+    await waitFor(() => expect(live()?.textContent).toMatch(/^2 results\. /), { timeout: 2000 });
+    const seen = recordLive();
+    expect(key('End')).toBe(false);
+    await waitFor(() => expect(seen).toHaveLength(1));
+    expect(seen[0]).toMatch(/, 2 of 2\. Enter adds it\.$/);
+    expect(key('Home')).toBe(false);
+    await waitFor(() => expect(seen).toHaveLength(2));
+    expect(seen[1]).toMatch(/, 1 of 2\. Enter adds it\.$/);
+  });
+
+  it('a query with no matches says so', async () => {
+    renderPanel();
+    fireEvent.click(screen.getByRole('tab', { name: /Collection/ }));
+    type('zzzz');
+    await waitFor(() => expect(live()?.textContent).toBe('No results.'), { timeout: 2000 });
   });
 });
