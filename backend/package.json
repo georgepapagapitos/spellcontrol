@@ -23,7 +23,7 @@
     "format:check": "prettier --check \"src/**/*.{ts,json}\""
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.133.0",
+    "@anthropic-ai/sdk": "^0.135.0",
     "@spellcontrol/binder-routing": "file:../packages/binder-routing",
     "@spellcontrol/deck-metrics": "file:../packages/deck-metrics",
     "@spellcontrol/game-core": "file:../packages/game-core",
@@ -33,7 +33,7 @@
     "drizzle-orm": "^0.45.4",
     "express": "^5.3.0",
     "express-rate-limit": "^8.7.1",
-    "google-auth-library": "^11.3.0",
+    "google-auth-library": "^11.3.1",
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.4.0",
