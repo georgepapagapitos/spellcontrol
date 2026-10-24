@@ -1,0 +1,47 @@
+name: Pull Git LFS objects (cached)
+description: >-
+  Replace each LFS pointer in the checkout with its real file, restoring the
+  objects from the Actions cache instead of downloading them. Use it after an
+  actions/checkout WITHOUT `lfs: true`. `lfs: true` fetches card-embeddings.bin
+  (28 MB) from GitHub's LFS store on every run, and that store's bandwidth is
+  metered: the Fly deploy alone (one run per merge to main) used 90% of the
+  account's 10 GB monthly allowance by 2026-10-23. The cache key is the set of
+  LFS object IDs, so the file downloads once per change to it, not once per run.
+
+runs:
+  using: composite
+  steps:
+    # The pointers are in the checkout already, so the oids are known before
+    # anything downloads. A changed embeddings file is a new oid, a new key
+    # and a single fresh download.
+    - id: oids
+      shell: bash
+      run: |
+        set -euo pipefail
+        git lfs install --local
+        echo "key=lfs-$(git lfs ls-files --long | cut -d' ' -f1 | sort | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: .git/lfs/objects
+        key: ${{ steps.oids.outputs.key }}
+
+    # On a hit every object is already in .git/lfs/objects, so this only
+    # checks the files out; on a miss it downloads them and the cache saves
+    # them at the end of the job.
+    - shell: bash
+      run: git lfs pull
+
+    # A pointer that survives (an object missing from both the cache and the
+    # LFS store) must fail here, not ship: the Fly image would boot a scanner
+    # matcher that throws "bad magic" on a 133-byte stub. `ls-files` marks a
+    # file that is still a pointer with `-` where a real one has `*`.
+    - shell: bash
+      run: |
+        set -euo pipefail
+        if git lfs ls-files | grep -q ' - '; then
+          echo "::error::Git LFS files are still pointers after git lfs pull:"
+          git lfs ls-files | grep ' - '
+          exit 1
+        fi
+        git lfs ls-files --size
