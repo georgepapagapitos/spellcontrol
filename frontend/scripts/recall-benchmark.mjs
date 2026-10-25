@@ -19,6 +19,22 @@
 //   lift              aggregateLiftCandidates over six context cards' EDHREC
 //                     card-page lift pools (the existing lift scoring, liftSynergy.ts)
 //
+// Lift-upgrade variants (roadmap 2.4), same pools and seeds as `lift`:
+//   lift-shrink50/200 raw lift shrunk toward 1 by co-play sample size
+//                     (1 + (lift-1) k/(k+m)) times co-play %, replacing the
+//                     production n/(n+50) discount
+//   npmi              normalized PMI of the pair, positive part, summed over seeds
+//   rrf-inc-lift      reciprocal-rank fusion (c=60) of raw inclusion and lift
+//   rrf-inc-shrink50, rrf-inc-npmi   the same with the upgraded edge scores
+//   combo             Commander Spellbook combo prior from the corpus fixture
+//                     (sum over combos of share of the other pieces already in
+//                     the deck), combo-complete counts only full completions
+//   rrf-inc-lift-combo  inclusion + lift + combo, RRF
+//   mix-2to1/3to1-inc-lift  reserved slots: two (three) inclusion picks per lift pick,
+//                     duplicates skipped, so lift keeps a share of the top 20
+// Differences versus lift, inclusion and gen-priority come with a 95% cluster
+// bootstrap (decks resampled, 2000 draws, seed 7) and a query-level one.
+//
 // Data: EDHREC pages come from an on-disk cache (default
 // node_modules/.cache/recall-benchmark, gitignored). Without --live a cache
 // miss skips the deck (and says so); with --live a miss is fetched once,
@@ -39,18 +55,26 @@ import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { FRONTEND, ensureBulk, importSrc, streamBulk } from './card-facts-lib.mjs';
 import {
+  bootstrapDiff,
+  buildComboIndex,
+  comboScore,
   dedupeByJaccard,
   hashSeed,
+  interleave,
   jaccard,
   meanMetrics,
   nameKey,
+  npmi,
   pickRandom,
   pickRoleStratified,
   queryMetrics,
   rankPool,
   rng,
+  rrfScores,
+  shrunkLift,
   shuffled,
   splitByPopularity,
+  sumEdges,
   tailShare,
 } from './recall-benchmark-lib.mjs';
 
@@ -191,6 +215,9 @@ function legalPool(ci) {
 
 // ── corpus ───────────────────────────────────────────────────────────────────
 const corpus = JSON.parse(readFileSync(CORPUS, 'utf8'));
+const comboIndex = buildComboIndex(
+  Object.values(corpus.combos ?? {}).map((c) => c[2].map(nameKey))
+);
 const roleIndex = new Map(Object.entries(corpus.cards).map(([n, v]) => [nameKey(n), v[2]]));
 
 const allDecks = corpus.decks
@@ -252,11 +279,28 @@ async function loadCommander(names) {
 async function liftPoolFor(name) {
   const slug = formatCommanderNameForUrl(name);
   const page = await edhrec(`/pages/cards/${slug}.json`, `cards/${slug}.json`);
-  return page ? parseCardLiftPool(page) : null;
+  return page
+    ? { pool: parseCardLiftPool(page), total: page.container?.json_dict?.card?.potential_decks ?? 0 }
+    : null;
 }
 
 // ── queries ──────────────────────────────────────────────────────────────────
-const RANKERS = ['random', 'edhrec-inclusion', 'edhrec-synergy', 'gen-priority', 'lift'];
+const BASE_RANKERS = ['random', 'edhrec-inclusion', 'edhrec-synergy', 'gen-priority', 'lift'];
+const VARIANTS = [
+  'lift-shrink50',
+  'lift-shrink200',
+  'npmi',
+  'rrf-inc-lift',
+  'rrf-inc-shrink50',
+  'rrf-inc-npmi',
+  'combo',
+  'combo-complete',
+  'rrf-inc-lift-combo',
+  'mix-2to1-inc-lift',
+  'mix-3to1-inc-lift',
+];
+const RANKERS = [...BASE_RANKERS, ...VARIANTS];
+const perQuery = Object.fromEntries(RANKERS.map((r) => [r, []])); // pooled over modes, for bootstrap
 const MODES = ['random', 'role'];
 // results[mode][ranker][bucket] -> per-query metric rows
 const results = {};
@@ -312,12 +356,34 @@ for (const deck of sample) {
     rng(hashSeed(`${seedBase}|ctx`))
   );
   const seedPools = new Map();
+  const seedTotals = new Map();
   for (const k of contextNames) {
     if (seedPools.size >= CONTEXT) break;
     const pageName = cardByKey.get(k).name;
     const lp = await liftPoolFor(pageName);
-    if (lp && lp.length) seedPools.set(pageName, lp);
+    if (lp && lp.pool.length) {
+      seedPools.set(pageName, lp.pool);
+      seedTotals.set(pageName, lp.total);
+    }
   }
+  const excludeKeys = new Set([...cmdKeys, ...[...seedPools.keys()].map(nameKey)]);
+  const edgeScores = {
+    'lift-shrink50': sumEdges(
+      seedPools,
+      (e) => shrunkLift(e.lift, e.numDecks, 50) * e.coPlayPct,
+      excludeKeys
+    ),
+    'lift-shrink200': sumEdges(
+      seedPools,
+      (e) => shrunkLift(e.lift, e.numDecks, 200) * e.coPlayPct,
+      excludeKeys
+    ),
+    npmi: sumEdges(
+      seedPools,
+      (e, seed) => Math.max(0, npmi(e.lift, e.numDecks, seedTotals.get(seed))),
+      excludeKeys
+    ),
+  };
   const liftScores = new Map();
   if (seedPools.size === 0) notes.noLift++;
   else {
@@ -337,6 +403,9 @@ for (const deck of sample) {
       return c ? calculateCardPriority(c, 0.5) : -1;
     },
     lift: (k) => liftScores.get(k) ?? 0,
+    'lift-shrink50': (k) => edgeScores['lift-shrink50'].get(k) ?? 0,
+    'lift-shrink200': (k) => edgeScores['lift-shrink200'].get(k) ?? 0,
+    npmi: (k) => edgeScores.npmi.get(k) ?? 0,
   };
 
   if (data.avg) {
@@ -349,16 +418,46 @@ for (const deck of sample) {
     poolSizes.push(candidates.length);
     const { head, tail } = splitByPopularity([...hidden], popularity, TAIL_BELOW);
     notes.queries++;
+    const rankings = {};
+    const rankBy = (ranker, scoreOf) =>
+      rankPool(candidates, scoreOf, rng(hashSeed(`${seedBase}|${mode}|${t}|${ranker}`)));
+    for (const ranker of BASE_RANKERS) rankings[ranker] = rankBy(ranker, scorers[ranker]);
+    for (const ranker of ['lift-shrink50', 'lift-shrink200', 'npmi'])
+      rankings[ranker] = rankBy(ranker, scorers[ranker]);
+    // Fusion inputs list only the names a signal actually scores: a name a
+    // signal does not mention contributes nothing, instead of a random rank.
+    const scoredOnly = (ranker) => rankings[ranker].filter((k) => scorers[ranker](k) > 0);
+    const inc = rankings['edhrec-inclusion'];
+    const fuse = (name, lists) => {
+      const sc = rrfScores(lists);
+      rankings[name] = rankBy(name, (k) => sc.get(k) ?? 0);
+    };
+    fuse('rrf-inc-lift', [inc, scoredOnly('lift')]);
+    fuse('rrf-inc-shrink50', [inc, scoredOnly('lift-shrink50')]);
+    fuse('rrf-inc-npmi', [inc, scoredOnly('npmi')]);
+    const deckForCombos = new Set([...given, ...cmdKeys]);
+    const comboScorer = (completeOnly) => (k) =>
+      comboScore(k, deckForCombos, comboIndex, completeOnly);
+    scorers.combo = comboScorer(false);
+    scorers['combo-complete'] = comboScorer(true);
+    rankings.combo = rankBy('combo', scorers.combo);
+    rankings['combo-complete'] = rankBy('combo-complete', scorers['combo-complete']);
+    fuse('rrf-inc-lift-combo', [inc, scoredOnly('lift'), scoredOnly('combo')]);
+    const liftPos = scoredOnly('lift');
+    rankings['mix-2to1-inc-lift'] = interleave([inc, liftPos], [0, 0, 1]);
+    rankings['mix-3to1-inc-lift'] = interleave([inc, liftPos], [0, 0, 0, 1]);
     for (const ranker of RANKERS) {
-      const ranking = rankPool(
-        candidates,
-        scorers[ranker],
-        rng(hashSeed(`${seedBase}|${mode}|${t}|${ranker}`))
-      );
+      const ranking = rankings[ranker];
       const bucket = results[mode][ranker];
       bucket.all.push(queryMetrics(ranking, hidden));
       bucket.head.push(queryMetrics(ranking, head));
       bucket.tail.push(queryMetrics(ranking, tail));
+      perQuery[ranker].push({
+        group: deck.id,
+        all: bucket.all.at(-1),
+        head: bucket.head.at(-1),
+        tail: bucket.tail.at(-1),
+      });
       if (mode === 'random') {
         extra[ranker].tail.push(tailShare(ranking, popularity, 20, TAIL_BELOW));
         if (data.avg) {
@@ -424,4 +523,94 @@ console.log(
   '\nhead/tail: the hidden card is tail when its play rate on the commander page is below ' +
     `${TAIL_BELOW}% (absent counts as 0). A bucket row only counts queries that hid at least one ` +
     'card of that bucket. tail@20 and jac-avg are measured on the random-hide queries.'
+);
+
+// ── pooled summary and paired bootstrap (both hide modes together) ──────────
+console.log('\n== pooled over both hide modes ==');
+console.log(
+  'ranker              queries  r@10   r@20   ndcg   mrr   head r@20  tail r@20  tail@20(random)'
+);
+const pooled = {};
+for (const ranker of RANKERS) {
+  const rows = perQuery[ranker];
+  const a = meanMetrics(rows.map((r) => r.all));
+  const h = meanMetrics(rows.map((r) => r.head));
+  const t = meanMetrics(rows.map((r) => r.tail));
+  pooled[ranker] = { a, h, t };
+  console.log(
+    `${ranker.padEnd(19)} ${String(a.queries).padStart(7)}  ${f(a['recall@10'])}  ${f(a['recall@20'])}  ` +
+      `${f(a['ndcg@20'])}  ${f(a.mrr)}  ${f(h['recall@20']).padStart(9)}  ${f(t['recall@20']).padStart(9)}  ` +
+      `${f(mean(extra[ranker].tail)).padStart(9)}`
+  );
+}
+console.log(
+  `head/tail queries counted: head ${pooled.lift.h.queries}, tail ${pooled.lift.t.queries} (of ${pooled.lift.a.queries})`
+);
+
+const BOOT_SEED = 7;
+const BOOT_ITERS = 2000;
+const fs3 = (x) => (x >= 0 ? '+' : '-') + Math.abs(x).toFixed(3);
+const ci = (d) => `${fs3(d.mean)} [${fs3(d.lo)}, ${fs3(d.hi)}]`;
+function diffRows(variant, base, bucket, metric) {
+  const out = [];
+  const v = perQuery[variant];
+  const b = perQuery[base];
+  for (let i = 0; i < v.length; i++) {
+    const x = v[i][bucket];
+    const y = b[i][bucket];
+    if (x && y) out.push({ group: v[i].group, diff: x[metric] - y[metric] });
+  }
+  return out;
+}
+const verdict = {};
+for (const base of ['lift', 'edhrec-inclusion', 'gen-priority']) {
+  console.log(
+    `\n== ${base} as baseline: variant minus ${base}, mean [95% CI]; deck-cluster bootstrap, ` +
+      `(query-level in parens) ==`
+  );
+  console.log(
+    'variant             recall@20 all                          recall@10 all             ndcg@20 all               mrr all                   head r@20                 tail r@20'
+  );
+  for (const variant of RANKERS) {
+    if (variant === base || variant === 'random') continue;
+    const cell = (bucket, metric, level = 'cluster') => {
+      const rows = diffRows(variant, base, bucket, metric);
+      const rows2 = level === 'both' ? rows.map((r, i) => ({ ...r, group: i })) : null;
+      const c = bootstrapDiff(rows, rng(BOOT_SEED), BOOT_ITERS);
+      return { c, q: rows2 ? bootstrapDiff(rows2, rng(BOOT_SEED), BOOT_ITERS) : null };
+    };
+    const r20 = cell('all', 'recall@20', 'both');
+    const r10 = cell('all', 'recall@10');
+    const nd = cell('all', 'ndcg@20');
+    const mr = cell('all', 'mrr');
+    const hd = cell('head', 'recall@20');
+    const tl = cell('tail', 'recall@20');
+    verdict[`${variant}|${base}`] = { r20: r20.c, tail: tl.c };
+    console.log(
+      `${variant.padEnd(19)} ${ci(r20.c)} (${fs3(r20.q.lo)},${fs3(r20.q.hi)})  ${ci(r10.c)}  ${ci(nd.c)}  ${ci(mr.c)}  ${ci(hd.c)}  ${ci(tl.c)}`
+    );
+  }
+}
+console.log('\n== win test ==');
+console.log(
+  'beats = all-bucket recall@20 cluster CI lower bound > 0 against BOTH edhrec-inclusion and gen-priority. ' +
+    'tail(prod) = tail recall@20 point difference vs gen-priority >= 0 (it finds no tail at all); ' +
+    'tail(lift) = also >= the current lift ranker, the only one that finds the tail.'
+);
+for (const variant of VARIANTS.concat(['lift'])) {
+  const vsInc = verdict[`${variant}|edhrec-inclusion`];
+  const vsGen = verdict[`${variant}|gen-priority`];
+  const tailVsLift = variant === 'lift' ? 0 : verdict[`${variant}|lift`].tail.mean;
+  const beats = vsInc.r20.lo > 0 && vsGen.r20.lo > 0;
+  const tailProd = vsGen.tail.mean >= 0;
+  const tailLift = tailProd && tailVsLift >= 0;
+  console.log(
+    `${variant.padEnd(19)} beats inclusion: ${String(vsInc.r20.lo > 0).padEnd(5)} beats gen-priority: ${String(vsGen.r20.lo > 0).padEnd(5)} ` +
+      `tail(prod): ${String(tailProd).padEnd(5)} tail(lift): ${String(tailLift).padEnd(5)} ` +
+      `=> ${beats && tailLift ? 'WIN' : beats && tailProd ? 'win only if lift tail is not required' : 'no win'}`
+  );
+}
+console.log(
+  `\ncombo prior: ${Object.keys(corpus.combos ?? {}).length} combos from the corpus fixture, ` +
+    `${comboIndex.size} distinct cards indexed.`
 );

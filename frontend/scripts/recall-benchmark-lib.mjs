@@ -170,3 +170,158 @@ export function meanMetrics(rows) {
   for (const [key, s] of Object.entries(sums)) out[key] = live.length ? s / live.length : 0;
   return out;
 }
+
+// ── lift-upgrade variants (roadmap 2.4) ──────────────────────────────────────
+// Edges are EDHREC card-page LiftEntry rows: { lift, coPlayPct, numDecks }.
+
+/**
+ * Lift shrunk toward the no-association prior of 1 by sample size: with k
+ * co-occurring decks and m pseudo-decks of prior, 1 + (lift - 1) * k / (k + m).
+ * k = 0 gives 1, k >> m gives the raw lift; a lift below 1 shrinks up toward 1.
+ */
+export function shrunkLift(lift, k, m) {
+  return 1 + ((lift - 1) * k) / (k + m);
+}
+
+/**
+ * Normalized pointwise mutual information of a card pair from EDHREC's lift:
+ * PMI = ln(lift), joint probability p(a,b) = k / total decks, NPMI = PMI /
+ * -ln p(a,b), in [-1, 1]. 0 when the inputs cannot give a probability.
+ */
+export function npmi(lift, k, totalDecks) {
+  if (!(lift > 0) || !(k > 0) || !(totalDecks > k)) return 0;
+  return Math.log(lift) / -Math.log(k / totalDecks);
+}
+
+/**
+ * Sum an edge score over every seed that mentions a candidate. `pools` is
+ * Map(seedName -> LiftEntry[]), `edgeFn(entry, seedName)` returns the edge
+ * strength (negative edges may be clipped by the caller). Seeds and
+ * `excludeKeys` never score. Returns Map(nameKey -> summed score).
+ */
+export function sumEdges(pools, edgeFn, excludeKeys = new Set()) {
+  const out = new Map();
+  for (const [seed, entries] of pools) {
+    const seedKey = nameKey(seed);
+    for (const e of entries) {
+      const key = nameKey(e.name);
+      if (key === seedKey || excludeKeys.has(key)) continue;
+      out.set(key, (out.get(key) ?? 0) + edgeFn(e, seed));
+    }
+  }
+  return out;
+}
+
+/**
+ * Weighted reciprocal-rank fusion of full rankings (best-first name arrays):
+ * score(name) = sum over rankers of weight / (c + rank), rank 1-based. Returns
+ * Map(name -> score). A name missing from a ranking contributes nothing.
+ */
+export function rrfScores(rankings, weights = rankings.map(() => 1), c = 60) {
+  const out = new Map();
+  rankings.forEach((ranking, i) => {
+    for (let r = 0; r < ranking.length; r++) {
+      out.set(ranking[r], (out.get(ranking[r]) ?? 0) + weights[i] / (c + r + 1));
+    }
+  });
+  return out;
+}
+
+/**
+ * Index combos (arrays of nameKeys) by card: Map(nameKey -> combo[]). Combos
+ * with fewer than two distinct cards carry no pair information and are dropped.
+ */
+export function buildComboIndex(combos) {
+  const index = new Map();
+  for (const cards of combos) {
+    const uniq = [...new Set(cards)];
+    if (uniq.length < 2) continue;
+    for (const k of uniq) {
+      if (!index.has(k)) index.set(k, []);
+      index.get(k).push(uniq);
+    }
+  }
+  return index;
+}
+
+/**
+ * Combo-hypergraph prior for one candidate: over every combo containing it
+ * that shares at least one OTHER card with the deck, add (other cards in the
+ * deck) / (other cards in the combo). With `completeOnly` only a full
+ * completion counts (adds 1).
+ */
+export function comboScore(candidate, deck, comboIndex, completeOnly = false) {
+  let s = 0;
+  for (const combo of comboIndex.get(candidate) ?? []) {
+    let present = 0;
+    for (const k of combo) if (k !== candidate && deck.has(k)) present++;
+    if (present === 0) continue;
+    const frac = present / (combo.length - 1);
+    if (completeOnly) {
+      if (frac === 1) s += 1;
+    } else s += frac;
+  }
+  return s;
+}
+
+/**
+ * Cluster bootstrap of a paired mean difference. `rows` are { group, diff }
+ * (diff = variant metric - baseline metric for one query; queries of the same
+ * deck share a group). Resamples groups with replacement `iters` times and
+ * returns the pooled mean difference with a percentile 95% interval.
+ */
+export function bootstrapDiff(rows, random, iters = 2000) {
+  const byGroup = new Map();
+  for (const { group, diff } of rows) {
+    const g = byGroup.get(group) ?? { sum: 0, n: 0 };
+    g.sum += diff;
+    g.n++;
+    byGroup.set(group, g);
+  }
+  const groups = [...byGroup.values()];
+  if (groups.length === 0) return { mean: 0, lo: 0, hi: 0, groups: 0 };
+  const total = groups.reduce((a, g) => ({ sum: a.sum + g.sum, n: a.n + g.n }), { sum: 0, n: 0 });
+  const means = [];
+  for (let it = 0; it < iters; it++) {
+    let sum = 0;
+    let n = 0;
+    for (let i = 0; i < groups.length; i++) {
+      const g = groups[Math.floor(random() * groups.length)];
+      sum += g.sum;
+      n += g.n;
+    }
+    means.push(sum / n);
+  }
+  means.sort((a, b) => a - b);
+  return {
+    mean: total.sum / total.n,
+    lo: means[Math.floor(0.025 * (iters - 1))],
+    hi: means[Math.ceil(0.975 * (iters - 1))],
+    groups: groups.length,
+  };
+}
+
+/**
+ * Slot-reserving merge of best-first lists: walk `pattern` (list indexes, e.g.
+ * [0, 0, 1] = two from list 0 then one from list 1, repeating), taking each
+ * list's next name not already placed, until every list is exhausted. Unlike
+ * rank fusion, a list keeps its share of the top slots whatever the others say.
+ */
+export function interleave(lists, pattern) {
+  const seen = new Set();
+  const out = [];
+  const pos = lists.map(() => 0);
+  const next = (i) => {
+    while (pos[i] < lists[i].length && seen.has(lists[i][pos[i]])) pos[i]++;
+    return pos[i] < lists[i].length ? lists[i][pos[i]++] : undefined;
+  };
+  for (let step = 0; ; step++) {
+    // a spent list's slot passes to the first list that still has names
+    let name = next(pattern[step % pattern.length]);
+    for (let j = 0; name === undefined && j < lists.length; j++) name = next(j);
+    if (name === undefined) break;
+    seen.add(name);
+    out.push(name);
+  }
+  return out;
+}
