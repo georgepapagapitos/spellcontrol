@@ -1242,6 +1242,16 @@ the rest, so the panel labels which is which:
 - Ends in words, not rounding: "under 1%", "over 99%", "in none of 1,000
   games", "in every game".
 
+## Archetype checks (E1038, 2026-10-24)
+
+A section under the Roles panel's support roles (`SupportRoles`), not a panel of its own. It is titled for the deck's plan ("Aristocrats checks") and lists only the checks that have something to say; a deck at or over every floor shows no section at all, never a reassurance.
+
+- **Each row carries its claim and its denominator.** "Most Aristocrats decks run 4 or more repeatable sacrifice outlets. This one has 1." then "11 of 12 EDHREC average aristocrats decks and 8 of 8 Archidekt lists run 4 or more." A bare "you're low" is never shown: players distrust a number with no sample behind it.
+- **Floors are measured, not borrowed.** Every threshold is in `archetypeChecks.ts` with its sample pair, taken from `docs/research/deck-intelligence-2026-10/08-archetype-densities-measured.md` section 7.2. A new check needs its sample first; a floor that fires on more than a quarter of the real lists is a note, not a warning.
+- **Warning and note differ by count color only on the number.** The sentence carries the meaning (the count is the same muted or error color the Roles bars use), so nothing depends on color.
+- **Finished lists only.** Under 90 mainboard cards the section stays out: every floor was measured on 99-card lists, and an unfinished deck is short of everything.
+- **The archetype is the app's own read** (`resolveAutoArchetype`: the owner's pick, a chosen theme, the deck's engine), so the row never contradicts the identity strip. Archetypes the measurement does not cover get no checks.
+
 ## Deck-analysis band words
 
 ### Avg mana value (curve)

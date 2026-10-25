@@ -1,11 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { ScryfallCard } from '@/deck-builder/types';
+import type { Archetype, ScryfallCard } from '@/deck-builder/types';
+import { getCardTags, useCardTagsReady } from '@/lib/cards/card-tags';
 import { hasCardFacts, loadCardFacts } from '@/deck-builder/services/cardFacts';
 import {
   answerCoverageByTarget,
   type AnswerCoverageRow,
   type AnswerTarget,
 } from '@/deck-builder/services/deckBuilder/answerCoverage';
+import {
+  archetypeChecks,
+  archetypeWord,
+  hasArchetypeChecks,
+  MIN_MAINBOARD,
+  type ArchetypeCheckFinding,
+} from '@/deck-builder/services/deckBuilder/archetypeChecks';
 import {
   summarizeSupportRoles,
   type SupportRoleSummary,
@@ -49,21 +57,32 @@ function answerSub(row: AnswerCoverageRow): string {
   return parts.join(' · ');
 }
 
+/** "This one has 1." / "This one has none." */
+const hasLine = (count: number): string => `This one has ${count === 0 ? 'none' : count}.`;
+
 /**
- * Two sections under the Roles bars: the support roles the deck fills
+ * Up to three sections under the Roles bars: the support roles the deck fills
  * (protection, recursion, graveyard hate, tutors, mana sinks) and its
  * interaction by target type. Each shows only what it has to say: a role with
  * no card is left out, a target the deck's colors cannot answer is left out,
  * and a section with nothing renders nothing. Win conditions have their own
- * panel and are not repeated here.
+ * panel and are not repeated here. The third section holds the archetype
+ * checks (`archetypeChecks.ts`): counts under what real decks of the deck's
+ * archetype run, each with the sample behind it.
  */
 export function SupportRoles({
   cards,
   colorIdentity,
+  commanders = [],
+  archetype,
 }: {
   /** The mainboard, commander excluded (the same cards the role counts use). */
   cards: readonly ScryfallCard[];
   colorIdentity: readonly string[];
+  /** The command zone, counted toward the archetype checks. */
+  commanders?: readonly ScryfallCard[];
+  /** The deck's resolved archetype; checks run for the ones the density measurement covers. */
+  archetype?: Archetype;
 }) {
   const ready = useCardFactsReady();
   const roles = useMemo<SupportRoleSummary[]>(
@@ -78,7 +97,19 @@ export function SupportRoles({
     [cards, colorIdentity]
   );
 
-  if (roles.length === 0 && answers.length === 0) return null;
+  // The oracle-tag index is a large file: it loads only for a finished list in
+  // an archetype that has checks.
+  const wantsChecks = hasArchetypeChecks(archetype) && cards.length >= MIN_MAINBOARD;
+  const tagsReady = useCardTagsReady(wantsChecks);
+  const checks = useMemo<ArchetypeCheckFinding[]>(
+    () =>
+      wantsChecks && tagsReady
+        ? archetypeChecks({ archetype, mainboard: cards, commanders, tagsOf: getCardTags })
+        : [],
+    [wantsChecks, tagsReady, archetype, cards, commanders]
+  );
+
+  if (roles.length === 0 && answers.length === 0 && checks.length === 0) return null;
   return (
     <>
       {roles.length > 0 && (
@@ -122,6 +153,42 @@ export function SupportRoles({
                 {r.count > 0 && (
                   <div className="deck-roles-sub">
                     <span>{nameList(r.names)}</span>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {checks.length > 0 && archetype && (
+        <section aria-labelledby="deck-archetype-checks-title" className="deck-roles-section">
+          <h5 id="deck-archetype-checks-title" className="deck-roles-section-title">
+            {archetypeWord(archetype)} checks
+          </h5>
+          <ul className="list-stack deck-roles">
+            {checks.map((c) => (
+              <li key={c.id}>
+                <div className="deck-roles-row">
+                  <span className="deck-roles-name">{c.title}</span>
+                  <span
+                    className={
+                      c.severity === 'warn' ? 'deck-roles-count-short' : 'deck-roles-count'
+                    }
+                  >
+                    {c.count}
+                  </span>
+                </div>
+                <div className="deck-roles-sub">
+                  <span>
+                    {c.claim} {hasLine(c.count)}
+                  </span>
+                </div>
+                <div className="deck-roles-sub">
+                  <span>{c.basis}</span>
+                </div>
+                {c.names.length > 0 && (
+                  <div className="deck-roles-sub">
+                    <span>{nameList(c.names)}</span>
                   </div>
                 )}
               </li>
