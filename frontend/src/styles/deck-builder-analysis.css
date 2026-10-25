@@ -636,6 +636,18 @@
   color: var(--text-muted);
 }
 
+/* A titled group under the Roles bars (support roles, answers by target). */
+.deck-roles-section {
+  margin-top: var(--space-3);
+}
+
+.deck-roles-section-title {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
 /* Types */
 .deck-stats-typelist {
   list-style: none;

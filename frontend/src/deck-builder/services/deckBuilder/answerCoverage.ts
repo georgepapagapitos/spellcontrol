@@ -254,3 +254,72 @@ export function answerCoverageFindings(
 
   return findings;
 }
+
+export type AnswerTarget = Exclude<AnswerThreat, 'any-permanent'>;
+
+export interface AnswerCoverageRow {
+  target: AnswerTarget;
+  /** Distinct cards that answer this target (an any-permanent answer counts for each battlefield class). */
+  count: number;
+  /** Of those, usable on an opponent's turn. */
+  instant: number;
+  /** Of those, exile / destroy / -X/-X / edict / counter: not beaten by indestructible or undone by a replay. */
+  durable: number;
+  names: string[];
+  /** The deck's colors could answer this at all; a zero here is a gap, otherwise it is just the color pie. */
+  fillable: boolean;
+}
+
+const COVERAGE_TARGETS: AnswerTarget[] = [
+  'creature',
+  'artifact',
+  'enchantment',
+  'planeswalker',
+  'graveyard',
+  'stack',
+];
+
+/**
+ * Interaction coverage by target type, for display: what `answerCoverageFindings`
+ * computes but only reports when something is missing. Null when nothing in the
+ * deck classifies as interaction (thin card data is not a signal).
+ */
+export function answerCoverageByTarget(
+  cards: ScryfallCard[],
+  colorIdentity: string[]
+): AnswerCoverageRow[] | null {
+  const classified = cards
+    .map((card) => ({ card, profile: classifyAnswer(card) }))
+    .filter((x): x is { card: ScryfallCard; profile: AnswerProfile } => x.profile !== null);
+  if (classified.length === 0) return null;
+
+  const fillable = (t: AnswerTarget): boolean => {
+    if (t === 'graveyard') return true;
+    if (t === 'stack') return colorIdentity.includes('U');
+    return colorIdentity.length === 0 || colorIdentity.some((c) => FILLABLE[t].includes(c));
+  };
+
+  return COVERAGE_TARGETS.map((target) => {
+    const battlefield = target !== 'graveyard' && target !== 'stack';
+    const hits = classified
+      .map(({ card, profile }) => ({
+        card,
+        profile,
+        mine: profile.answers.filter(
+          (a) => a.threat === target || (battlefield && a.threat === 'any-permanent')
+        ),
+      }))
+      .filter((h) => h.mine.length > 0);
+    const names = [...new Set(hits.map((h) => h.card.name))].sort();
+    return {
+      target,
+      count: names.length,
+      instant: new Set(hits.filter((h) => h.profile.instantSpeed).map((h) => h.card.name)).size,
+      durable: new Set(
+        hits.filter((h) => h.mine.some((a) => !FRAGILE_MODES.has(a.mode))).map((h) => h.card.name)
+      ).size,
+      names,
+      fillable: fillable(target),
+    };
+  });
+}
