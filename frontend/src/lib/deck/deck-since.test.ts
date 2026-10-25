@@ -4,7 +4,7 @@ import {
   cardCounts,
   diffSnapshots,
   hasChanges,
-  nextPool,
+  missingNames,
   reconstructDeck,
   toStored,
   sameCards,
@@ -12,7 +12,7 @@ import {
   type DeckSnapshot,
 } from './deck-since';
 import type { Deck } from '@/store/decks';
-import { makeDeck } from './deck-since.fixtures';
+import { makeDeck, realCard } from './deck-since.fixtures';
 
 const ATRAXA = 'Atraxa, Praetors’ Voice';
 
@@ -192,13 +192,14 @@ describe('a baseline is the card list, so the numbers can only move with cards',
     expect(toStored(full).metrics).toEqual({ bracket: 3, clockTurn: 6, fastMana: 1 });
   });
 
-  it("rebuilds the baseline deck from today's cards plus the pool of cards that left", () => {
+  it("rebuilds the baseline deck from today's cards plus the payloads looked up by name", () => {
     const before = makeDeck(['Sol Ring', 'Forest', 'Command Tower', 'Cultivate'], ATRAXA);
     const after = makeDeck(['Sol Ring', 'Forest', 'Swords to Plowshares'], ATRAXA);
     const base = toStored(buildSnapshot(before, false, {}, 1));
-    const pool = nextPool({}, before, after, base);
-    expect(Object.keys(pool).sort()).toEqual(['Command Tower', 'Cultivate']);
-    const rebuilt = reconstructDeck(after, base, pool);
+    const lost = missingNames(after, base);
+    expect(lost.sort()).toEqual(['Command Tower', 'Cultivate']);
+    const resolved = new Map(lost.map((n) => [n, realCard(n)]));
+    const rebuilt = reconstructDeck(after, base, resolved);
     expect(rebuilt).not.toBeNull();
     expect(cardCounts(rebuilt!)).toEqual(cardCounts(before));
     // Every number the baseline reports is the one the old list produces.
@@ -211,7 +212,11 @@ describe('a baseline is the card list, so the numbers can only move with cards',
     const before = makeDeck(['Sol Ring', 'Forest', 'Command Tower', 'Cultivate'], ATRAXA);
     const after = makeDeck(['Sol Ring', 'Forest', 'Forest', 'Swords to Plowshares'], ATRAXA);
     const base = toStored(buildSnapshot(before, false, {}, 1));
-    const rebuilt = reconstructDeck(after, base, nextPool({}, before, after, base))!;
+    const rebuilt = reconstructDeck(
+      after,
+      base,
+      new Map(missingNames(after, base).map((n) => [n, realCard(n)]))
+    )!;
     const d = diffSnapshots(buildSnapshot(rebuilt, false), buildSnapshot(after, false), rolesOf);
     // Lands: Command Tower out (-1), a second Forest in (+1): net unchanged, so no row.
     expect(d.rows).toEqual([]);
@@ -223,19 +228,10 @@ describe('a baseline is the card list, so the numbers can only move with cards',
     expect(d2.rows.map((r) => `${r.label} ${r.fromText} to ${r.toText}`)).toEqual(['Lands 2 to 3']);
   });
 
-  it('cannot rebuild when a baseline card has no payload, and says so with null', () => {
+  it('cannot rebuild when a baseline card cannot be looked up, and says so with null', () => {
     const before = makeDeck(['Sol Ring', 'Cultivate'], ATRAXA);
     const after = makeDeck(['Sol Ring'], ATRAXA);
     const base = toStored(buildSnapshot(before, false, {}, 1));
-    expect(reconstructDeck(after, base, {})).toBeNull();
-  });
-
-  it('drops pool entries the deck has back', () => {
-    const before = makeDeck(['Sol Ring', 'Cultivate'], ATRAXA);
-    const gone = makeDeck(['Sol Ring'], ATRAXA);
-    const base = toStored(buildSnapshot(before, false, {}, 1));
-    const pool = nextPool({}, before, gone, base);
-    expect(Object.keys(pool)).toEqual(['Cultivate']);
-    expect(nextPool(pool, gone, before, base)).toEqual({});
+    expect(reconstructDeck(after, base, new Map())).toBeNull();
   });
 });

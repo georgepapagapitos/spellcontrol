@@ -4,6 +4,7 @@ import type { DeckSnapshot } from './deck-since';
 import {
   MAX_RECORDS,
   SESSION_GAP_MS,
+  clearAllRecords,
   clearRecord,
   loadRecord,
   markSeen,
@@ -18,14 +19,14 @@ const snap = (
   metrics: DeckSnapshot['metrics'] = {}
 ): DeckSnapshot => ({ at, cards, commanders: [], metrics });
 
-const rec = (baseline: DeckSnapshot, latest: DeckSnapshot) => ({ baseline, latest, pool: {} });
+const rec = (baseline: DeckSnapshot, latest: DeckSnapshot) => ({ baseline, latest });
 
 beforeEach(() => localStorage.clear());
 
 describe('startSession', () => {
   it('seeds baseline and latest from the first visit', () => {
     const now = snap(100, { 'Sol Ring': 1 });
-    expect(startSession(null, now, 100)).toEqual({ baseline: now, latest: now, pool: {} });
+    expect(startSession(null, now, 100)).toEqual({ baseline: now, latest: now });
   });
 
   it('keeps the baseline for a quick return, so the session edits stay on screen', () => {
@@ -66,6 +67,19 @@ describe('markSeen', () => {
   it('makes the current state the baseline', () => {
     const rec0 = rec(snap(0, { a: 1 }), snap(5, { a: 1, b: 1 }));
     expect(markSeen(rec0).baseline).toBe(rec0.latest);
+  });
+});
+
+describe('clearAllRecords', () => {
+  it('sweeps every deck and the legacy key', () => {
+    saveRecord('d1', rec(snap(0, {}), snap(1, {})));
+    saveRecord('d2', rec(snap(0, {}), snap(1, {})));
+    localStorage.setItem('deck-since-v1', '{"d1":{}}');
+    clearAllRecords();
+    expect(loadRecord('d1')).toBeNull();
+    expect(loadRecord('d2')).toBeNull();
+    expect(localStorage.getItem('deck-since-v1')).toBeNull();
+    expect(localStorage.getItem('deck-since-v2')).toBeNull();
   });
 });
 

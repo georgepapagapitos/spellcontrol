@@ -130,20 +130,33 @@ export function buildSnapshot(
   return { at, cards: cardCounts(deck), commanders, metrics };
 }
 
-type Pool = Record<string, ScryfallCard>;
+/** Baseline card names the deck no longer holds, whose payloads must be looked up. */
+export function missingNames(deck: Deck, base: DeckSnapshot): string[] {
+  const held = new Set<string>();
+  for (const c of [deck.commander, deck.partnerCommander]) if (c) held.add(c.name);
+  for (const c of deck.cards) held.add(c.card.name);
+  return Object.keys(base.cards).filter((n) => !held.has(n));
+}
 
 /**
  * The deck as the baseline had it, rebuilt from today's card payloads plus
- * `pool`, the payloads of cards that were in the baseline and have since left
- * the deck. Null when a baseline card has no payload anywhere (it left through
- * another device's edit, say), in which case only the card lists can be shown.
- * The estimate and win-path fields are dropped: they describe today's list.
+ * `resolved`, the payloads of baseline cards that have since left the deck,
+ * looked up by name through the card cache (nothing is stored with the
+ * baseline). Null when a baseline card cannot be resolved: its contribution
+ * to lands, roles and castability would be silently missing, so the baseline's
+ * computed numbers are left out and only the card lists (and the stored
+ * ledger numbers) are shown. The estimate and win-path fields are dropped:
+ * they describe today's list.
  */
-export function reconstructDeck(deck: Deck, base: DeckSnapshot, pool: Pool): Deck | null {
+export function reconstructDeck(
+  deck: Deck,
+  base: DeckSnapshot,
+  resolved: ReadonlyMap<string, ScryfallCard>
+): Deck | null {
   const byName = new Map<string, ScryfallCard>();
   for (const c of [deck.commander, deck.partnerCommander]) if (c) byName.set(c.name, c);
   for (const c of deck.cards) byName.set(c.card.name, c.card);
-  for (const [name, card] of Object.entries(pool)) if (!byName.has(name)) byName.set(name, card);
+  for (const [name, card] of resolved) if (!byName.has(name)) byName.set(name, card);
   const slots: Deck['cards'] = [];
   for (const [name, qty] of Object.entries(base.cards)) {
     const card = byName.get(name);
@@ -163,24 +176,6 @@ export function reconstructDeck(deck: Deck, base: DeckSnapshot, pool: Pool): Dec
     bracketOverride: undefined,
     winConditions: undefined,
   };
-}
-
-/**
- * Keep the payloads of baseline cards that are no longer (fully) in the deck:
- * cards that just left `prev` join the pool, and any entry the deck has back,
- * or the baseline never held, is dropped.
- */
-export function nextPool(pool: Pool, prev: Deck | null, deck: Deck, base: DeckSnapshot): Pool {
-  const now = cardCounts(deck);
-  const next: Pool = { ...pool };
-  if (prev) {
-    const gone = [prev.commander, prev.partnerCommander, ...prev.cards.map((c) => c.card)];
-    for (const c of gone) if (c && (now[c.name] ?? 0) < 1) next[c.name] = c;
-  }
-  for (const name of Object.keys(next)) {
-    if ((base.cards[name] ?? 0) <= (now[name] ?? 0)) delete next[name];
-  }
-  return next;
 }
 
 /** Whether two snapshots hold the same card list. */

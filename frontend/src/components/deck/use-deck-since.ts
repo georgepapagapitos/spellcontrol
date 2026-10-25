@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Deck } from '@/store/decks';
+import type { ScryfallCard } from '@/deck-builder/types';
+import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { useTaggerReady } from '@/lib/cards/use-tagger-ready';
 import { getAllCardRoles } from '@/deck-builder/services/tagger/client';
 import { toClockLibrary } from '@/lib/mana-sim/hand-classify';
@@ -9,7 +11,7 @@ import {
   buildSnapshot,
   diffSnapshots,
   hasChanges,
-  nextPool,
+  missingNames,
   reconstructDeck,
   sameCards,
   toStored,
@@ -71,7 +73,6 @@ export function useDeckSince(deck: Deck | null): DeckSinceState | null {
   );
 
   const held = useRef<{ id: string; rec: BaselineRecord } | null>(null);
-  const prevDeck = useRef<Deck | null>(null);
   const [view, setView] = useState<{ id: string; rec: BaselineRecord } | null>(null);
 
   useEffect(() => {
@@ -79,10 +80,8 @@ export function useDeckSince(deck: Deck | null): DeckSinceState | null {
     const stored = toStored(current);
     const same = held.current?.id === deck.id;
     const open = same ? held.current!.rec : startSession(loadRecord(deck.id), stored, Date.now());
-    const pool = nextPool(open.pool, same ? prevDeck.current : null, deck, open.baseline);
-    const next = observe(open, stored, pool);
+    const next = observe(open, stored);
     held.current = { id: deck.id, rec: next };
-    prevDeck.current = deck;
     saveRecord(deck.id, next);
     setView(held.current);
   }, [deck, current]);
@@ -90,11 +89,34 @@ export function useDeckSince(deck: Deck | null): DeckSinceState | null {
   // The baseline's own numbers, recomputed with today's classifiers from the
   // card list it stored, so a delta can only come from a card that moved. The
   // stored ledger numbers (bracket, signals, clock) ride along unchanged.
+  const baseline = view && deck && view.id === deck.id ? view.rec.baseline : null;
+  const changed = !!baseline && !!current && !sameCards(baseline, current);
+  // Baseline cards that left the deck are looked up by name in the card cache.
+  const lost = useMemo(
+    () => (deck && baseline && changed ? missingNames(deck, baseline) : []),
+    [deck, baseline, changed]
+  );
+  const lostKey = lost.join('|');
+  const [found, setFound] = useState<{ key: string; cards: Map<string, ScryfallCard> } | null>(
+    null
+  );
+  useEffect(() => {
+    if (lost.length === 0) return;
+    let live = true;
+    void getCardsByNames(lost)
+      .then((cards) => live && setFound({ key: lostKey, cards }))
+      .catch(() => live && setFound({ key: lostKey, cards: new Map() }));
+    return () => {
+      live = false;
+    };
+    // lostKey stands for lost.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lostKey]);
   const baselineDeck = useMemo(() => {
-    if (!deck || !current || !view || view.id !== deck.id) return null;
-    if (sameCards(view.rec.baseline, current)) return null;
-    return reconstructDeck(deck, view.rec.baseline, view.rec.pool);
-  }, [deck, current, view]);
+    if (!deck || !baseline || !changed) return null;
+    if (lost.length > 0 && found?.key !== lostKey) return null;
+    return reconstructDeck(deck, baseline, found?.key === lostKey ? found.cards : new Map());
+  }, [deck, baseline, changed, lost, lostKey, found]);
   const baseCommanders = useMemo(
     () => [baselineDeck?.commander, baselineDeck?.partnerCommander].filter((c) => c != null),
     [baselineDeck]

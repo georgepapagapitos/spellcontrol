@@ -9,11 +9,15 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
+vi.mock('@/deck-builder/services/scryfall/client', () => ({
+  getCardsByNames: async (names: string[]) => new Map(names.map((n) => [n, realCard(n)])),
+}));
+
 import { DeckSinceStrip } from './DeckSinceStrip';
 import { useDeckSince } from './use-deck-since';
 import { SESSION_GAP_MS } from '@/lib/deck/deck-since-store';
 import { baselineLabel, buildSnapshot, diffSnapshots } from '@/lib/deck/deck-since';
-import { makeDeck } from '@/lib/deck/deck-since.fixtures';
+import { makeDeck, realCard } from '@/lib/deck/deck-since.fixtures';
 
 const ATRAXA = 'Atraxa, Praetors’ Voice';
 
@@ -80,7 +84,7 @@ describe('useDeckSince', () => {
     await waitFor(() => expect(localStorage.getItem(KEY)).not.toBeNull());
     expect(result.current).toBeNull();
 
-    // Cut a land and add a ramp spell: the cut card's payload comes from the pool.
+    // Cut a land and add a ramp spell: the cut card is looked up by name.
     rerender({ deck: makeDeck(['Sol Ring', 'Forest', 'Cultivate'], ATRAXA) });
     await waitFor(() => expect(result.current).not.toBeNull());
     expect(
@@ -125,10 +129,7 @@ describe('useDeckSince', () => {
       commanders: [ATRAXA],
       metrics: { bracket: 1, clockTurn: 12 },
     };
-    localStorage.setItem(
-      KEY,
-      JSON.stringify({ [deck.id]: { baseline: old, latest: old, pool: {} } })
-    );
+    localStorage.setItem(KEY, JSON.stringify({ [deck.id]: { baseline: old, latest: old } }));
     const { result } = renderHook(() => useDeckSince(deck));
     await act(async () => {});
     expect(result.current).toBeNull();
