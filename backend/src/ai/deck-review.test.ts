@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   DECK_REVIEW_PROMPT_VERSION,
+  DECK_REVIEW_RESEARCH_PROMPT,
   DECK_REVIEW_SYSTEM_PROMPT,
   END_MARK,
   FIXES_MARK,
@@ -328,8 +329,8 @@ describe('renderFetchedCards', () => {
 describe('review prompt v14: the weakness is verified against the list (E1018)', () => {
   const prompt = DECK_REVIEW_SYSTEM_PROMPT.replace(/\s+/g, ' ');
 
-  it('is versioned so reviews cached under v13 are not replayed', () => {
-    expect(DECK_REVIEW_PROMPT_VERSION).toBe('v14');
+  it('is versioned so reviews cached under v14 are not replayed', () => {
+    expect(DECK_REVIEW_PROMPT_VERSION).toBe('v15');
   });
 
   it('makes the model name the cards that would answer a gap and confirm they are absent', () => {
@@ -352,5 +353,22 @@ describe('review prompt v14: the weakness is verified against the list (E1018)',
     expect(prompt).toContain(
       'Those limits are hard. The whole reading is at most twelve sentences'
     );
+  });
+});
+
+describe('review prompt v15: the facts sheet is given data (E1020)', () => {
+  const prompt = DECK_REVIEW_SYSTEM_PROMPT.replace(/\s+/g, ' ');
+  const research = DECK_REVIEW_RESEARCH_PROMPT.replace(/\s+/g, ' ');
+
+  it('tells the writing pass to interpret the sheet and never contradict it', () => {
+    expect(prompt).toContain('Facts sheet');
+    expect(prompt).toContain('you do not re-derive it');
+    expect(prompt).toContain('Never contradict it');
+    expect(prompt).toContain('unless the sheet shows it as none');
+  });
+
+  it('tells the research pass to search only for an effect the sheet shows as none', () => {
+    expect(research).toContain('Facts sheet');
+    expect(research).toContain('search only for an effect it shows as none');
   });
 });

@@ -23,6 +23,7 @@ import {
 import { getTagLookup } from '../ai/tags';
 import { estimateForNames, renderBracketCheck } from '../ai/bracket';
 import { backendOracleTagLookup } from '../ai/otag-lookup';
+import { buildFactsSheet } from '../ai/facts-sheet';
 import { loadRelevantCombos } from './combos';
 import {
   DECK_REVIEW_FEATURE,
@@ -398,7 +399,11 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
   // has tools and its prose is discarded wholesale. Pass 2 has NO tools, so
   // there is nothing to narrate toward, no turn boundary to lose a body at, and
   // no denied tool to fake — every byte it writes is answer.
-  const userMessage = buildUserMessage(request, oracle);
+  const userMessage = buildUserMessage(
+    request,
+    oracle,
+    await factsSheetFor(request, oracle, cache)
+  );
   let generation;
   try {
     // Pass 1 — research. No `onDelta`: the reader sees none of this.
@@ -654,6 +659,44 @@ function bracketTools(
   return [
     checkBracketTool(deckNames, (names) => estimateForNames(names, inputs), renderBracketCheck),
   ];
+}
+
+/**
+ * The computed facts sheet for a review, or `undefined` when the tag data is
+ * absent. Absent data must mean NO sheet: every tag predicate answers false on
+ * a miss, so a sheet built over missing data would assert "Sweepers: none" for
+ * every deck, which is the invented-gap failure it exists to prevent. The
+ * bracket half is best-effort on top and never fails the review.
+ */
+async function factsSheetFor(
+  request: { cards: { name: string; qty: number }[]; commander: string; partnerCommander?: string },
+  oracle: OracleEntry[],
+  cache: ReturnType<typeof getScryfallCache>
+): Promise<string | undefined> {
+  const tags = getTagLookup();
+  if (!tags) return undefined;
+  const commanders = commandZone(request);
+  const otags = backendOracleTagLookup();
+  let bracket = null;
+  try {
+    bracket = await estimateForNames([...commanders, ...request.cards.map((c) => c.name)], {
+      cache,
+      tags,
+      loadCombos: loadRelevantCombos,
+      commanderNames: commanders,
+      oracleTags: otags,
+    });
+  } catch (err) {
+    logger.warn('[ai] facts sheet: bracket signals unavailable', err);
+  }
+  return buildFactsSheet({
+    commanders,
+    cards: request.cards,
+    oracle,
+    taggerHas: (name, tag) => tags.hasTag(name, tag),
+    otagHas: (name, slug) => otags.hasTag(name, slug),
+    bracket,
+  });
 }
 
 interface RefineDone {

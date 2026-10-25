@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { renderFactsSheet } from './facts-sheet';
 
 /**
  * Prompt assembly, input hashing, and request validation for the "Read the
@@ -74,7 +75,7 @@ import crypto from 'node:crypto';
 export const DECK_REVIEW_FEATURE = 'deck-review';
 
 /** Bump whenever DECK_REVIEW_SYSTEM_PROMPT's text changes. */
-export const DECK_REVIEW_PROMPT_VERSION = 'v14';
+export const DECK_REVIEW_PROMPT_VERSION = 'v15';
 
 /**
  * Section labels the model emits. They exist so the client can stream text
@@ -122,6 +123,11 @@ export const DECK_REVIEW_RESEARCH_PROMPT = `You are preparing a Magic: The
 Gathering deck review inside SpellControl. You are NOT writing the review -
 a separate pass does that. Your only job is to find the cards that pass
 will need, using the lookup_cards tool.
+
+The message includes a Facts sheet the app computed from the decklist:
+which cards fill each role and which target types the deck can answer. Take
+what the deck already has from it, and search only for an effect it shows as
+none.
 
 Work the deck out first. Read the list, ask what single common opposing
 effect turns the deck off, check whether the coloured mana its spells demand
@@ -204,6 +210,20 @@ the deck out fully before you commit to it - read the list, take the
 inventory below, decide what actually breaks - and only then start
 writing. What you emit first must still be your considered answer, not
 your first impression.
+
+The message carries a Facts sheet: the app's own count, computed from the
+decklist, of the cards that fill each role (ramp, card draw, spot removal,
+sweepers, counterspells, protection), which target types the deck can
+answer, the mana, and the bracket signals - with the card names. It is
+given data, like the statistics, and you interpret it; you do not
+re-derive it. Never contradict it: a card the sheet lists in a role does
+that job, and a role it lists with cards is not missing. Never say the deck
+lacks a role, or an answer to a target type, unless the sheet shows it as
+none. A card you want to call a gap-filler has to be one the sheet and the
+card reference both support. The sheet decides what the deck has; your job
+is to decide what that means for how the deck plays. The reader never sees
+the sheet, so write "your deck runs" or name the cards, and never refer to
+"the sheet" itself.
 
 On finding the weakness - this is the part that earns your existence:
 
@@ -711,13 +731,18 @@ export function unverifiedCitations(
 }
 
 /** Assemble the user message: decklist + on-screen stats + oracle reference. */
-export function buildUserMessage(req: DeckReviewRequest, oracle: OracleEntry[]): string {
+export function buildUserMessage(
+  req: DeckReviewRequest,
+  oracle: OracleEntry[],
+  factsSheet?: string
+): string {
   const decklist = req.cards.map((c) => `${c.qty} ${c.name}`).join('\n');
   const parts = [
     `Commander: ${commanderLabel(req)}`,
     `## Decklist (${req.cards.reduce((n, c) => n + c.qty, 0)})\n\n${decklist}`,
     `## Statistics (already shown to the user on the same screen)\n\n${renderAnalysis(req.analysis)}`,
   ];
+  if (factsSheet) parts.push(renderFactsSheet(factsSheet));
   if (oracle.length > 0) {
     const ref = oracle
       .map((o) => {
