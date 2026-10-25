@@ -210,6 +210,12 @@ export interface Deck {
    */
   roleTargets?: Record<string, number>;
   /**
+   * Per role, the cards at least 1 in 4 of this commander's EDHREC decks play:
+   * the Roles tip's "this commander" reference. Display only, kept live by
+   * useCommanderBracketAnalysis beside roleTargets.
+   */
+  roleEdhrecCounts?: Record<string, number>;
+  /**
    * Target counts per DeckCategory bucket ("wanted N ramp/cardDraw/…"), for
    * the deck editor's category-view section gauges (E124). Snapshotted at
    * generation, never recomputed — unlike roleTargets/bracketEstimation above,

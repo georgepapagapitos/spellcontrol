@@ -467,6 +467,7 @@ export function useCommanderBracketAnalysis(args: Args): {
             deckGrade: result.deckGrade,
             bracketEstimation: result.bracketEstimation,
             roleTargets: result.roleTargets,
+            roleEdhrecCounts: result.roleEdhrecCounts,
             gapAnalysis: result.gapAnalysis,
             hiddenGems: result.hiddenGems,
             cardInclusionMap: result.cardInclusionMap,

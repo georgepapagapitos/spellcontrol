@@ -63,6 +63,7 @@ export function DeckAnalysisPane({
       onSetArchetypeOverride={host.onSetArchetypeOverride}
       roleCounts={shownRoles.roleCounts}
       roleTargets={host.roleTargets}
+      roleEdhrecCounts={host.roleEdhrecCounts}
       buildReport={host.buildReport}
       rampSubtypeCounts={shownRoles.rampSubtypeCounts}
       removalSubtypeCounts={shownRoles.removalSubtypeCounts}

@@ -20,6 +20,7 @@ import {
   getBoardwipeSubtype,
   getCardDrawSubtype,
   readsAsProtection,
+  type RoleKey,
 } from '@/deck-builder/services/tagger/client';
 import {
   getGameChangerNames,
@@ -30,6 +31,7 @@ import {
 import { isBasicLandName } from '@/lib/collection/allocations';
 import { fetchCommanderData, fetchPartnerCommanderData, fetchCardLiftPool } from '../edhrec/client';
 import { buildLiftIndex } from './liftSynergy';
+import { computeEdhrecRoleTargets } from './roleTargets';
 import { estimateBracket, type BracketEstimation } from './bracketEstimator';
 import { buildBracketFitPlan, type BracketFitPlan } from './bracketFit';
 import {
@@ -476,6 +478,10 @@ export function computeGradeAndBracket(input: GradeBracketInput): GradeBracketRe
 export interface CommanderDeckAnalysisResult extends GradeBracketResult {
   /** Per-role target counts derived from EDHREC + archetype/pacing blend. */
   roleTargets?: Record<string, number>;
+  /** Per role, the cards at least 1 in 4 of this commander's EDHREC decks play
+   *  (`computeEdhrecRoleTargets`). Display only: the Roles tip's "this
+   *  commander" reference, never a target. */
+  roleEdhrecCounts?: Record<RoleKey, number>;
   /** Top EDHREC-recommended cards not already in the deck, ranked by inclusion. */
   gapAnalysis?: GapAnalysisCard[];
   /** Underrated suggestions the inclusion ranking missed (E146) — always set
@@ -1179,6 +1185,7 @@ export async function analyzeCommanderDeck(
       bracketEstimation: gradeBracket.bracketEstimation,
       deckGrade: gradeBracket.deckGrade,
       roleTargets,
+      roleEdhrecCounts: computeEdhrecRoleTargets(edhrecData),
       gapAnalysis,
       hiddenGems,
       cardInclusionMap,
