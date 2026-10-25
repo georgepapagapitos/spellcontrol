@@ -289,6 +289,40 @@ export function agreement(
   };
 }
 
+// ── Constant-prediction baselines ──────────────────────────────────────────
+
+export interface Baseline {
+  /** The constant bracket this baseline always predicts. */
+  predicts: number;
+  exact: number;
+  withinOne: number;
+}
+
+export interface Baselines {
+  n: number;
+  alwaysB3: Baseline;
+  /** Always the most common label (ties go to the lower bracket). */
+  majority: Baseline;
+}
+
+/**
+ * What a predictor that ignores the deck scores on the same labels: always
+ * Bracket 3, and always the majority class. An estimator only earns credit
+ * for the margin over these, so the report prints them beside its own number.
+ */
+export function baselines(classes: readonly { label: number; n: number }[]): Baselines {
+  const n = classes.reduce((t, c) => t + c.n, 0);
+  const score = (predicts: number): Baseline => ({
+    predicts,
+    exact: classes.filter((c) => c.label === predicts).reduce((t, c) => t + c.n, 0),
+    withinOne: classes
+      .filter((c) => Math.abs(c.label - predicts) <= 1)
+      .reduce((t, c) => t + c.n, 0),
+  });
+  const top = [...classes].sort((a, b) => b.n - a.n || a.label - b.label)[0];
+  return { n, alwaysB3: score(3), majority: score(top ? top.label : 3) };
+}
+
 // ── Why a deck reads where it does ─────────────────────────────────────────
 
 export type FloorKind =
