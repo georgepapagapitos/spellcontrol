@@ -31,6 +31,7 @@ import type { Change } from './deck-change';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { premiumReason } from '@/deck-builder/services/deckBuilder/premiumCards';
 import type { PlanScore, SubScoreKey } from '@/deck-builder/services/deckBuilder/planScore';
+import { isInteractionMove, isOnTheme, isSpeedMove, type DeckIntent } from './deck-intent';
 import { combosCountAtBracket } from '@/deck-builder/services/deckBuilder/deckObjective/terms/combos';
 
 export interface CoachContext {
@@ -61,6 +62,12 @@ export interface CoachContext {
    * reads as true.
    */
   hasProtectedCut?: (change: Change) => boolean;
+  /**
+   * What the deck is for (`deckIntent`). A Spike deck leads each tier with
+   * interaction and speed; a casual deck leads with the moves its theme asks
+   * for. Omitted reads as balanced: the order is unchanged.
+   */
+  intent?: DeckIntent;
 }
 
 export interface RankedMove {
@@ -121,9 +128,16 @@ const ALWAYS_TIER_3 = new Set<Change['lane']>(['budget', 'similar', 'lands']);
  * saves money and its play rate is the cheaper card's, so it can't outrank a
  * staple on that number).
  */
-function planBand(c: Change, promotedCombo: boolean): number {
+function planBand(c: Change, promotedCombo: boolean, intent: DeckIntent | undefined): number {
   // -1: a promoted combo leads its ownership class; it has no play rate to sort by.
   if (promotedCombo) return -1;
+  // -0.5: what the deck's intent checks first (deck-intent.ts), ahead of the play rate.
+  if (intent === 'spike' && c.type === 'add' && (isInteractionMove(c) || isSpeedMove(c))) {
+    return -0.5;
+  }
+  if (intent === 'casual' && c.type === 'add' && !c.budding && (c.axis || isOnTheme(c))) {
+    return -0.5;
+  }
   return c.budding || c.lane === 'budget' ? 1 : 0;
 }
 
@@ -251,7 +265,7 @@ export function rankCoachMoves(changes: Change[], ctx: CoachContext): RankedMove
     // A promoted completion has no play rate: the line's own deck count stands in.
     return [
       oRank,
-      planBand(r.change, promoted),
+      planBand(r.change, promoted, ctx.intent),
       promoted ? -(r.change.comboPopularity ?? 0) : -incl,
       -dScore,
       r.change.name,

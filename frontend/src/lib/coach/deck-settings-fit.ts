@@ -42,7 +42,19 @@ import type {
 } from '@/deck-builder/types';
 import type { Deck } from '@/store/decks';
 import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
-import { bracketCeilings } from '@/deck-builder/services/deckBuilder/bracketGuard';
+import {
+  bracketCeilings,
+  ceilingsAreOpen,
+  type BracketCeilings,
+} from '@/deck-builder/services/deckBuilder/bracketGuard';
+import {
+  isFastMana,
+  isMassLandDenialFloor,
+  isStaxPiece,
+  isTutor,
+} from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import { isExtraTurn } from '@/deck-builder/services/tagger/client';
+import { deckIntent, isGenericStaple, isOnTheme, type DeckIntent } from './deck-intent';
 import { isGameChangerName } from '@/deck-builder/services/deckBuilder/premiumCards';
 import { isBasicLandName } from '@/lib/collection/allocations';
 
@@ -58,6 +70,12 @@ export interface CoachDeckSettings {
   ignoreOwnedRarity: boolean;
   /** Most Game Changers the deck may hold: its own limit, capped by its target bracket. */
   maxGameChangers: number;
+  /** What the deck is for (deck-intent.ts): a casual deck gets no staple-for-theme swaps. */
+  intent: DeckIntent;
+  /** The target bracket as a number, or null for 'all' / unstated. */
+  bracket: number | null;
+  /** Per-card floor ceilings for the target (MLD, extra turns, stax); Game Changers are `maxGameChangers`. */
+  ceilings: BracketCeilings;
 }
 
 export type SettingsBreak =
@@ -67,6 +85,8 @@ export type SettingsBreak =
   | 'over-budget'
   | 'over-rarity'
   | 'over-game-changers'
+  | 'over-bracket'
+  | 'staple-swap'
   | 'unpriced';
 
 const RARITY_ORDER = ['common', 'uncommon', 'rare', 'mythic'];
@@ -107,13 +127,18 @@ export function coachDeckSettings(
     ignoreOwnedBudget: !!c.ignoreOwnedBudget,
     ignoreOwnedRarity: !!c.ignoreOwnedRarity,
     maxGameChangers: Math.min(limit, bracketCeilings(target).gameChangers),
+    intent: deckIntent(c.brewLevel, target),
+    bracket: typeof target === 'number' ? target : null,
+    ceilings: bracketCeilings(target),
   };
   const constrained =
     settings.maxCardPrice != null ||
     settings.deckBudget != null ||
     settings.maxRarity != null ||
     (settings.collectionStrategy != null && settings.collectionStrategy !== 'prefer') ||
-    Number.isFinite(settings.maxGameChangers);
+    Number.isFinite(settings.maxGameChangers) ||
+    settings.intent === 'casual' ||
+    !ceilingsAreOpen(settings.ceilings);
   return constrained ? settings : null;
 }
 
@@ -149,6 +174,63 @@ function incomingPrice(
   if (change.type === 'add') return change.deltaPrice;
   // A swap's delta is signed (the budget lane's is minus the savings).
   return out ? Math.max(0, usd(out) + change.deltaPrice) : undefined;
+}
+
+type FloorCategory = 'massLandDenial' | 'extraTurns' | 'stax';
+
+function floorCategory(name: string): FloorCategory | null {
+  if (isMassLandDenialFloor(name)) return 'massLandDenial';
+  if (isExtraTurn(name)) return 'extraTurns';
+  if (isStaxPiece(name)) return 'stax';
+  return null;
+}
+
+/**
+ * Bracket restraint: an add the estimator would count toward a floor above the
+ * deck's target. Game Changers are checked on their own (`maxGameChangers`);
+ * this covers the other per-card floors (mass land denial, extra turns, stax),
+ * a two-card combo completion at Bracket 3 and below (it floors at 4), and, at
+ * Bracket 1-2, the soft-score cards (fast mana, tutors) that lift a deck a
+ * bracket with no hard floor. An unstated target restrains nothing.
+ */
+function bracketRestraint(
+  change: Change,
+  settings: CoachDeckSettings,
+  deck: SettingsFitDeck,
+  out: ScryfallCard | undefined
+): boolean {
+  if (change.type === 'cut' || settings.bracket === null) return false;
+  const cat = floorCategory(change.name);
+  if (cat) {
+    const held =
+      deck.cards.filter((c) => floorCategory(c.name) === cat).length -
+      (out && floorCategory(out.name) === cat ? 1 : 0);
+    if (held + 1 > settings.ceilings[cat]) return true;
+  }
+  if (change.lane === 'combos' && settings.bracket <= 3 && (change.comboPieces ?? 3) <= 2) {
+    return true;
+  }
+  if (settings.bracket <= 2 && (isFastMana(change.name) || isTutor(change.name))) {
+    return !(out && (isFastMana(out.name) || isTutor(out.name)));
+  }
+  return false;
+}
+
+/**
+ * A casual deck's theme card traded for a generic staple: the swap the deck's
+ * dial said it does not want. Adds that fill an empty slot are not swaps, and a
+ * row that fills a role gap stays (the ramp and removal checks are on for every
+ * intent).
+ */
+function stapleForTheme(
+  change: Change,
+  out: ScryfallCard | undefined,
+  data: SuggestionCardData | undefined
+): boolean {
+  if (change.type !== 'swap' || !out || !isOnTheme(out)) return false;
+  if (change.group?.startsWith('fills:')) return false;
+  if (change.card?.isThemeSynergyCard) return false;
+  return isGenericStaple({ ...change, inclusion: change.inclusion ?? data?.inclusion });
 }
 
 /** The first of the deck's settings `change` breaks, or null when it keeps them all. */
@@ -236,6 +318,9 @@ export function settingsBreak(
       if (held + 1 > settings.maxGameChangers) return 'over-game-changers';
     }
   }
+
+  if (bracketRestraint(change, settings, deck, out)) return 'over-bracket';
+  if (settings.intent === 'casual' && stapleForTheme(change, out, data)) return 'staple-swap';
   return null;
 }
 
@@ -287,6 +372,8 @@ export interface CoachSettingsHooks {
   savesMoney: boolean;
   /** The bracket Coach holds the deck to (`coachTargetBracket`). */
   targetBracket: TargetBracket | 'all';
+  /** What the deck is for (`deckIntent`): steers Coach's ranking. */
+  intent: DeckIntent;
   /** What the deck's own cards convert into a win (`deckComboPayoffs`, E578). */
   deckPayoffs: DeckPayoffs;
 }
@@ -312,6 +399,7 @@ export function useCoachSettings(
   const bracketOverride = deck?.bracketOverride;
   const collectionStrategy = deck?.buildReport?.collectionStrategy;
   const targetBracket = coachTargetBracket({ generationContext, bracketOverride });
+  const intent = deckIntent(generationContext?.customization?.brewLevel, targetBracket);
   const settings = useMemo(
     () =>
       coachDeckSettings({
@@ -338,6 +426,7 @@ export function useCoachSettings(
       cutFits: (add) => cutKeepsSettings(fit, add),
       savesMoney,
       targetBracket,
+      intent,
       deckPayoffs,
     };
   }, [
@@ -347,6 +436,7 @@ export function useCoachSettings(
     mainboardLimit,
     suggestionCards,
     targetBracket,
+    intent,
     commanders,
     factsReady,
   ]);

@@ -171,6 +171,8 @@ export interface Change {
   inclusion?: number;
   /** Combos lane: how many decks run the line. Orders promoted completions (coach-rank.ts). */
   comboPopularity?: number;
+  /** Combos lane: how many cards the line takes. A two-card line floors a deck at Bracket 4. */
+  comboPieces?: number;
   /** EDHREC synergy delta. Secondary signal; can be negative. */
   synergy?: number;
   /** Game-changer (bracket-relevant high-power) — must survive (protection + correctness). */
@@ -865,5 +867,6 @@ export function fromComboCompletion(
     }),
     ownership,
     comboPopularity: match.combo.popularity,
+    comboPieces: match.combo.cards.length,
   };
 }

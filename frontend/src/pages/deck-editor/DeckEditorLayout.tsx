@@ -552,6 +552,7 @@ export function DeckEditorLayout({
                   hasProtectedCut={replaceCuts.hasProtectedCut}
                   cutSwaps={{ deck, combos: mainboardComboData, owned: collectionCards }}
                   targetBracket={coachSettings.targetBracket}
+                  intent={coachSettings.intent}
                   aiAgrees={aiAgrees ?? undefined}
                   commanderProfile={commanderProfile}
                   upgradePlan={
