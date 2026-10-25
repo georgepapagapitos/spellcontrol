@@ -21,6 +21,9 @@ import type { ComboMatch } from '../../types/combos';
 import { CardPreview } from '@/components/card/CardPreview';
 import { Tabs } from '@/components/overlays/Tabs';
 import { ComboRow } from './ComboRow';
+import { ComboReach, ComboReachAny } from './ComboReach';
+import { planComboReach, type ReachPlan } from '@/lib/mana-sim/combo-reach';
+import { toClockLibrary } from '@/lib/mana-sim/hand-classify';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { Surface } from '@/components/shared/Surface';
@@ -101,6 +104,28 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
       (c): c is ScryfallCard => c != null
     );
   }, [deck]);
+
+  // Reach: how often each in-deck combo is assembled, timed only for rows that
+  // have been on screen. The clock's library is built when the first one is.
+  const [reachWanted, setReachWanted] = useState(false);
+  const wantReach = useCallback(() => setReachWanted(true), []);
+  const clockLibrary = useMemo(
+    () => (reachWanted && deck ? toClockLibrary(deck.cards.map((c) => c.card)) : null),
+    [reachWanted, deck]
+  );
+  const commandZoneNames = useMemo(
+    () =>
+      new Set(
+        [deck?.commander?.name, deck?.partnerCommander?.name].filter((n): n is string => !!n)
+      ),
+    [deck?.commander?.name, deck?.partnerCommander?.name]
+  );
+  const libraryNames = useMemo(() => (deck ? deck.cards.map((c) => c.card.name) : []), [deck]);
+  const reachTutors = useMemo(() => deck?.winConditions?.tutors ?? [], [deck?.winConditions]);
+  const reachPlan = useCallback(
+    (m: ComboMatch): ReachPlan => planComboReach(m.combo, commandZoneNames, libraryNames),
+    [commandZoneNames, libraryNames]
+  );
 
   // ── Combo card preview state (shared with the collection combos view) ────
   const preview = useComboPreview(cardIndex);
@@ -238,6 +263,16 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
   // combos" — handled by a different empty-state message below.
   const deckHasOracleIds = deckOracleIds.length > 0;
   const deckEntered = (data?.inDeck.length ?? 0) + oneAwayCount === 0 && !loading;
+
+  // Every combo that can be timed, as options for the "any of them" line.
+  const reachOptions = useMemo(
+    () =>
+      matches.flatMap((m) => {
+        const plan = reachPlan(m);
+        return plan.kind === 'timed' ? [plan.option] : [];
+      }),
+    [matches, reachPlan]
+  );
 
   const handleAddMissing = async (match: ComboMatch) => {
     const oracleId = match.missingOracleIds[0];
@@ -380,6 +415,15 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
           </div>
         )}
 
+        {!error && tab === 'inDeck' && deck && reachOptions.length > 1 && (
+          <ComboReachAny
+            options={reachOptions}
+            library={clockLibrary}
+            tutors={reachTutors}
+            onSeen={wantReach}
+          />
+        )}
+
         {!error && matches.length > 0 && (
           <ul className="deck-combos-list" role="list">
             {matches.map((match) => (
@@ -396,6 +440,16 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
                   tab === 'inDeck' ? sideboardNamesByComboId.get(match.combo.id) : undefined
                 }
                 deckCards={deckCards}
+                aside={
+                  tab === 'inDeck' && deck ? (
+                    <ComboReach
+                      plan={reachPlan(match)}
+                      library={clockLibrary}
+                      tutors={reachTutors}
+                      onSeen={wantReach}
+                    />
+                  ) : undefined
+                }
               />
             ))}
           </ul>
