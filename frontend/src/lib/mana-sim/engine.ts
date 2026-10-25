@@ -121,6 +121,35 @@ function runGames(
   options: ManaSimOptions,
   goal: ManaGoal | null
 ): ManaSimResult | number[] | null {
+  const run = playGames(deck, options, goal);
+  for (;;) {
+    const step = run.next();
+    if (step.done) return step.value;
+  }
+}
+
+/**
+ * `simulateGoalTurns` as a generator that hands control back between turns
+ * once `options.budget.until` has passed (a `performance.now()` time), so a
+ * caller can sit between steps and let the browser paint. Games are not
+ * affected: each draws its stream from (seed, game index), and a yield changes
+ * no state, so the finished list equals the one `simulateGoalTurns` returns.
+ * The longest stretch between yields is one turn of one game.
+ */
+export function* simulateGoalSteps(
+  deck: ManaDeck,
+  goal: ManaGoal,
+  options: ManaSimOptions = {}
+): Generator<void, number[] | null> {
+  return (yield* playGames(deck, options, goal)) as number[] | null;
+}
+
+function* playGames(
+  deck: ManaDeck,
+  options: ManaSimOptions,
+  goal: ManaGoal | null
+): Generator<void, ManaSimResult | number[] | null> {
+  const budget = options.budget;
   const games = Math.max(1, Math.floor(options.games ?? 1000));
   const capped = goal?.horizon !== undefined && goal.horizon < deck.library.length;
   const maxTurn = goal
@@ -671,6 +700,7 @@ function runGames(
 
   const firstGame = Math.max(0, Math.floor(options.firstGame ?? 0));
   for (let g = firstGame; g < firstGame + games; g++) {
+    if (budget && performance.now() >= budget.until) yield;
     // One stream per game, so decks a slot apart share games (game-seed.ts).
     const rand = mulberry32(gameSeed(seed, g));
     lands = [];
@@ -720,6 +750,7 @@ function runGames(
     let drops = 0;
 
     for (let turn = 1; turn <= maxTurn; turn++) {
+      if (budget && performance.now() >= budget.until) yield;
       const newFrom = hand.length;
       if ((turn > 1 || drawOnTurnOne) && ptr < order.length) {
         const id = order[ptr++];

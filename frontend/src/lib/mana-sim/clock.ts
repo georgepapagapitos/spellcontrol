@@ -13,7 +13,7 @@
  * - `simulateAssemblyClock`: synchronous, for scripts and tests.
  * - `assemblyClockAsync` (and the `useAssemblyClock` hook over it): what every
  *   screen uses. The engine costs tens to hundreds of milliseconds per 1,000
- *   games, so it runs after paint in slices of a few milliseconds, yielding to
+ *   games, so it runs after paint in slices of a few milliseconds (cut between turns, even inside a game), yielding to
  *   the browser between them (a phone is about 4x slower than the numbers in
  *   the comments here). Each game draws its own random stream from (seed, game
  *   index), so the sliced run is the same run: identical numbers to the
@@ -22,7 +22,7 @@
  */
 
 import { buildManaDeck } from './index';
-import { simulateGoal, simulateGoalTurns } from './engine';
+import { simulateGoal, simulateGoalSteps } from './engine';
 import {
   librarySeed,
   simulateColorlessClock,
@@ -60,11 +60,8 @@ function manaOf(library: readonly ClockCard[]): ManaCard[] | null {
 
 // ── After paint, in slices, shared ──────────────────────────────────────────
 
-/** Milliseconds of engine work per slice: under one frame at 60 Hz with room to spare. */
+/** Milliseconds of engine work per slice, checked between turns: under one frame at 60 Hz with room to spare. */
 const SLICE_MS = 6;
-/** Games in the timing slice, which sets the size of the rest. */
-const PROBE_GAMES = 4;
-const MAX_SLICE_GAMES = 200;
 const CACHE_SIZE = 32;
 
 const cache = new Map<string, AssemblyClockResult | null>();
@@ -129,24 +126,19 @@ export function assemblyClockAsync(
     const goal = { options, tutors: opts.wildcards, horizon };
     const games = Math.max(1, Math.floor(opts.iterations ?? 1000));
     const seed = opts.seed ?? librarySeed(library);
-    const turns: number[] = [];
-    let size = Math.min(PROBE_GAMES, games);
-    let perGame = 0;
-    while (turns.length < games) {
-      const t0 = performance.now();
-      const slice = simulateGoalTurns(deck, goal, {
-        games: Math.min(size, games - turns.length),
-        firstGame: turns.length,
-        seed,
-      });
-      if (!slice) return null;
-      turns.push(...slice);
-      // Games vary a lot (one that never finishes plays out the whole library),
-      // so the size follows the slowest per-game cost seen, not the average.
-      perGame = Math.max(perGame * 0.8, (performance.now() - t0) / slice.length, 0.001);
-      size = Math.max(1, Math.min(MAX_SLICE_GAMES, Math.floor(SLICE_MS / perGame)));
-      if (turns.length < games) await yieldToBrowser();
-    }
+    // One run, handed back to the browser between turns once a slice's time is
+    // used (a game that never assembles plays out every turn to the horizon, so
+    // slicing by whole games left a tail). Same games, same numbers.
+    const budget = { until: 0 };
+    const steps = simulateGoalSteps(deck, goal, { games, seed, budget });
+    let step: IteratorResult<void, number[] | null>;
+    do {
+      budget.until = performance.now() + SLICE_MS;
+      step = steps.next();
+      if (!step.done) await yieldToBrowser();
+    } while (!step.done);
+    const turns = step.value;
+    if (!turns) return null;
     return summarizeTurns(turns, horizon);
   })()
     .then((clock) => {

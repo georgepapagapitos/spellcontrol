@@ -462,6 +462,35 @@ describe.skipIf(!process.env.CLOCK_EVAL_REPLAY)('assembly clock: replay of cache
         variants.uncapped = summary(
           simulateAssemblyClock(lib, d.assembly, { ...run, horizon: Infinity })
         );
+        if (process.env.CLOCK_EVAL_GAP) {
+          // The longest the event loop was held while the async clock ran, and
+          // whether it gave the synchronous call's numbers.
+          const { assemblyClockAsync } = await import('./clock');
+          const gaps: number[] = [];
+          let last = performance.now();
+          let on = true;
+          const tick = (): void => {
+            const now = performance.now();
+            gaps.push(now - last);
+            last = now;
+            if (on) setTimeout(tick, 0);
+          };
+          setTimeout(tick, 0);
+          const t0 = performance.now();
+          const viaAsync = await assemblyClockAsync(lib, d.assembly, run);
+          const total = performance.now() - t0;
+          on = false;
+          await new Promise((r) => setTimeout(r, 5));
+          const sorted = gaps.slice().sort((a, b) => a - b);
+          variants.gap = {
+            maxGapMs: Math.round(sorted[sorted.length - 1] * 10) / 10,
+            p99GapMs: Math.round(sorted[Math.floor(sorted.length * 0.99)] * 10) / 10,
+            over16: gaps.filter((g) => g > 16).length,
+            slices: gaps.length,
+            totalMs: Math.round(total),
+            sameAsSync: JSON.stringify(summary(viaAsync)) === JSON.stringify(variants.full),
+          };
+        }
         const spells = lib.filter((c) => !c.isLand);
         drawStats = {
           taggedDraw: spells.filter((c) => c.role === 'cardDraw').length,

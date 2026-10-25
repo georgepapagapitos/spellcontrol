@@ -191,6 +191,11 @@ export interface ManaSimOptions {
   games?: number;
   /** Index of the first game simulated. Default 0. Only `simulateGoalTurns` slices use it. */
   firstGame?: number;
+  /**
+   * `simulateGoalSteps` only: the generator yields between turns once
+   * `performance.now()` passes `until`. The caller moves `until` before each step.
+   */
+  budget?: { until: number };
   /** PRNG seed. Default: derived from the card names, so the same list always gives the same numbers. */
   seed?: number;
   /**
