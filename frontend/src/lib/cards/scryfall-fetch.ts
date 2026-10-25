@@ -23,6 +23,11 @@ const MIN_REQUEST_DELAY = 100; // 100ms between requests (Scryfall allows 10/sec
 // — and Scryfall bans clients that keep drawing them.
 const SEARCH_CLASS_DELAY = 500;
 const SEARCH_CLASS_PATH = /^\/cards\/(search|named|random|collection)(?![\w-])/;
+// One-card exact-name searches (`!"name"`): the price-sharpening tail and the per-name rescue of a
+// batch resolve. A deck resolve fires dozens of them back to back, and the batched work
+// (collection posts, the game-changer list) used to queue behind every one at 500ms apiece,
+// 14-40 s for Coach on a cold load. They yield to anything that is not one.
+const BACKGROUND_PATH = /^\/cards\/search\?q=!/;
 const MAX_RETRIES = 4; // cap 429/503 retries so a sustained throttle or outage fails instead of hanging
 // A CORS-blocked 429 is indistinguishable from a dead network at the API level,
 // so it gets its own much smaller budget: enough to park the shared queue, not
@@ -65,7 +70,7 @@ function notifyCooldown(): void {
 class RateLimiter {
   // FIFO on purpose: a search-class request at the head holds the fast ones
   // behind it, which costs a little latency but keeps release order simple.
-  private queue: Array<{ resolve: () => void; searchClass: boolean }> = [];
+  private queue: Array<{ resolve: () => void; searchClass: boolean; background: boolean }> = [];
   private processing = false;
   private lastRequestTime = 0;
   private lastSearchClassTime = 0;
@@ -75,9 +80,13 @@ class RateLimiter {
    * Wait for permission to make a request.
    * Returns a promise that resolves when it's safe to send.
    */
-  async acquire(searchClass = false): Promise<void> {
+  async acquire(searchClass = false, background = false): Promise<void> {
     return new Promise((resolve) => {
-      this.queue.push({ resolve, searchClass });
+      // FIFO within a priority; a foreground request goes ahead of every background one.
+      const at = background ? -1 : this.queue.findIndex((q) => q.background);
+      const entry = { resolve, searchClass, background };
+      if (at < 0) this.queue.push(entry);
+      else this.queue.splice(at, 0, entry);
       void this.processQueue();
     });
   }
@@ -272,8 +281,9 @@ export async function scryfallRequest(path: string, init?: RequestInit): Promise
   let opaqueFailures = 0;
 
   const searchClass = SEARCH_CLASS_PATH.test(path);
+  const background = BACKGROUND_PATH.test(path);
   for (let attempt = 0; ; attempt++) {
-    await rateLimiter.acquire(searchClass);
+    await rateLimiter.acquire(searchClass, background);
     stats.requests += 1;
 
     let response: Response;

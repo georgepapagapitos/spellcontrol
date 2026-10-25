@@ -219,6 +219,31 @@ describe('scryfallRequest', () => {
     expect(gap(3)).toBeLessThan(500); // autocomplete is not a search-class path
     expect(at[4].t - at[1].t).toBeGreaterThanOrEqual(500); // named waits on the last collection
   });
+
+  // Coach's game-changer list took 14-40 s on a cold load: it queued behind the dozens of
+  // one-card `!"name"` price-tail searches a deck resolve fires, at 500ms apiece.
+  it('lets the batched work jump ahead of queued one-card name searches', async () => {
+    setScryfallRealTimingForTests(true);
+    vi.useFakeTimers();
+    const order: string[] = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: RequestInfo | URL) => {
+      order.push(decodeURIComponent(String(input)));
+      return ok();
+    });
+
+    const tail = Array.from({ length: 20 }, (_, i) =>
+      scryfallRequest(`/cards/search?q=${encodeURIComponent(`!"Card ${i}"`)}&unique=prints`)
+    );
+    const gc = scryfallRequest('/cards/search?q=is%3Agamechanger&page=1');
+    const batch = scryfallRequest('/cards/collection', { method: 'POST', body: '{}' });
+    await vi.runAllTimersAsync();
+    await Promise.all([...tail, gc, batch]);
+
+    // Behind at most the one tail search already at the head of the queue, never behind all 20.
+    expect(order.findIndex((u) => u.includes('is:gamechanger'))).toBeLessThanOrEqual(1);
+    expect(order.findIndex((u) => u.includes('/cards/collection'))).toBeLessThanOrEqual(2);
+    expect(order).toHaveLength(22);
+  });
 });
 
 // The tally is the only way we can answer "did the 429s actually stop?" —
