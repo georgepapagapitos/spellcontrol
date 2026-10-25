@@ -7,13 +7,8 @@ import type {
   WinCondition,
 } from '@/deck-builder/services/winConditions/types';
 import { tagOnlyWinCons } from '@/deck-builder/services/winConditions/winConTags';
-import {
-  assemblyClockSentence,
-  clockShare,
-  librarySeed,
-  type ClockCard,
-} from '@/lib/mana-sim/opening-hand-sim';
-import { simulateAssemblyClock } from '@/lib/mana-sim/clock';
+import { assemblyClockSentence, clockShare, type ClockCard } from '@/lib/mana-sim/opening-hand-sim';
+import { useAssemblyClock } from '@/lib/mana-sim/use-assembly-clock';
 import { InfoTip } from '@/components/overlays/InfoTip';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { IconButton } from '@/components/shared/Button';
@@ -207,18 +202,16 @@ export function WinConditionPanel({
   // path isn't a kill category, the analysis predates the assembly field, the
   // path has no discrete assembly (generic combat), or the deck no longer
   // holds the pieces.
-  const clock = useMemo(() => {
-    const primary = analysis.primary;
-    // Kill categories only — a strategic mass's "assembled" turn measures its
-    // evidence-pool size, not its speed (see isKillClock).
-    if (!primary || !isKillClock(primary.category)) return null;
-    if (!primary.assembly?.length || !library?.length) return null;
-    return simulateAssemblyClock(library, primary.assembly, {
-      iterations: 1000,
-      wildcards: analysis.tutors,
-      seed: librarySeed(library),
-    });
-  }, [analysis, library]);
+  const primary = analysis.primary;
+  // Kill categories only — a strategic mass's "assembled" turn measures its
+  // evidence-pool size, not its speed (see isKillClock). Null (→ hidden) when
+  // the analysis predates the assembly field, the path has no discrete
+  // assembly (generic combat), or the deck no longer holds the pieces.
+  const clock = useAssemblyClock(
+    library,
+    primary && isKillClock(primary.category) ? primary.assembly : null,
+    { iterations: 1000, wildcards: analysis.tutors }
+  );
 
   const taggedNames = useMemo(() => new Set(winConTags ?? []), [winConTags]);
   // Names the engine already lists as evidence get their mark on that row

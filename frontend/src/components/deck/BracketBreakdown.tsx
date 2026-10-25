@@ -18,13 +18,8 @@ import {
 import { formatBracketLabel } from '@/lib/deck-analysis/format-bracket-label';
 import { bracketPodLine } from '@/lib/deck-analysis/bracket-pod-line';
 import { canShare, openShareSheet } from '@/lib/util/web-share';
-import {
-  CLOCK_EARLY_TURN,
-  clockShare,
-  librarySeed,
-  type ClockCard,
-} from '@/lib/mana-sim/opening-hand-sim';
-import { simulateAssemblyClock } from '@/lib/mana-sim/clock';
+import { CLOCK_EARLY_TURN, clockShare, type ClockCard } from '@/lib/mana-sim/opening-hand-sim';
+import { useAssemblyClock } from '@/lib/mana-sim/use-assembly-clock';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useCardCarousel } from './useCardCarousel';
 import { MeterBar } from '../shared/MeterBar';
@@ -474,22 +469,17 @@ export function BracketBreakdown({
   const settledFloor = floorOf(settledFloors);
   // How often the Ruthless combos come together early, from the same seeded
   // clock the Win conditions panel runs: the "Reads as 3" side's evidence.
-  const earlyShare = useMemo(() => {
+  const ruthlessPath = useMemo(() => {
     const ruthlessCombos = combosUncounted
       ? null
       : ratingOnlyComboFloor(estimation)?.ruthlessCombos;
-    if (!ruthlessCombos || !clockLibrary?.length) return null;
-    const clock = simulateAssemblyClock(
-      clockLibrary,
-      ruthlessCombos.map((names) => ({ names, need: names.length })),
-      {
-        iterations: 1000,
-        wildcards: estimation.breakdown.tutorNames,
-        seed: librarySeed(clockLibrary),
-      }
-    );
-    return clock ? (clock.assembledBy[CLOCK_EARLY_TURN] ?? 0) : null;
-  }, [estimation, combosUncounted, clockLibrary]);
+    return ruthlessCombos?.map((names) => ({ names, need: names.length })) ?? null;
+  }, [estimation, combosUncounted]);
+  const earlyClock = useAssemblyClock(clockLibrary, ruthlessPath, {
+    iterations: 1000,
+    wildcards: estimation.breakdown.tutorNames,
+  });
+  const earlyShare = earlyClock ? (earlyClock.assembledBy[CLOCK_EARLY_TURN] ?? 0) : null;
 
   const judgment = combosUncounted
     ? null

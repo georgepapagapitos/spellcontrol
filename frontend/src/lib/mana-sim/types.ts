@@ -189,6 +189,8 @@ export interface ManaDeck {
 export interface ManaSimOptions {
   /** Games to simulate. Default 1000. */
   games?: number;
+  /** Index of the first game simulated. Default 0. Only `simulateGoalTurns` slices use it. */
+  firstGame?: number;
   /** PRNG seed. Default: derived from the card names, so the same list always gives the same numbers. */
   seed?: number;
   /**

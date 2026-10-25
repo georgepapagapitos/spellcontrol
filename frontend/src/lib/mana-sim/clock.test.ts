@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { simulateAssemblyClock } from './clock';
+import { assemblyClockAsync, clockKey, peekAssemblyClock, simulateAssemblyClock } from './clock';
+import { buildManaDeck } from './index';
+import { simulateGoalTurns } from './engine';
 import { toClockLibrary } from './hand-classify';
 import { simulateColorlessClock } from './opening-hand-sim';
 import { drawCard } from './__fixtures__/draw-cards';
@@ -35,5 +37,40 @@ describe('simulateAssemblyClock', () => {
     const a = simulateAssemblyClock(plain, ORACLE, { iterations: 200, seed: 5 });
     const b = simulateColorlessClock(plain, ORACLE, { iterations: 200, seed: 5 });
     expect(a).toEqual(b);
+  });
+
+  it('games split into slices are the games run at once', () => {
+    const mana = toClockLibrary(library('Island')).map((c) => c.mana!);
+    const deck = buildManaDeck([], mana);
+    const goal = { options: ORACLE };
+    const whole = simulateGoalTurns(deck, goal, { games: 90, seed: 3 })!;
+    const sliced = [
+      ...simulateGoalTurns(deck, goal, { games: 25, firstGame: 0, seed: 3 })!,
+      ...simulateGoalTurns(deck, goal, { games: 40, firstGame: 25, seed: 3 })!,
+      ...simulateGoalTurns(deck, goal, { games: 25, firstGame: 65, seed: 3 })!,
+    ];
+    expect(sliced).toEqual(whole);
+  });
+
+  describe('assemblyClockAsync', () => {
+    it('gives the numbers of the synchronous call, and shares one run between callers', async () => {
+      const lib = toClockLibrary(library('Island'));
+      const opts = { iterations: 300, seed: 9 };
+      const sync = simulateAssemblyClock(lib, ORACLE, opts);
+      const key = clockKey(lib, ORACLE, opts);
+      expect(peekAssemblyClock(key)).toBeUndefined();
+      const a = assemblyClockAsync(lib, ORACLE, opts);
+      const b = assemblyClockAsync(lib, ORACLE, opts);
+      expect(b).toBe(a);
+      expect(await a).toEqual(sync);
+      expect(peekAssemblyClock(key)).toEqual(sync);
+    });
+
+    it('is null when no piece is in the library', async () => {
+      const lib = toClockLibrary(library('Island'));
+      expect(
+        await assemblyClockAsync(lib, [{ names: ['Nope'], need: 1 }], { iterations: 50 })
+      ).toBeNull();
+    });
   });
 });

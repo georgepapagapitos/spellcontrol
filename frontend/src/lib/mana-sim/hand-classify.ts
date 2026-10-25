@@ -51,13 +51,20 @@ export function toClockCard(card: ScryfallCard): ClockCard {
  */
 export function toClockLibrary(cards: readonly ScryfallCard[]): ClockCard[] {
   const identity = identityMask(cards);
-  const byName = new Map<string, ManaCard>();
   return cards.map((card) => {
-    let mana = byName.get(card.name);
+    const role = getCardRole(card.name);
+    // Reading a card's text costs about 0.2 ms; a deck page asks for the same
+    // deck from several panels, so each card is read once per identity and role.
+    const key = `${identity}|${role}|${card.name}`;
+    let mana = classified.get(key);
     if (!mana) {
-      mana = classifyManaCard(card, identity, { roleOf: getCardRole });
-      byName.set(card.name, mana);
+      mana = classifyManaCard(card, identity, { roleOf: () => role });
+      if (classified.size >= CLASSIFIED_MAX) classified.clear();
+      classified.set(key, mana);
     }
     return { name: card.name, ...mana.sim, mana };
   });
 }
+
+const CLASSIFIED_MAX = 4000;
+const classified = new Map<string, ManaCard>();

@@ -19,7 +19,7 @@ import {
   type AssemblyClockResult,
   type LandDropCurveResult,
 } from '@/lib/mana-sim/opening-hand-sim';
-import { simulateAssemblyClock } from '@/lib/mana-sim/clock';
+import { assemblyClockAsync } from '@/lib/mana-sim/clock';
 import { toClockLibrary, toSimCard } from '@/lib/mana-sim/hand-classify';
 import { loadSessionHistory } from '@/lib/playtest/session-history';
 import { computeSessionAggregates, MIN_SESSIONS_FOR_STATS } from '@/lib/playtest/session-record';
@@ -416,7 +416,7 @@ interface SimBatch {
 /** Run the full batch: opener odds (incl. mulligan-to-keep distribution),
  *  land-drop curve, and the assembly clock for the deck's detected win path.
  *  Fixed seed per call → same button press twice gives the same numbers. */
-function runSimBatch(deck: Deck, key: string): SimBatch {
+async function runSimBatch(deck: Deck, key: string): Promise<SimBatch> {
   const simCards = deck.cards.map((slot) => toSimCard(slot.card));
   const mull1 = simulateOpeningHands(simCards, { iterations: 1000, seed: 42, mulliganDepth: 1 });
   const mull2 = simulateOpeningHands(simCards, { iterations: 1000, seed: 42, mulliganDepth: 2 });
@@ -429,7 +429,7 @@ function runSimBatch(deck: Deck, key: string): SimBatch {
   const kills = !!primary && isKillClock(primary.category);
   const clock =
     kills && primary?.assembly?.length && clockCards.length > 0
-      ? simulateAssemblyClock(clockCards, primary.assembly, {
+      ? await assemblyClockAsync(clockCards, primary.assembly, {
           iterations: 1000,
           seed: 42,
           wildcards: deck.winConditions?.tutors,
@@ -464,8 +464,11 @@ function SimulateSection({ deck }: { deck: Deck | undefined }) {
   if (batch && batch.key !== deckKey) setBatch(null);
 
   const rafRef = useRef<number | null>(null);
+  const runRef = useRef(0);
   useEffect(() => {
+    const runs = runRef;
     return () => {
+      runs.current++;
       if (rafRef.current != null) window.cancelAnimationFrame(rafRef.current);
     };
   }, []);
@@ -478,10 +481,15 @@ function SimulateSection({ deck }: { deck: Deck | undefined }) {
     // (brief, synchronous) batch occupies the main thread — measured ~50ms for
     // three 1,000-iteration runs against a 99-card deck, well under one frame
     // budget even on phones.
+    const run = ++runRef.current;
     rafRef.current = window.requestAnimationFrame(() => {
-      setBatch(runSimBatch(deck, deckKey));
-      setRunning(false);
       rafRef.current = null;
+      void runSimBatch(deck, deckKey).then((done) => {
+        // A newer press, or the sheet closing, supersedes this one.
+        if (run !== runRef.current) return;
+        setBatch(done);
+        setRunning(false);
+      });
     });
   };
 
