@@ -893,6 +893,116 @@
       "colors": ["R"],
       "color_identity": ["R"],
       "keywords": ["Flying", "First strike", "Treasure"]
+    },
+    {
+      "name": "Culling Ritual",
+      "layout": "normal",
+      "mana_cost": "{2}{B}{G}",
+      "cmc": 4,
+      "type_line": "Sorcery",
+      "oracle_text": "Destroy each nonland permanent with mana value 2 or less. Add {B} or {G} for each permanent destroyed this way.",
+      "colors": ["B", "G"],
+      "color_identity": ["B", "G"],
+      "keywords": []
+    },
+    {
+      "name": "Jeska's Will",
+      "layout": "normal",
+      "mana_cost": "{2}{R}",
+      "cmc": 3,
+      "type_line": "Sorcery",
+      "oracle_text": "Choose one. If you control a commander as you cast this spell, you may choose both instead.\n• Add {R} for each card in target opponent's hand.\n• Exile the top three cards of your library. You may play them this turn.",
+      "colors": ["R"],
+      "color_identity": ["R"],
+      "keywords": []
+    },
+    {
+      "name": "Battle Hymn",
+      "layout": "normal",
+      "mana_cost": "{1}{R}",
+      "cmc": 2,
+      "type_line": "Instant",
+      "oracle_text": "Add {R} for each creature you control.",
+      "colors": ["R"],
+      "color_identity": ["R"],
+      "keywords": []
+    },
+    {
+      "name": "Brightstone Ritual",
+      "layout": "normal",
+      "mana_cost": "{R}",
+      "cmc": 1,
+      "type_line": "Instant",
+      "oracle_text": "Add {R} for each Goblin on the battlefield.",
+      "colors": ["R"],
+      "color_identity": ["R"],
+      "keywords": []
+    },
+    {
+      "name": "Cabal Ritual",
+      "layout": "normal",
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "type_line": "Instant",
+      "oracle_text": "Add {B}{B}{B}.\nThreshold — Add {B}{B}{B}{B}{B} instead if there are seven or more cards in your graveyard.",
+      "colors": ["B"],
+      "color_identity": ["B"],
+      "keywords": ["Threshold"]
+    },
+    {
+      "name": "Desperate Ritual",
+      "layout": "normal",
+      "mana_cost": "{1}{R}",
+      "cmc": 2,
+      "type_line": "Instant — Arcane",
+      "oracle_text": "Add {R}{R}{R}.\nSplice onto Arcane {1}{R} (As you cast an Arcane spell, you may reveal this card from your hand and pay its splice cost. If you do, add this card's effects to that spell.)",
+      "colors": ["R"],
+      "color_identity": ["R"],
+      "keywords": ["Splice"]
+    },
+    {
+      "name": "Pyretic Ritual",
+      "layout": "normal",
+      "mana_cost": "{1}{R}",
+      "cmc": 2,
+      "type_line": "Instant",
+      "oracle_text": "Add {R}{R}{R}.",
+      "colors": ["R"],
+      "color_identity": ["R"],
+      "keywords": []
+    },
+    {
+      "name": "Seething Song",
+      "layout": "normal",
+      "mana_cost": "{2}{R}",
+      "cmc": 3,
+      "type_line": "Instant",
+      "oracle_text": "Add {R}{R}{R}{R}{R}.",
+      "colors": ["R"],
+      "color_identity": ["R"],
+      "keywords": []
+    },
+    {
+      "name": "Mana Geyser",
+      "layout": "normal",
+      "mana_cost": "{3}{R}{R}",
+      "cmc": 5,
+      "type_line": "Sorcery",
+      "oracle_text": "Add {R} for each tapped land your opponents control.",
+      "colors": ["R"],
+      "color_identity": ["R"],
+      "keywords": []
+    },
+    {
+      "name": "Rite of Flame",
+      "layout": "normal",
+      "mana_cost": "{R}",
+      "cmc": 1,
+      "type_line": "Sorcery",
+      "oracle_text": "Add {R}{R}, then add {R} for each card named Rite of Flame in each graveyard.",
+      "colors": ["R"],
+      "color_identity": ["R"],
+      "keywords": []
     }
   ]
 }

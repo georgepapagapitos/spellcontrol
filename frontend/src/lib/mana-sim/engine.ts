@@ -879,6 +879,11 @@ function* playGames(
         }
         if (card.legendaryCreature) legendaryInPlay = true;
         if (castId >= 0) goalPlay?.cast(castId);
+        // A ritual's mana is for this turn only: it joins the pool and is gone with it.
+        if (goalPlay && card.ritual) {
+          for (const mask of card.ritual) pool.push({ mask, spend: 0, source: -1 });
+          continue;
+        }
 
         const ramp = card.ramp;
         if (!ramp) continue;

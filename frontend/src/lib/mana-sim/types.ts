@@ -172,6 +172,12 @@ export interface ManaCard {
   /** Cost of the castable front face; null for lands and cards with no mana cost. */
   cost: ManaCost | null;
   ramp: RampEffect | null;
+  /**
+   * Mana an instant or sorcery adds for this turn only (Dark Ritual). Kept
+   * apart from `ramp`: only a goal run casts it, and only when it lets a piece
+   * or tutor be cast that turn. The castability numbers never see it.
+   */
+  ritual: readonly ManaMask[] | null;
   /** Draw and selection when cast; null for a card the text does not show drawing. */
   draw: DrawEffect | null;
   /** Legendary creature (turns on "unless you control a legendary creature"). */

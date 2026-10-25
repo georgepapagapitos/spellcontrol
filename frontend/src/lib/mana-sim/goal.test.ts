@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { compileManaDeck, identityMask, classifyManaCard, buildManaDeck } from './index';
 import { simulateGoal } from './engine';
-import type { ManaCard } from './types';
+import { MANA_B, MANA_R, type ManaCard } from './types';
 import { turnLabel } from './turn-distribution';
 import { drawCard } from './__fixtures__/draw-cards';
 
@@ -173,5 +173,67 @@ describe('simulateGoal', () => {
     expect(withTutors.typicalTurn).toBeLessThan(without.typicalTurn - 3);
     // Still paid for: it cannot beat the earliest turn the Oracle itself could be cast.
     expect(withTutors.ceilingTurn).toBeGreaterThanOrEqual(3);
+  });
+
+  describe('rituals', () => {
+    const ritual = (name: string) => classifyManaCard(drawCard(name), identityMask([])).ritual;
+
+    it('reads the mana a ritual adds outright (real oracle text)', () => {
+      expect(ritual('Dark Ritual')).toEqual([MANA_B, MANA_B, MANA_B]);
+      expect(ritual('Cabal Ritual')).toEqual([MANA_B, MANA_B, MANA_B]);
+      expect(ritual('Pyretic Ritual')).toHaveLength(3);
+      expect(ritual('Desperate Ritual')).toHaveLength(3);
+      expect(ritual('Seething Song')).toHaveLength(5);
+      expect(ritual('Rite of Flame')).toEqual([MANA_R, MANA_R]);
+    });
+
+    it.each([
+      'Battle Hymn', // for each creature
+      'Brightstone Ritual', // for each Goblin
+      'Mana Geyser', // for each opponent's tapped land
+      "Jeska's Will", // a mode
+      'Culling Ritual', // a wrath that adds as a side effect
+      'Sol Ring',
+      'Mind Stone',
+      'Birds of Paradise',
+      'Island',
+    ])('does not read %s as a ritual', (name) => {
+      expect(ritual(name)).toBeNull();
+    });
+
+    it('a ritual brings a big piece online sooner, and is not a ramp spell', () => {
+      expect(classifyManaCard(drawCard('Dark Ritual'), identityMask([])).ramp).toBeNull();
+      const sphinx = [{ names: ['Consecrated Sphinx'], need: 1 }];
+      const lands: ReadonlyArray<readonly [string, number]> = [
+        ['Island', 18],
+        ['Swamp', 18],
+      ];
+      const blank = run(deckOf([['Consecrated Sphinx', 8]], lands), { options: sphinx });
+      const withRituals = run(
+        deckOf(
+          [
+            ['Consecrated Sphinx', 8],
+            ['Dark Ritual', 8],
+          ],
+          lands
+        ),
+        { options: sphinx }
+      );
+      expect(withRituals.typicalTurn).toBeLessThan(blank.typicalTurn - 1);
+      // Off its colors a ritual is a dead card.
+      const islands: ReadonlyArray<readonly [string, number]> = [['Island', 36]];
+      const stuck = run(
+        deckOf(
+          [
+            ['Consecrated Sphinx', 8],
+            ['Dark Ritual', 8],
+          ],
+          islands
+        ),
+        { options: sphinx }
+      );
+      const plain = run(deckOf([['Consecrated Sphinx', 8]], islands), { options: sphinx });
+      expect(stuck.typicalTurn).toBeGreaterThanOrEqual(plain.typicalTurn - 1);
+    });
   });
 });
