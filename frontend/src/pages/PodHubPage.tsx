@@ -41,6 +41,7 @@ import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { InlineRename } from '@/components/shared/InlineRename';
 import { Surface } from '@/components/shared/Surface';
+import { PodRule0Notes } from '@/components/social/PodRule0Notes';
 import { SectionHeader } from '@/components/shared/SectionHeader';
 const POD_NAME_MAX = 60;
 
@@ -693,6 +694,8 @@ export function PodHubPage() {
               )}
             </Surface>
           </div>
+
+          <PodRule0Notes podId={pod.id} />
 
           {otherMembers.length > 0 && (
             <section className="pod-hub-section" aria-label="What the pod plays">
