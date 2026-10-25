@@ -143,6 +143,7 @@ export function DeckEditorLayout({
     binderByCopyId,
     ownedOracleIdSet,
     ownershipFor,
+    holdsFor,
     effectiveCostPlan,
     ownedNames,
   } = ownership;
@@ -514,6 +515,7 @@ export function DeckEditorLayout({
                   deckTarget={DECK_FORMAT_CONFIGS[deck.format].deckSize}
                   bracketOverridePresent={deck.bracketOverride != null}
                   resolveOwnership={ownershipFor}
+                  holdsFor={holdsFor}
                   ownedNames={ownedNames}
                   deckNames={deckCardNames}
                   onApplyMove={handleApplyCoachMove}

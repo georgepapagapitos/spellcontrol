@@ -564,3 +564,42 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Best buys under the Cuts lane (E1038 4.2). */
+.coach-feed-buys {
+  margin-top: var(--space-4);
+}
+
+.coach-feed-buys-title {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.coach-feed-buys-note {
+  margin: var(--space-1) 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.coach-feed-buys-basis {
+  margin: 0;
+  padding: var(--space-1) 0 var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+/* The price line belongs to its row: the divider sits under the line, not above it. */
+.coach-feed-buys-list > li > .deck-card-row {
+  border-bottom: 0;
+}
+
+.coach-feed-buys-list > li {
+  border-bottom: 0.5px solid var(--border);
+}
+
+.coach-feed-buys-list > li:last-child {
+  border-bottom: 0;
+}
