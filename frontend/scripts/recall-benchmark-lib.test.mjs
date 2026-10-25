@@ -2,17 +2,25 @@
 // benchmark (recall-benchmark-lib.mjs) on hand-computed cases.
 import { describe, expect, it } from 'vitest';
 import {
+  bootstrapDiff,
+  buildComboIndex,
+  comboScore,
   dedupeByJaccard,
   hashSeed,
+  interleave,
   jaccard,
   meanMetrics,
   nameKey,
+  npmi,
   pickRandom,
   pickRoleStratified,
   queryMetrics,
   rankPool,
   rng,
+  rrfScores,
+  shrunkLift,
   splitByPopularity,
+  sumEdges,
   tailShare,
 } from './recall-benchmark-lib.mjs';
 
@@ -144,5 +152,80 @@ describe('jaccard and dedupeByJaccard', () => {
 describe('nameKey', () => {
   it('folds front face, curly quotes and case', () => {
     expect(nameKey('Jace, Vryn’s Prodigy // Jace, Telepath Unbound')).toBe("jace, vryn's prodigy");
+  });
+});
+
+describe('lift-upgrade variants', () => {
+  it('shrunkLift pulls thin samples toward 1 and keeps big ones', () => {
+    expect(shrunkLift(5, 0, 50)).toBe(1);
+    expect(shrunkLift(5, 50, 50)).toBeCloseTo(3, 10);
+    expect(shrunkLift(5, 1e9, 50)).toBeCloseTo(5, 5);
+    expect(shrunkLift(0.5, 50, 50)).toBeCloseTo(0.75, 10);
+  });
+
+  it('npmi is 0 at independence, positive above, negative below, bounded by 1', () => {
+    expect(npmi(1, 10, 1000)).toBeCloseTo(0, 10);
+    expect(npmi(4, 10, 1000)).toBeGreaterThan(0);
+    expect(npmi(0.25, 10, 1000)).toBeLessThan(0);
+    // perfect co-occurrence: lift = 1 / p(a,b) when p(a) = p(b) = p(a,b)
+    expect(npmi(100, 10, 1000)).toBeCloseTo(1, 10);
+    expect(npmi(0, 10, 1000)).toBe(0);
+    expect(npmi(3, 0, 1000)).toBe(0);
+  });
+
+  it('sumEdges adds across seeds and skips self-mentions and exclusions', () => {
+    const pools = new Map([
+      ['Seed A', [{ name: 'X', lift: 2 }, { name: 'Seed B', lift: 9 }, { name: 'Out', lift: 9 }]],
+      ['Seed B', [{ name: 'x', lift: 3 }, { name: 'Seed A', lift: 9 }]],
+    ]);
+    const s = sumEdges(pools, (e) => e.lift, new Set(['out', 'seed a', 'seed b']));
+    expect([...s.entries()]).toEqual([['x', 5]]);
+    // without the seeds excluded only self-mentions are skipped
+    expect(sumEdges(pools, (e) => e.lift).get('seed b')).toBe(9);
+  });
+
+  it('rrfScores rewards agreement and weights', () => {
+    const s = rrfScores([['a', 'b', 'c'], ['b', 'a']], [1, 1], 0);
+    expect(s.get('a')).toBeCloseTo(1 + 1 / 2, 10);
+    expect(s.get('b')).toBeCloseTo(1 / 2 + 1, 10);
+    expect(s.get('c')).toBeCloseTo(1 / 3, 10);
+    expect(rrfScores([['a'], ['b']], [2, 1], 0).get('a')).toBe(2);
+  });
+
+  it('comboScore counts partial and complete combos', () => {
+    const idx = buildComboIndex([['a', 'b', 'c'], ['a', 'd'], ['a'], ['a', 'a']]);
+    const deck = new Set(['b', 'c', 'd']);
+    // combo1: 2/2 present, combo2: 1/1 present; single-card combos are dropped
+    expect(comboScore('a', deck, idx)).toBe(2);
+    expect(comboScore('a', deck, idx, true)).toBe(2);
+    expect(comboScore('a', new Set(['b']), idx)).toBeCloseTo(0.5, 10);
+    expect(comboScore('a', new Set(['b']), idx, true)).toBe(0);
+    expect(comboScore('a', new Set(), idx)).toBe(0);
+    expect(comboScore('zzz', deck, idx)).toBe(0);
+  });
+
+  it('bootstrapDiff centers on the mean and brackets a clear effect', () => {
+    const rows = [];
+    for (let g = 0; g < 30; g++) for (let q = 0; q < 3; q++) rows.push({ group: g, diff: 0.1 });
+    const same = bootstrapDiff(rows, rng(1), 200);
+    expect(same.mean).toBeCloseTo(0.1, 10);
+    expect(same.lo).toBeCloseTo(0.1, 10);
+    expect(same.hi).toBeCloseTo(0.1, 10);
+    const noisy = rows.map((r, i) => ({ ...r, diff: i % 2 ? 1 : -1 }));
+    const ci = bootstrapDiff(noisy, rng(1), 500);
+    expect(ci.lo).toBeLessThan(0);
+    expect(ci.hi).toBeGreaterThan(0);
+    expect(ci.groups).toBe(30);
+    expect(bootstrapDiff([], rng(1)).groups).toBe(0);
+  });
+});
+
+describe('interleave', () => {
+  it('reserves slots per pattern, skips duplicates, and passes spent slots on', () => {
+    const inc = ['a', 'b', 'c', 'd'];
+    const lift = ['x', 'a', 'y'];
+    expect(interleave([inc, lift], [0, 0, 1])).toEqual(['a', 'b', 'x', 'c', 'd', 'y']);
+    expect(interleave([[], ['p', 'q']], [0, 1])).toEqual(['p', 'q']);
+    expect(interleave([['a'], ['a']], [0, 1])).toEqual(['a']);
   });
 });
