@@ -302,6 +302,16 @@ three times on one screen, so these rulings now hold:
   names the assumption once. The odds never take the warning color: the red
   count against its target already carries that. A role with no cards shows no
   odds, and the shared deck page reads the same.
+- **A role target shows its basis, and what kind of number each basis is
+  (2026-10-25, roadmap 3.3).** One `InfoTip` on the Roles note (not an icon per
+  row) puts each target beside three references: this commander's EDHREC count
+  (cards 1 in 4 of its decks play, with the deck count; an estimate), the median
+  and middle half across 93 EDHREC average decks (measured), and the Command
+  Zone's 2025 template (an estimate, from a secondary summary). With a bracket,
+  stated or estimated, it adds that bracket's lands, tutors and average mana
+  value. EDHREC gives no per-commander spread, so the tip never claims a
+  commander's "middle 50%". Display only: `roleBasis.ts` holds the references and
+  never feeds the generator, whose targets `roleBasis.test.ts` pins.
 - **The deck is the commander and the mainboard (2026-09-25).** Every stat,
   verdict, score and count on the deck page (the stats, Power, Coach) reads
   the commander zone and the mainboard, never the sideboard or Considering.
