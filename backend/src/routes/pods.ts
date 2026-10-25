@@ -6,6 +6,7 @@ import { currentUsername, requireAuth } from '../auth';
 import { getDb, getPool } from '../db';
 import { pods, podMembers } from '../db/schema';
 import { areFriends } from '../friends/relations';
+import { deckReachFor, isActivePodMember, loadRule0Decks } from '../pods/rule0';
 
 /**
  * Pods: private playgroups of friends who play together repeatedly. A pod is
@@ -25,6 +26,8 @@ const podWriteLimiter = testAwareLimiter({ windowMs: 60_000, max: 20 }); // mirr
 
 const POD_NAME_MAX = 60;
 const MAX_POD_MEMBERS = 24;
+/** Decks one member can put in a pod's Rule 0 notes: a table seats four. */
+const MAX_POD_DECKS_PER_MEMBER = 6;
 
 /** Trimmed string within [1, max] length, else null. */
 function cleanRequired(x: unknown, max: number): string | null {
@@ -399,6 +402,8 @@ podsRouter.delete(
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Pod not found.' });
     }
+    // What they put on the table leaves with them; rejoining starts from none.
+    await pool.query(`DELETE FROM pod_decks WHERE pod_id = $1 AND user_id = $2`, [podId, callerId]);
     return res.status(204).end();
   }
 );
@@ -435,6 +440,96 @@ podsRouter.delete(
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Member not found.' });
     }
+    await pool.query(`DELETE FROM pod_decks WHERE pod_id = $1 AND user_id = $2`, [
+      podId,
+      targetUserId,
+    ]);
+    return res.status(204).end();
+  }
+);
+
+// ────────────────────────────────────────────────
+// GET /api/pods/:id/rule0  (active members only)
+// Notes for the Rule 0 conversation: the decks members chose to put in this pod
+// that the CALLER may already see. See pods/rule0.ts for the two gates.
+// ────────────────────────────────────────────────
+podsRouter.get('/:id/rule0', requireAuth, podReadLimiter, async (req: Request, res: Response) => {
+  const callerId = req.user!.id;
+  const podId = String(req.params.id ?? '');
+  // Non-members and still-invited callers get the same 404 as a missing pod.
+  if (!(await isActivePodMember(podId, callerId))) {
+    return res.status(404).json({ error: 'Pod not found.' });
+  }
+  return res.json({ decks: await loadRule0Decks(podId, callerId) });
+});
+
+// ────────────────────────────────────────────────
+// PUT /api/pods/:id/decks/:deckId  (active members, own decks only)
+// DELETE /api/pods/:id/decks/:deckId
+// ────────────────────────────────────────────────
+podsRouter.put(
+  '/:id/decks/:deckId',
+  requireAuth,
+  podWriteLimiter,
+  async (req: Request, res: Response) => {
+    const callerId = req.user!.id;
+    const podId = String(req.params.id ?? '');
+    const deckId = String(req.params.deckId ?? '');
+    if (!(await isActivePodMember(podId, callerId))) {
+      return res.status(404).json({ error: 'Pod not found.' });
+    }
+    const pool = getPool();
+    const deck = await pool.query(
+      `SELECT 1 FROM user_decks WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL`,
+      [callerId, deckId]
+    );
+    if (deck.rowCount === 0) {
+      return res.status(404).json({ error: 'Deck not found.' });
+    }
+    // Putting a deck in a pod never widens who can see it: a private deck has
+    // to be shared (friends) or published first.
+    if ((await deckReachFor(callerId, deckId, callerId)) === 'private') {
+      return res.status(409).json({
+        error: 'Share this deck with friends or publish it first.',
+        code: 'deck_private',
+      });
+    }
+    const existing = await pool.query<{ deck_id: string }>(
+      `SELECT deck_id FROM pod_decks WHERE pod_id = $1 AND user_id = $2`,
+      [podId, callerId]
+    );
+    if (
+      !existing.rows.some((r) => r.deck_id === deckId) &&
+      existing.rows.length >= MAX_POD_DECKS_PER_MEMBER
+    ) {
+      return res.status(400).json({
+        error: `You can put up to ${MAX_POD_DECKS_PER_MEMBER} decks in a pod.`,
+      });
+    }
+    await pool.query(
+      `INSERT INTO pod_decks (pod_id, user_id, deck_id, added_at) VALUES ($1, $2, $3, $4)
+       ON CONFLICT DO NOTHING`,
+      [podId, callerId, deckId, Date.now()]
+    );
+    return res.status(204).end();
+  }
+);
+
+podsRouter.delete(
+  '/:id/decks/:deckId',
+  requireAuth,
+  podWriteLimiter,
+  async (req: Request, res: Response) => {
+    const callerId = req.user!.id;
+    const podId = String(req.params.id ?? '');
+    const deckId = String(req.params.deckId ?? '');
+    if (!(await isActivePodMember(podId, callerId))) {
+      return res.status(404).json({ error: 'Pod not found.' });
+    }
+    await getPool().query(
+      `DELETE FROM pod_decks WHERE pod_id = $1 AND user_id = $2 AND deck_id = $3`,
+      [podId, callerId, deckId]
+    );
     return res.status(204).end();
   }
 );

@@ -48,6 +48,9 @@ vi.mock('@/lib/social/pods-client', () => {
     declinePodInvite: vi.fn(() => Promise.resolve()),
     invitePodMembers: vi.fn(() => Promise.resolve({ invited: [] })),
     fetchPodGames: vi.fn(() => Promise.resolve([])),
+    fetchPodRule0: vi.fn(() => Promise.resolve([])),
+    addPodDeck: vi.fn(() => Promise.resolve()),
+    removePodDeck: vi.fn(() => Promise.resolve()),
     // Shape-correct default: this resolves to { standings, records }, not an
     // array — the page destructures it and renders `standings.length`.
     fetchPodLeaderboard: vi.fn(() =>

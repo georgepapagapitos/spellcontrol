@@ -821,6 +821,29 @@ export const podMembers = pgTable(
 );
 
 /**
+ * Decks a pod member has chosen to put in the pod's Rule 0 notes. A choice
+ * only: reading is gated again on every request by the deck's own visibility
+ * (published, or shared to the viewer), so a row here never widens who can see
+ * a deck. `deck_id` is a soft reference to `user_decks` (app cascades).
+ */
+export const podDecks = pgTable(
+  'pod_decks',
+  {
+    podId: text('pod_id')
+      .notNull()
+      .references(() => pods.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    deckId: text('deck_id').notNull(),
+    addedAt: bigint('added_at', { mode: 'number' }).notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.podId, t.userId, t.deckId] }),
+  })
+);
+
+/**
  * Canonical record of a finished game, either mode, keyed by the game id (the
  * live session id for online games; the device-minted id for local ones).
  * One shared row every participant reads, so head-to-head, leaderboards, pod
@@ -1283,6 +1306,7 @@ export type GameNightVoteRow = typeof gameNightVotes.$inferSelect;
 export type FriendshipRow = typeof friendships.$inferSelect;
 export type PodRow = typeof pods.$inferSelect;
 export type PodMemberRow = typeof podMembers.$inferSelect;
+export type PodDeckRow = typeof podDecks.$inferSelect;
 export type GameResultRow = typeof gameResults.$inferSelect;
 export type GameResultHiddenRow = typeof gameResultHidden.$inferSelect;
 export type DeckPublicationRow = typeof deckPublications.$inferSelect;

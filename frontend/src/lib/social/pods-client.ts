@@ -300,3 +300,61 @@ export async function fetchPodLeaderboard(id: string): Promise<PodLeaderboard> {
   // that as "no superlatives", the same as a pod that hasn't earned any.
   return { standings: body.standings ?? [], records: body.records ?? NO_RECORDS };
 }
+
+// ── Rule 0 notes ────────────────────────────────────────────────────────────
+
+export type PodDeckReach = 'public' | 'friends' | 'private';
+
+export interface PodRule0Signals {
+  gameChangers: number;
+  gameChangerNames: string[];
+  massLandDenial: number;
+  extraTurns: number;
+  twoCardCombos: number;
+  multiCardCombos: number;
+}
+
+/** One deck a member put in the pod's notes, as the caller is allowed to see it. */
+export interface PodRule0Deck {
+  userId: string;
+  username: string;
+  deckId: string;
+  name: string;
+  commanderName: string | null;
+  /** The stated bracket if there is one, else the estimate; null if never analyzed. */
+  bracket: number | null;
+  bracketStated: boolean;
+  estimatedBracket: number | null;
+  /** The estimate was made before combos were counted, so it is a floor. */
+  estimateIsFloor: boolean;
+  signals: PodRule0Signals | null;
+  /** How far the deck is shared. 'private' only ever appears on your own rows. */
+  reach: PodDeckReach;
+  mine: boolean;
+}
+
+export async function fetchPodRule0(podId: string): Promise<PodRule0Deck[]> {
+  const res = await fetch(apiUrl(`/api/pods/${encodeURIComponent(podId)}/rule0`), {
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    throw new Error(await readError(res, "Couldn't load the notes. Try again in a moment."));
+  }
+  return ((await res.json()) as { decks: PodRule0Deck[] }).decks;
+}
+
+export async function addPodDeck(podId: string, deckId: string): Promise<void> {
+  const res = await fetch(
+    apiUrl(`/api/pods/${encodeURIComponent(podId)}/decks/${encodeURIComponent(deckId)}`),
+    { method: 'PUT', credentials: 'include' }
+  );
+  if (!res.ok) throw new Error(await readError(res, "Couldn't add that deck. Try again."));
+}
+
+export async function removePodDeck(podId: string, deckId: string): Promise<void> {
+  const res = await fetch(
+    apiUrl(`/api/pods/${encodeURIComponent(podId)}/decks/${encodeURIComponent(deckId)}`),
+    { method: 'DELETE', credentials: 'include' }
+  );
+  if (!res.ok) throw new Error(await readError(res, "Couldn't remove that deck. Try again."));
+}

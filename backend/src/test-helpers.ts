@@ -460,6 +460,14 @@ export async function createTestEnv(): Promise<TestEnv> {
     );
     CREATE INDEX pod_members_user_idx ON pod_members(user_id);
 
+    CREATE TABLE pod_decks (
+      pod_id TEXT NOT NULL REFERENCES pods(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      deck_id TEXT NOT NULL,
+      added_at BIGINT NOT NULL,
+      PRIMARY KEY (pod_id, user_id, deck_id)
+    );
+
     CREATE TABLE game_results (
       session_id TEXT PRIMARY KEY,
       code TEXT NOT NULL,
