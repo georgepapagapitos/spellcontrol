@@ -53,6 +53,40 @@ describe('draw and selection, read from Oracle text', () => {
     expect(read('Phyrexian Arena')).toEqual(fx({ perTurn: 1 }));
   });
 
+  it("reads the caster's draw out of a line that also hits opponents", () => {
+    // "You draw two cards and you lose 2 life. Each opponent gets a poison counter."
+    expect(read('Infectious Inquiry')).toEqual(fx({ draw: 2 }));
+  });
+
+  it('reads a reveal that takes only lands, and an upkeep exile-and-play', () => {
+    expect(read('Satyr Wayfinder')).toEqual(fx({ look: 4, take: 1, landOnly: true }));
+    // Charred Foyer: exile the top card each upkeep, you may play it this turn.
+    expect(read('Charred Foyer // Warped Space')).toEqual(fx({ perTurn: 1 }));
+    expect(read('Bonehoard Dracosaur')).toEqual(fx({ perTurn: 2 }));
+  });
+
+  it.each([
+    'Skullclamp', // draws when the equipped creature dies
+    'Tatyova, Benthic Druid', // landfall
+    'Welcoming Vampire', // a creature entering, with a power limit
+    'Eternal Witness', // returns, does not draw
+    'Grisly Salvage', // takes creatures or lands: kinds the simulator cannot tell apart
+    'Goblin Ringleader', // takes every Goblin
+    'Kaalia, Zenith Seeker',
+    'Dark Deal', // every player
+    'Plea for Power', // a vote
+    'Hex Magic', // as many as the hand held
+    'Staff of Domination', // activated, paid
+    'Idol of Oblivion',
+    "Sensei's Divining Top",
+    'The One Ring', // draws a growing number
+    'Laelia, the Blade Reforged', // when it attacks
+    'Etali, Primal Storm',
+    'Commune with Lava', // X
+  ])('does not read %s (real oracle text)', (name) => {
+    expect(read(name)).toBeNull();
+  });
+
   it.each([
     'Rhystic Study', // opponent-triggered
     'Mystic Remora',

@@ -151,6 +151,8 @@ export interface DrawEffect {
   look: number;
   /** Of the cards looked at, how many go to the hand; 0 with a draw = the drawn cards are the best of the look. */
   take: number;
+  /** The cards taken must be lands (Satyr Wayfinder). */
+  landOnly?: boolean;
   /** Scry or surveil this many. */
   scry: number;
   scryFirst: boolean;
@@ -170,6 +172,12 @@ export interface ManaCard {
   /** Cost of the castable front face; null for lands and cards with no mana cost. */
   cost: ManaCost | null;
   ramp: RampEffect | null;
+  /**
+   * Mana an instant or sorcery adds for this turn only (Dark Ritual). Kept
+   * apart from `ramp`: only a goal run casts it, and only when it lets a piece
+   * or tutor be cast that turn. The castability numbers never see it.
+   */
+  ritual: readonly ManaMask[] | null;
   /** Draw and selection when cast; null for a card the text does not show drawing. */
   draw: DrawEffect | null;
   /** Legendary creature (turns on "unless you control a legendary creature"). */
@@ -191,6 +199,11 @@ export interface ManaSimOptions {
   games?: number;
   /** Index of the first game simulated. Default 0. Only `simulateGoalTurns` slices use it. */
   firstGame?: number;
+  /**
+   * `simulateGoalSteps` only: the generator yields between turns once
+   * `performance.now()` passes `until`. The caller moves `until` before each step.
+   */
+  budget?: { until: number };
   /** PRNG seed. Default: derived from the card names, so the same list always gives the same numbers. */
   seed?: number;
   /**

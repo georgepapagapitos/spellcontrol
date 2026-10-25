@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { assemblyClockAsync, clockKey, peekAssemblyClock, simulateAssemblyClock } from './clock';
 import { buildManaDeck } from './index';
-import { simulateGoalTurns } from './engine';
+import { simulateGoalSteps, simulateGoalTurns } from './engine';
 import { toClockLibrary } from './hand-classify';
 import { simulateColorlessClock } from './opening-hand-sim';
 import { drawCard } from './__fixtures__/draw-cards';
@@ -50,6 +50,27 @@ describe('simulateAssemblyClock', () => {
       ...simulateGoalTurns(deck, goal, { games: 25, firstGame: 65, seed: 3 })!,
     ];
     expect(sliced).toEqual(whole);
+  });
+
+  it('a run cut between turns is the run done at once, and yields inside games', () => {
+    const mana = toClockLibrary(library('Island')).map((c) => c.mana!);
+    const deck = buildManaDeck([], mana);
+    const goal = { options: ORACLE };
+    const whole = simulateGoalTurns(deck, goal, { games: 60, seed: 3 })!;
+    // A budget that is always spent: control returns at every turn of every game.
+    const steps = simulateGoalSteps(deck, goal, { games: 60, seed: 3, budget: { until: 0 } });
+    let yields = 0;
+    let step = steps.next();
+    while (!step.done) {
+      yields++;
+      step = steps.next();
+    }
+    expect(step.value).toEqual(whole);
+    // More yields than games: at least one game was cut part-way through.
+    expect(yields).toBeGreaterThan(60 * 2);
+    // No budget: never yields.
+    const free = simulateGoalSteps(deck, goal, { games: 60, seed: 3 }).next();
+    expect(free.done).toBe(true);
   });
 
   describe('assemblyClockAsync', () => {

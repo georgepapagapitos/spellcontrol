@@ -8,7 +8,7 @@
  * copied and the engine's loop stays one loop.
  */
 
-import { canPay } from './cost';
+import { allocate, canPay } from './cost';
 import type { DrawEffect, ManaCard, ManaGoal, ManaMask } from './types';
 
 /** Tagged `cardDraw` but not readable from its text (Rhystic Study, X draws): two cards, the clock's long-standing flat reading. */
@@ -53,7 +53,7 @@ export interface GoalPlay {
   played(id: number): void;
   /** A new game: nothing cast, no engines. */
   reset(): void;
-  /** Extra draws from cast engines (Phyrexian Arena), taken after the turn's own draw. */
+  /** A new turn: extra draws from cast engines (Phyrexian Arena), taken after the turn's own draw, and any ritual mana is gone. */
   drawEngines(): void;
   /** Hand index of the next card to cast with this mana, or -1. */
   pick(work: ManaMask[]): number;
@@ -115,6 +115,7 @@ export function createGoalPlay(
     if (c.landCard) return -1;
     if (pieceIds.has(id)) return castPiece[id] ? -1 : 1;
     if (tutorIds.has(id)) return 2;
+    if (c.ritual) return -1;
     if (c.ramp) return 0;
     return drawsCards[id] ? 3 : -1;
   };
@@ -124,6 +125,7 @@ export function createGoalPlay(
     const c = cards[id];
     if (pieceIds.has(id)) return castPiece[id] || play.hand.includes(id) ? 0 : 5;
     if (tutorIds.has(id)) return closest() > 0 ? 3.5 : 0;
+    if (c.ritual) return closest() > 0 ? 2.6 : 0;
     if (c.landCard) {
       let have = play.landsInPlay;
       for (const h of play.hand) if (cards[h].landCard) have++;
@@ -171,7 +173,8 @@ export function createGoalPlay(
       const window = play.order.slice(play.ptr, play.ptr + w);
       const take = Math.min(w, e.take > 0 ? e.take : e.draw);
       const ranked = window
-        .map((id, i) => ({ i, v: wanted(id) }))
+        .map((id, i) => ({ i, v: wanted(id), ok: !e.landOnly || cards[id].landCard }))
+        .filter((r) => r.ok)
         .sort((a, b) => b.v - a.v || a.i - b.i)
         .slice(0, take);
       const taken = new Set(ranked.map((r) => r.i));
@@ -220,6 +223,34 @@ export function createGoalPlay(
     play.addHandPips(want, 1);
   };
 
+  const rituals = cards.some((c) => c.ritual);
+  /** Mana cast this turn by a ritual is spent on the goal before anything else. */
+  let ritualLive = false;
+
+  /**
+   * A ritual in hand worth casting now: one that, once paid for, leaves enough
+   * mana to cast a piece or tutor that this mana cannot. Hand index or -1.
+   */
+  const ritualToCast = (work: ManaMask[]): number => {
+    for (let h = 0; h < play.hand.length; h++) {
+      const gain = cards[play.hand[h]].ritual;
+      const cost = cards[play.hand[h]].cost;
+      if (!gain || !cost || !canPay(cost, work)) continue;
+      const pool = work.map((mask) => ({ mask, spend: 0 as const, source: -1 }));
+      const used = allocate(cost, pool);
+      if (!used) continue;
+      const after = work.filter((_, i) => !used.includes(i)).concat(gain);
+      for (let k = 0; k < play.hand.length; k++) {
+        const id = play.hand[k];
+        const cls = classOf(id);
+        if (k === h || (cls !== 1 && cls !== 2)) continue;
+        const target = cards[id].cost;
+        if (target && canPay(target, after)) return h;
+      }
+    }
+    return -1;
+  };
+
   return {
     immediate,
     isPiece: (id) => pieceIds.has(id),
@@ -229,15 +260,17 @@ export function createGoalPlay(
     reset() {
       castPiece.fill(0);
       engineDraws = 0;
+      ritualLive = false;
     },
     drawEngines() {
+      ritualLive = false;
       for (let d = 0; d < engineDraws; d++) drawOne();
     },
     pick(work) {
       // Greedy sequencing: ramp and draw before pieces unless the deck is one
       // piece from done, then finishing beats developing. The cheapest card of
       // each class (the first on a tie) is the candidate.
-      const priority = closest() <= 1 ? FINISHING : DEVELOPING;
+      const priority = closest() <= 1 || ritualLive ? FINISHING : DEVELOPING;
       cheapest.fill(-1);
       for (let h = 0; h < play.hand.length; h++) {
         const id = play.hand[h];
@@ -249,10 +282,15 @@ export function createGoalPlay(
         const best = cheapest[cls];
         if (best < 0 || mv(id) < mv(play.hand[best])) cheapest[cls] = h;
       }
+      if (rituals && cheapest[1] < 0 && cheapest[2] < 0) {
+        const ritual = ritualToCast(work);
+        if (ritual >= 0) return ritual;
+      }
       for (const want of priority) if (cheapest[want] >= 0) return cheapest[want];
       return -1;
     },
     cast(id) {
+      if (cards[id].ritual) ritualLive = true;
       if (pieceIds.has(id)) castPiece[id] = 1;
       else if (tutorIds.has(id)) fetchPiece();
       else if (drawOf[id]) {

@@ -28,6 +28,7 @@ import {
   type LandSearch,
   type ManaCard,
   type ManaChoice,
+  type ManaCost,
   type ManaMask,
   type RampEffect,
 } from './types';
@@ -367,6 +368,23 @@ function rampOf(card: ScryfallCard, face: Face, identity: ManaMask): RampEffect 
   };
 }
 
+/**
+ * The mana an instant or sorcery adds once, outright: Dark Ritual's {B}{B}{B}.
+ * Null unless it adds more than it costs. Not read: an amount that depends on
+ * the board ("add {R} for each Goblin"), a choice, a mode (Jeska's Will), or a
+ * spell that adds as a side effect (Manamorphose nets nothing).
+ */
+function ritualOf(face: Face, cost: ManaCost | null): ManaMask[] | null {
+  if (!cost || !/\b(instant|sorcery)\b/.test(face.typeLine.toLowerCase())) return null;
+  for (const line of normalise(face.text).split('\n')) {
+    const m = line.trim().match(/^add ((?:\{[wubrgc]\})+)(?:[.,]|$)/);
+    if (!m) continue;
+    const units = [...m[1].matchAll(/\{([wubrgc])\}/g)].map(([, sym]) => maskOf([sym]));
+    return units.length > cost.units ? units : null;
+  }
+  return null;
+}
+
 export interface ClassifyOptions {
   /**
    * The app's deck role, for the keep rule. Pass the tagger's `getCardRole` to
@@ -412,6 +430,7 @@ export function classifyManaCard(
     mdfc,
     cost,
     ramp,
+    ritual: landCard ? null : ritualOf(front, cost),
     draw: landCard ? null : parseDraw(front),
     legendaryCreature:
       /\blegendary\b/i.test(front.typeLine) && /\bcreature\b/i.test(front.typeLine),
