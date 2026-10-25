@@ -61,6 +61,7 @@ import type {
 import type { DeckView } from '@/lib/deck-analysis/deck-view';
 import { Chip } from '@/components/shared/Chip';
 import type { SettingsBreak } from '@/lib/coach/deck-settings-fit';
+import type { DeckIntent } from '@/lib/coach/deck-intent';
 import {
   FILTER_LABELS,
   FOCUS_TO_FILTER,
@@ -172,6 +173,8 @@ export interface CoachFeedProps {
   hasReplaceCut?: (change: Change) => boolean;
   /** The bracket the deck is held to; a game-ending combo is promoted only where combos count. */
   targetBracket?: number | 'all';
+  /** What the deck is for (lib/coach/deck-intent.ts): ranks interaction and speed first for Spike, theme moves first for casual. */
+  intent?: DeckIntent;
   /** An add that has a real protected cut, or needs none (replace-cuts.ts `hasProtectedCut`). */
   hasProtectedCut?: (change: Change) => boolean;
   /**
@@ -247,6 +250,7 @@ export function CoachFeed({
   settingsBreak,
   hasReplaceCut,
   targetBracket,
+  intent,
   hasProtectedCut,
   cutSwaps,
   upgradePlan,
@@ -441,6 +445,7 @@ export function CoachFeed({
       hasReplaceCut,
       targetBracket,
       hasProtectedCut,
+      intent,
     }),
     [
       planScore,
@@ -453,17 +458,12 @@ export function CoachFeed({
       hasReplaceCut,
       targetBracket,
       hasProtectedCut,
+      intent,
     ]
   );
 
-  // Rank, then dedupe add-type rows by card name keeping the highest-ranked
-  // slot (a winning combo completion takes that slot's content) — mergeImprove only dedupes the three improve sources, so a card
-  // suggested by both (say) the gap engine and a combo completion would
-  // otherwise render twice in one feed.
-  // Then diversify: a combo whose partner set is already shown twice defers
-  // its remaining completions to the end of the list (behind "Show all"), so
-  // the first fold is different ideas rather than eight "Krenko + Skirk
-  // Prospector" rows.
+  // Rank, dedupe add rows by card (a winning combo completion takes the slot),
+  // then defer a combo's repeats behind "Show all" so the first fold differs.
   const rankedFresh = useMemo(() => {
     const all = rankCoachMoves(allChanges, ctx);
     const deduped = dedupeRankedAdds(all);

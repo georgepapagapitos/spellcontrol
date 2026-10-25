@@ -42,6 +42,14 @@ const open: CoachDeckSettings = {
   ignoreOwnedBudget: false,
   ignoreOwnedRarity: false,
   maxGameChangers: Infinity,
+  intent: 'balanced',
+  bracket: null,
+  ceilings: {
+    gameChangers: Infinity,
+    massLandDenial: Infinity,
+    extraTurns: Infinity,
+    stax: Infinity,
+  },
 };
 const deckOf = (names: string[], owned: string[] = [], full = true): SettingsFitDeck => ({
   cards: names.map(real),
