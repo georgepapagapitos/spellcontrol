@@ -18,13 +18,8 @@ import {
 import { formatBracketLabel } from '@/lib/deck-analysis/format-bracket-label';
 import { bracketPodLine } from '@/lib/deck-analysis/bracket-pod-line';
 import { canShare, openShareSheet } from '@/lib/util/web-share';
-import {
-  CLOCK_EARLY_TURN,
-  clockShare,
-  librarySeed,
-  simulateAssemblyClock,
-  type ClockCard,
-} from '@/lib/mana-sim/opening-hand-sim';
+import { CLOCK_EARLY_TURN, clockShare, type ClockCard } from '@/lib/mana-sim/opening-hand-sim';
+import { useAssemblyClock } from '@/lib/mana-sim/use-assembly-clock';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useCardCarousel } from './useCardCarousel';
 import { MeterBar } from '../shared/MeterBar';
@@ -353,7 +348,8 @@ function judgmentFor(
   estimation: BracketEstimation,
   ratingFloor: BracketFloor | null,
   hasSolRing: boolean,
-  earlyShare: number | null
+  /** The share online by turn 6; 'pending' while the clock still runs, null when there is none. */
+  earlyShare: number | 'pending' | null
 ): {
   question: string;
   chips?: string[];
@@ -389,7 +385,11 @@ function judgmentFor(
             earlyShare == null
               ? ''
               : ` In 1,000 goldfish games it's assembled by turn ${CLOCK_EARLY_TURN} ${
-                  earlyShare === 0 ? 'in none of them' : `in ${clockShare(earlyShare)} of them`
+                  earlyShare === 'pending'
+                    ? 'in … of them'
+                    : earlyShare === 0
+                      ? 'in none of them'
+                      : `in ${clockShare(earlyShare)} of them`
                 }.`
           }`,
         },
@@ -474,22 +474,27 @@ export function BracketBreakdown({
   const settledFloor = floorOf(settledFloors);
   // How often the Ruthless combos come together early, from the same seeded
   // clock the Win conditions panel runs: the "Reads as 3" side's evidence.
-  const earlyShare = useMemo(() => {
+  const ruthlessPath = useMemo(() => {
     const ruthlessCombos = combosUncounted
       ? null
       : ratingOnlyComboFloor(estimation)?.ruthlessCombos;
-    if (!ruthlessCombos || !clockLibrary?.length) return null;
-    const clock = simulateAssemblyClock(
-      clockLibrary,
-      ruthlessCombos.map((names) => ({ names, need: names.length })),
-      {
-        iterations: 1000,
-        wildcards: estimation.breakdown.tutorNames,
-        seed: librarySeed(clockLibrary),
-      }
-    );
-    return clock ? (clock.assembledBy[CLOCK_EARLY_TURN] ?? 0) : null;
-  }, [estimation, combosUncounted, clockLibrary]);
+    return ruthlessCombos?.map((names) => ({ names, need: names.length })) ?? null;
+  }, [estimation, combosUncounted]);
+  const { clock: earlyClock, pending: earlyPending } = useAssemblyClock(
+    clockLibrary,
+    ruthlessPath,
+    {
+      iterations: 1000,
+      wildcards: estimation.breakdown.tutorNames,
+    }
+  );
+  // While the clock runs the sentence holds its place ("in … of them"), so the
+  // paragraph keeps its length when the share lands.
+  const earlyShare = earlyClock
+    ? (earlyClock.assembledBy[CLOCK_EARLY_TURN] ?? 0)
+    : earlyPending
+      ? 'pending'
+      : null;
 
   const judgment = combosUncounted
     ? null

@@ -17,6 +17,7 @@
 
 import type { ScryfallCard } from '@/deck-builder/types';
 import { producedManaColors } from '@/lib/deck-analysis/mana-sources';
+import { parseDraw } from './draw';
 import type { SimCard } from './opening-hand-sim';
 import { maskOf, parseManaCost } from './cost';
 import { CHOSEN_OTHER_THAN, costMana, unconditionalMana } from './unconditional-mana';
@@ -411,6 +412,7 @@ export function classifyManaCard(
     mdfc,
     cost,
     ramp,
+    draw: landCard ? null : parseDraw(front),
     legendaryCreature:
       /\blegendary\b/i.test(front.typeLine) && /\bcreature\b/i.test(front.typeLine),
     sim: {

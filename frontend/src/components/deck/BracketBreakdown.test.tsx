@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -435,7 +435,7 @@ describe('BracketBreakdown judgment call', () => {
     ).toBeTruthy();
   });
 
-  it('quotes how often the combo is assembled early, from the seeded clock', () => {
+  it('quotes how often the combo is assembled early, from the seeded clock', async () => {
     const clockLibrary = [
       { name: 'Card A', cmc: 2, isLand: false, role: null, colors: [] },
       { name: 'Card B', cmc: 2, isLand: false, role: null, colors: [] },
@@ -457,12 +457,15 @@ describe('BracketBreakdown judgment call', () => {
     const { container } = render(
       <BracketBreakdown estimation={ratingOnly()} clockLibrary={clockLibrary} />
     );
-    const side = [...container.querySelectorAll('.bracket-call-side')].find((el) =>
-      el.textContent?.includes('Reads as 3')
-    );
-    expect(side?.textContent).toMatch(
-      /In 1,000 goldfish games it's assembled by turn 6 in (under 1%|\d+%|none of them)( of them)?\./
-    );
+    // The clock runs after paint: the line arrives a tick after the panel.
+    await waitFor(() => {
+      const side = [...container.querySelectorAll('.bracket-call-side')].find((el) =>
+        el.textContent?.includes('Reads as 3')
+      );
+      expect(side?.textContent).toMatch(
+        /In 1,000 goldfish games it's assembled by turn 6 in (under 1%|\d+%|none of them)( of them)?\./
+      );
+    });
   });
 
   it('has no judgment when the rules settle the bracket', () => {

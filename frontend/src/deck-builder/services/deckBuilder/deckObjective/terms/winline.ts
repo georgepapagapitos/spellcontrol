@@ -9,7 +9,10 @@
  *   (Thassa's Oracle, Laboratory Maniac) plus every card whose card facts give
  *   it a counted `finisher` role (Craterhoof Behemoth's overrun, Gray
  *   Merchant's drain, extra combats, mass steals);
- * - `simulateAssemblyClock` (lib/opening-hand-sim.ts) times them together:
+ * - `simulateColorlessClock` (lib/mana-sim/opening-hand-sim.ts) times them
+ *   together. It is the clock without colors on purpose: this term scores every
+ *   candidate deck, and moving it onto the colors-aware engine changes what the
+ *   generator picks, so that waits for the deck-gen ship gate. The term reads
  *   the share of goldfish games with ANY line online by each turn, tutors
  *   counting as wildcards.
  *
@@ -31,7 +34,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { countsAsFinisher } from '@/deck-builder/services/cardFacts';
 import { detectWinConditions } from '@/deck-builder/services/winConditions/detect';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
-import { simulateAssemblyClock, type ClockCard } from '@/lib/mana-sim/opening-hand-sim';
+import { simulateColorlessClock, type ClockCard } from '@/lib/mana-sim/opening-hand-sim';
 import type { CardNote, ObjectiveContext, ObjectiveDeck } from '../types';
 import { viableCombos } from '../constraints';
 import { alignToSlots } from './mana';
@@ -114,7 +117,7 @@ export const winlineTerm: TermFn = (deck, ctx) => {
   const library = (ctx.slotOrder ? alignToSlots(deck.cards, ctx.slotOrder) : deck.cards).map(
     toClock
   );
-  const clock = simulateAssemblyClock(library, lines.options, {
+  const clock = simulateColorlessClock(library, lines.options, {
     iterations: CLOCK_GAMES,
     seed: ctx.sim.seed,
     wildcards: lines.tutors,

@@ -13,6 +13,8 @@
  */
 
 import { mulberry32, shuffle } from '@/lib/playtest/rng';
+import type { ManaCard } from './types';
+import { DISTRIBUTION_TURNS, summarizeTurns, type TurnDistribution } from './turn-distribution';
 
 /** A card reduced to just the fields the opening-hand heuristics need. */
 export interface SimCard {
@@ -253,6 +255,8 @@ export function simulateLandDropCurve(
 /** A library card the assembly clock needs: a `SimCard` plus its name. */
 export interface ClockCard extends SimCard {
   name: string;
+  /** The card read for the manabase engine; a library whose cards all have it is clocked in color (`./clock.ts`). */
+  mana?: ManaCard;
 }
 
 export interface AssemblyClockOptions {
@@ -262,6 +266,8 @@ export interface AssemblyClockOptions {
   handSize?: number;
   /** Seed for the PRNG. Omit for a fresh random run; pass a fixed value in tests. */
   seed?: number;
+  /** Stop each game after this turn (colors-aware clock only; default `CLOCK_HORIZON`). */
+  horizon?: number;
   /**
    * Tutor card names. A cast tutor fetches the cheapest still-missing piece of
    * whichever option is closest to done — into HAND, so it still has to be
@@ -271,22 +277,15 @@ export interface AssemblyClockOptions {
   wildcards?: readonly string[];
 }
 
-export interface AssemblyClockResult {
-  iterations: number;
-  /**
-   * Median 1-based turn on which the win path came online — every piece drawn
-   * AND cast. Turn 1 = the opening hand plus the first draw.
-   */
-  typicalTurn: number;
-  /** 90th-percentile turn — 90% of simulated games were online by this turn. */
-  p90Turn: number;
-  /**
-   * Share of games (0–1) online by turn t, indexed by turn up to
-   * `CLOCK_SHARE_TURNS`. The early turns are the bracket question ("does the
-   * combo come together early?"), which a median alone can't answer.
-   */
-  assembledBy: number[];
-}
+/**
+ * The clock's answer is a `TurnDistribution` (turn-distribution.ts): `typicalTurn`
+ * is the median turn the win path came online (every piece drawn AND cast, turn 1
+ * = the opening hand plus the first draw), `p90Turn` the slow tail, `ceilingTurn`
+ * the best 5%, and `assembledBy[t]` the share of games online by turn t (the
+ * early turns are the bracket question, "does the combo come together early?",
+ * which a median alone can't answer), each with its Wilson interval in `byTurn`.
+ */
+export type AssemblyClockResult = TurnDistribution;
 
 /** The turn the clock sentence leads with: whether a combo comes together
  *  early is the bracket question, and a median alone can't answer it. */
@@ -306,7 +305,7 @@ export function clockShare(share: number): string {
  * not "kills": an infinite-turns lock is assembled long before anyone is dead.
  */
 export function assemblyClockSentence(
-  clock: AssemblyClockResult,
+  clock: Pick<AssemblyClockResult, 'runs' | 'typicalTurn' | 'assembledBy' | 'horizon'>,
   /** The path's `WinConCategory`: an alt-win card is cast, a combo assembled. */
   category: string
 ): string {
@@ -314,15 +313,19 @@ export function assemblyClockSentence(
   const early = clock.assembledBy[CLOCK_EARLY_TURN] ?? 0;
   const byEarly =
     early === 0
-      ? `in none of ${clock.iterations.toLocaleString()} games`
+      ? `in none of ${clock.runs.toLocaleString()} games`
       : early === 1
         ? 'in every game'
         : `in ${clockShare(early)} of games`;
-  return `${what} by turn ${CLOCK_EARLY_TURN} ${byEarly}, and in half of them by turn ${clock.typicalTurn}.`;
+  const median =
+    clock.horizon !== undefined && clock.typicalTurn > clock.horizon
+      ? `not by turn ${clock.horizon}`
+      : `by turn ${clock.typicalTurn}`;
+  return `${what} by turn ${CLOCK_EARLY_TURN} ${byEarly}, and in half of them ${median}.`;
 }
 
 /** How many turns `AssemblyClockResult.assembledBy` covers. */
-export const CLOCK_SHARE_TURNS = 20;
+export const CLOCK_SHARE_TURNS = DISTRIBUTION_TURNS;
 
 /**
  * A seed derived from the list itself, so the same 99 always gets the same
@@ -363,7 +366,7 @@ const DEVELOPING = [0, 3, 1, 2] as const;
  * The `options` shape matches `WinCondition.assembly` from the T16 detector,
  * kept structural here so this file stays decoupled from deck-builder types.
  */
-export function simulateAssemblyClock(
+export function simulateColorlessClock(
   library: readonly ClockCard[],
   options: ReadonlyArray<{ names: readonly string[]; need: number }>,
   opts: AssemblyClockOptions = {}
@@ -386,12 +389,7 @@ export function simulateAssemblyClock(
   // A zero-need option (e.g. a commander + partner combo — every piece starts
   // in the command zone) is online before the first draw.
   if (viable.some((o) => o.need <= 0)) {
-    return {
-      iterations,
-      typicalTurn: 1,
-      p90Turn: 1,
-      assembledBy: [0, ...new Array<number>(CLOCK_SHARE_TURNS).fill(1)],
-    };
+    return summarizeTurns(new Array<number>(iterations).fill(1));
   }
 
   const pieceNames = new Set(viable.flatMap((o) => o.names));
@@ -547,12 +545,5 @@ export function simulateAssemblyClock(
     turns.push(onlineTurn);
   }
 
-  turns.sort((a, b) => a - b);
-  const at = (q: number) => turns[Math.min(turns.length - 1, Math.floor(turns.length * q))];
-  const assembledBy = [0];
-  for (let t = 1, i = 0; t <= CLOCK_SHARE_TURNS; t++) {
-    while (i < turns.length && turns[i] <= t) i++;
-    assembledBy.push(i / turns.length);
-  }
-  return { iterations, typicalTurn: at(0.5), p90Turn: at(0.9), assembledBy };
+  return summarizeTurns(turns);
 }

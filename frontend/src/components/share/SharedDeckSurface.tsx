@@ -18,7 +18,7 @@ import { formatIdentity } from '@/lib/social/display-name';
 import { formatCount } from '@/lib/util/format-count';
 import { renderMarkdownLite } from '@/lib/util/markdown-lite';
 import { buildWinConditionSummary } from '@/lib/deck-analysis/win-condition-summary';
-import { toClockCard } from '@/lib/mana-sim/hand-classify';
+import { toClockLibrary } from '@/lib/mana-sim/hand-classify';
 import { formatMoney } from '@/lib/collection/format-money';
 import { useCurrency } from '@/lib/collection/currency';
 import { deckCoverArt } from '@/lib/deck/deck-cover';
@@ -128,7 +128,7 @@ export function SharedDeckSurface({
   // Mainboard cards for the engine panel's axis drill-through, and a
   // per-physical-copy library for the win-condition assembly clock.
   const deckCards = useMemo(() => deck.cards.map((c) => c.card), [deck.cards]);
-  const deckLibrary = useMemo(() => deckCards.map(toClockCard), [deckCards]);
+  const deckLibrary = useMemo(() => toClockLibrary(deckCards), [deckCards]);
   const axisSummaries = useMemo(
     () => (deck.synergyAnalysis ? analyzeDeckSynergy(deckCards).axes : undefined),
     [deck.synergyAnalysis, deckCards]

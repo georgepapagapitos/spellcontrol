@@ -7,13 +7,8 @@ import type {
   WinCondition,
 } from '@/deck-builder/services/winConditions/types';
 import { tagOnlyWinCons } from '@/deck-builder/services/winConditions/winConTags';
-import {
-  assemblyClockSentence,
-  clockShare,
-  librarySeed,
-  simulateAssemblyClock,
-  type ClockCard,
-} from '@/lib/mana-sim/opening-hand-sim';
+import { assemblyClockSentence, clockShare, type ClockCard } from '@/lib/mana-sim/opening-hand-sim';
+import { useAssemblyClock } from '@/lib/mana-sim/use-assembly-clock';
 import { InfoTip } from '@/components/overlays/InfoTip';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { IconButton } from '@/components/shared/Button';
@@ -88,8 +83,8 @@ export function assemblyClockTip(): JSX.Element {
   return (
     <>
       <span className="info-tip-lead">
-        Share of 1,000 goldfish games where the win path is fully cast by that turn, after mulligans
-        to a keepable seven. Colors, rituals and opponents aren&apos;t modeled.
+        Share of 1,000 goldfish games where the win path is fully cast by that turn, in your colors,
+        after mulligans to a keepable seven. Rituals and opponents aren&apos;t modeled.
       </span>
     </>
   );
@@ -207,18 +202,16 @@ export function WinConditionPanel({
   // path isn't a kill category, the analysis predates the assembly field, the
   // path has no discrete assembly (generic combat), or the deck no longer
   // holds the pieces.
-  const clock = useMemo(() => {
-    const primary = analysis.primary;
-    // Kill categories only — a strategic mass's "assembled" turn measures its
-    // evidence-pool size, not its speed (see isKillClock).
-    if (!primary || !isKillClock(primary.category)) return null;
-    if (!primary.assembly?.length || !library?.length) return null;
-    return simulateAssemblyClock(library, primary.assembly, {
-      iterations: 1000,
-      wildcards: analysis.tutors,
-      seed: librarySeed(library),
-    });
-  }, [analysis, library]);
+  const primary = analysis.primary;
+  // Kill categories only — a strategic mass's "assembled" turn measures its
+  // evidence-pool size, not its speed (see isKillClock). Null (→ hidden) when
+  // the analysis predates the assembly field, the path has no discrete
+  // assembly (generic combat), or the deck no longer holds the pieces.
+  const { clock, pending } = useAssemblyClock(
+    library,
+    primary && isKillClock(primary.category) ? primary.assembly : null,
+    { iterations: 1000, wildcards: analysis.tutors }
+  );
 
   const taggedNames = useMemo(() => new Set(winConTags ?? []), [winConTags]);
   // Names the engine already lists as evidence get their mark on that row
@@ -303,8 +296,8 @@ export function WinConditionPanel({
           onTapCard={carousel.open}
         />
       )}
-      {clock && analysis.primary && (
-        <div className="win-con-clock">
+      {(clock || pending) && analysis.primary && (
+        <div className="win-con-clock" aria-busy={pending}>
           <p className="win-con-clock-line">
             <Hourglass
               className="win-con-clock-icon"
@@ -313,7 +306,11 @@ export function WinConditionPanel({
               strokeWidth={1.8}
               aria-hidden
             />
-            <span>{assemblyClockSentence(clock, analysis.primary.category)}</span>
+            {clock ? (
+              <span>{assemblyClockSentence(clock, analysis.primary.category)}</span>
+            ) : (
+              <span className="win-con-clock-skel" aria-hidden />
+            )}
             <InfoTip
               label="the assembly estimate"
               className="win-con-clock-tip touch-ghost"
@@ -324,13 +321,18 @@ export function WinConditionPanel({
               the image label spells every column out for a screen reader. */}
           <div
             className="win-con-clock-steps"
-            role="img"
-            aria-label={`Share of games with it assembled: ${CLOCK_STEPS.map(
-              (t) => `by turn ${t}, ${clockShare(clock.assembledBy[t] ?? 0)}`
-            ).join('; ')}`}
+            role={clock ? 'img' : undefined}
+            aria-label={
+              clock
+                ? `Share of games with it assembled: ${CLOCK_STEPS.map(
+                    (t) => `by turn ${t}, ${clockShare(clock.assembledBy[t] ?? 0)}`
+                  ).join('; ')}`
+                : undefined
+            }
+            aria-hidden={clock ? undefined : true}
           >
             {CLOCK_STEPS.map((t) => {
-              const share = clock.assembledBy[t] ?? 0;
+              const share = clock?.assembledBy[t] ?? 0;
               return (
                 <div key={t} className="win-con-clock-step">
                   <span className="win-con-clock-bar">
@@ -339,7 +341,9 @@ export function WinConditionPanel({
                       style={{ height: `${Math.round(share * 100)}%` }}
                     />
                   </span>
-                  <span className="win-con-clock-share">{clockShare(share)}</span>
+                  <span className="win-con-clock-share">
+                    {clock ? clockShare(share) : '\u00a0'}
+                  </span>
                   <span className="win-con-clock-turn">T{t}</span>
                 </div>
               );

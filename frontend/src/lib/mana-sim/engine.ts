@@ -3,7 +3,10 @@
  * mechanics.
  */
 
+import { beats, karstenBar, reachOf, SPENT, unionOf } from './engine-helpers';
+import { createGoalPlay } from './goal';
 import { isKeepableHand, librarySeed } from './opening-hand-sim';
+import { summarizeTurns, type TurnDistribution } from './turn-distribution';
 import { mulberry32, shuffle } from '../playtest/rng';
 import { gameSeed } from './game-seed';
 import {
@@ -20,6 +23,7 @@ import {
   ANY_COLOR,
   MANA_SYMBOLS,
   type CardCastability,
+  type ManaGoal,
   type LandFace,
   type LandSearch,
   type ManaCard,
@@ -76,34 +80,52 @@ interface CostStat {
   short: Float64Array;
 }
 
-const karstenBar = (mv: number): number => (89 + Math.min(7, Math.max(1, mv))) / 100;
-
-const unionOf = (units: readonly ManaMask[]): ManaMask => {
-  let m = 0;
-  for (const u of units) m |= u;
-  return m;
-};
-
-/** Every mana type a land can supply: what it taps for, what it can choose, what it can fetch. */
-function reachOf(face: LandFace): ManaMask {
-  let m = unionOf(face.units);
-  if (face.choice) m |= face.choice.fixed | face.choice.options;
-  if (face.fetch) m |= face.fetch.types;
-  return m;
-}
-
-/** Marks a pool unit spent before the pool is compacted. */
-const SPENT: PoolUnit = { mask: 0, spend: 0, source: -1 };
-
-/** Lexicographic "a beats b" over equal-length number tuples. */
-function beats(a: readonly number[], b: readonly number[]): boolean {
-  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] > b[i];
-  return false;
-}
-
 export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): ManaSimResult {
+  return runGames(deck, options, null) as ManaSimResult;
+}
+
+/**
+ * On which turn is the goal met and paid for, across many games? The same
+ * goldfish as `simulateManaDeck` (colors, land quality, ramp, mulligans) with a
+ * goal in place of the castability bookkeeping (`./goal.ts`): each turn it
+ * spends mana on ramp, then the goal's pieces, tutors and draw, and a run ends
+ * the turn any one option is fully cast. Null when no option's pieces are in
+ * the library. `options.games` is the run count; `maxTurn` is ignored (a run
+ * ends when the library is drawn out).
+ */
+export function simulateGoal(
+  deck: ManaDeck,
+  goal: ManaGoal,
+  options: ManaSimOptions = {}
+): TurnDistribution | null {
+  const turns = simulateGoalTurns(deck, goal, options);
+  return turns && summarizeTurns(turns, goal.horizon);
+}
+
+/**
+ * The turn each game met the goal on, for games `firstGame` to `firstGame +
+ * games - 1`. Every game draws its own random stream from (seed, game index),
+ * so a run split into slices and concatenated is the run done at once: a caller
+ * can yield to the browser between slices and get the same numbers.
+ */
+export function simulateGoalTurns(
+  deck: ManaDeck,
+  goal: ManaGoal,
+  options: ManaSimOptions = {}
+): number[] | null {
+  return runGames(deck, options, goal) as number[] | null;
+}
+
+function runGames(
+  deck: ManaDeck,
+  options: ManaSimOptions,
+  goal: ManaGoal | null
+): ManaSimResult | number[] | null {
   const games = Math.max(1, Math.floor(options.games ?? 1000));
-  const maxTurn = Math.max(1, Math.floor(options.maxTurn ?? 10));
+  const capped = goal?.horizon !== undefined && goal.horizon < deck.library.length;
+  const maxTurn = goal
+    ? Math.max(1, capped ? (goal.horizon as number) : deck.library.length)
+    : Math.max(1, Math.floor(options.maxTurn ?? 10));
   const mode = options.mulligan ?? 'app';
   const freeMulligan = options.freeMulligan ?? true;
   const depth = Math.max(0, Math.floor(options.mulliganDepth ?? (mode === 'karsten' ? 3 : 2)));
@@ -175,10 +197,12 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
   const probeCost = (options.probes ?? []).map(costIdOf);
   const onAt: number[][] = Array.from({ length: maxTurn + 1 }, () => []);
   const nextAt: number[][] = Array.from({ length: maxTurn + 1 }, () => []);
-  costStats.forEach((s, i) => {
-    if (s.onTurn <= maxTurn) onAt[s.onTurn].push(i);
-    if (s.onTurn + 1 <= maxTurn) nextAt[s.onTurn + 1].push(i);
-  });
+  if (!goal) {
+    costStats.forEach((s, i) => {
+      if (s.onTurn <= maxTurn) onAt[s.onTurn].push(i);
+      if (s.onTurn + 1 <= maxTurn) nextAt[s.onTurn + 1].push(i);
+    });
+  }
 
   // Deck color demand: pips weighted toward early costs (the manabaseMath
   // earliness curve), commanders counted twice since they are always in reach.
@@ -394,11 +418,39 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
     libCount[id]--;
   };
 
+  const turns: number[] = [];
+  const goalPlay = goal
+    ? createGoalPlay(goal, cards, idByName, {
+        get hand() {
+          return hand;
+        },
+        get order() {
+          return order;
+        },
+        get ptr() {
+          return ptr;
+        },
+        set ptr(v: number) {
+          ptr = v;
+        },
+        libCount,
+        get landsInPlay() {
+          return lands.length;
+        },
+        addHandPips,
+        removeFromLibrary,
+      })
+    : null;
+  if (goal && !goalPlay) return null;
+  // A zero-need option (every piece in the command zone) is online before the first draw.
+  if (goalPlay?.immediate) return new Array<number>(games).fill(1);
+
   const putLand = (id: number, ready: number, fromDrop: boolean): LandPerm => {
     const f = faceOf(id);
     const units = resolveChoice(f.units, f.choice);
     const perm = { card: id, units, ready, fromDrop };
     lands.push(perm);
+    goalPlay?.played(id);
     noteSource(units, 1);
     return perm;
   };
@@ -599,6 +651,7 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
     }
     spells.sort(
       (a, b) =>
+        Number(goalPlay?.isPiece(a) ?? false) - Number(goalPlay?.isPiece(b) ?? false) ||
         Number(cards[a].sim.role === 'ramp') - Number(cards[b].sim.role === 'ramp') ||
         cards[b].sim.cmc - cards[a].sim.cmc
     );
@@ -616,7 +669,8 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
     return n >= 2 && n <= 4;
   };
 
-  for (let g = 0; g < games; g++) {
+  const firstGame = Math.max(0, Math.floor(options.firstGame ?? 0));
+  for (let g = firstGame; g < firstGame + games; g++) {
     // One stream per game, so decks a slot apart share games (game-seed.ts).
     const rand = mulberry32(gameSeed(seed, g));
     lands = [];
@@ -626,6 +680,8 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
     legendaryInPlay = false;
     srcCount.fill(0);
     handPips.fill(0);
+    goalPlay?.reset();
+    let onlineTurn = capped ? maxTurn + 1 : maxTurn;
 
     // Mulligans: a free one first (multiplayer), then counted ones.
     let mulls = 0;
@@ -671,6 +727,7 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
         hand.push(id);
         addHandPips(id, 1);
       }
+      goalPlay?.drawEngines();
 
       // Castability of every cost whose turn this is, held hypothetically.
       if (onAt[turn].length || nextAt[turn].length) {
@@ -745,24 +802,27 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
       if (pool.length >= turn) manaAtLeast[turn]++;
 
       // Spend: ramp first (cheapest), then the commanders, then the biggest spell.
-      // Casting a spell does nothing but spend mana; card draw is not
-      // modeled, so a draw-heavy deck's land drops read low. Feed a draw role
-      // through (like simulateAssemblyClock's +2) if that bias matters.
+      // Casting a spell does nothing but spend mana in the castability
+      // numbers: card draw is not modeled there, so a draw-heavy deck's land
+      // drops read low. A goal run (`simulateGoal`) draws what the cards say.
       for (;;) {
         const work = pool.map((u) => u.mask);
         let pick = -1;
         let pickRank = Infinity;
-        for (let h = 0; h < hand.length; h++) {
-          const c = cards[hand[h]];
-          if (!c.cost || c.landCard) continue;
-          const rank = c.ramp ? c.cost.units : 1000 - c.cost.mv;
-          if (rank < pickRank && canPay(c.cost, work)) {
-            pick = h;
-            pickRank = rank;
+        if (goalPlay) pick = goalPlay.pick(work);
+        else {
+          for (let h = 0; h < hand.length; h++) {
+            const c = cards[hand[h]];
+            if (!c.cost || c.landCard) continue;
+            const rank = c.ramp ? c.cost.units : 1000 - c.cost.mv;
+            if (rank < pickRank && canPay(c.cost, work)) {
+              pick = h;
+              pickRank = rank;
+            }
           }
         }
         let pickCmd = -1;
-        if (pickRank >= 1000) {
+        if (!goalPlay && pickRank >= 1000) {
           for (let i = 0; i < commanders.length && pickCmd < 0; i++) {
             const cost = commanders[i].cost;
             if (!cmdCast[i] && cost && canPay(cost, work)) pickCmd = i;
@@ -770,20 +830,24 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
         }
         if (pick < 0 && pickCmd < 0) break;
         const card = pickCmd >= 0 ? commanders[pickCmd] : cards[hand[pick]];
-        for (const u of allocate(card.cost as ManaCost, pool) as number[]) {
-          if (pool[u].spend === 1) treasures--;
-          else if (pool[u].spend === 2) sources[pool[u].source].left--;
-          pool[u] = SPENT;
+        if (card.cost) {
+          for (const u of allocate(card.cost, pool) as number[]) {
+            if (pool[u].spend === 1) treasures--;
+            else if (pool[u].spend === 2) sources[pool[u].source].left--;
+            pool[u] = SPENT;
+          }
+          let kept = 0;
+          for (const u of pool) if (u !== SPENT) pool[kept++] = u;
+          pool.length = kept;
         }
-        let kept = 0;
-        for (const u of pool) if (u !== SPENT) pool[kept++] = u;
-        pool.length = kept;
+        const castId = pickCmd >= 0 ? -1 : hand[pick];
         if (pickCmd >= 0) cmdCast[pickCmd] = true;
         else {
           addHandPips(hand[pick], -1);
           hand.splice(pick, 1);
         }
         if (card.legendaryCreature) legendaryInPlay = true;
+        if (castId >= 0) goalPlay?.cast(castId);
 
         const ramp = card.ramp;
         if (!ramp) continue;
@@ -814,6 +878,10 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
         }
       }
 
+      if (goalPlay?.done()) {
+        onlineTurn = turn;
+        break;
+      }
       landsInPlaySum[turn] += lands.length;
       if (drops >= turn) onCurveDrops[turn]++;
       if (turn === 3 && drops < 3) missed3++;
@@ -826,7 +894,9 @@ export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): 
         }
       }
     }
+    if (goalPlay) turns.push(onlineTurn);
   }
+  if (goalPlay) return turns;
 
   // ── Results ───────────────────────────────────────────────────────────────
   const perTurn = (a: Float64Array): number[] => Array.from(a, (v, i) => (i === 0 ? 0 : v / games));

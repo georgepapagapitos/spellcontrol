@@ -133,7 +133,7 @@ describe('WinConditionPanel — the clock is kill-categories only', () => {
     { name: 'Thassa’s Oracle', cmc: 2, isLand: false, role: null, colors: [] },
   ];
 
-  it('shows a kill turn for an alt-win path', () => {
+  it('shows a kill turn for an alt-win path', async () => {
     render(
       <WinConditionPanel
         analysis={analysis({
@@ -149,7 +149,8 @@ describe('WinConditionPanel — the clock is kill-categories only', () => {
       />
     );
     // Assembled, never 'kills': the sentence leads with the early turn.
-    expect(screen.getByText(/^The win card is cast by turn 6 /)).toBeTruthy();
+    // The clock runs after paint, so the sentence arrives a tick after the panel.
+    expect(await screen.findByText(/^The win card is cast by turn 6 /)).toBeTruthy();
     expect(screen.queryByText(/kills/)).toBeNull();
     // The strip spells every column out for a screen reader.
     expect(

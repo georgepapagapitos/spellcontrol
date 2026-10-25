@@ -46,12 +46,11 @@ import { COLOR_INFO } from '@spellcontrol/binder-routing';
 import {
   assemblyClockSentence,
   isKeepableHand,
-  librarySeed,
-  simulateAssemblyClock,
   simulateOpeningHands,
   type SimResult,
 } from '@/lib/mana-sim/opening-hand-sim';
-import { cardCmc, isLand, toClockCard, toSimCard } from '@/lib/mana-sim/hand-classify';
+import { useAssemblyClock } from '@/lib/mana-sim/use-assembly-clock';
+import { cardCmc, isLand, toClockLibrary, toSimCard } from '@/lib/mana-sim/hand-classify';
 import { CardPreview } from '@/components/card/CardPreview';
 import { InfoTip } from '@/components/overlays/InfoTip';
 import { assemblyClockTip, isKillClock } from './WinConditionPanel';
@@ -187,20 +186,19 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
     // before the assembly field, or paths with no discrete assembly (combat).
     const primaryWinCon = deck?.winConditions?.primary ?? null;
     const winConTutors = deck?.winConditions?.tutors;
-    const assemblyClock = useMemo(() => {
-      // Kill categories only — see isKillClock: a strategic mass's "assembled"
-      // turn tracks its evidence-pool size, not the deck's speed.
-      if (!primaryWinCon || !isKillClock(primaryWinCon.category)) return null;
-      if (!primaryWinCon.assembly?.length || library.length === 0) return null;
-      const clockCards = library.map(toClockCard);
-      return simulateAssemblyClock(clockCards, primaryWinCon.assembly, {
-        iterations: 1000,
-        wildcards: winConTutors,
-        seed: librarySeed(clockCards),
-      });
-      // taggerReady: ramp classification decides how fast the sim's mana grows.
+    // taggerReady: ramp classification decides how fast the sim's mana grows.
+    const clockLibrary = useMemo(
+      () => (library.length > 0 ? toClockLibrary(library) : null),
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [library, primaryWinCon, winConTutors, taggerReady]);
+      [library, taggerReady]
+    );
+    // Kill categories only — see isKillClock: a strategic mass's "assembled"
+    // turn tracks its evidence-pool size, not the deck's speed.
+    const { clock: assemblyClock, pending: assemblyPending } = useAssemblyClock(
+      clockLibrary,
+      primaryWinCon && isKillClock(primaryWinCon.category) ? primaryWinCon.assembly : null,
+      { iterations: 1000, wildcards: winConTutors }
+    );
 
     const [hand, setHand] = useState<HandSlot[]>([]);
     const [pile, setPile] = useState<ScryfallCard[]>([]);
@@ -542,10 +540,16 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                     <p className="deck-test-hand-stat-secondary">
                       Lands per opening hand · avg <strong>{sim.avgLands.toFixed(2)}</strong>
                     </p>
-                    {assemblyClock && primaryWinCon && (
-                      <p className="deck-test-hand-assembly">
+                    {(assemblyClock || assemblyPending) && primaryWinCon && (
+                      <p className="deck-test-hand-assembly" aria-busy={assemblyPending}>
                         <Hourglass width={12} height={12} aria-hidden />
-                        <span>{assemblyClockSentence(assemblyClock, primaryWinCon.category)}</span>
+                        {assemblyClock ? (
+                          <span>
+                            {assemblyClockSentence(assemblyClock, primaryWinCon.category)}
+                          </span>
+                        ) : (
+                          <span className="win-con-clock-skel" aria-hidden />
+                        )}
                         <InfoTip
                           label="the assembly estimate"
                           className="deck-test-hand-assembly-tip touch-ghost"
