@@ -12,6 +12,8 @@ import { DeckAiReview } from '@/components/deck/DeckAiReview';
 import { DeckAiRefine } from '@/components/deck/DeckAiRefine';
 import { AiSourcesControl } from '@/components/deck/AiSourcesControl';
 import { PowerHero } from '@/components/deck/PowerHero';
+import { DeckSinceStrip } from '@/components/deck/DeckSinceStrip';
+import { useDeckSince } from '@/components/deck/use-deck-since';
 import { TableRecordPanel } from '@/components/deck/TableRecordPanel';
 import { BracketTableRead } from '@/components/deck/BracketTableRead';
 import { BracketVote } from '@/components/deck/BracketVote';
@@ -151,6 +153,7 @@ export function DeckEditorLayout({
   // E260: the Coach feed's free "Lean into" lever reads the commander's abilities.
   useWarmCommanderPage(deck.commander, deck.partnerCommander);
   const commanderProfile = useCommanderProfile(deck.commander, deck.partnerCommander);
+  const deckSince = useDeckSince(deck);
   const {
     formatConfig,
     isCommander,
@@ -346,6 +349,15 @@ export function DeckEditorLayout({
             tabbed={viewTabs.length > 1}
             onShowTestHand={() => setShowTestHand(true)}
             statStripSlot={isDesktop ? statSlot : null}
+            sinceSlot={
+              deckSince ? (
+                <DeckSinceStrip
+                  since={deckSince.since}
+                  baselineAt={deckSince.baselineAt}
+                  onDismiss={deckSince.dismiss}
+                />
+              ) : undefined
+            }
             deckActionsInHeader
             editActions={deckEditActions({
               paste: () => setAppendOpen(true),

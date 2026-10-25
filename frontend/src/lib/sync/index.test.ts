@@ -220,6 +220,19 @@ describe('lifecycle', () => {
     expect(localStorage.getItem('spellcontrol:binder-move-log')).toBeNull();
   });
 
+  it('clears the per-deck Since baselines on a cross-user sign-in', async () => {
+    localStorage.setItem('deck-since-v2', JSON.stringify({ 'deck-1': { baseline: {} } }));
+    localStorage.setItem('deck-since-v1', JSON.stringify({ 'deck-1': {} }));
+
+    mockPull.mockResolvedValueOnce({ rows: [], cursor: 0, hasMore: false });
+    await startSync('user-1');
+    mockPull.mockResolvedValueOnce({ rows: [], cursor: 0, hasMore: false });
+    await startSync('user-2');
+
+    expect(localStorage.getItem('deck-since-v2')).toBeNull();
+    expect(localStorage.getItem('deck-since-v1')).toBeNull();
+  });
+
   it('hydrateLocal loads IDB rows without starting sync', async () => {
     await estore.putMany('binder', [
       { id: 'b-pre', data: { id: 'b-pre' }, rev: 5, deletedAt: null },

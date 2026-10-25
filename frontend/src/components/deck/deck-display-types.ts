@@ -235,6 +235,9 @@ export interface DeckDisplayProps {
   winConditionSlot?: React.ReactNode;
   /** Power-tab verdict hero (bracket + gameplan), rendered atop the Power view. */
   powerHeroSlot?: React.ReactNode;
+  /** "Since you last looked" strip, rendered above the Deck tab's toolbar when
+   *  something changed. Built by the page (owns the per-device baseline). */
+  sinceSlot?: React.ReactNode;
   /** Opt-in AI review (T96) — rendered at the end of the Stats tab. */
   aiReviewSlot?: React.ReactNode;
   /** Table Record panel (real tracked W/L + head-to-head), rendered on the

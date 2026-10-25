@@ -2033,4 +2033,6 @@ async function resetInMemoryStores(): Promise<void> {
   // collection value and card names around forever.
   localStorage.removeItem('spellcontrol:value-digest-seen');
   localStorage.removeItem('spellcontrol:binder-move-log');
+  // Per-deck "Since" baselines hold card lists and carry no user id.
+  (await import('@/lib/deck/deck-since-store')).clearAllRecords();
 }

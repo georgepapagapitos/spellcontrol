@@ -144,6 +144,7 @@ export function DeckDisplay(props: DeckDisplayProps) {
     suggestGroups,
     deckActionsInHeader,
     statStripSlot,
+    sinceSlot,
     onAddCards,
     onChooseCommander,
     onAddSuggestedCard,
@@ -680,6 +681,7 @@ export function DeckDisplay(props: DeckDisplayProps) {
               />
             </InSlot>
             {statCarouselPreview}
+            {sinceSlot}
 
             <DeckToolbar
               sort={sort}

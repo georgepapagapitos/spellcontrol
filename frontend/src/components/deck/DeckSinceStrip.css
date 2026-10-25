@@ -1,0 +1,154 @@
+/* Deck "Since" read (E1038 3.4): one insight-strip row that opens into the
+   metrics and cards behind it. Same box as WedgeHintStrip; the disclosure is a
+   native <details>, so the 44px target is the summary itself. */
+.deck-since {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  width: 100%;
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.deck-since-details {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.deck-since-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  list-style: none;
+}
+.deck-since-summary::-webkit-details-marker {
+  display: none;
+}
+.deck-since-summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--radius);
+}
+
+.deck-since-icon {
+  flex: none;
+  color: var(--accent);
+}
+
+.deck-since-text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  min-width: 0;
+}
+.deck-since-when {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+/* On a phone the two reads stack: the date as a small label, then the line. */
+@media (max-width: 599px) {
+  .deck-since-summary {
+    align-items: flex-start;
+  }
+  .deck-since-icon,
+  .deck-since-chevron {
+    margin-top: var(--space-1);
+  }
+  .deck-since-text {
+    flex-direction: column;
+  }
+}
+.deck-since-line {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.deck-since-chevron {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  color: var(--text-muted);
+  transition: transform var(--motion-fast) var(--ease-out-soft);
+}
+.deck-since-details[open] .deck-since-chevron {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .deck-since-chevron {
+    transition: none;
+  }
+}
+
+/* Transparent, like WedgeHintStrip's dismiss; always a 44px target since the
+   strip itself is that tall. */
+.deck-since-dismiss {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.deck-since-dismiss:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck-since-dismiss:hover {
+    color: var(--text-primary);
+  }
+}
+
+.deck-since-body {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-top: 0.5px solid var(--border);
+}
+
+.deck-since-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.deck-since-metric {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 var(--space-2);
+  font-size: var(--text-sm);
+}
+.deck-since-metric-label {
+  color: var(--text-muted);
+}
+.deck-since-metric-change {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-since-cards .deck-diff-group-title {
+  margin-bottom: var(--space-1);
+}
+.deck-since-roles {
+  margin-left: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
