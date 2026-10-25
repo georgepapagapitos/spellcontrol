@@ -6,7 +6,10 @@ import { COLOR_INFO } from '@spellcontrol/binder-routing';
 import { ColorPip } from '../shared/ManaSymbol';
 import { DeckColorBalance } from './DeckColorBalance';
 import { DeckCastability } from './DeckCastability';
+import { DeckManaMath } from './DeckManaMath';
 import { useCastability } from './use-castability';
+import { turnBudget } from '@/lib/mana-sim/mana-base-metrics';
+import { useManaBaseMetrics } from '@/lib/mana-sim/use-mana-base-metrics';
 import { useCardCarousel, tallyToEntries } from './useCardCarousel';
 import { type CardTally } from '@/lib/deck-analysis/card-tally';
 import { CardGroupSheet } from './CardGroupSheet';
@@ -38,6 +41,7 @@ export function DeckColorPanel({
   simCommanders = NO_CARDS,
   simLibrary = NO_CARDS,
   readOnly = false,
+  bracket = null,
 }: {
   colorDist: { counts: Record<string, number>; total: number };
   manaProduction: {
@@ -61,6 +65,8 @@ export function DeckColorPanel({
   simLibrary?: readonly ScryfallCard[];
   /** The shared deck page: the castability advice describes the deck instead. */
   readOnly?: boolean;
+  /** The deck's bracket: its turn expectation is the budget the mana-used figure reads to. */
+  bracket?: number | null;
 }): JSX.Element {
   // Two carousels so each drill-down shows an accurate context label: the
   // Production sources vs. the Distribution (colored cards) for a color.
@@ -68,6 +74,8 @@ export function DeckColorPanel({
   const colorsCarousel = useCardCarousel('Color');
   const castCarousel = useCardCarousel('Castable on curve');
   const castability = useCastability(simCommanders, simLibrary);
+  const budget = turnBudget(bracket);
+  const manaMath = useManaBaseMetrics(simCommanders, simLibrary, budget);
 
   // Tapping a color opens the grouped overview sheet (grid/list) first, then a
   // tapped card hands off to that drill-down's carousel for the detail read.
@@ -148,6 +156,13 @@ export function DeckColorPanel({
           onShowCard={showCastCard}
         />
       )}
+
+      <DeckManaMath
+        metrics={manaMath.metrics}
+        pending={manaMath.pending}
+        budget={budget}
+        bracket={bracket}
+      />
 
       {groupSheet && (
         <CardGroupSheet

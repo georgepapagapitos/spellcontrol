@@ -79,3 +79,79 @@ export function withoutOne(order: readonly number[], ids: readonly number[]): nu
   }
   return rest;
 }
+
+/** A fresh counter for one cost measured on one turn. */
+export function newCostStat(cost: ManaCost, onTurn: number): CostStat {
+  return {
+    cost,
+    onTurn,
+    on: 0,
+    onEnough: 0,
+    next: 0,
+    nextEnough: 0,
+    short: new Float64Array(6),
+  };
+}
+
+/** Mana spent over mana available, per turn and per game (Ertai's "mana curve" of a deck). */
+export interface Utilization {
+  /** Games measured. */
+  games: number;
+  /** Turns 1 through this are counted. */
+  turns: number;
+  /** Mean over games of (mana spent ÷ mana available) across those turns. */
+  mean: number;
+  /** The median game. */
+  median: number;
+  /** The 10th-percentile game: the unlucky tenth. */
+  p10: number;
+}
+
+/**
+ * Per-turn and per-game mana bookkeeping for the castability run. A turn's
+ * "available" is the pool after the land drop plus every unit a ramp spell
+ * cast that turn added; "spent" is the units paid for spells.
+ */
+export class ManaTally {
+  readonly spent: Float64Array;
+  readonly available: Float64Array;
+  private readonly ratios: number[] = [];
+  private gameSpent = 0;
+  private gameAvail = 0;
+
+  constructor(
+    maxTurn: number,
+    private readonly turns: number
+  ) {
+    this.spent = new Float64Array(maxTurn + 1);
+    this.available = new Float64Array(maxTurn + 1);
+  }
+
+  turn(turn: number, available: number, spent: number): void {
+    this.spent[turn] += spent;
+    this.available[turn] += available;
+    if (turn <= this.turns) {
+      this.gameSpent += spent;
+      this.gameAvail += available;
+    }
+  }
+
+  endGame(): void {
+    this.ratios.push(this.gameAvail > 0 ? this.gameSpent / this.gameAvail : 0);
+    this.gameSpent = 0;
+    this.gameAvail = 0;
+  }
+
+  utilization(): Utilization {
+    const sorted = [...this.ratios].sort((a, b) => a - b);
+    const n = sorted.length;
+    const at = (q: number): number => sorted[Math.min(n - 1, Math.floor(n * q))];
+    return {
+      games: n,
+      turns: this.turns,
+      mean: sorted.reduce((a, b) => a + b, 0) / n,
+      median: at(0.5),
+      p10: at(0.1),
+    };
+  }
+}
