@@ -743,3 +743,67 @@
   color: var(--accent);
   font-weight: 600;
 }
+
+/* ── Speed ── how often the win path is in place before each bracket's turn,
+   four columns on a fixed scale so two decks compare column for column. The
+   column for the estimated bracket is the one the sentence above reads. */
+.bracket-speed-line {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.bracket-speed-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+  max-width: 26rem;
+}
+
+.bracket-speed-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-top: var(--space-1);
+  border-top: 2px solid transparent;
+}
+
+.bracket-speed-step--here {
+  border-top-color: var(--accent);
+}
+
+.bracket-speed-share {
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.bracket-speed-turn {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* The sentence's place while the clock runs after paint, so the rows below
+   don't move when the numbers land. */
+.bracket-speed-skel {
+  display: block;
+  width: 100%;
+  max-width: 24rem;
+  height: 2.75rem;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--surface-raised) 25%,
+    var(--border) 50%,
+    var(--surface-raised) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer var(--motion-shimmer) ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bracket-speed-skel {
+    animation: none;
+  }
+}

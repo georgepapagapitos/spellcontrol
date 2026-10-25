@@ -3,6 +3,7 @@ import { type Deck } from '@/store/decks';
 import { buildCommanderKey } from '@/lib/deck/commander-key';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { toClockLibrary } from '@/lib/mana-sim/hand-classify';
+import { speedPathOf } from '@/lib/mana-sim/speed-path';
 import { getMaxCopies } from '@/lib/deck/deck-validation';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { copyMismatches, missingSlots } from '@/lib/deck/deck-printing-actions';
@@ -124,6 +125,8 @@ export function useDeckDerived({
   // Library (one entry per physical copy) for WinConditionPanel's assembly
   // clock — it costs cards out, so it needs mana value + land/ramp, not names.
   const deckLibrary = useMemo(() => toClockLibrary(deckCards), [deckCards]);
+  // The win path the Bracket panel's Speed read times (null: nothing to time).
+  const speedPath = useMemo(() => speedPathOf(deck?.winConditions), [deck?.winConditions]);
   // Full axis summaries (card names + reasons) for the EnginePanel annotation layer.
   const axisSummaries = useMemo(
     () => (deck?.synergyAnalysis ? analyzeDeckSynergy(deckCards).axes : undefined),
@@ -186,6 +189,7 @@ export function useDeckDerived({
     isCommander,
     hasPullSlots,
     deckLibrary,
+    speedPath,
     hasCopyMismatches,
     hasMissingSlots,
     axisSummaries,

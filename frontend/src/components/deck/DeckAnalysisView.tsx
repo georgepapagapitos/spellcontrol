@@ -26,6 +26,7 @@ import { Button } from '@/components/shared/Button';
 import { BuildReportPanel } from './BuildReportPanel';
 import { BracketBreakdown } from './BracketBreakdown';
 import type { ClockCard } from '@/lib/mana-sim/opening-hand-sim';
+import type { SpeedPath } from '@/lib/mana-sim/speed-path';
 import { BracketVerdictStrip } from './BracketVerdictStrip';
 import { DeckAnalysisSkeleton } from './DeckAnalysisSkeleton';
 import { DeckColorPanel } from './DeckColorPanel';
@@ -53,6 +54,7 @@ export function DeckAnalysisView({
   bracketMissesCombos,
   onSetBracketOverride,
   clockLibrary,
+  speedPath,
   bracketTableSlot,
   archetypeOverride,
   onSetArchetypeOverride,
@@ -112,6 +114,8 @@ export function DeckAnalysisView({
   onSetBracketOverride?: (bracket: 1 | 2 | 3 | 4 | 5 | null) => void;
   /** Mainboard, one entry per copy: lets the Bracket judgment quote the combo clock. */
   clockLibrary?: readonly ClockCard[];
+  /** The win path the Bracket panel's Speed read times; null when there is none. */
+  speedPath?: SpeedPath | null;
   /** The Bracket panel's "At the table" read (owner only). */
   bracketTableSlot?: React.ReactNode;
   archetypeOverride?: Archetype | null;
@@ -421,6 +425,7 @@ export function DeckAnalysisView({
                       bracketOverride={bracketOverride ?? null}
                       onSetBracketOverride={onSetBracketOverride}
                       clockLibrary={clockLibrary}
+                      speedPath={speedPath}
                       tableSlot={bracketTableSlot}
                     />
                   )}

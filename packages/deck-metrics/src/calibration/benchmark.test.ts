@@ -31,9 +31,14 @@ import {
   formatSources,
   reportAll,
   reportScrollVault,
+  bracketAtSpeedCap,
+  formatClockCoverage,
+  formatSpeedEffect,
   reportSet,
   runCorpus,
+  runCorpusWithClocks,
   softHeadroom,
+  type ClockSignals,
 } from './report';
 
 const fixture = (name: string) => new URL(`../../calibration/fixtures/${name}`, import.meta.url);
@@ -181,6 +186,61 @@ describe('bracket calibration benchmark', () => {
     expect(maxSoftStep).toBeLessThanOrEqual(swapSoftStepBound());
     expect(swaps).toBeGreaterThan(100_000);
   }, 600_000);
+});
+
+describe('speed signal', () => {
+  // Frozen output of the assembly clock over every corpus deck (rebuilt with
+  // frontend/src/lib/mana-sim/clock-signals.live.test.ts), so this needs no simulator.
+  const signals: ClockSignals = JSON.parse(fs.readFileSync(fixture('clock-signals.json'), 'utf8'));
+  const withClock = runCorpusWithClocks(bench, corpus.decks, signals);
+  const exact = (rs: typeof rows, label: (r: (typeof rows)[number]) => number | null) =>
+    rs.filter((r) => label(r) === r.est.bracket).length;
+  const labels = {
+    all: (r: (typeof rows)[number]) => r.deck.label,
+    cedh: (r: (typeof rows)[number]) => (r.deck.set === 'cedh' ? r.deck.label : null),
+    scrollvault: (r: (typeof rows)[number]) => r.deck.scrollvault?.bracket ?? null,
+  };
+
+  it('does not cost any source accuracy, ScrollVault and cEDH included', () => {
+    for (const [name, label] of Object.entries(labels)) {
+      expect(exact(withClock, label), name).toBeGreaterThanOrEqual(exact(rows, label));
+    }
+  });
+
+  it('leaves a deck with no modeled win path exactly as it was', () => {
+    withClock.forEach((r, i) => {
+      if (signals[r.deck.id]?.clock) return;
+      expect(r.est, r.deck.name).toEqual(rows[i].est);
+    });
+  });
+
+  it('moves no bracket at any weight up to 30 points: the signal is neutral on this corpus', () => {
+    for (const cap of [0, 5, 10, 20, 30]) {
+      const moved = withClock.filter((r, i) => bracketAtSpeedCap(r, cap) !== rows[i].est.bracket);
+      expect(
+        moved.map((r) => r.deck.name),
+        `cap ${cap}`
+      ).toEqual([]);
+    }
+  });
+
+  it('has a clock for nearly every tournament cEDH list and few of the rest', () => {
+    const has = (set: string) =>
+      withClock.filter(
+        (r) => r.deck.set === set && r.est.breakdown.earlyAssemblyShare !== undefined
+      ).length;
+    expect(has('cedh')).toBeGreaterThanOrEqual(44);
+    expect(has('precon')).toBeLessThanOrEqual(10);
+  });
+
+  it('prints the effect of the weight', () => {
+    const out = [
+      formatClockCoverage(withClock),
+      formatSpeedEffect(rows, withClock, [0, 5, 10, 20, 30]),
+    ].join('\n\n');
+    if (REPORT) process.stdout.write(`\n${out}\n`);
+    expect(out).toContain('Speed signal');
+  });
 });
 
 describe('benchmark statistics', () => {
