@@ -583,3 +583,10 @@
   color: var(--text-secondary);
   line-height: 1.4;
 }
+
+.coach-feed-buys-basis {
+  margin: 0;
+  padding: var(--space-1) 0 var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}

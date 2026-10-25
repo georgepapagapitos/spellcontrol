@@ -424,13 +424,17 @@
   outline-offset: 2px;
 }
 
-/* Contention (E1038 4.2): the copy is in another of your decks. Same size as the
-   reason, set apart by the warn colour so it reads as a cost, not a benefit. */
+/* Contention (E1038 4.2): the copy is in another of your decks. Plain secondary
+   text; only a role loss (the other deck would fall short) takes the warn ink. */
 .deck-card-row-contention {
   margin-top: var(--space-0-5);
   min-width: 0;
   font-size: var(--text-xs);
-  color: var(--warn-text);
+  color: var(--text-secondary);
   line-height: 1.4;
   overflow-wrap: anywhere;
+}
+
+.deck-card-row-contention.is-short {
+  color: var(--warn-text);
 }

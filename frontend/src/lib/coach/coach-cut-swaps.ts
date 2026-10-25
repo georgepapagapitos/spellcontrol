@@ -50,6 +50,18 @@ export const MAX_CANDIDATES = 150;
 /** Time the app gives the pairing before the lane shows what it has (the user ruling: about 4 s). */
 export const CUT_PAIRING_BUDGET_MS = 4000;
 
+/**
+ * Where a replacement stands against the player's other decks (see
+ * `CoachMoveScoreOptions.holdRank`): a free copy, then one committed elsewhere
+ * that costs that deck no counted role, then a card not owned, and last one whose
+ * loss leaves the other deck short on a role.
+ */
+export function holdRank(ownership: ChangeOwnership, holds: readonly Hold[]): number {
+  if (ownership === 'owned') return 0;
+  if (holds.length === 0) return 2;
+  return holds.some((h) => h.short) ? 3 : 1;
+}
+
 /** Marks a swap row that is a Cuts-lane row: the cut leads, the add is its best replacement. */
 export function isPairedCut(change: Change): boolean {
   return change.type === 'swap' && change.pairedCut === true;
@@ -265,6 +277,7 @@ function swapRow(cut: Change, s: ScoredRow, env: PairEnv): Change | null {
   return {
     ...base,
     contention: contentionNote(env.holds?.(inName) ?? []),
+    contentionShort: env.holds?.(inName).some((h) => h.short) || undefined,
     // The cut's id: the feed's leave/depart bookkeeping and its React key already follow it.
     id: cut.id,
     pairedCut: true,
@@ -314,7 +327,7 @@ export async function pairCuts(
     maxPairs: 8,
     distinctReplacements: true,
     maxCandidates: MAX_CANDIDATES,
-    committed: env.holds ? (c) => env.holds!(c.name).length > 0 : undefined,
+    holdRank: env.holds ? (c) => holdRank(env.ownership(c.name), env.holds!(c.name)) : undefined,
     offPage: { is: (c) => !onPage(env.objective, c), bar: OFF_PAGE_MIN_GAIN },
     pins: env.pins,
     shouldStop: () => now() - t0 > budget || env.cancelled?.() === true,

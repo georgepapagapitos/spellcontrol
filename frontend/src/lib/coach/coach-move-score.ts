@@ -158,11 +158,13 @@ export interface CoachMoveScoreOptions {
    */
   maxCandidates?: number;
   /**
-   * A replacement every copy of which sits in another deck. Searched after the
-   * cards with a free copy (or none owned), so a card taken from a sibling deck
-   * is offered only when nothing free is acceptable.
+   * Where a replacement stands against the player's other decks, lower first:
+   * 0 a free copy, 1 committed elsewhere with no role lost there, 2 not owned,
+   * 3 committed elsewhere and taking it leaves that deck short on a role. The
+   * search tries the lower classes first, so a card taken from a sibling deck
+   * is offered only when nothing better is acceptable.
    */
-  committed?: (card: ScryfallCard) => boolean;
+  holdRank?: (card: ScryfallCard) => number;
 }
 
 /** Off-page pairs judged per cut. */
@@ -370,7 +372,7 @@ function* scoreSteps(
     const rank = (c: ScryfallCard): number => (ownedFirst && !ownedFirst(c) ? 1 : 0);
     // The commander's page first: a card it has a row for has the data to back a swap.
     const pageRank = (c: ScryfallCard): number => (opts.offPage?.is(c) ? 1 : 0);
-    const heldRank = (c: ScryfallCard): number => (opts.committed?.(c) ? 1 : 0);
+    const heldRank = (c: ScryfallCard): number => opts.holdRank?.(c) ?? 0;
     pairs.sort(
       (a, b) =>
         rank(a.in) - rank(b.in) ||

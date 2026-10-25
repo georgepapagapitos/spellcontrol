@@ -246,7 +246,7 @@ export function DeckCardRow({
             />
           )}
           {ownership === 'owned' && <OwnershipBadge owned />}
-          {ownership === 'in-other-deck' && (
+          {ownership === 'in-other-deck' && !change.contention && (
             <VerdictBadge
               tone="neutral"
               label="In other deck"
@@ -287,7 +287,11 @@ export function DeckCardRow({
         <div className="deck-card-row-why">
           {reason && <span className="deck-card-row-reason">{reason}</span>}
           {change.contention && (
-            <span className="deck-card-row-contention">{change.contention}</span>
+            <span
+              className={`deck-card-row-contention${change.contentionShort ? ' is-short' : ''}`}
+            >
+              {change.contention}
+            </span>
           )}
           {/* E274: the AI refine reading picked this same card. Its sentence is
               model-written, so it carries the provenance marker and stays apart

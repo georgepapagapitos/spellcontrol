@@ -156,6 +156,8 @@ export interface Change {
    * what taking it costs there (contention.ts). Set with `in-other-deck`.
    */
   contention?: string;
+  /** The contention line says taking the card leaves the other deck short on a role. */
+  contentionShort?: boolean;
 
   /**
    * Signed quality delta (PlanScore-ish, a rough inclusion proxy where it

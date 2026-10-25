@@ -99,6 +99,8 @@ describe('CutsBuys', () => {
     expect(rows[0].textContent).toContain('Cultivate');
     expect(rows[1].textContent).toContain('Demonic Tutor');
     expect(rows[0].textContent).toContain('$0.50');
+    expect(rows[0].textContent).toContain('Costs $0.50 · Best gain per dollar');
+    expect(rows[1].textContent).toContain('Next best gain per dollar');
     fireEvent.click(rows[0].querySelector('button.deck-card-row-act, button[class*="act"]')!);
     expect(onAct).toHaveBeenCalledTimes(1);
     expect(onAct.mock.calls[0][0]).toMatchObject({ name: 'Cultivate', inName: 'Dread Return' });

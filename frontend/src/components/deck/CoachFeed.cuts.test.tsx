@@ -113,6 +113,15 @@ describe('the Cuts lane while the pairing runs', () => {
 });
 
 describe('the Cuts lane once paired', () => {
+  it('keeps the In other deck chip when there is no contention line', () => {
+    const swap = swapFor('Skull Prophet', 'Toxic Deluge');
+    if (swap.status !== 'swap') throw new Error('fixture');
+    swap.change.ownership = 'in-other-deck';
+    pairing = outcomes([['Skull Prophet', swap]]);
+    const { container } = renderCuts();
+    expect(container.textContent).toContain('In other deck');
+  });
+
   it('says which other deck holds a replacement and what taking it costs there', () => {
     const swap = swapFor('Skull Prophet', 'Toxic Deluge');
     if (swap.status !== 'swap') throw new Error('fixture');
@@ -120,7 +129,11 @@ describe('the Cuts lane once paired', () => {
     swap.change.contention =
       'In your Atraxa deck. Taking it leaves that deck short on board wipes (1 of 2).';
     pairing = outcomes([['Skull Prophet', swap]]);
+    swap.change.contentionShort = true;
     const { container } = renderCuts();
+    // The line names the decks, so the chip that says the same is dropped; a role loss takes the warn ink.
+    expect(container.textContent).not.toContain('In other deck');
+    expect(container.querySelector('.deck-card-row-contention.is-short')).not.toBeNull();
     expect(container.querySelector('.deck-card-row-contention')?.textContent).toBe(
       'In your Atraxa deck. Taking it leaves that deck short on board wipes (1 of 2).'
     );

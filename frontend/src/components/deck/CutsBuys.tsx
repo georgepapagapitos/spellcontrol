@@ -1,9 +1,12 @@
 import { type JSX, useMemo } from 'react';
 import { DeckCardRow } from './DeckCardRow';
+import { formatMoney } from '@/lib/collection/format-money';
 import { useCardPriceLookup } from './use-missing-prices';
 import { rankBuys } from '@/lib/coach/coach-buys';
 import type { BuyState } from '@/lib/coach/use-cut-swaps';
 import type { Change } from '@/lib/coach/deck-change';
+
+const BASIS = ['Best gain per dollar', 'Next best gain per dollar'];
 
 /**
  * The buys under the Cuts lane (E1038 4.2): for the weakest slots, the cards you
@@ -69,8 +72,8 @@ export function CutsBuys({
         <>
           <p className="coach-feed-buys-note">Ranked by how much the deck gains per dollar.</p>
           <ul className="list-stack list-stack--flush coach-feed-rows" aria-label="Best buys">
-            {ranked.map((b) => {
-              const change: Change = { ...b.change, id: `buy:${b.change.id}`, deltaPrice: b.price };
+            {ranked.map((b, i) => {
+              const change: Change = { ...b.change, id: `buy:${b.change.id}` };
               return (
                 <li key={change.id}>
                   <DeckCardRow
@@ -83,6 +86,9 @@ export function CutsBuys({
                     onAct={onAct}
                     acting={busy(change)}
                   />
+                  <p className="coach-feed-buys-basis">
+                    Costs {formatMoney(b.price)} · {BASIS[i] ?? 'Gain per dollar'}
+                  </p>
                 </li>
               );
             })}

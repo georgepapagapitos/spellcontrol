@@ -1878,19 +1878,20 @@ hidden. Suggestions you hide from a row's menu show up here.`
 
 ### The Cuts lane knows what your other decks hold (E1038 4.2)
 
-"Owned" is not "free". A replacement whose every copy sits in another of the
-player's decks is searched after the cards with a free copy, and when it is still
-the best one, its row says so in one extra line under the reason, in the warn
-colour (`deck-card-row-contention`): `In your Atraxa deck. Taking it leaves that
-deck short on board wipes (1 of 2).` The role clause appears only when the card
-holds a counted role there and the deck would drop under that role's target;
-otherwise the line says `Taking it leaves a slot to refill there.` Cube-only
-holds say nothing.
+"Owned" is not "free". A replacement is searched in this order: a free copy,
+then a copy committed to another deck that loses that deck no counted role, then
+a card the player does not own, and last a committed copy whose loss leaves the
+other deck short on a role. A committed card that still wins its slot says so in
+one line under the reason (`deck-card-row-contention`): `In your Atraxa deck.
+Taking it leaves that deck short on board wipes (1 of 2).` The line carries the
+deck names, so the `In other deck` chip is dropped on that row (it stays where
+there is no line). Only the role-loss case takes the warn ink; `Taking it leaves
+a slot to refill there.` is plain secondary text. Cube-only holds say nothing.
 
 Under the lane's rows, `Best buys for these slots` lists at most two cards the
 player does not own, ranked by the objective's gain per dollar (price floored at
 $0.25). A card with no price is never guessed: it is counted in a closing line
-(`1 more has no price yet and isn't ranked.`). Loading reads `Looking for buys
+(`1 more has no price yet and isn't ranked.`). Each row states its price plainly under it (`Costs $3.72 · Best gain per dollar`), never as a signed delta. Loading reads `Looking for buys
 worth the money.`; nothing found reads `Nothing you'd have to buy beats what you
 own for these slots.`; a failed search renders nothing, since the lane above it
 already stands on its own.
