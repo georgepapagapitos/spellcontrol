@@ -103,8 +103,11 @@ function Rows({
             {at80 === null ? 'After turn 10' : `Turn ${at80}`}
           </dd>
           <dd className="deck-manamath-sub">
-            A typical spell is castable in {pct(TIPPING_BARS[0])}% of games by then
-            {at90 === null ? '' : `, ${pct(TIPPING_BARS[1])}% by turn ${at90}`}.
+            {at80 !== null && at90 === at80
+              ? `A typical spell is castable in ${pct(TIPPING_BARS[1])}% of games by then.`
+              : `A typical spell is castable in ${pct(TIPPING_BARS[0])}% of games by then${
+                  at90 === null ? '' : `, ${pct(TIPPING_BARS[1])}% by turn ${at90}`
+                }.`}
           </dd>
         </div>
         <div className="deck-manamath-row">

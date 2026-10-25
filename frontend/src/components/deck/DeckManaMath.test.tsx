@@ -34,6 +34,19 @@ describe('DeckManaMath', () => {
     expect(screen.getByText(/good to about 2.2 points/)).toBeTruthy();
   });
 
+  it('does not repeat the turn when both bars are met on it', () => {
+    const m = metrics();
+    render(
+      <DeckManaMath
+        metrics={{ ...m, tipping: { ...m.tipping, turns: [3, 3] } }}
+        pending={false}
+        budget={6}
+        bracket={3}
+      />
+    );
+    expect(screen.getByText('A typical spell is castable in 90% of games by then.')).toBeTruthy();
+  });
+
   it('shows the arithmetic: the per-turn gaps sum to the loss', () => {
     render(<DeckManaMath metrics={metrics()} pending={false} budget={6} bracket={3} />);
     const math = screen.getByText('Show the math').closest('details') as HTMLElement;
