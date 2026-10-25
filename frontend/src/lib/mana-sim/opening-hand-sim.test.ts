@@ -258,6 +258,22 @@ describe('simulateAssemblyClock', () => {
     }
   });
 
+  it('is a turn distribution: the ceiling, the median and p90 in order, each share inside its interval', () => {
+    const r = simulateAssemblyClock(namedLibrary(['A', 'B']), [{ names: ['A', 'B'], need: 2 }], {
+      iterations: 400,
+      seed: 3,
+    })!;
+    expect(r.runs).toBe(400);
+    expect(r.ceilingTurn).toBeLessThanOrEqual(r.typicalTurn);
+    expect(r.typicalTurn).toBeLessThanOrEqual(r.p90Turn);
+    expect(r.byTurn).toHaveLength(CLOCK_SHARE_TURNS + 1);
+    for (let t = 0; t <= CLOCK_SHARE_TURNS; t++) {
+      expect(r.byTurn[t].p).toBe(r.assembledBy[t]);
+      expect(r.byTurn[t].lo).toBeLessThanOrEqual(r.assembledBy[t]);
+      expect(r.byTurn[t].hi).toBeGreaterThanOrEqual(r.assembledBy[t]);
+    }
+  });
+
   it('is deterministic for a fixed seed', () => {
     const lib = namedLibrary(['A', 'B']);
     const spec = [{ names: ['A', 'B'], need: 2 }];
@@ -275,7 +291,7 @@ describe('simulateAssemblyClock', () => {
       iterations: 100,
       seed: 1,
     });
-    expect(r).toMatchObject({ iterations: 100, typicalTurn: 1, p90Turn: 1 });
+    expect(r).toMatchObject({ runs: 100, typicalTurn: 1, p90Turn: 1, ceilingTurn: 1 });
     expect(r!.assembledBy.slice(1).every((v) => v === 1)).toBe(true);
   });
 
@@ -336,7 +352,7 @@ describe('simulateAssemblyClock', () => {
       iterations: 50,
       seed: 1,
     });
-    expect(r).toMatchObject({ iterations: 50, typicalTurn: 1, p90Turn: 1 });
+    expect(r).toMatchObject({ runs: 50, typicalTurn: 1, p90Turn: 1, ceilingTurn: 1 });
     expect(r!.assembledBy).toHaveLength(CLOCK_SHARE_TURNS + 1);
     expect(r!.assembledBy.slice(1).every((v) => v === 1)).toBe(true);
   });
@@ -493,7 +509,7 @@ describe('clockShare', () => {
 
 describe('assemblyClockSentence', () => {
   const clock = (early: number, typicalTurn: number) => ({
-    iterations: 1000,
+    runs: 1000,
     typicalTurn,
     p90Turn: typicalTurn + 10,
     assembledBy: Array.from({ length: 21 }, (_, t) => (t === 0 ? 0 : t < 6 ? early / 2 : early)),
