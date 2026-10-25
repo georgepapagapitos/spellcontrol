@@ -228,6 +228,31 @@
   flex: 0 0 auto;
 }
 
+/* The line's place while the clock is still running (it runs after paint), one
+   sentence tall; the strip below keeps its real size, so nothing under the
+   clock moves when the numbers land. The one shared shimmer. */
+.win-con-clock-skel {
+  display: block;
+  flex: 1 1 auto;
+  max-width: 22rem;
+  height: 1em;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--surface-raised) 25%,
+    var(--border) 50%,
+    var(--surface-raised) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer var(--motion-shimmer) ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .win-con-clock-skel {
+    animation: none;
+  }
+}
+
 /* The share of games assembled by each turn: six columns on a fixed scale,
    so two decks compare column for column. The fill is the share. */
 .win-con-clock-steps {

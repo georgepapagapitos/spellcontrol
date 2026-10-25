@@ -99,7 +99,7 @@ export function simulateGoal(
   options: ManaSimOptions = {}
 ): TurnDistribution | null {
   const turns = simulateGoalTurns(deck, goal, options);
-  return turns && summarizeTurns(turns);
+  return turns && summarizeTurns(turns, goal.horizon);
 }
 
 /**
@@ -122,8 +122,9 @@ function runGames(
   goal: ManaGoal | null
 ): ManaSimResult | number[] | null {
   const games = Math.max(1, Math.floor(options.games ?? 1000));
+  const capped = goal?.horizon !== undefined && goal.horizon < deck.library.length;
   const maxTurn = goal
-    ? Math.max(1, deck.library.length)
+    ? Math.max(1, capped ? (goal.horizon as number) : deck.library.length)
     : Math.max(1, Math.floor(options.maxTurn ?? 10));
   const mode = options.mulligan ?? 'app';
   const freeMulligan = options.freeMulligan ?? true;
@@ -680,7 +681,7 @@ function runGames(
     srcCount.fill(0);
     handPips.fill(0);
     goalPlay?.reset();
-    let onlineTurn = maxTurn;
+    let onlineTurn = capped ? maxTurn + 1 : maxTurn;
 
     // Mulligans: a free one first (multiplayer), then counted ones.
     let mulls = 0;

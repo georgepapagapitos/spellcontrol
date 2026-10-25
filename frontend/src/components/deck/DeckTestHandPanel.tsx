@@ -194,7 +194,7 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
     );
     // Kill categories only — see isKillClock: a strategic mass's "assembled"
     // turn tracks its evidence-pool size, not the deck's speed.
-    const assemblyClock = useAssemblyClock(
+    const { clock: assemblyClock, pending: assemblyPending } = useAssemblyClock(
       clockLibrary,
       primaryWinCon && isKillClock(primaryWinCon.category) ? primaryWinCon.assembly : null,
       { iterations: 1000, wildcards: winConTutors }
@@ -540,10 +540,16 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                     <p className="deck-test-hand-stat-secondary">
                       Lands per opening hand · avg <strong>{sim.avgLands.toFixed(2)}</strong>
                     </p>
-                    {assemblyClock && primaryWinCon && (
-                      <p className="deck-test-hand-assembly">
+                    {(assemblyClock || assemblyPending) && primaryWinCon && (
+                      <p className="deck-test-hand-assembly" aria-busy={assemblyPending}>
                         <Hourglass width={12} height={12} aria-hidden />
-                        <span>{assemblyClockSentence(assemblyClock, primaryWinCon.category)}</span>
+                        {assemblyClock ? (
+                          <span>
+                            {assemblyClockSentence(assemblyClock, primaryWinCon.category)}
+                          </span>
+                        ) : (
+                          <span className="win-con-clock-skel" aria-hidden />
+                        )}
                         <InfoTip
                           label="the assembly estimate"
                           className="deck-test-hand-assembly-tip touch-ghost"

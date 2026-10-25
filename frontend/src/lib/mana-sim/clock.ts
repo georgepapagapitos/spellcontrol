@@ -30,7 +30,7 @@ import {
   type AssemblyClockResult,
   type ClockCard,
 } from './opening-hand-sim';
-import { summarizeTurns } from './turn-distribution';
+import { CLOCK_HORIZON, summarizeTurns } from './turn-distribution';
 import type { ManaCard } from './types';
 
 type ClockOptions = ReadonlyArray<{ names: readonly string[]; need: number }>;
@@ -44,7 +44,7 @@ export function simulateAssemblyClock(
   if (!mana) return simulateColorlessClock(library, options, opts);
   return simulateGoal(
     buildManaDeck([], mana),
-    { options, tutors: opts.wildcards },
+    { options, tutors: opts.wildcards, horizon: opts.horizon ?? CLOCK_HORIZON },
     { games: opts.iterations, seed: opts.seed }
   );
 }
@@ -89,6 +89,7 @@ export function clockKey(
     names,
     path,
     tutors,
+    opts.horizon ?? CLOCK_HORIZON,
     opts.iterations ?? 1000,
     opts.seed ?? librarySeed(library),
     colored,
@@ -124,7 +125,8 @@ export function assemblyClockAsync(
     const mana = manaOf(library);
     if (!mana) return simulateColorlessClock(library, options, opts);
     const deck = buildManaDeck([], mana);
-    const goal = { options, tutors: opts.wildcards };
+    const horizon = opts.horizon ?? CLOCK_HORIZON;
+    const goal = { options, tutors: opts.wildcards, horizon };
     const games = Math.max(1, Math.floor(opts.iterations ?? 1000));
     const seed = opts.seed ?? librarySeed(library);
     const turns: number[] = [];
@@ -145,7 +147,7 @@ export function assemblyClockAsync(
       size = Math.max(1, Math.min(MAX_SLICE_GAMES, Math.floor(SLICE_MS / perGame)));
       if (turns.length < games) await yieldToBrowser();
     }
-    return summarizeTurns(turns);
+    return summarizeTurns(turns, horizon);
   })()
     .then((clock) => {
       remember(key, clock);

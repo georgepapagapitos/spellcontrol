@@ -521,6 +521,12 @@ describe('assemblyClockSentence', () => {
     );
   });
 
+  it('says a median past the horizon was not reached', () => {
+    expect(assemblyClockSentence({ ...clock(0, 61), horizon: 60 }, 'infinite-combo')).toMatch(
+      /and in half of them not by turn 60\.$/
+    );
+  });
+
   it('says none and every in words', () => {
     expect(assemblyClockSentence(clock(0, 40), 'infinite-combo')).toMatch(
       /by turn 6 in none of 1,000 games,/

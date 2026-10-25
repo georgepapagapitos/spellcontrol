@@ -389,6 +389,7 @@ describe.skipIf(!ENABLED)('assembly clock — live corpus eval', () => {
  *   blind   the engine with every spell's cost paid as generic mana, draw as the old clock had it
  *   color   the engine with colors on, draw as the old clock had it (the tagger's cardDraw role = two cards)
  *   full    the engine with colors on and draw read from Oracle text
+ *   uncapped  `full` with no turn cap (the default caps games at CLOCK_HORIZON)
  */
 describe.skipIf(!process.env.CLOCK_EVAL_REPLAY)('assembly clock: replay of cached decks', () => {
   it('measures every variant over the cached decks', async () => {
@@ -458,6 +459,9 @@ describe.skipIf(!process.env.CLOCK_EVAL_REPLAY)('assembly clock: replay of cache
         );
         variants.color = summary(simulateAssemblyClock(lib.map(flatDraw), d.assembly, run));
         variants.full = summary(simulateAssemblyClock(lib, d.assembly, run));
+        variants.uncapped = summary(
+          simulateAssemblyClock(lib, d.assembly, { ...run, horizon: Infinity })
+        );
         const spells = lib.filter((c) => !c.isLand);
         drawStats = {
           taggedDraw: spells.filter((c) => c.role === 'cardDraw').length,

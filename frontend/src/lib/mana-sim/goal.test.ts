@@ -3,6 +3,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { compileManaDeck, identityMask, classifyManaCard, buildManaDeck } from './index';
 import { simulateGoal } from './engine';
 import type { ManaCard } from './types';
+import { turnLabel } from './turn-distribution';
 import { drawCard } from './__fixtures__/draw-cards';
 
 // Every card is a real Scryfall record (draw.fixture.json). The deck is 99
@@ -56,6 +57,21 @@ describe('simulateGoal', () => {
     expect(stuck.typicalTurn).toBe(99);
     const fine = run(deckOf([["Thassa's Oracle", 8]], ISLANDS));
     expect(fine.assembledBy[20]).toBeGreaterThan(0.9);
+  });
+
+  it('cuts games off at the horizon and says so', () => {
+    const lands: ReadonlyArray<readonly [string, number]> = [['Mountain', 36]];
+    const deck = deckOf([["Thassa's Oracle", 8]], lands);
+    const capped = simulateGoal(deck, { options: ORACLE, horizon: 30 }, { games: 200, seed: 11 })!;
+    expect(capped.horizon).toBe(30);
+    expect(capped.typicalTurn).toBe(31);
+    expect(turnLabel(capped, capped.typicalTurn)).toBe('30+');
+    // Games that finish before the horizon are the same games either way.
+    const ok = deckOf([["Thassa's Oracle", 3]], ISLANDS);
+    const a = simulateGoal(ok, { options: ORACLE, horizon: 60 }, { games: 300, seed: 5 })!;
+    const b = simulateGoal(ok, { options: ORACLE }, { games: 300, seed: 5 })!;
+    expect(a.p90Turn).toBeLessThanOrEqual(60);
+    expect({ ...a, horizon: undefined }).toEqual({ ...b, horizon: undefined });
   });
 
   it('counts a land piece once it is played', () => {

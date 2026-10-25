@@ -312,4 +312,9 @@ export interface ManaGoal {
    * option closest to done into HAND, where it still has to be cast.
    */
   tutors?: readonly string[];
+  /**
+   * Stop each game after this turn. A game still short of the goal is recorded
+   * as `horizon + 1`. Default: play until the library is drawn out.
+   */
+  horizon?: number;
 }

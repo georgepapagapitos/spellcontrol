@@ -33,10 +33,29 @@ export interface TurnDistribution {
   assembledBy: number[];
   /** `assembledBy` with its Wilson interval, same indexing. */
   byTurn: TurnShare[];
+  /**
+   * Set when games were cut off at this turn: a game that had not met the goal
+   * by then is recorded as `horizon + 1`, so any figure above `horizon` means
+   * "not by turn `horizon`" (see `turnLabel`).
+   */
+  horizon?: number;
 }
 
 /** How many turns `TurnDistribution.assembledBy` covers. */
 export const DISTRIBUTION_TURNS = 20;
+
+/**
+ * The turn the clock stops simulating at. Every figure the app shows is a
+ * median or p90 turn or a share by turn 20; a corpus of 20 commanders put the
+ * slowest p90 at turn 59, so 60 leaves every shown number exact and spares the
+ * games that never assemble from playing out the whole library.
+ */
+export const CLOCK_HORIZON = 60;
+
+/** A turn figure as text: "35", or "60+" for a game cut off at the horizon. */
+export function turnLabel(d: Pick<TurnDistribution, 'horizon'>, turn: number): string {
+  return d.horizon !== undefined && turn > d.horizon ? `${d.horizon}+` : String(turn);
+}
 
 /** z for a 95% interval. */
 const Z95 = 1.959964;
@@ -61,7 +80,7 @@ export function wilsonInterval(successes: number, n: number, z = Z95): { lo: num
  * The percentile rule is the clock's own (the element at floor(n * q) of the
  * sorted turns), so the median and p90 are the numbers the app has always shown.
  */
-export function summarizeTurns(turns: readonly number[]): TurnDistribution {
+export function summarizeTurns(turns: readonly number[], horizon?: number): TurnDistribution {
   const sorted = [...turns].sort((a, b) => a - b);
   const n = sorted.length;
   const at = (q: number): number => sorted[Math.min(n - 1, Math.floor(n * q))];
@@ -79,5 +98,6 @@ export function summarizeTurns(turns: readonly number[]): TurnDistribution {
     ceilingTurn: at(0.05),
     assembledBy,
     byTurn,
+    ...(horizon === undefined ? {} : { horizon }),
   };
 }

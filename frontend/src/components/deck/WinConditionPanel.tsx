@@ -207,7 +207,7 @@ export function WinConditionPanel({
   // evidence-pool size, not its speed (see isKillClock). Null (→ hidden) when
   // the analysis predates the assembly field, the path has no discrete
   // assembly (generic combat), or the deck no longer holds the pieces.
-  const clock = useAssemblyClock(
+  const { clock, pending } = useAssemblyClock(
     library,
     primary && isKillClock(primary.category) ? primary.assembly : null,
     { iterations: 1000, wildcards: analysis.tutors }
@@ -296,8 +296,8 @@ export function WinConditionPanel({
           onTapCard={carousel.open}
         />
       )}
-      {clock && analysis.primary && (
-        <div className="win-con-clock">
+      {(clock || pending) && analysis.primary && (
+        <div className="win-con-clock" aria-busy={pending}>
           <p className="win-con-clock-line">
             <Hourglass
               className="win-con-clock-icon"
@@ -306,7 +306,11 @@ export function WinConditionPanel({
               strokeWidth={1.8}
               aria-hidden
             />
-            <span>{assemblyClockSentence(clock, analysis.primary.category)}</span>
+            {clock ? (
+              <span>{assemblyClockSentence(clock, analysis.primary.category)}</span>
+            ) : (
+              <span className="win-con-clock-skel" aria-hidden />
+            )}
             <InfoTip
               label="the assembly estimate"
               className="win-con-clock-tip touch-ghost"
@@ -317,13 +321,18 @@ export function WinConditionPanel({
               the image label spells every column out for a screen reader. */}
           <div
             className="win-con-clock-steps"
-            role="img"
-            aria-label={`Share of games with it assembled: ${CLOCK_STEPS.map(
-              (t) => `by turn ${t}, ${clockShare(clock.assembledBy[t] ?? 0)}`
-            ).join('; ')}`}
+            role={clock ? 'img' : undefined}
+            aria-label={
+              clock
+                ? `Share of games with it assembled: ${CLOCK_STEPS.map(
+                    (t) => `by turn ${t}, ${clockShare(clock.assembledBy[t] ?? 0)}`
+                  ).join('; ')}`
+                : undefined
+            }
+            aria-hidden={clock ? undefined : true}
           >
             {CLOCK_STEPS.map((t) => {
-              const share = clock.assembledBy[t] ?? 0;
+              const share = clock?.assembledBy[t] ?? 0;
               return (
                 <div key={t} className="win-con-clock-step">
                   <span className="win-con-clock-bar">
@@ -332,7 +341,9 @@ export function WinConditionPanel({
                       style={{ height: `${Math.round(share * 100)}%` }}
                     />
                   </span>
-                  <span className="win-con-clock-share">{clockShare(share)}</span>
+                  <span className="win-con-clock-share">
+                    {clock ? clockShare(share) : '\u00a0'}
+                  </span>
                   <span className="win-con-clock-turn">T{t}</span>
                 </div>
               );

@@ -20,6 +20,7 @@ import {
   type LandDropCurveResult,
 } from '@/lib/mana-sim/opening-hand-sim';
 import { assemblyClockAsync } from '@/lib/mana-sim/clock';
+import { turnLabel } from '@/lib/mana-sim/turn-distribution';
 import { toClockLibrary, toSimCard } from '@/lib/mana-sim/hand-classify';
 import { loadSessionHistory } from '@/lib/playtest/session-history';
 import { computeSessionAggregates, MIN_SESSIONS_FOR_STATS } from '@/lib/playtest/session-record';
@@ -630,8 +631,8 @@ function SimulateSection({ deck }: { deck: Deck | undefined }) {
                 <p className="playtest-stats-row" style={{ flexWrap: 'wrap' }}>
                   <Hourglass width={14} height={14} strokeWidth={1.8} aria-hidden />
                   <span>
-                    Median turn <strong>{batch.clock.typicalTurn}</strong>, p90 turn{' '}
-                    <strong>{batch.clock.p90Turn}</strong>
+                    Median turn <strong>{turnLabel(batch.clock, batch.clock.typicalTurn)}</strong>,
+                    p90 turn <strong>{turnLabel(batch.clock, batch.clock.p90Turn)}</strong>
                   </span>
                   <InfoTip
                     label="the kill-turn estimate"

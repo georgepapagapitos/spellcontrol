@@ -266,6 +266,8 @@ export interface AssemblyClockOptions {
   handSize?: number;
   /** Seed for the PRNG. Omit for a fresh random run; pass a fixed value in tests. */
   seed?: number;
+  /** Stop each game after this turn (colors-aware clock only; default `CLOCK_HORIZON`). */
+  horizon?: number;
   /**
    * Tutor card names. A cast tutor fetches the cheapest still-missing piece of
    * whichever option is closest to done — into HAND, so it still has to be
@@ -303,7 +305,7 @@ export function clockShare(share: number): string {
  * not "kills": an infinite-turns lock is assembled long before anyone is dead.
  */
 export function assemblyClockSentence(
-  clock: Pick<AssemblyClockResult, 'runs' | 'typicalTurn' | 'assembledBy'>,
+  clock: Pick<AssemblyClockResult, 'runs' | 'typicalTurn' | 'assembledBy' | 'horizon'>,
   /** The path's `WinConCategory`: an alt-win card is cast, a combo assembled. */
   category: string
 ): string {
@@ -315,7 +317,11 @@ export function assemblyClockSentence(
       : early === 1
         ? 'in every game'
         : `in ${clockShare(early)} of games`;
-  return `${what} by turn ${CLOCK_EARLY_TURN} ${byEarly}, and in half of them by turn ${clock.typicalTurn}.`;
+  const median =
+    clock.horizon !== undefined && clock.typicalTurn > clock.horizon
+      ? `not by turn ${clock.horizon}`
+      : `by turn ${clock.typicalTurn}`;
+  return `${what} by turn ${CLOCK_EARLY_TURN} ${byEarly}, and in half of them ${median}.`;
 }
 
 /** How many turns `AssemblyClockResult.assembledBy` covers. */

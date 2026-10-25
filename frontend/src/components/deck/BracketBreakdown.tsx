@@ -348,7 +348,8 @@ function judgmentFor(
   estimation: BracketEstimation,
   ratingFloor: BracketFloor | null,
   hasSolRing: boolean,
-  earlyShare: number | null
+  /** The share online by turn 6; 'pending' while the clock still runs, null when there is none. */
+  earlyShare: number | 'pending' | null
 ): {
   question: string;
   chips?: string[];
@@ -384,7 +385,11 @@ function judgmentFor(
             earlyShare == null
               ? ''
               : ` In 1,000 goldfish games it's assembled by turn ${CLOCK_EARLY_TURN} ${
-                  earlyShare === 0 ? 'in none of them' : `in ${clockShare(earlyShare)} of them`
+                  earlyShare === 'pending'
+                    ? 'in … of them'
+                    : earlyShare === 0
+                      ? 'in none of them'
+                      : `in ${clockShare(earlyShare)} of them`
                 }.`
           }`,
         },
@@ -475,11 +480,21 @@ export function BracketBreakdown({
       : ratingOnlyComboFloor(estimation)?.ruthlessCombos;
     return ruthlessCombos?.map((names) => ({ names, need: names.length })) ?? null;
   }, [estimation, combosUncounted]);
-  const earlyClock = useAssemblyClock(clockLibrary, ruthlessPath, {
-    iterations: 1000,
-    wildcards: estimation.breakdown.tutorNames,
-  });
-  const earlyShare = earlyClock ? (earlyClock.assembledBy[CLOCK_EARLY_TURN] ?? 0) : null;
+  const { clock: earlyClock, pending: earlyPending } = useAssemblyClock(
+    clockLibrary,
+    ruthlessPath,
+    {
+      iterations: 1000,
+      wildcards: estimation.breakdown.tutorNames,
+    }
+  );
+  // While the clock runs the sentence holds its place ("in … of them"), so the
+  // paragraph keeps its length when the share lands.
+  const earlyShare = earlyClock
+    ? (earlyClock.assembledBy[CLOCK_EARLY_TURN] ?? 0)
+    : earlyPending
+      ? 'pending'
+      : null;
 
   const judgment = combosUncounted
     ? null
