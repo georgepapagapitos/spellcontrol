@@ -20,7 +20,6 @@ import {
   getBoardwipeSubtype,
   getCardDrawSubtype,
   readsAsProtection,
-  type RoleKey,
 } from '@/deck-builder/services/tagger/client';
 import {
   getGameChangerNames,
@@ -478,10 +477,7 @@ export function computeGradeAndBracket(input: GradeBracketInput): GradeBracketRe
 export interface CommanderDeckAnalysisResult extends GradeBracketResult {
   /** Per-role target counts derived from EDHREC + archetype/pacing blend. */
   roleTargets?: Record<string, number>;
-  /** Per role, the cards at least 1 in 4 of this commander's EDHREC decks play
-   *  (`computeEdhrecRoleTargets`). Display only: the Roles tip's "this
-   *  commander" reference, never a target. */
-  roleEdhrecCounts?: Record<RoleKey, number>;
+  roleEdhrecCounts?: Record<string, number>;
   /** Top EDHREC-recommended cards not already in the deck, ranked by inclusion. */
   gapAnalysis?: GapAnalysisCard[];
   /** Underrated suggestions the inclusion ranking missed (E146) — always set
@@ -494,12 +490,7 @@ export interface CommanderDeckAnalysisResult extends GradeBracketResult {
   /** E222: the cardFit sub-score's own misfit cascade, slim (name + reasons).
    *  Same lifecycle as planScore — undefined when the grade branch didn't run. */
   misfits?: MisfitSummary[];
-  /**
-   * EDHREC's own sample size for this commander (its `numDecks`) — already
-   * fetched here to feed planScore's byline (social W4's CommanderPopularityStat
-   * reuses it rather than re-fetching). `null` when EDHREC has no data for this
-   * commander (e.g. unreachable, or a commander it doesn't track).
-   */
+  /** EDHREC's `numDecks` for this commander, fetched here for planScore; `null` without data. */
   edhrecNumDecks?: number | null;
   /** Balanced cut/add optimize suggestions (the "Optimize" surface). */
   optimizeSwaps?: OptimizeSwaps;
