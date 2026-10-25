@@ -87,9 +87,12 @@ describe('useDeckSince', () => {
     // Cut a land and add a ramp spell: the cut card is looked up by name.
     rerender({ deck: makeDeck(['Sol Ring', 'Forest', 'Cultivate'], ATRAXA) });
     await waitFor(() => expect(result.current).not.toBeNull());
-    expect(
-      result.current?.since.rows.map((r) => `${r.label} ${r.fromText} to ${r.toText}`)
-    ).toEqual(['Lands 2 to 1']);
+    // The baseline's own numbers need the cut card looked up first.
+    await waitFor(() =>
+      expect(
+        result.current?.since.rows.map((r) => `${r.label} ${r.fromText} to ${r.toText}`)
+      ).toEqual(['Lands 2 to 1'])
+    );
     expect(result.current?.since.added.map((c) => c.name)).toEqual(['Cultivate']);
     expect(result.current?.since.removed.map((c) => c.name)).toEqual(['Command Tower']);
 
