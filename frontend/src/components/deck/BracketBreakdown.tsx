@@ -22,9 +22,9 @@ import {
   CLOCK_EARLY_TURN,
   clockShare,
   librarySeed,
-  simulateAssemblyClock,
   type ClockCard,
 } from '@/lib/mana-sim/opening-hand-sim';
+import { simulateAssemblyClock } from '@/lib/mana-sim/clock';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useCardCarousel } from './useCardCarousel';
 import { MeterBar } from '../shared/MeterBar';

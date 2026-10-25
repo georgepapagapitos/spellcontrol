@@ -5,7 +5,7 @@
 // (analyzeCommanderDeck → bracket + win conditions), then runs the clock over
 // the result. Dumps a per-deck JSON + a summary table for offline reading.
 //
-//   cd frontend && NODE_ENV=production CLOCK_EVAL=1 ./node_modules/.bin/vitest run \
+//   cd frontend && LIVE_GEN=1 NODE_ENV=production CLOCK_EVAL=1 ./node_modules/.bin/vitest run \
 //     --mode production src/lib/clock-corpus.live.test.ts
 //
 // --mode production AND NODE_ENV=production are required for the same reason as
@@ -18,6 +18,7 @@ import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import type { DetectedCombo, ScryfallCard } from '@/deck-builder/types';
+import type { AssemblyClockResult, ClockCard } from './opening-hand-sim';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = process.env.CLOCK_EVAL_OUTDIR ?? join(tmpdir(), 'spellcontrol-clock-eval');
@@ -89,6 +90,10 @@ interface Row {
   note?: string;
 }
 
+/** `CLOCK_EVAL_CACHE=<file>`: write every resolved input there as it is gathered. */
+const CACHE_FILE = process.env.CLOCK_EVAL_CACHE;
+const cached: unknown[] = [];
+
 let realFetch: typeof fetch;
 
 describe.skipIf(!ENABLED)('assembly clock — live corpus eval', () => {
@@ -128,8 +133,8 @@ describe.skipIf(!ENABLED)('assembly clock — live corpus eval', () => {
       const { fetchCommanderCombos } = await import('@/deck-builder/services/edhrec/client');
       const { analyzeCommanderDeck } =
         await import('@/deck-builder/services/deckBuilder/commanderDeckAnalysis');
-      const { simulateAssemblyClock } = await import('./opening-hand-sim');
-      const { toClockCard } = await import('./hand-classify');
+      const { simulateAssemblyClock } = await import('./clock');
+      const { toClockLibrary } = await import('./hand-classify');
       const { getCardRole } = await import('@/deck-builder/services/tagger/client');
       const { isKillClock } = await import('@/components/deck/WinConditionPanel');
 
@@ -266,7 +271,7 @@ describe.skipIf(!ENABLED)('assembly clock — live corpus eval', () => {
           row.bracket = analysis.bracketEstimation?.bracket ?? null;
           row.softScore = analysis.bracketEstimation?.softScore ?? null;
 
-          const clockCards = cards.map(toClockCard);
+          const clockCards = toClockLibrary(cards);
           row.lands = clockCards.filter((c) => c.isLand).length;
           row.ramp = clockCards.filter((c) => !c.isLand && c.role === 'ramp').length;
           row.cardDraw = clockCards.filter((c) => !c.isLand && c.role === 'cardDraw').length;
@@ -293,6 +298,19 @@ describe.skipIf(!ENABLED)('assembly clock — live corpus eval', () => {
             presentInLib: o.names.filter((n) => libNames.has(n)).length,
           }));
 
+          if (CACHE_FILE) {
+            // Everything the replay step needs, so variants run without the
+            // network, on identical decks.
+            cached.push({
+              commander: entry.name,
+              tier: entry.tier,
+              cards,
+              assembly: primary?.assembly ?? null,
+              tutors: wc?.tutors ?? [],
+              category: primary?.category ?? null,
+            });
+            writeFileSync(CACHE_FILE, JSON.stringify(cached));
+          }
           if (primary?.assembly?.length) {
             const clock = simulateAssemblyClock(clockCards, primary.assembly, {
               iterations: 2000,
@@ -357,6 +375,108 @@ describe.skipIf(!ENABLED)('assembly clock — live corpus eval', () => {
     },
     30 * 60_000
   );
+});
+
+/**
+ * `CLOCK_EVAL_REPLAY=<inputs file>` (written by `CLOCK_EVAL_CACHE`) measures the
+ * clock over the same resolved decks with no network, so a before/after of an
+ * engine change compares identical inputs. Writes `replay.json` to the out dir:
+ * per deck and variant the median, p90, ceiling and the share online by each
+ * turn. The variants are ablations, each a transform of the full engine's
+ * library so exactly one thing differs between neighbors:
+ *
+ *   legacy  the colorless clock (`simulateColorlessClock`), the numbers before the merge
+ *   blind   the engine with every spell's cost paid as generic mana, draw as the old clock had it
+ *   color   the engine with colors on, draw as the old clock had it (the tagger's cardDraw role = two cards)
+ *   full    the engine with colors on and draw read from Oracle text
+ */
+describe.skipIf(!process.env.CLOCK_EVAL_REPLAY)('assembly clock: replay of cached decks', () => {
+  it('measures every variant over the cached decks', async () => {
+    const inputs = JSON.parse(
+      readFileSync(process.env.CLOCK_EVAL_REPLAY as string, 'utf8')
+    ) as Array<{
+      commander: string;
+      tier: string;
+      cards: ScryfallCard[];
+      assembly: Array<{ names: string[]; need: number }> | null;
+      tutors: string[];
+      category: string | null;
+    }>;
+    const { simulateColorlessClock } = await import('./opening-hand-sim');
+    const { simulateAssemblyClock } = await import('./clock');
+    const { toClockCard, toClockLibrary } = await import('./hand-classify');
+    const { loadTaggerData } = await import('@/deck-builder/services/tagger/client');
+    const taggerData = JSON.parse(
+      readFileSync(resolve(here, '..', '..', '..', 'public', 'tagger-tags.json'), 'utf8')
+    );
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+      const url =
+        typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+      if (url.endsWith('/tagger-tags.json')) {
+        return { ok: true, status: 200, json: async () => taggerData } as Response;
+      }
+      throw new Error(`replay hit the network: ${url}`);
+    });
+    await loadTaggerData();
+
+    const flatDraw = (c: ClockCard): ClockCard => ({
+      ...c,
+      mana: c.mana && { ...c.mana, draw: null },
+    });
+    const blind = (c: ClockCard): ClockCard => {
+      const m = c.mana;
+      if (!m?.cost) return c;
+      const cost = {
+        ...m.cost,
+        generic: m.cost.units,
+        pips: [],
+        checks: [],
+        key: `blind|${m.cost.units}`,
+      };
+      return { ...c, mana: { ...m, cost } };
+    };
+    const summary = (d: AssemblyClockResult | null) =>
+      d && {
+        median: d.typicalTurn,
+        p90: d.p90Turn,
+        ceiling: d.ceilingTurn,
+        shares: d.assembledBy.slice(1),
+      };
+
+    const out: unknown[] = [];
+    for (const d of inputs) {
+      const variants: Record<string, unknown> = {};
+      let drawStats: unknown = null;
+      if (d.assembly?.length) {
+        const run = { iterations: 2000, seed: 99, wildcards: d.tutors };
+        const lib = toClockLibrary(d.cards);
+        variants.legacy = summary(
+          simulateColorlessClock(d.cards.map(toClockCard), d.assembly, run)
+        );
+        variants.blind = summary(
+          simulateAssemblyClock(lib.map(flatDraw).map(blind), d.assembly, run)
+        );
+        variants.color = summary(simulateAssemblyClock(lib.map(flatDraw), d.assembly, run));
+        variants.full = summary(simulateAssemblyClock(lib, d.assembly, run));
+        const spells = lib.filter((c) => !c.isLand);
+        drawStats = {
+          taggedDraw: spells.filter((c) => c.role === 'cardDraw').length,
+          taggedAndRead: spells.filter((c) => c.role === 'cardDraw' && c.mana?.draw).length,
+          taggedUnread: spells.filter((c) => c.role === 'cardDraw' && !c.mana?.draw).length,
+          readNotTagged: spells.filter((c) => c.role !== 'cardDraw' && c.mana?.draw).length,
+          readNames: spells.filter((c) => c.mana?.draw).map((c) => c.name),
+          unreadNames: spells
+            .filter((c) => c.role === 'cardDraw' && !c.mana?.draw)
+            .map((c) => c.name),
+        };
+      }
+      out.push({ commander: d.commander, tier: d.tier, category: d.category, drawStats, variants });
+    }
+    mkdirSync(OUT_DIR, { recursive: true });
+    writeFileSync(join(OUT_DIR, 'replay.json'), JSON.stringify(out, null, 2));
+    vi.unstubAllGlobals();
+    expect(out.length).toBe(inputs.length);
+  }, 600_000);
 });
 
 async function resolveOne(

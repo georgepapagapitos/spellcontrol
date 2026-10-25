@@ -11,9 +11,9 @@ import {
   assemblyClockSentence,
   clockShare,
   librarySeed,
-  simulateAssemblyClock,
   type ClockCard,
 } from '@/lib/mana-sim/opening-hand-sim';
+import { simulateAssemblyClock } from '@/lib/mana-sim/clock';
 import { InfoTip } from '@/components/overlays/InfoTip';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { IconButton } from '@/components/shared/Button';
@@ -88,8 +88,8 @@ export function assemblyClockTip(): JSX.Element {
   return (
     <>
       <span className="info-tip-lead">
-        Share of 1,000 goldfish games where the win path is fully cast by that turn, after mulligans
-        to a keepable seven. Colors, rituals and opponents aren&apos;t modeled.
+        Share of 1,000 goldfish games where the win path is fully cast by that turn, in your colors,
+        after mulligans to a keepable seven. Rituals and opponents aren&apos;t modeled.
       </span>
     </>
   );

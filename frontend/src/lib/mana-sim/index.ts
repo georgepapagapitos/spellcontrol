@@ -26,6 +26,7 @@
  *   compileManaDeck({ commanders, library }, opts?) → ManaDeck (the two above in one)
  *   simulateManaDeck(deck, options?) → ManaSimResult
  *   evaluateManabase({ commanders, library }, options?) → ManaSimResult
+ *   simulateGoal(deck, goal, options?) → TurnDistribution | null
  *
  * `library` is the 99 (98 with partners) with every copy listed, basics
  * included. Everything is sync and pure: the same deck and options give the
@@ -76,9 +77,21 @@
  * - Paying a cost is an exact matching of pips to mana (Hall's theorem, see
  *   `./cost.ts`), so hybrid, {C} and multi-colour costs are handled exactly.
  *
+ * ## Goals: on which turn does it happen?
+ *
+ * `simulateGoal` asks a different question of the same goldfish: on which turn
+ * is a win path (a combo's pieces, an alt-win card) assembled and paid for? It
+ * spends each turn's mana on ramp, then the goal's pieces, tutors and draw
+ * spells (`./goal.ts`), and answers with a `TurnDistribution`: median, p90, the
+ * best-5% ceiling, the run count, and the share done by each turn with its
+ * Wilson interval (`./turn-distribution.ts`). The assembly clock
+ * (`./clock.ts`) is this call. Draw and selection (`./draw.ts`) are modeled
+ * here only, where they are the dominant term: the castability numbers above
+ * do not draw.
+ *
  * ## Not modeled
  *
- * Card draw and card selection (a Brainstorm finds no land), cost reducers,
+ * Card draw and card selection in the castability numbers (a Brainstorm finds no land), cost reducers,
  * rituals, extra land drops, mana doublers and auras (Wild Growth), granted
  * mana abilities (Cryptolith Rite, Chromatic Lantern's land clause), X
  * Treasures (Dockside Extortionist) and Treasure engines, filter lands'
@@ -118,7 +131,8 @@ export {
   type ClassifyOptions,
 } from './classify';
 export { canPay, maskOf, parseManaCost } from './cost';
-export { FLOOD_SURPLUS, FLOOD_TURN, simulateManaDeck } from './engine';
+export { FLOOD_SURPLUS, FLOOD_TURN, simulateGoal, simulateManaDeck } from './engine';
+export { summarizeTurns, wilsonInterval, type TurnDistribution } from './turn-distribution';
 export * from './types';
 
 /** Commander color identity as a mask (the commanders' identities united). */

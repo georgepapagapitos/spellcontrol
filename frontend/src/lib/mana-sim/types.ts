@@ -135,6 +135,29 @@ export type RampEffect =
   /** Makes Treasures once (Big Score). */
   | { kind: 'treasure'; count: number };
 
+/**
+ * What casting a card does for the hand (see `./draw.ts`). Zeros are absent.
+ * Applied in this order: scry (first when `scryFirst`), the draw or the look,
+ * then putBack/discard, then scry (when not first).
+ */
+export interface DrawEffect {
+  /** Cards drawn. */
+  draw: number;
+  /** Cards from the hand put back on top of the library afterwards (Brainstorm). */
+  putBack: number;
+  /** Cards discarded afterwards (Faithless Looting). */
+  discard: number;
+  /** Cards looked at (Impulse, Dig, Ponder); 0 = none. */
+  look: number;
+  /** Of the cards looked at, how many go to the hand; 0 with a draw = the drawn cards are the best of the look. */
+  take: number;
+  /** Scry or surveil this many. */
+  scry: number;
+  scryFirst: boolean;
+  /** Cards drawn every turn from the turn after this is cast (Phyrexian Arena). */
+  perTurn: number;
+}
+
 /** A card reduced to what the simulator reads. Built once by `classifyManaCard`. */
 export interface ManaCard {
   name: string;
@@ -147,6 +170,8 @@ export interface ManaCard {
   /** Cost of the castable front face; null for lands and cards with no mana cost. */
   cost: ManaCost | null;
   ramp: RampEffect | null;
+  /** Draw and selection when cast; null for a card the text does not show drawing. */
+  draw: DrawEffect | null;
   /** Legendary creature (turns on "unless you control a legendary creature"). */
   legendaryCreature: boolean;
   /** The reduction `isKeepableHand` reads, so the keep rule matches the app's panels. */
@@ -271,4 +296,18 @@ export interface ManaSimResult {
   commanders: CardCastability[];
   /** Every distinct nonland spell, hardest to cast on curve first. */
   cards: CardCastability[];
+}
+
+/**
+ * A goal for `simulateGoal`: on what turn is the deck's win path assembled and
+ * paid for? Any one option met ends the game for that run.
+ */
+export interface ManaGoal {
+  /** `need` distinct `names` of a complete combo, a single alt-win card, or a strategic mass. */
+  options: ReadonlyArray<{ names: readonly string[]; need: number }>;
+  /**
+   * Tutor names. A cast tutor fetches the cheapest still-missing piece of the
+   * option closest to done into HAND, where it still has to be cast.
+   */
+  tutors?: readonly string[];
 }

@@ -14,13 +14,13 @@ import {
 } from '@/playtest/lib/playtest-stats';
 import {
   isKeepableHand,
-  simulateAssemblyClock,
   simulateLandDropCurve,
   simulateOpeningHands,
   type AssemblyClockResult,
   type LandDropCurveResult,
 } from '@/lib/mana-sim/opening-hand-sim';
-import { toClockCard, toSimCard } from '@/lib/mana-sim/hand-classify';
+import { simulateAssemblyClock } from '@/lib/mana-sim/clock';
+import { toClockLibrary, toSimCard } from '@/lib/mana-sim/hand-classify';
 import { loadSessionHistory } from '@/lib/playtest/session-history';
 import { computeSessionAggregates, MIN_SESSIONS_FOR_STATS } from '@/lib/playtest/session-record';
 import { MeterBar, StackedBar } from '@/components/shared/MeterBar';
@@ -423,7 +423,7 @@ function runSimBatch(deck: Deck, key: string): SimBatch {
   const curve = simulateLandDropCurve(simCards, { iterations: 1000, seed: 42 });
 
   const primary = deck.winConditions?.primary ?? null;
-  const clockCards = deck.cards.map((slot) => toClockCard(slot.card));
+  const clockCards = toClockLibrary(deck.cards.map((slot) => slot.card));
   // Kill categories only — a strategic mass's "assembled" turn measures its
   // evidence-pool size rather than the deck's speed (see isKillClock).
   const kills = !!primary && isKillClock(primary.category);
@@ -641,7 +641,7 @@ function SimulateSection({ deck }: { deck: Deck | undefined }) {
             )}
           </div>
 
-          <p className="playtest-stats-sim-note">Goldfish only: no opponent, colors not modeled.</p>
+          <p className="playtest-stats-sim-note">Goldfish only: no opponent.</p>
         </>
       )}
     </div>

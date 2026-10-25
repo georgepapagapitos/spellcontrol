@@ -47,11 +47,11 @@ import {
   assemblyClockSentence,
   isKeepableHand,
   librarySeed,
-  simulateAssemblyClock,
   simulateOpeningHands,
   type SimResult,
 } from '@/lib/mana-sim/opening-hand-sim';
-import { cardCmc, isLand, toClockCard, toSimCard } from '@/lib/mana-sim/hand-classify';
+import { simulateAssemblyClock } from '@/lib/mana-sim/clock';
+import { cardCmc, isLand, toClockLibrary, toSimCard } from '@/lib/mana-sim/hand-classify';
 import { CardPreview } from '@/components/card/CardPreview';
 import { InfoTip } from '@/components/overlays/InfoTip';
 import { assemblyClockTip, isKillClock } from './WinConditionPanel';
@@ -192,7 +192,7 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
       // turn tracks its evidence-pool size, not the deck's speed.
       if (!primaryWinCon || !isKillClock(primaryWinCon.category)) return null;
       if (!primaryWinCon.assembly?.length || library.length === 0) return null;
-      const clockCards = library.map(toClockCard);
+      const clockCards = toClockLibrary(library);
       return simulateAssemblyClock(clockCards, primaryWinCon.assembly, {
         iterations: 1000,
         wildcards: winConTutors,

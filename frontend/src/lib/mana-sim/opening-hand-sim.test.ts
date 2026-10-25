@@ -5,7 +5,7 @@ import {
   clockShare,
   isKeepableHand,
   librarySeed,
-  simulateAssemblyClock,
+  simulateColorlessClock,
   simulateLandDropCurve,
   simulateOpeningHands,
   type ClockCard,
@@ -209,7 +209,7 @@ describe('simulateLandDropCurve', () => {
   });
 });
 
-describe('simulateAssemblyClock', () => {
+describe('simulateColorlessClock', () => {
   const clockCard = (name: string, cmc = 2, role: SimCard['role'] = null): ClockCard => ({
     name,
     cmc,
@@ -242,7 +242,7 @@ describe('simulateAssemblyClock', () => {
   }
 
   it('reports the share of games assembled by each turn, rising to the median', () => {
-    const r = simulateAssemblyClock(namedLibrary(['A', 'B']), [{ names: ['A', 'B'], need: 2 }], {
+    const r = simulateColorlessClock(namedLibrary(['A', 'B']), [{ names: ['A', 'B'], need: 2 }], {
       iterations: 400,
       seed: 3,
     })!;
@@ -259,7 +259,7 @@ describe('simulateAssemblyClock', () => {
   });
 
   it('is a turn distribution: the ceiling, the median and p90 in order, each share inside its interval', () => {
-    const r = simulateAssemblyClock(namedLibrary(['A', 'B']), [{ names: ['A', 'B'], need: 2 }], {
+    const r = simulateColorlessClock(namedLibrary(['A', 'B']), [{ names: ['A', 'B'], need: 2 }], {
       iterations: 400,
       seed: 3,
     })!;
@@ -277,8 +277,8 @@ describe('simulateAssemblyClock', () => {
   it('is deterministic for a fixed seed', () => {
     const lib = namedLibrary(['A', 'B']);
     const spec = [{ names: ['A', 'B'], need: 2 }];
-    const a = simulateAssemblyClock(lib, spec, { iterations: 300, seed: 42 });
-    const b = simulateAssemblyClock(lib, spec, { iterations: 300, seed: 42 });
+    const a = simulateColorlessClock(lib, spec, { iterations: 300, seed: 42 });
+    const b = simulateColorlessClock(lib, spec, { iterations: 300, seed: 42 });
     expect(a).toEqual(b);
     expect(a).not.toBeNull();
   });
@@ -287,7 +287,7 @@ describe('simulateAssemblyClock', () => {
     // need 1 of a free spell that is every card — the opener always holds it,
     // and at 0 mana the turn-1 land drop is enough to cast it.
     const lib = Array.from({ length: 99 }, () => clockCard('Lab Man', 0));
-    const r = simulateAssemblyClock(lib, [{ names: ['Lab Man'], need: 1 }], {
+    const r = simulateColorlessClock(lib, [{ names: ['Lab Man'], need: 1 }], {
       iterations: 100,
       seed: 1,
     });
@@ -306,11 +306,11 @@ describe('simulateAssemblyClock', () => {
   it('prices the pieces: an expensive combo clocks later than a cheap one', () => {
     // Same shuffle sequence, same positions — only the mana values differ.
     const spec = [{ names: ['A', 'B'], need: 2 }];
-    const cheap = simulateAssemblyClock(namedLibrary(densePieces(1)), spec, {
+    const cheap = simulateColorlessClock(namedLibrary(densePieces(1)), spec, {
       iterations: 300,
       seed: 21,
     })!;
-    const pricey = simulateAssemblyClock(namedLibrary(densePieces(8)), spec, {
+    const pricey = simulateColorlessClock(namedLibrary(densePieces(8)), spec, {
       iterations: 300,
       seed: 21,
     })!;
@@ -326,8 +326,8 @@ describe('simulateAssemblyClock', () => {
     ]);
     const withoutDraw = withDraw.map((c) => (c.role === 'cardDraw' ? { ...c, role: null } : c));
     const spec = [{ names: ['A', 'B'], need: 2 }];
-    const drawn = simulateAssemblyClock(withDraw, spec, { iterations: 300, seed: 6 })!;
-    const flat = simulateAssemblyClock(withoutDraw, spec, { iterations: 300, seed: 6 })!;
+    const drawn = simulateColorlessClock(withDraw, spec, { iterations: 300, seed: 6 })!;
+    const flat = simulateColorlessClock(withoutDraw, spec, { iterations: 300, seed: 6 })!;
     expect(drawn.typicalTurn).toBeLessThan(flat.typicalTurn);
   });
 
@@ -342,13 +342,13 @@ describe('simulateAssemblyClock', () => {
     );
     const withoutRamp = withRamp.map((c) => (c.role === 'ramp' ? { ...c, role: null } : c));
     const spec = [{ names: ['A', 'B'], need: 2 }];
-    const ramped = simulateAssemblyClock(withRamp, spec, { iterations: 300, seed: 8 })!;
-    const flat = simulateAssemblyClock(withoutRamp, spec, { iterations: 300, seed: 8 })!;
+    const ramped = simulateColorlessClock(withRamp, spec, { iterations: 300, seed: 8 })!;
+    const flat = simulateColorlessClock(withoutRamp, spec, { iterations: 300, seed: 8 })!;
     expect(ramped.typicalTurn).toBeLessThan(flat.typicalTurn);
   });
 
   it('reports turn 1 for a zero-need option (commander-only combo)', () => {
-    const r = simulateAssemblyClock(namedLibrary(['A']), [{ names: [], need: 0 }], {
+    const r = simulateColorlessClock(namedLibrary(['A']), [{ names: [], need: 0 }], {
       iterations: 50,
       seed: 1,
     });
@@ -359,7 +359,7 @@ describe('simulateAssemblyClock', () => {
 
   it('returns null when no option is viable', () => {
     // Named pieces absent from the library (stale analysis after an edit).
-    const r = simulateAssemblyClock(namedLibrary([]), [{ names: ['A', 'B'], need: 2 }], {
+    const r = simulateColorlessClock(namedLibrary([]), [{ names: ['A', 'B'], need: 2 }], {
       iterations: 50,
       seed: 1,
     });
@@ -369,7 +369,7 @@ describe('simulateAssemblyClock', () => {
   it('drops an option whose remaining present names cannot meet need, keeps viable ones', () => {
     // First option lost a piece (B missing); second is intact — clock still runs.
     const lib = namedLibrary(['A', 'C']);
-    const r = simulateAssemblyClock(
+    const r = simulateColorlessClock(
       lib,
       [
         { names: ['A', 'B'], need: 2 },
@@ -386,7 +386,7 @@ describe('simulateAssemblyClock', () => {
   it('duplicate copies of one name only count once toward need', () => {
     // 4 copies of A but the option needs 2 DISTINCT names — only A present → not viable.
     const lib = namedLibrary(['A', 'A', 'A', 'A']);
-    const r = simulateAssemblyClock(lib, [{ names: ['A', 'B'], need: 2 }], {
+    const r = simulateColorlessClock(lib, [{ names: ['A', 'B'], need: 2 }], {
       iterations: 50,
       seed: 1,
     });
@@ -395,7 +395,7 @@ describe('simulateAssemblyClock', () => {
 
   it('p90 is never earlier than the median', () => {
     const lib = namedLibrary(['A', 'B', 'C', 'D']);
-    const r = simulateAssemblyClock(lib, [{ names: ['A', 'B', 'C', 'D'], need: 2 }], {
+    const r = simulateColorlessClock(lib, [{ names: ['A', 'B', 'C', 'D'], need: 2 }], {
       iterations: 500,
       seed: 3,
     });
@@ -406,8 +406,8 @@ describe('simulateAssemblyClock', () => {
     const lib = namedLibrary(['A', 'B', 'C']);
     const hard = [{ names: ['A', 'B'], need: 2 }];
     const withEasy = [...hard, { names: ['C'], need: 1 }];
-    const slow = simulateAssemblyClock(lib, hard, { iterations: 300, seed: 11 })!;
-    const fast = simulateAssemblyClock(lib, withEasy, { iterations: 300, seed: 11 })!;
+    const slow = simulateColorlessClock(lib, hard, { iterations: 300, seed: 11 })!;
+    const fast = simulateColorlessClock(lib, withEasy, { iterations: 300, seed: 11 })!;
     // Identical shuffle sequence per iteration; completion is a per-run min
     // over options, so every percentile is monotonically ≤.
     expect(fast.typicalTurn).toBeLessThanOrEqual(slow.typicalTurn);
@@ -415,13 +415,13 @@ describe('simulateAssemblyClock', () => {
   });
 
   it('a denser strategic pool assembles faster than a sparse one (same seed)', () => {
-    const sparse = simulateAssemblyClock(
+    const sparse = simulateColorlessClock(
       namedLibrary(['A', 'B', 'C', 'D']),
       [{ names: ['A', 'B', 'C', 'D'], need: 4 }],
       { iterations: 300, seed: 5 }
     )!;
     const denseNames = Array.from({ length: 20 }, (_, i) => `P${i}`);
-    const dense = simulateAssemblyClock(
+    const dense = simulateColorlessClock(
       namedLibrary(denseNames),
       [{ names: denseNames, need: 4 }],
       { iterations: 300, seed: 5 }
@@ -433,8 +433,8 @@ describe('simulateAssemblyClock', () => {
     const tutors = Array.from({ length: 8 }, (_, i) => `Tutor ${i}`);
     const lib = namedLibrary(['A', 'B', ...tutors]);
     const spec = [{ names: ['A', 'B'], need: 2 }];
-    const raw = simulateAssemblyClock(lib, spec, { iterations: 300, seed: 13 })!;
-    const tutored = simulateAssemblyClock(lib, spec, {
+    const raw = simulateColorlessClock(lib, spec, { iterations: 300, seed: 13 })!;
+    const tutored = simulateColorlessClock(lib, spec, {
       iterations: 300,
       seed: 13,
       wildcards: tutors,
@@ -449,7 +449,7 @@ describe('simulateAssemblyClock', () => {
     // clock is never turn 1 — casting tutor + piece twice costs real mana.
     const tutors = Array.from({ length: 40 }, (_, i) => `Tutor ${i}`);
     const lib = namedLibrary([...tutors.map((t) => clockCard(t, 2)), 'A', 'B']);
-    const r = simulateAssemblyClock(lib, [{ names: ['A', 'B'], need: 2 }], {
+    const r = simulateColorlessClock(lib, [{ names: ['A', 'B'], need: 2 }], {
       iterations: 300,
       seed: 4,
       wildcards: tutors,
@@ -464,12 +464,12 @@ describe('simulateAssemblyClock', () => {
     // 'A' is both piece and (mis-)listed wildcard: drawing A must not count
     // twice and finish a need-2 option alone.
     const lib = namedLibrary(['A', 'B']);
-    const r = simulateAssemblyClock(lib, [{ names: ['A', 'B'], need: 2 }], {
+    const r = simulateColorlessClock(lib, [{ names: ['A', 'B'], need: 2 }], {
       iterations: 300,
       seed: 13,
       wildcards: ['A'],
     })!;
-    const raw = simulateAssemblyClock(lib, [{ names: ['A', 'B'], need: 2 }], {
+    const raw = simulateColorlessClock(lib, [{ names: ['A', 'B'], need: 2 }], {
       iterations: 300,
       seed: 13,
     })!;
@@ -479,7 +479,7 @@ describe('simulateAssemblyClock', () => {
   it('respects a custom hand size', () => {
     // Whole library in hand from the start, and both pieces free → turn 1.
     const lib = namedLibrary([clockCard('A', 0), clockCard('B', 0)], 10, 4);
-    const r = simulateAssemblyClock(lib, [{ names: ['A', 'B'], need: 2 }], {
+    const r = simulateColorlessClock(lib, [{ names: ['A', 'B'], need: 2 }], {
       iterations: 50,
       seed: 2,
       handSize: 10,

@@ -13,6 +13,7 @@
  */
 
 import { mulberry32, shuffle } from '@/lib/playtest/rng';
+import type { ManaCard } from './types';
 import { DISTRIBUTION_TURNS, summarizeTurns, type TurnDistribution } from './turn-distribution';
 
 /** A card reduced to just the fields the opening-hand heuristics need. */
@@ -254,6 +255,8 @@ export function simulateLandDropCurve(
 /** A library card the assembly clock needs: a `SimCard` plus its name. */
 export interface ClockCard extends SimCard {
   name: string;
+  /** The card read for the manabase engine; a library whose cards all have it is clocked in color (`./clock.ts`). */
+  mana?: ManaCard;
 }
 
 export interface AssemblyClockOptions {
@@ -357,7 +360,7 @@ const DEVELOPING = [0, 3, 1, 2] as const;
  * The `options` shape matches `WinCondition.assembly` from the T16 detector,
  * kept structural here so this file stays decoupled from deck-builder types.
  */
-export function simulateAssemblyClock(
+export function simulateColorlessClock(
   library: readonly ClockCard[],
   options: ReadonlyArray<{ names: readonly string[]; need: number }>,
   opts: AssemblyClockOptions = {}
