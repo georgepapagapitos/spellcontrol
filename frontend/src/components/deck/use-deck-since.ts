@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Deck } from '@/store/decks';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { useTaggerReady } from '@/lib/cards/use-tagger-ready';
 import { getAllCardRoles } from '@/deck-builder/services/tagger/client';
 import { toClockLibrary } from '@/lib/mana-sim/hand-classify';
@@ -103,7 +102,10 @@ export function useDeckSince(deck: Deck | null): DeckSinceState | null {
   useEffect(() => {
     if (lost.length === 0) return;
     let live = true;
-    void getCardsByNames(lost)
+    // Lazy: the card client stays out of the page's static graph, and a lookup that
+    // cannot run reads as "unresolved" (the computed rows are left out).
+    void import('@/deck-builder/services/scryfall/client')
+      .then((m) => m.getCardsByNames(lost))
       .then((cards) => live && setFound({ key: lostKey, cards }))
       .catch(() => live && setFound({ key: lostKey, cards: new Map() }));
     return () => {
