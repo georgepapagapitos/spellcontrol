@@ -443,7 +443,7 @@ describe('lands health — curve-derived (Karsten) suggestion', () => {
     expect(high.message).toContain('4 over');
   });
 
-  it('clamps the suggestion to 40 for a top-heavy zero-ramp deck', async () => {
+  it('clamps the suggestion to 42 for a top-heavy zero-ramp deck', async () => {
     const mainboard = Array.from({ length: 50 }, (_, i) =>
       slot(makeCard({ name: `Big ${i}`, cmc: 5, type_line: 'Creature — Dragon' }))
     );
@@ -452,8 +452,8 @@ describe('lands health — curve-derived (Karsten) suggestion', () => {
       { format: 'commander', commander: null, partnerCommander: null, mainboard },
       true
     );
-    // 31.42 + 3.13*5 = 47.07 → clamped to 40.
-    expect(result.roles.find((r) => r.key === 'lands')!.suggested).toBe(40);
+    // 31.42 + 3.13*5 = 47.07 → clamped to 42 (the top of Karsten's 37-42 guidance).
+    expect(result.roles.find((r) => r.key === 'lands')!.suggested).toBe(42);
   });
 
   it('falls back to the static format band when the tagger is not ready', async () => {

@@ -29,7 +29,9 @@ import {
   computeAutoLandCount,
   computeLandCountSizingAnchor,
   DEFAULT_LAND_COUNT,
+  estimateCheapRampDraw,
   isDefaultLandCount,
+  KARSTEN_FULL_LAND_TERMS,
   karstenAppliesToFormat,
   type TargetCountsResult,
 } from '../targetCounts';
@@ -66,6 +68,11 @@ export interface BuildPlanInput {
   hasPartner: boolean;
   /** The commander's payoff is attacking (`commanderWantsExtraCombat`). */
   commanderWantsExtraCombat: boolean;
+  /** Karsten's MDFC term for the land formula: the summed land worth of the
+   *  spell/land MDFCs the build expects (0.38 each, 0.74 mythic). It needs card
+   *  data the plan does not hold, so generation computes it and records it on
+   *  the build report; the analysis of a saved deck passes it back. */
+  mdfcLandTerm?: number;
 }
 
 export interface BuildPlan {
@@ -81,6 +88,8 @@ export interface BuildPlan {
   plannedRampCount: number;
   resolvedLandCount: number;
   landCountAutoTuned: boolean;
+  /** The cheap ramp and draw count the land formula read; 0 when not auto-tuned. */
+  cheapRampDrawCount: number;
   /** Sizing-only anchor for the type passes; the flat default when not auto-tuned. */
   landCountSizingAnchor: number;
   typeTargetLandCount: number;
@@ -110,6 +119,7 @@ export function resolveBuildPlan(input: BuildPlanInput): BuildPlan {
   let resolvedLandCount = customization.landCount;
   let landCountSizingAnchor = DEFAULT_LAND_COUNT;
   let landCountAutoTuned = false;
+  let cheapRampDrawCount = 0;
   const plannedRampCount = dynamic.targets.ramp;
   if (karstenAppliesToFormat(format) && isDefaultLandCount(customization) && edhrecData) {
     const manaCurve = edhrecData.stats?.manaCurve ?? {};
@@ -119,7 +129,17 @@ export function resolveBuildPlan(input: BuildPlanInput): BuildPlan {
         ? Object.entries(manaCurve).reduce((s, [cmc, count]) => s + Number(cmc) * count, 0) /
           curveTotal
         : 0;
-    resolvedLandCount = computeAutoLandCount(archetype, plannedRampCount, avgCmc);
+    // 5.4a: Karsten's term is cheap (mana value 2 or less) ramp AND draw, not
+    // every planned ramp slot; the MDFC term rides in from generation.
+    cheapRampDrawCount = KARSTEN_FULL_LAND_TERMS
+      ? estimateCheapRampDraw(plannedRampCount, dynamic.targets.cardDraw)
+      : plannedRampCount;
+    resolvedLandCount = computeAutoLandCount(
+      archetype,
+      cheapRampDrawCount,
+      avgCmc,
+      input.mdfcLandTerm ?? 0
+    );
     landCountSizingAnchor = computeLandCountSizingAnchor(archetype, plannedRampCount, avgCmc);
     landCountAutoTuned = true;
   }
@@ -174,6 +194,7 @@ export function resolveBuildPlan(input: BuildPlanInput): BuildPlan {
     plannedRampCount,
     resolvedLandCount,
     landCountAutoTuned,
+    cheapRampDrawCount,
     landCountSizingAnchor,
     typeTargetLandCount,
     composition,

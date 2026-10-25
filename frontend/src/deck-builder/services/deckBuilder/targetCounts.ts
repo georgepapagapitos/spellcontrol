@@ -64,7 +64,7 @@ export function isDefaultLandCount(
 
 /**
  * Karsten's auto-tune (computeAutoLandCount below) is calibrated for 99-card
- * Commander decks — its [32,40] clamp is meaningless for a 60-card
+ * Commander decks — its [32,42] clamp is meaningless for a 60-card
  * constructed or 40-card limited deck (~22-26 / ~17 lands). Today the tune
  * is reachable only when EDHREC data loaded, which is commander-page-sourced,
  * so 60/40 generation never hits it in practice — but that's an accident of
@@ -77,36 +77,74 @@ export function karstenAppliesToFormat(format: number): boolean {
   return format === 99;
 }
 
-// Karsten's land-count formula (Frank Karsten, "How Many Lands Do You Need
-// to Consistently Hit Your Land Drops", 2022) — a curve/ramp-driven linear
-// model, replacing the old hand-tuned archetype-delta heuristic. Coefficients
-// are the published formula; clamped to the same 32-40 sane band as before.
+// Karsten's land-count formula (Frank Karsten, "How Many Lands Do You Need in
+// Your Deck? An Updated Analysis", TCGplayer; regressed on 2020-2022 data) — a
+// curve/ramp-driven linear model, replacing the old hand-tuned archetype-delta
+// heuristic. The 99-card form is his 60-card regression ported to Commander
+// (the commander counted as a companion, minus 1.35 for the free mulligan and
+// draw), so it is an extrapolation, not a fit on Commander lists.
 const KARSTEN_INTERCEPT = 31.42;
 const KARSTEN_CMC_COEFFICIENT = 3.13;
 const KARSTEN_RAMP_COEFFICIENT = 0.28;
 
 /**
- * Karsten land-count formula: intercept + avgCmc slope − ramp-density slope,
- * clamped to a 32-40 sane band. `archetype` is unused by the formula itself
- * (kept for signature stability — every call site still passes it).
- * `rampDensity` is the deck's planned ramp-slot target (blended EDHREC +
- * archetype model, see `getDynamicRoleTargets(...).targets.ramp`) — a
- * pre-generation proxy for how much of the manabase the deck's own
- * dorks/rocks will cover.
+ * 5.4a: feed the formula its own terms. `true` reads the cheap (mana value 2 or
+ * less) ramp AND draw count, subtracts the MDFC term, and lets the clamp reach
+ * 42 (the top of his 37 to 42 Commander guidance). `false` restores the old
+ * inputs: every planned ramp slot, no MDFC term, a 40 ceiling.
+ */
+export const KARSTEN_FULL_LAND_TERMS = true;
+
+/** The clamp's floor is the 99 slider's own 32; the ceiling is 42 (was 40). */
+const KARSTEN_MIN_LANDS = 32;
+const KARSTEN_MAX_LANDS = 42;
+const LEGACY_MAX_LANDS = 40;
+
+/**
+ * Cheap ramp and draw per planned slot, measured on 384 EDHREC average decks
+ * (docs/research/deck-intelligence-2026-10/08-archetype-densities-measured.md
+ * section 4): of 11.5 ramp pieces a deck holds on average 7.8 cost two or less
+ * (0.68); of 11.7 draw pieces, 4.3 do (0.37). Karsten's term is cheap ramp plus
+ * cheap draw; the plan has role slots, not cards, so it scales them.
+ */
+export const CHEAP_RAMP_SHARE = 0.68;
+export const CHEAP_DRAW_SHARE = 0.37;
+
+/** Karsten's cheap card draw or mana ramp count, estimated from the planned slots. */
+export function estimateCheapRampDraw(plannedRamp: number, plannedDraw: number): number {
+  return CHEAP_RAMP_SHARE * plannedRamp + CHEAP_DRAW_SHARE * plannedDraw;
+}
+
+/** Lands a spell/land MDFC is worth in his formula: mythic 0.74, any other rarity 0.38. */
+export function mdfcLandWeight(rarity: string | undefined): number {
+  return rarity === 'mythic' ? 0.74 : 0.38;
+}
+
+/**
+ * Karsten land-count formula: intercept + avgCmc slope − 0.28 per cheap
+ * ramp/draw piece − the MDFC term, clamped to 32-42. `archetype` is unused by
+ * the formula itself (kept for signature stability — every call site still
+ * passes it). `rampDensity` is Karsten's cheap card draw and mana ramp count:
+ * the plan estimates it from its ramp and draw slots (`estimateCheapRampDraw`),
+ * and the deck analysis passes the deck's own ramp count. `mdfcLandTerm` is the
+ * summed `mdfcLandWeight` of the spell/land MDFCs the deck plays.
  */
 export function computeAutoLandCount(
   _archetype: Archetype,
   rampDensity: number,
-  avgCmc: number
+  avgCmc: number,
+  mdfcLandTerm = 0
 ): number {
+  const full = KARSTEN_FULL_LAND_TERMS;
   return Math.max(
-    32,
+    KARSTEN_MIN_LANDS,
     Math.min(
-      40,
+      full ? KARSTEN_MAX_LANDS : LEGACY_MAX_LANDS,
       Math.round(
         KARSTEN_INTERCEPT +
           KARSTEN_CMC_COEFFICIENT * avgCmc -
-          KARSTEN_RAMP_COEFFICIENT * rampDensity
+          KARSTEN_RAMP_COEFFICIENT * rampDensity -
+          (full ? mdfcLandTerm : 0)
       )
     )
   );

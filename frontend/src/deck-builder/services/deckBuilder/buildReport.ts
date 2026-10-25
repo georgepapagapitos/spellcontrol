@@ -169,6 +169,7 @@ export function assembleBuildReport(input: {
   if (generated.detectedArchetype != null) {
     report.archetype = generated.detectedArchetype;
     report.archetypeProvenance = generated.archetypeProvenance;
+    if (generated.mdfcLandTerm) report.mdfcLandTerm = generated.mdfcLandTerm;
     const selected = (selectedThemes ?? []).filter((t) => t.isSelected);
     report.archetypeNote = buildArchetypeNote({
       archetype: generated.detectedArchetype,

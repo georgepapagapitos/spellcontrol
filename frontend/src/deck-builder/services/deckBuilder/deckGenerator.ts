@@ -58,7 +58,7 @@ import { ARCHETYPE_LABEL } from './strategyVocabulary';
 import { Archetype } from '@/deck-builder/types';
 import type { ArchetypeProvenance, Pacing, RoleTargetBreakdown } from '@/deck-builder/types';
 import * as wholeDeckSearch from './deckGeneration/wholeDeckSearchStep';
-import { resolveBuildPlan, wantsExtraCombat } from './deckGeneration/buildPlan';
+import { resolveGenerationPlan, wantsExtraCombat } from './deckGeneration/generationPlan';
 import { loadUserLists } from '@/deck-builder/hooks/useUserLists';
 import {
   fitsColorIdentity,
@@ -1899,13 +1899,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   const detectedArchetype: Archetype = archetypeDecision.archetype;
   detectedArchetypeProvenance = archetypeDecision.provenance;
 
-  // The build plan: role targets (blended EDHREC + archetype-model slots),
-  // pacing, the Karsten auto land count and the type/curve targets, derived
-  // once. The analysis of a saved generated deck reads the same plan
-  // (deckGeneration/buildPlan.ts), so a deck keeps its grade after generation.
-  // Computed unconditionally: the land count needs the ramp target before the
-  // balancedRoles gate below is known.
-  const plan = resolveBuildPlan({
+  // The build plan (role targets, pacing, the Karsten land count, type/curve
+  // targets), derived once; a saved deck's analysis reads the same plan
+  // (deckGeneration/buildPlan.ts). Computed unconditionally: the land count
+  // needs the ramp target before the balancedRoles gate below is known.
+  const plan = await resolveGenerationPlan({
+    arenaOnly,
     format,
     customization,
     selectedThemes: context.selectedThemes,
@@ -5072,6 +5071,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     cardRelevancyMap,
     detectedArchetype,
     archetypeProvenance: detectedArchetypeProvenance,
+    mdfcLandTerm: plan.mdfcLandTerm,
     archetypeEvidence: archetypeDecision.evidence,
     archetypeIsLowConfidence,
     detectedPacing,

@@ -31,6 +31,8 @@ export interface DeckBuild {
   selectedThemes: ThemeResult[];
   /** The archetype generation built as (`buildReport.archetype`). */
   archetype?: Archetype;
+  /** Karsten's MDFC land term generation used (`buildReport.mdfcLandTerm`). */
+  mdfcLandTerm?: number;
 }
 
 /**
@@ -40,7 +42,9 @@ export interface DeckBuild {
  * ones a fresh build starts from.
  */
 export function deckBuildOf(
-  deck: Pick<Deck, 'generationContext'> & { buildReport?: { archetype?: Archetype } }
+  deck: Pick<Deck, 'generationContext'> & {
+    buildReport?: { archetype?: Archetype; mdfcLandTerm?: number };
+  }
 ): DeckBuild | undefined {
   const gc = deck.generationContext;
   if (!gc) return undefined;
@@ -55,6 +59,7 @@ export function deckBuildOf(
     },
     selectedThemes: gc.selectedThemes ?? [],
     archetype: deck.buildReport?.archetype,
+    mdfcLandTerm: deck.buildReport?.mdfcLandTerm,
   };
 }
 
@@ -85,6 +90,7 @@ export function deriveAnalysisTargets(input: {
       archetypeFallback: build.archetype ?? profile.primaryArchetype,
       hasPartner: commanders.length > 1,
       commanderWantsExtraCombat: wantsExtraCombat(commanders, profile),
+      mdfcLandTerm: build.mdfcLandTerm,
     });
     return {
       roleTargets: plan.roleTargets,

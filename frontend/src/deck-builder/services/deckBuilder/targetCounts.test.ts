@@ -7,6 +7,10 @@ import {
   isDefaultLandCount,
   DEFAULT_LAND_COUNT,
   karstenAppliesToFormat,
+  CHEAP_RAMP_SHARE,
+  CHEAP_DRAW_SHARE,
+  estimateCheapRampDraw,
+  mdfcLandWeight,
 } from './targetCounts';
 import { Archetype } from '@/deck-builder/types';
 import type { Customization, EDHRECCommanderStats } from '@/deck-builder/types';
@@ -262,7 +266,7 @@ describe('isDefaultLandCount', () => {
 });
 
 describe('computeAutoLandCount (Karsten formula)', () => {
-  // round(31.42 + 3.13*avgCmc - 0.28*rampDensity), clamped [32, 40].
+  // round(31.42 + 3.13*avgCmc - 0.28*cheapRampDraw - mdfcTerm), clamped [32, 42].
   // Archetype no longer feeds the formula — passed values are arbitrary.
 
   it('matches the known-value case: avgCmc 3.0, ramp 12 => 37', () => {
@@ -275,17 +279,55 @@ describe('computeAutoLandCount (Karsten formula)', () => {
     expect(computeAutoLandCount(Archetype.TRIBAL, 30, 2.0)).toBe(32);
   });
 
-  it('clamps to the 40-land ceiling for a high-curve, ramp-light deck (Kozilek-shaped)', () => {
-    // 31.42 + 3.13*5.0 - 0.28*14 = 31.42 + 15.65 - 3.92 = 43.15 => round 43 => ceiling 40
-    expect(computeAutoLandCount(Archetype.CONTROL, 14, 5.0)).toBe(40);
+  it('clamps to the 42-land ceiling for a high-curve, ramp-light deck (Kozilek-shaped)', () => {
+    // 31.42 + 3.13*5.0 - 0.28*14 = 31.42 + 15.65 - 3.92 = 43.15 => round 43 => ceiling 42
+    expect(computeAutoLandCount(Archetype.CONTROL, 14, 5.0)).toBe(42);
+  });
+
+  it("no longer stops at 40: Karsten's 37-42 guidance is reachable", () => {
+    // 31.42 + 3.13*4.0 - 0.28*10 = 41.14 => 41 (the old ceiling returned 40)
+    expect(computeAutoLandCount(Archetype.GOODSTUFF, 10, 4.0)).toBe(41);
+  });
+
+  it('reproduces the worked example in his article: avgMV 3.0, 10 cheap ramp/draw => 38', () => {
+    // 31.42 + 9.39 - 2.8 = 38.01
+    expect(computeAutoLandCount(Archetype.GOODSTUFF, 10, 3.0)).toBe(38);
+  });
+
+  it('subtracts the MDFC term: one mythic spell/land MDFC (0.74) takes the worked example to 37', () => {
+    expect(computeAutoLandCount(Archetype.GOODSTUFF, 10, 3.0, 0.74)).toBe(37);
+    // 38.01 - 0.38 = 37.63 => 38: a non-mythic alone does not move it
+    expect(computeAutoLandCount(Archetype.GOODSTUFF, 10, 3.0, 0.38)).toBe(38);
   });
 
   it('never goes below the 32-land floor even with extreme inputs', () => {
     expect(computeAutoLandCount(Archetype.TRIBAL, 999, 0)).toBeGreaterThanOrEqual(32);
   });
 
-  it('never exceeds the 40-land ceiling even with extreme inputs', () => {
-    expect(computeAutoLandCount(Archetype.LANDFALL, 0, 10)).toBeLessThanOrEqual(40);
+  it('never exceeds the 42-land ceiling even with extreme inputs', () => {
+    expect(computeAutoLandCount(Archetype.LANDFALL, 0, 10)).toBeLessThanOrEqual(42);
+  });
+});
+
+describe('cheap ramp and draw estimate (5.4a)', () => {
+  it('scales planned slots by the measured cheap shares (0.68 ramp, 0.37 draw)', () => {
+    expect(CHEAP_RAMP_SHARE).toBe(0.68);
+    expect(CHEAP_DRAW_SHARE).toBe(0.37);
+    // The base 99 plan of 10 ramp and 9 draw: 6.8 + 3.33 = 10.13 cheap pieces,
+    // within 0.15 of the 10 the old code subtracted, so the common deck keeps its count.
+    expect(estimateCheapRampDraw(10, 9)).toBeCloseTo(10.13, 2);
+  });
+
+  it('counts a draw slot for less than a ramp slot, and a ramp-heavy deck for more', () => {
+    expect(estimateCheapRampDraw(0, 10)).toBeLessThan(estimateCheapRampDraw(10, 0));
+    expect(estimateCheapRampDraw(26, 8)).toBeGreaterThan(estimateCheapRampDraw(10, 9));
+  });
+});
+
+describe('mdfcLandWeight (5.4a)', () => {
+  it('is 0.74 for a mythic and 0.38 for every other rarity', () => {
+    expect(mdfcLandWeight('mythic')).toBe(0.74);
+    for (const r of ['rare', 'uncommon', 'common', undefined]) expect(mdfcLandWeight(r)).toBe(0.38);
   });
 });
 
