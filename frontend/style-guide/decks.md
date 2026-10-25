@@ -1876,6 +1876,25 @@ hidden. Suggestions you hide from a row's menu show up here.`
 - **It is also a label** (E518): `dismiss` on the surface the row was on, `undo`
   when it is restored.
 
+### The Cuts lane knows what your other decks hold (E1038 4.2)
+
+"Owned" is not "free". A replacement whose every copy sits in another of the
+player's decks is searched after the cards with a free copy, and when it is still
+the best one, its row says so in one extra line under the reason, in the warn
+colour (`deck-card-row-contention`): `In your Atraxa deck. Taking it leaves that
+deck short on board wipes (1 of 2).` The role clause appears only when the card
+holds a counted role there and the deck would drop under that role's target;
+otherwise the line says `Taking it leaves a slot to refill there.` Cube-only
+holds say nothing.
+
+Under the lane's rows, `Best buys for these slots` lists at most two cards the
+player does not own, ranked by the objective's gain per dollar (price floored at
+$0.25). A card with no price is never guessed: it is counted in a closing line
+(`1 more has no price yet and isn't ranked.`). Loading reads `Looking for buys
+worth the money.`; nothing found reads `Nothing you'd have to buy beats what you
+own for these slots.`; a failed search renders nothing, since the lane above it
+already stands on its own.
+
 ### Empty states
 
 | Situation                                            | Copy                                                                                                                                         |

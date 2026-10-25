@@ -564,3 +564,22 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Best buys under the Cuts lane (E1038 4.2). */
+.coach-feed-buys {
+  margin-top: var(--space-4);
+}
+
+.coach-feed-buys-title {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.coach-feed-buys-note {
+  margin: var(--space-1) 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}

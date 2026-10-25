@@ -42,6 +42,7 @@ import {
 import type { CoachObjectiveResult } from './coach-objective';
 import type { RankedMove } from './coach-rank';
 import type { SettingsBreak } from './deck-settings-fit';
+import { contentionNote, type Hold } from './contention';
 
 /** Replacement candidates scored per pairing, the page's most played first. */
 export const MAX_CANDIDATES = 150;
@@ -228,6 +229,8 @@ interface PairEnv {
   resolve: (name: string) => ScryfallCard | undefined;
   candidates: readonly ScryfallCard[];
   ownership: (name: string) => ChangeOwnership;
+  /** The other decks holding every copy of a card, with what losing it does there. */
+  holds?: (name: string) => readonly Hold[];
   /** Coach's own settings check on the paired row (price, budget, rarity, ...). */
   settingsBreak?: (change: Change) => SettingsBreak | null;
 }
@@ -261,6 +264,7 @@ function swapRow(cut: Change, s: ScoredRow, env: PairEnv): Change | null {
   });
   return {
     ...base,
+    contention: contentionNote(env.holds?.(inName) ?? []),
     // The cut's id: the feed's leave/depart bookkeeping and its React key already follow it.
     id: cut.id,
     pairedCut: true,
@@ -310,6 +314,7 @@ export async function pairCuts(
     maxPairs: 8,
     distinctReplacements: true,
     maxCandidates: MAX_CANDIDATES,
+    committed: env.holds ? (c) => env.holds!(c.name).length > 0 : undefined,
     offPage: { is: (c) => !onPage(env.objective, c), bar: OFF_PAGE_MIN_GAIN },
     pins: env.pins,
     shouldStop: () => now() - t0 > budget || env.cancelled?.() === true,

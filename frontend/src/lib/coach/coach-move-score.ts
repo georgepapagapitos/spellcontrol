@@ -157,6 +157,12 @@ export interface CoachMoveScoreOptions {
    * each costs a deck score.
    */
   maxCandidates?: number;
+  /**
+   * A replacement every copy of which sits in another deck. Searched after the
+   * cards with a free copy (or none owned), so a card taken from a sibling deck
+   * is offered only when nothing free is acceptable.
+   */
+  committed?: (card: ScryfallCard) => boolean;
 }
 
 /** Off-page pairs judged per cut. */
@@ -364,9 +370,11 @@ function* scoreSteps(
     const rank = (c: ScryfallCard): number => (ownedFirst && !ownedFirst(c) ? 1 : 0);
     // The commander's page first: a card it has a row for has the data to back a swap.
     const pageRank = (c: ScryfallCard): number => (opts.offPage?.is(c) ? 1 : 0);
+    const heldRank = (c: ScryfallCard): number => (opts.committed?.(c) ? 1 : 0);
     pairs.sort(
       (a, b) =>
         rank(a.in) - rank(b.in) ||
+        heldRank(a.in) - heldRank(b.in) ||
         pageRank(a.in) - pageRank(b.in) ||
         b.est - a.est ||
         byName(a.out, b.out) ||

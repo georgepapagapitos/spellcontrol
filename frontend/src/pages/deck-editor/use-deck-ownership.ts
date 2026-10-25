@@ -14,6 +14,8 @@ import {
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '@/types';
 import type { EnrichedCard } from '@spellcontrol/binder-routing';
+import { committedElsewhere } from '@/lib/deck/held-elsewhere';
+import { holdsOf, type Hold } from '@/lib/coach/contention';
 
 export function useDeckOwnership({
   collectionCards,
@@ -103,6 +105,27 @@ export function useDeckOwnership({
     [ownershipByName]
   );
 
+  // Cards every copy of which sits in another deck, and what taking one costs
+  // that deck (E1038 4.2). Cached per name: the role counts behind a hold are a
+  // pass over the other deck, and the Cuts lane asks about each candidate.
+  const holdsFor = useMemo(() => {
+    const holders = committedElsewhere(
+      collectionCards,
+      buildAllocationMap(decks, savedCubes),
+      deck?.id ?? ''
+    );
+    const cache = new Map<string, Hold[]>();
+    return (name: string): Hold[] => {
+      const key = name.toLowerCase();
+      let hit = cache.get(key);
+      if (!hit) {
+        hit = holdsOf(name, holders.get(key), decks);
+        cache.set(key, hit);
+      }
+      return hit;
+    };
+  }, [collectionCards, decks, savedCubes, deck?.id]);
+
   // Per-printing availability for the edit-printing picker: does the user own
   // this exact printing, and is a copy free to bind here? Same live sources as
   // ownershipFor, but keyed by scryfallId rather than name.
@@ -158,6 +181,7 @@ export function useDeckOwnership({
     printingAllocationMap,
     ownedNames,
     ownershipFor,
+    holdsFor,
     binderByCardName,
     freeCountFor,
     binderByCopyId,

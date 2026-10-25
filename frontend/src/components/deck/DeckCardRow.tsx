@@ -286,6 +286,9 @@ export function DeckCardRow({
         {/* The why: one cell of the Coach table, stacked under the name elsewhere. */}
         <div className="deck-card-row-why">
           {reason && <span className="deck-card-row-reason">{reason}</span>}
+          {change.contention && (
+            <span className="deck-card-row-contention">{change.contention}</span>
+          )}
           {/* E274: the AI refine reading picked this same card. Its sentence is
               model-written, so it carries the provenance marker and stays apart
               from the engine's grounded reason/factors above and below it. */}

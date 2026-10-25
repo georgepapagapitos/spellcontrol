@@ -15,6 +15,7 @@ import {
   BracketFitStrip,
   BudgetConfidenceStrip,
   CutsLaneStatus,
+  EmptyFilterNote,
   UpgradePlanEntry,
 } from './CoachFeedStrips';
 import { VerdictBadge } from './VerdictBadge';
@@ -27,6 +28,8 @@ import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { useOwnedCardThumb } from '@/lib/cards/owned-printing';
 import { classifyInclusion } from '@/lib/deck-analysis/inclusion-label';
 import { buildCoachChanges } from '@/lib/coach/coach-changes';
+import type { Hold } from '@/lib/coach/contention';
+import { CutsBuys } from './CutsBuys';
 import { isOffMetaChange, type Change, type ChangeOwnership } from '@/lib/coach/deck-change';
 import {
   rankCoachMoves,
@@ -96,6 +99,8 @@ export interface CoachFeedProps {
   bracketOverridePresent: boolean;
   // Ownership
   resolveOwnership: (name: string) => ChangeOwnership;
+  /** Other decks holding every copy of a card, with what losing it does there (E1038 4.2). */
+  holdsFor?: (name: string) => readonly Hold[];
   ownedNames: Set<string>;
   /**
    * Lowercased names of the cards currently in the deck's mainboard — the
@@ -224,6 +229,7 @@ export function CoachFeed({
   deckTarget,
   bracketOverridePresent,
   resolveOwnership,
+  holdsFor,
   ownedNames,
   deckNames,
   onApplyMove,
@@ -505,7 +511,7 @@ export function CoachFeed({
   // ── The Cuts lane: each cut with its best replacement ────────────────────
   // Legacy order stays; the pairing adds the replacement (verdicts land in one batch).
   const cutChanges = useMemo(() => cuts.map((r) => r.change), [cuts]);
-  const env = { resolveOwnership, settingsBreak };
+  const env = { resolveOwnership, settingsBreak, holds: holdsFor };
   const cutPairing = useCutSwaps(cutChanges, cutSwaps, env, combosLoading);
   const cutsLoading = cutPairing.state.status === 'loading' && cuts.length > 0;
   const planJudge = usePlanJudge(cutSwaps, upgradePlan?.open === true, combosLoading);
@@ -996,6 +1002,16 @@ export function CoachFeed({
                 })}
               </ul>
             )}
+            {activeFilter === 'cuts' && !cutsLoading && (
+              <CutsBuys
+                buys={cutPairing.buys}
+                deckNames={deckNames}
+                commanderName={commanderShort}
+                onAct={act}
+                onPreview={(c) => carousel.open([entryFor(c)], c.name)}
+                busy={(c) => busy.has(c.name) || (c.inName ? busy.has(c.inName) : false)}
+              />
+            )}
             {filteredRows.length > ROW_CAP && (
               <button
                 type="button"
@@ -1012,35 +1028,15 @@ export function CoachFeed({
             {filteredRows.length === 0 &&
               !isPending &&
               !cutsLoading &&
-              !(activeFilter === 'cuts' && lane.withheld > 0) &&
-              (isOwnedEmpty ? (
-                <div className="coach-feed-empty-filter coach-feed-empty-owned">
-                  <p>
-                    {hiddenByOwned === 1 ? 'The only' : `All ${hiddenByOwned}`}{' '}
-                    {activeFilter === 'all' ? '' : FILTER_LABELS[activeFilter] + ' '}
-                    suggestion{hiddenByOwned === 1 ? ' is a card' : 's are cards'} you don't own
-                    yet.
-                  </p>
-                  <Button variant="link" onClick={() => onOwnedOnlyChange(false)}>
-                    Show unowned too
-                  </Button>
-                </div>
-              ) : isOffMetaEmpty ? (
-                <div className="coach-feed-empty-filter coach-feed-empty-owned">
-                  <p>
-                    No off-meta {activeFilter === 'all' ? '' : FILTER_LABELS[activeFilter] + ' '}
-                    picks right now. This lane's suggestions are all played staples.
-                  </p>
-                  <Button variant="link" onClick={() => setOffMetaOnly(false)}>
-                    Show all suggestions
-                  </Button>
-                </div>
-              ) : (
-                <p className="coach-feed-empty-filter">
-                  No {activeFilter === 'all' ? '' : FILTER_LABELS[activeFilter] + ' '}suggestions
-                  right now.
-                </p>
-              ))}
+              !(activeFilter === 'cuts' && lane.withheld > 0) && (
+                <EmptyFilterNote
+                  filter={activeFilter}
+                  kind={isOwnedEmpty ? 'owned' : isOffMetaEmpty ? 'off-meta' : 'none'}
+                  hiddenByOwned={hiddenByOwned}
+                  onShowUnowned={() => onOwnedOnlyChange(false)}
+                  onShowAll={() => setOffMetaOnly(false)}
+                />
+              )}
 
             {/* Aligned bracket state */}
             {activeFilter === 'bracket-fit' && bracketFit?.direction === 'aligned' && (

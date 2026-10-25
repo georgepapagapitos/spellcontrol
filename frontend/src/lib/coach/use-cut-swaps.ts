@@ -33,12 +33,26 @@ import {
 } from './coach-cut-swaps';
 import type { SettingsBreak } from './deck-settings-fit';
 import { dismissedNames } from './dismissed-suggestions';
+import type { Hold } from './contention';
+import type { BuyCandidate } from './coach-buys';
+
+/** The weakest slots a buy is looked for, and the time the search gets after the owned pairing. */
+const BUY_SLOTS = 6;
+const BUY_BUDGET_MS = 3000;
+
+export type BuyState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'ready'; buys: BuyCandidate[] }
+  | { status: 'error' };
 
 export type { CutSwapSources };
 
 export interface CutSwapEnv {
   resolveOwnership: (name: string) => ChangeOwnership;
   settingsBreak?: (change: Change) => SettingsBreak | null;
+  /** The other decks holding every copy of a card, with what losing it does there. */
+  holds?: (name: string) => readonly Hold[];
 }
 
 /** The cards by name: the cache first, then one batched fetch for the rest. */
@@ -66,13 +80,15 @@ export function useCutSwaps(
   env: CutSwapEnv,
   /** The deck's combos are still loading: the objective reads them, so wait rather than run twice. */
   hold = false
-): { state: CutSwapState; retry: () => void } {
+): { state: CutSwapState; buys: BuyState; retry: () => void } {
   // The last verdict and the run it answers; a newer run's key leaves it stale.
   const [settled, setSettled] = useState<{ key: string; value: CutSwapState } | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [buyResult, setBuyResult] = useState<{ key: string; value: BuyState } | null>(null);
   // A retry clears the last verdict so the lane shows its skeleton, not the stale fallback note.
   const retry = useCallback(() => {
     setSettled(null);
+    setBuyResult(null);
     setAttempt((n) => n + 1);
   }, []);
 
@@ -174,6 +190,7 @@ export function useCutSwaps(
           resolve: (n) => cards.get(n) ?? getCachedCard(n),
           candidates: [...cards.values()],
           ownership: e.resolveOwnership,
+          holds: e.holds,
           settingsBreak: e.settingsBreak,
           budgetMs: Math.max(0, CUT_PAIRING_BUDGET_MS - (Date.now() - t0)),
           cancelled: () => cancelled,
@@ -191,6 +208,34 @@ export function useCutSwaps(
           unscored: [...outcomes.values()].filter((o) => o.status === 'unscored').length,
         });
         settle({ status: 'ready', outcomes });
+        // Buys: the same weakest slots against cards the player does not own, so the
+        // owned replacements above are never pushed out by a purchase.
+        try {
+          const unowned = [...cards.values()].filter(
+            (c) => e.resolveOwnership(c.name) === 'unowned'
+          );
+          const bought =
+            unowned.length === 0
+              ? new Map<string, CutOutcome>()
+              : await pairCuts(allCuts.slice(0, BUY_SLOTS), {
+                  objective,
+                  resolve: (n) => cards.get(n) ?? getCachedCard(n),
+                  candidates: unowned,
+                  ownership: e.resolveOwnership,
+                  settingsBreak: e.settingsBreak,
+                  budgetMs: BUY_BUDGET_MS,
+                  cancelled: () => cancelled,
+                });
+          if (cancelled) return;
+          const buys: BuyCandidate[] = [];
+          for (const [, o] of bought)
+            if (o.status === 'swap' && o.change.inName)
+              buys.push({ cutName: o.change.inName, change: o.change, delta: o.delta });
+          setBuyResult({ key: runKey, value: { status: 'ready', buys } });
+        } catch (err) {
+          logger.warn('[coach] buy pairing failed', err);
+          if (!cancelled) setBuyResult({ key: runKey, value: { status: 'error' } });
+        }
       } catch (err) {
         logger.warn('[coach] cut pairing failed', err);
         settle({ status: 'error' });
@@ -208,5 +253,11 @@ export function useCutSwaps(
   else if (settled && (settled.value.status === 'ready' || settled.value.status === 'fallback'))
     state = settled.value;
   else state = { status: 'loading' };
-  return { state, retry };
+  let buys: BuyState;
+  if (idle) buys = { status: 'idle' };
+  else if (buyResult?.key === runKey) buys = buyResult.value;
+  // After an apply the last buys stay until the new ones land, like the verdicts.
+  else if (buyResult?.value.status === 'ready') buys = buyResult.value;
+  else buys = { status: 'loading' };
+  return { state, buys, retry };
 }

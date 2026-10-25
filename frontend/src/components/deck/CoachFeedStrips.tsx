@@ -5,6 +5,7 @@ import { Button } from '@/components/shared/Button';
 import type { BracketFitPlan } from '@/deck-builder/services/deckBuilder/bracketFit';
 import type { CutLane } from '@/lib/coach/coach-cut-swaps';
 import { DeckAnalysisSkeleton } from './DeckAnalysisSkeleton';
+import { FILTER_LABELS, type FilterId } from './coach-feed-filters';
 
 /** What each budget-swap confidence badge means (budget lane only). */
 export function BudgetConfidenceStrip(): JSX.Element {
@@ -103,4 +104,45 @@ export function UpgradePlanEntry({ onOpen }: { onOpen: () => void }): JSX.Elemen
       <ChevronRight width={18} height={18} aria-hidden />
     </button>
   );
+}
+
+/** What a lane says when it has no rows: hidden by a toggle (with the way back), or just empty. */
+export function EmptyFilterNote({
+  filter,
+  kind,
+  hiddenByOwned,
+  onShowUnowned,
+  onShowAll,
+}: {
+  filter: FilterId;
+  kind: 'owned' | 'off-meta' | 'none';
+  hiddenByOwned: number;
+  onShowUnowned: () => void;
+  onShowAll: () => void;
+}): JSX.Element {
+  const lane = filter === 'all' ? '' : FILTER_LABELS[filter] + ' ';
+  if (kind === 'owned') {
+    return (
+      <div className="coach-feed-empty-filter coach-feed-empty-owned">
+        <p>
+          {hiddenByOwned === 1 ? 'The only' : `All ${hiddenByOwned}`} {lane}
+          suggestion{hiddenByOwned === 1 ? ' is a card' : 's are cards'} you don't own yet.
+        </p>
+        <Button variant="link" onClick={onShowUnowned}>
+          Show unowned too
+        </Button>
+      </div>
+    );
+  }
+  if (kind === 'off-meta') {
+    return (
+      <div className="coach-feed-empty-filter coach-feed-empty-owned">
+        <p>No off-meta {lane}picks right now. This lane's suggestions are all played staples.</p>
+        <Button variant="link" onClick={onShowAll}>
+          Show all suggestions
+        </Button>
+      </div>
+    );
+  }
+  return <p className="coach-feed-empty-filter">No {lane}suggestions right now.</p>;
 }

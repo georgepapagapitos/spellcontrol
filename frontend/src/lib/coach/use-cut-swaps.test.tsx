@@ -19,9 +19,10 @@ vi.mock('./coach-cut-swaps', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./coach-cut-swaps')>()),
   pairCuts: (...a: unknown[]) => pairCuts(...a),
 }));
+const getCardsByNames = vi.fn(async (_names: string[]) => new Map<string, unknown>());
 vi.mock('@/deck-builder/services/scryfall/client', () => ({
   getCachedCard: () => undefined,
-  getCardsByNames: async () => new Map(),
+  getCardsByNames: (n: string[]) => getCardsByNames(n),
   getGameChangerNames: async () => new Set<string>(),
 }));
 
@@ -50,6 +51,7 @@ const env: CutSwapEnv = { resolveOwnership: () => undefined };
 beforeEach(() => {
   loadCoachObjective.mockReset();
   pairCuts.mockReset();
+  getCardsByNames.mockClear();
 });
 
 describe('useCutSwaps', () => {
@@ -191,5 +193,70 @@ describe('useCutSwaps', () => {
     await waitFor(() => expect(pairCuts).toHaveBeenCalledTimes(2));
     release(new Map());
     await waitFor(() => expect(result.current.state).toEqual({ status: 'ready', outcomes: first }));
+  });
+
+  it('looks for buys among the cards the player does not own, after the owned pairing', async () => {
+    loadCoachObjective.mockResolvedValue({
+      ok: true,
+      ctx: { edhrec: new Map(), colorIdentity: [] },
+      deck: { commanders: [], cards: [] },
+      pageRows: 300,
+    });
+    getCardsByNames.mockImplementation(
+      async (names: string[]) => new Map(names.map((n) => [n, { name: n }]))
+    );
+    const swap = (inName: string): CutOutcome => ({
+      status: 'swap',
+      delta: 4,
+      onPage: true,
+      terms: [],
+      change: {
+        id: 'upgrade:cut:A',
+        type: 'swap',
+        lane: 'upgrade',
+        name: inName,
+        inName: 'A',
+        pairedCut: true,
+      },
+    });
+    pairCuts
+      .mockResolvedValueOnce(new Map())
+      .mockResolvedValueOnce(new Map([['upgrade:cut:A', swap('Cultivate')]]));
+    const src = sources(['A']);
+    src.deck.gapAnalysis = [
+      { name: 'Cultivate' },
+      { name: 'Sol Ring' },
+    ] as unknown as typeof src.deck.gapAnalysis;
+    const owned = (n: string) => (n === 'Sol Ring' ? ('owned' as const) : ('unowned' as const));
+    const { result } = renderHook(() => useCutSwaps([cut('A')], src, { resolveOwnership: owned }));
+    await waitFor(() => expect(result.current.buys.status).toBe('ready'));
+    // The second pass is offered only the card nobody owns.
+    expect(pairCuts.mock.calls[1][1].candidates.map((c: { name: string }) => c.name)).toEqual([
+      'Cultivate',
+    ]);
+    expect(result.current.buys).toEqual({
+      status: 'ready',
+      buys: [{ cutName: 'A', delta: 4, change: expect.objectContaining({ name: 'Cultivate' }) }],
+    });
+  });
+
+  it('reports no buys when every candidate is owned', async () => {
+    loadCoachObjective.mockResolvedValue({
+      ok: true,
+      ctx: { edhrec: new Map(), colorIdentity: [] },
+      deck: { commanders: [], cards: [] },
+      pageRows: 300,
+    });
+    getCardsByNames.mockImplementation(
+      async (names: string[]) => new Map(names.map((n) => [n, { name: n }]))
+    );
+    pairCuts.mockResolvedValue(new Map());
+    const src = sources(['A']);
+    src.deck.gapAnalysis = [{ name: 'Sol Ring' }] as unknown as typeof src.deck.gapAnalysis;
+    const { result } = renderHook(() =>
+      useCutSwaps([cut('A')], src, { resolveOwnership: () => 'owned' })
+    );
+    await waitFor(() => expect(result.current.buys).toEqual({ status: 'ready', buys: [] }));
+    expect(pairCuts).toHaveBeenCalledTimes(1);
   });
 });

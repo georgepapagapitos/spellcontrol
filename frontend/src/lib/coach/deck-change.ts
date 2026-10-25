@@ -151,6 +151,11 @@ export interface Change {
    * snapshot. Leave undefined on the cut side (ownership-blind).
    */
   ownership?: ChangeOwnership;
+  /**
+   * Cuts lane only: which other deck holds every copy of the incoming card and
+   * what taking it costs there (contention.ts). Set with `in-other-deck`.
+   */
+  contention?: string;
 
   /**
    * Signed quality delta (PlanScore-ish, a rough inclusion proxy where it
