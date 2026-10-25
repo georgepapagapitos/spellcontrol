@@ -297,6 +297,7 @@ export function DeckAnalysisView({
                 simCommanders={simCommanders}
                 simLibrary={simLibrary}
                 readOnly={readOnly}
+                bracket={bracketOverride ?? bracketEstimation?.bracket ?? null}
               />
             </Panel>
             {saltiestCards && saltiestCards.length > 0 && (

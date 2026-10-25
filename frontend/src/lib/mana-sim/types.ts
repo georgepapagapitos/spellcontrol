@@ -3,6 +3,7 @@
  * its assumptions and the API contract.
  */
 
+import type { Utilization } from './engine-helpers';
 import type { SimCard } from './opening-hand-sim';
 
 /**
@@ -246,6 +247,13 @@ export interface ManaSimOptions {
    */
   opening?: { hand?: readonly string[]; bottom?: number };
   /**
+   * A cost standing for the deck's typical spell. It is measured on every turn
+   * (as if held in hand), and `ManaSimResult.tipping` comes back.
+   */
+  typicalCost?: ManaCost;
+  /** Turns 1 through this are counted in `ManaSimResult.utilization`. Default 8. */
+  utilTurns?: number;
+  /**
    * Called once per game with what happened by the end of each turn, indexed
    * by turn (0 unused). A goal run keeps playing after the goal is met, to
    * `goal.horizon`, so the other counts cover the whole game.
@@ -321,7 +329,18 @@ export interface ManaSimResult {
     average: number[];
     /** Index = turn: share of games with at least `turn` mana available that turn. */
     atLeastTurn: number[];
+    /** Index = turn: mean mana spent on spells that turn. */
+    spent: number[];
+    /** Index = turn: mean mana available that turn, ramp cast that turn included. */
+    available: number[];
   };
+  /** Mana spent ÷ mana available over turns 1 to `ManaSimOptions.utilTurns`, across games. */
+  utilization: Utilization;
+  /**
+   * With `ManaSimOptions.typicalCost`: index = turn, the share of games that could
+   * cast the typical spell on that turn (mana and colors both); else null.
+   */
+  tipping: number[] | null;
   /** Deck-level castability: the per-card rates averaged over nonland spells, each copy weighing one. */
   castability: {
     onCurve: number | null;

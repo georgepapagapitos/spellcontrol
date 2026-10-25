@@ -5,6 +5,8 @@
 
 import {
   beats,
+  ManaTally,
+  newCostStat,
   reachOf,
   SPENT,
   unionOf,
@@ -113,6 +115,14 @@ export function* simulateGoalSteps(
   return (yield* playGames(deck, options, goal)) as number[] | null;
 }
 
+/** `simulateManaDeck` as a generator that yields between turns once `options.budget` has passed. */
+export function* simulateManaDeckSteps(
+  deck: ManaDeck,
+  options: ManaSimOptions = {}
+): Generator<void, ManaSimResult> {
+  return (yield* playGames(deck, options, null)) as ManaSimResult;
+}
+
 /** Any run as a generator, for a caller that slices it and reads `options.onGame`. */
 export function* simulateGamesSteps(
   deck: ManaDeck,
@@ -190,15 +200,7 @@ function* playGames(
     if (id === undefined) {
       id = costStats.length;
       costIdByKey.set(cost.key, id);
-      costStats.push({
-        cost,
-        onTurn: Math.max(1, cost.mv),
-        on: 0,
-        onEnough: 0,
-        next: 0,
-        nextEnough: 0,
-        short: new Float64Array(6),
-      });
+      costStats.push(newCostStat(cost, Math.max(1, cost.mv)));
     }
     return id;
   };
@@ -206,6 +208,14 @@ function* playGames(
   const commanderCost = commanders.map((c) => (c.cost ? costIdOf(c.cost) : -1));
   // Probes are measured like any other cost but belong to no card in the deck.
   const probeCost = (options.probes ?? []).map(costIdOf);
+  // The typical spell, measured on every turn: the tipping point's curve.
+  const tipIds: number[] = [];
+  if (options.typicalCost && !goal) {
+    for (let t = 1; t <= maxTurn; t++) {
+      tipIds.push(costStats.length);
+      costStats.push(newCostStat(options.typicalCost, t));
+    }
+  }
   const onAt: number[][] = Array.from({ length: maxTurn + 1 }, () => []);
   const nextAt: number[][] = Array.from({ length: maxTurn + 1 }, () => []);
   if (!goal) {
@@ -252,6 +262,7 @@ function* playGames(
   const landsInPlaySum = new Float64Array(T);
   const manaSum = new Float64Array(T);
   const manaAtLeast = new Float64Array(T);
+  const tally = new ManaTally(maxTurn, Math.min(maxTurn, options.utilTurns ?? 8));
   let keep7 = 0;
   let keptSizeSum = 0;
   const keptSizes: Record<number, number> = {};
@@ -821,6 +832,8 @@ function* playGames(
       }
 
       manaSum[turn] += pool.length;
+      let availableNow = pool.length;
+      let spentNow = 0;
       if (pool.length >= turn) manaAtLeast[turn]++;
 
       // Spend: ramp first (cheapest), then the commanders, then the biggest spell.
@@ -853,6 +866,7 @@ function* playGames(
         if (pick < 0 && pickCmd < 0) break;
         const card = pickCmd >= 0 ? commanders[pickCmd] : cards[hand[pick]];
         if (card.cost) {
+          spentNow += card.cost.units;
           for (const u of allocate(card.cost, pool) as number[]) {
             if (pool[u].spend === 1) treasures--;
             else if (pool[u].spend === 2) sources[pool[u].source].left--;
@@ -890,6 +904,7 @@ function* playGames(
           });
           noteSource(units, 1);
           if (ramp.delay === 0) {
+            availableNow += units.length;
             for (const u of units) pool.push({ mask: u, spend: ramp.oneShot ? 2 : 0, source: idx });
           }
         } else if (ramp.kind === 'search') {
@@ -898,14 +913,18 @@ function* playGames(
             noteSource(lands[gone].units, -1);
             lands.splice(gone, 1);
           }
-          for (const u of resolveSearch(ramp.search, turn))
+          for (const u of resolveSearch(ramp.search, turn)) {
+            availableNow++;
             pool.push({ mask: u, spend: 0, source: -1 });
+          }
         } else {
           treasures += ramp.count;
+          availableNow += ramp.count;
           for (let k = 0; k < ramp.count; k++) pool.push({ mask: ANY_COLOR, spend: 1, source: -1 });
         }
       }
 
+      tally.turn(turn, availableNow, spentNow);
       row?.casts.push(casts);
       row?.drops.push(drops);
       if (goalPlay?.done()) {
@@ -927,6 +946,7 @@ function* playGames(
         }
       }
     }
+    if (!goalPlay) tally.endGame();
     if (row) options.onGame?.({ ...row, online: row.online || maxTurn + 1 });
     if (goalPlay) turns.push(onlineTurn);
   }
@@ -962,7 +982,14 @@ function* playGames(
     },
     screw: { missedDropBy3: missed3 / games, missedDropBy4: missed4 / games },
     flood: { rate: floodCount / games, surplusLands: surplusCount / games },
-    mana: { average: perTurn(manaSum), atLeastTurn: perTurn(manaAtLeast) },
+    mana: {
+      average: perTurn(manaSum),
+      atLeastTurn: perTurn(manaAtLeast),
+      spent: perTurn(tally.spent),
+      available: perTurn(tally.available),
+    },
+    utilization: tally.utilization(),
+    tipping: options.typicalCost ? [0, ...tipIds.map((id) => costStats[id].on / games)] : null,
     castability,
     commanders: commanderRows,
     cards: rows,
