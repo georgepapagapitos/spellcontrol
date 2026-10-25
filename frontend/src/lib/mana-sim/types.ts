@@ -5,6 +5,7 @@
 
 import type { Utilization } from './engine-helpers';
 import type { SimCard } from './opening-hand-sim';
+import type { CostReducer } from './reducers';
 
 /**
  * A set of mana types as bits: W U B R G, then C for colourless-specific mana
@@ -181,6 +182,14 @@ export interface ManaCard {
   ritual: readonly ManaMask[] | null;
   /** Draw and selection when cast; null for a card the text does not show drawing. */
   draw: DrawEffect | null;
+  /** Card types of the front face as `KIND_BITS` (a spell's type for cost reducers). */
+  kinds: number;
+  /** Colors of the front face (what a "red spells" reducer reads); not the color identity. */
+  colors: ManaMask;
+  /** Lowercased subtypes of the front face, and `*` for a changeling. */
+  tribes: readonly string[];
+  /** Static "spells you cast cost {N} less" this card gives once cast (`./reducers.ts`). */
+  reducers: readonly CostReducer[];
   /** Legendary creature (turns on "unless you control a legendary creature"). */
   legendaryCreature: boolean;
   /** The reduction `isKeepableHand` reads, so the keep rule matches the app's panels. */

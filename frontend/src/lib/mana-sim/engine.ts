@@ -865,9 +865,10 @@ function* playGames(
         }
         if (pick < 0 && pickCmd < 0) break;
         const card = pickCmd >= 0 ? commanders[pickCmd] : cards[hand[pick]];
-        if (card.cost) {
-          spentNow += card.cost.units;
-          for (const u of allocate(card.cost, pool) as number[]) {
+        const castCost = goalPlay && pickCmd < 0 ? goalPlay.costOf(hand[pick]) : card.cost;
+        if (castCost) {
+          spentNow += castCost.units;
+          for (const u of allocate(castCost, pool) as number[]) {
             if (pool[u].spend === 1) treasures--;
             else if (pool[u].spend === 2) sources[pool[u].source].left--;
             pool[u] = SPENT;

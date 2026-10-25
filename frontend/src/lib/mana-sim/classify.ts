@@ -20,6 +20,7 @@ import { producedManaColors } from '@/lib/deck-analysis/mana-sources';
 import { parseDraw } from './draw';
 import type { SimCard } from './opening-hand-sim';
 import { maskOf, parseManaCost } from './cost';
+import { kindsOf, parseReducers, subtypesOf } from './reducers';
 import { CHOSEN_OTHER_THAN, costMana, unconditionalMana } from './unconditional-mana';
 import {
   ANY_COLOR,
@@ -432,6 +433,12 @@ export function classifyManaCard(
     ramp,
     ritual: landCard ? null : ritualOf(front, cost),
     draw: landCard ? null : parseDraw(front),
+    kinds: kindsOf(front.typeLine),
+    colors: maskOf(card.colors ?? card.card_faces?.[0]?.colors ?? []),
+    tribes: subtypesOf(front.typeLine).concat(
+      (card.keywords ?? []).includes('Changeling') ? ['*'] : []
+    ),
+    reducers: landCard ? [] : parseReducers(front.text, front.typeLine),
     legendaryCreature:
       /\blegendary\b/i.test(front.typeLine) && /\bcreature\b/i.test(front.typeLine),
     sim: {

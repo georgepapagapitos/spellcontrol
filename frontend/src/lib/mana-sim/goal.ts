@@ -9,7 +9,8 @@
  */
 
 import { allocate, canPay } from './cost';
-import type { DrawEffect, ManaCard, ManaGoal, ManaMask } from './types';
+import { createReducers } from './reducers';
+import type { DrawEffect, ManaCard, ManaCost, ManaGoal, ManaMask } from './types';
 
 /** Tagged `cardDraw` but not readable from its text (Rhystic Study, X draws): two cards, the clock's long-standing flat reading. */
 export const UNREAD_DRAW: DrawEffect = {
@@ -55,6 +56,8 @@ export interface GoalPlay {
   reset(): void;
   /** A new turn: extra draws from cast engines (Phyrexian Arena), taken after the turn's own draw, and any ritual mana is gone. */
   drawEngines(): void;
+  /** What casting `id` costs right now: the printed cost less any reducer cast. */
+  costOf(id: number): ManaCost | null;
   /** Hand index of the next card to cast with this mana, or -1. */
   pick(work: ManaMask[]): number;
   /** The card at `id` was cast: count a piece, fetch for a tutor, draw. */
@@ -97,6 +100,10 @@ export function createGoalPlay(
   const cheapest = [-1, -1, -1, -1];
   let engineDraws = 0;
 
+  /** Cost reducers cast so far; null when the deck has none (the printed costs stand). */
+  const reducers = createReducers(cards);
+  const costOf = (id: number): ManaCost | null => (reducers ? reducers.costOf(id) : cards[id].cost);
+
   const mv = (id: number): number => cards[id].cost?.mv ?? 0;
   const missing = (o: Option): number => {
     let n = o.need;
@@ -110,22 +117,27 @@ export function createGoalPlay(
   };
 
   /** Cast class: 0 ramp, 1 needed piece, 2 tutor, 3 draw, -1 not worth casting. */
-  const classOf = (id: number): number => {
+  const classOf = (id: number, asReducer = true): number => {
     const c = cards[id];
     if (c.landCard) return -1;
     if (pieceIds.has(id)) return castPiece[id] ? -1 : 1;
     if (tutorIds.has(id)) return 2;
     if (c.ritual) return -1;
+    // A cost reducer is cast like ramp, but only when it makes a card in hand cheaper.
+    if (asReducer && reducers?.isReducer(id) && reducers.helps(id, castable())) return 0;
     if (c.ramp) return 0;
     return drawsCards[id] ? 3 : -1;
   };
+
+  /** Cards in hand worth casting for their own sake: what a reducer could make cheaper. */
+  const castable = (): number[] => play.hand.filter((id) => classOf(id, false) >= 0);
 
   /** How much the goal wants this card in hand: pieces, then ramp and draw, lands while short. */
   const wanted = (id: number): number => {
     const c = cards[id];
     if (pieceIds.has(id)) return castPiece[id] || play.hand.includes(id) ? 0 : 5;
     if (tutorIds.has(id)) return closest() > 0 ? 3.5 : 0;
-    if (c.ritual) return closest() > 0 ? 2.6 : 0;
+    if (c.ritual || reducers?.isReducer(id)) return closest() > 0 ? 2.6 : 0;
     if (c.landCard) {
       let have = play.landsInPlay;
       for (const h of play.hand) if (cards[h].landCard) have++;
@@ -234,7 +246,7 @@ export function createGoalPlay(
   const ritualToCast = (work: ManaMask[]): number => {
     for (let h = 0; h < play.hand.length; h++) {
       const gain = cards[play.hand[h]].ritual;
-      const cost = cards[play.hand[h]].cost;
+      const cost = costOf(play.hand[h]);
       if (!gain || !cost || !canPay(cost, work)) continue;
       const pool = work.map((mask) => ({ mask, spend: 0 as const, source: -1 }));
       const used = allocate(cost, pool);
@@ -244,7 +256,7 @@ export function createGoalPlay(
         const id = play.hand[k];
         const cls = classOf(id);
         if (k === h || (cls !== 1 && cls !== 2)) continue;
-        const target = cards[id].cost;
+        const target = costOf(id);
         if (target && canPay(target, after)) return h;
       }
     }
@@ -261,7 +273,9 @@ export function createGoalPlay(
       castPiece.fill(0);
       engineDraws = 0;
       ritualLive = false;
+      reducers?.reset();
     },
+    costOf,
     drawEngines() {
       ritualLive = false;
       for (let d = 0; d < engineDraws; d++) drawOne();
@@ -276,7 +290,7 @@ export function createGoalPlay(
         const id = play.hand[h];
         const cls = classOf(id);
         if (cls < 0) continue;
-        const cost = cards[id].cost;
+        const cost = costOf(id);
         // A piece with no mana cost is free; nothing else without one is cast.
         if (cost ? !canPay(cost, work) : cls !== 1) continue;
         const best = cheapest[cls];
@@ -291,6 +305,7 @@ export function createGoalPlay(
     },
     cast(id) {
       if (cards[id].ritual) ritualLive = true;
+      reducers?.cast(id);
       if (pieceIds.has(id)) castPiece[id] = 1;
       else if (tutorIds.has(id)) fetchPiece();
       else if (drawOf[id]) {
