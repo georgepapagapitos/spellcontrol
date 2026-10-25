@@ -998,7 +998,7 @@ describe('applyCoherenceRepair', () => {
     ];
     const SPARES = ZOZU.seated;
     const spells = ZOZU.decklist.map(real).filter((c) => !/\bland\b/i.test(c.type_line));
-    const build = (deckSpells: ScryfallCard[]) => {
+    const build = (deckSpells: ScryfallCard[], mountains = 27) => {
       const state = makeState();
       state.context.commander = real('Zo-Zu the Punisher');
       state.context.colorIdentity = ['R'];
@@ -1008,7 +1008,7 @@ describe('applyCoherenceRepair', () => {
       state.edhrecData!.cardlists.allNonLand = deckSpells.map((c) => edhrecCard(c.name, 30));
       state.categories.lands = [
         ...LD_LANDS.map(real),
-        ...Array.from({ length: 27 }, () => real('Mountain')),
+        ...Array.from({ length: mountains }, () => real('Mountain')),
       ];
       for (const l of state.categories.lands) state.usedNames.add(l.name);
       return state;
@@ -1030,10 +1030,14 @@ describe('applyCoherenceRepair', () => {
 
     it('still trades them for red lands in the same deck without a land-destruction plan', async () => {
       const { attacksLands } = await import('../landPlan');
-      const state = build([
-        ...spells.filter((c) => !attacksLands(c)),
-        ...ZOZU.controlPackage.map(real),
-      ]);
+      // 5.4b: red is short when its sources fall under Karsten's bar for this
+      // deck's costs (23; the old pip bar of 42 called 36 sources short, and the
+      // deck with 27 Mountains no longer reads as short). 12 Mountains plus the
+      // deck's rocks make 21 sources.
+      const state = build(
+        [...spells.filter((c) => !attacksLands(c)), ...ZOZU.controlPackage.map(real)],
+        12
+      );
       const swaps = await repairLands(state);
       expect(swaps.length).toBeGreaterThan(0);
       expect(swaps.every((r) => LD_LANDS.includes(r.cut))).toBe(true);

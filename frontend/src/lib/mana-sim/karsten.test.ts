@@ -48,16 +48,10 @@
 import { describe, expect, it } from 'vitest';
 import { evaluateManabase, type ManaSimOptions } from './index';
 import { card, cards } from './__fixtures__/decks';
-
-interface Cell {
-  cost: string;
-  /** Karsten's own example card for the shape (real Oracle data). */
-  name: string;
-  basic: string;
-  /** Published minimum sources and his probability there, then his probability at 15. */
-  minimum: [sources: number, percent: number];
-  at15: number;
-}
+import {
+  KARSTEN_99_TABLE as TABLE,
+  type KarstenCell as Cell,
+} from '@/lib/deck-analysis/karsten-table';
 
 const OFF: Record<string, string> = {
   Plains: 'Island',
@@ -66,34 +60,6 @@ const OFF: Record<string, string> = {
   Mountain: 'Island',
   Forest: 'Island',
 };
-
-const TABLE: Cell[] = [
-  { cost: 'C', name: 'Monastery Swiftspear', basic: 'Mountain', minimum: [19, 90.0], at15: 82.1 },
-  { cost: '1C', name: 'Ledger Shredder', basic: 'Island', minimum: [19, 92.1], at15: 85.1 },
-  { cost: '2C', name: 'Reckless Stormseeker', basic: 'Mountain', minimum: [18, 93.1], at15: 88.2 },
-  { cost: '3C', name: 'Collected Company', basic: 'Forest', minimum: [16, 93.1], at15: 91.5 },
-  { cost: '4C', name: 'Doubling Season', basic: 'Forest', minimum: [15, 94.3], at15: 94.3 },
-  { cost: '5C', name: 'Drowner of Hope', basic: 'Island', minimum: [14, 95.3], at15: 96.4 },
-  { cost: 'CC', name: 'Lord of Atlantis', basic: 'Island', minimum: [30, 92.3], at15: 49.2 },
-  {
-    cost: '1CC',
-    name: 'Narset, Parter of Veils',
-    basic: 'Island',
-    minimum: [28, 93.0],
-    at15: 55.8,
-  },
-  { cost: '2CC', name: 'Wrath of God', basic: 'Plains', minimum: [26, 94.3], at15: 63.7 },
-  { cost: '3CC', name: 'Baneslayer Angel', basic: 'Plains', minimum: [23, 94.0], at15: 72.0 },
-  { cost: '4CC', name: 'Primeval Titan', basic: 'Forest', minimum: [22, 96.0], at15: 79.3 },
-  { cost: '5CC', name: 'Hullbreaker Horror', basic: 'Island', minimum: [20, 96.2], at15: 85.6 },
-  { cost: 'CCC', name: 'Goblin Chainwhirler', basic: 'Mountain', minimum: [36, 93.0], at15: 22.4 },
-  { cost: '1CCC', name: 'Cryptic Command', basic: 'Island', minimum: [33, 94.0], at15: 29.2 },
-  { cost: '2CCC', name: 'Garruk, Primal Hunter', basic: 'Forest', minimum: [30, 94.6], at15: 38.3 },
-  { cost: '3CCC', name: 'Massacre Wurm', basic: 'Swamp', minimum: [28, 96.0], at15: 48.2 },
-  { cost: '4CCC', name: 'Nyxbloom Ancient', basic: 'Forest', minimum: [26, 96.7], at15: 58.6 },
-  { cost: 'CCCC', name: 'Dawn Elemental', basic: 'Plains', minimum: [39, 94.7], at15: 8.5 },
-  { cost: '1CCCC', name: 'Unnatural Growth', basic: 'Forest', minimum: [36, 95.6], at15: 13.1 },
-];
 
 const KARSTEN: ManaSimOptions = { mulligan: 'karsten', games: 20000, seed: 20220802 };
 

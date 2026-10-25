@@ -222,7 +222,7 @@ describe('computeLandUpgrades — real cards (T171)', () => {
   // the manabase report's `short` flag.
   it("says a color is short only when the deck's manabase says so", () => {
     // Two Forests for two green spells: the old demand reading called green
-    // short; the manabase report, below its demand floor, does not.
+    // short; the claim must follow the manabase report either way.
     const deck = [
       ...Array.from({ length: 2 }, () => real('Forest')),
       ...Array.from({ length: 9 }, () => real('Swamp')),
@@ -234,10 +234,12 @@ describe('computeLandUpgrades — real cards (T171)', () => {
     const lands = deck.filter((c) => /land/i.test(c.type_line ?? ''));
     const spells = deck.filter((c) => !/land/i.test(c.type_line ?? ''));
     const short = buildManabaseSummary(lands, spells, BG).lines.filter((l) => l.short);
-    expect(short).toEqual([]);
     expect(moves).toHaveLength(1);
-    expect(moves[0].fixesShortColors).toEqual([]);
-    expect(moves[0].reason).not.toContain('short on');
+    // Whatever the report calls short is exactly what the move claims to fix
+    // (5.4b: against Karsten's bar this twelve-card deck's green is short; the
+    // old pip bar forgave it).
+    expect(moves[0].fixesShortColors).toEqual(short.map((l) => l.color));
+    expect(moves[0].reason.includes('short on')).toBe(short.length > 0);
   });
 });
 

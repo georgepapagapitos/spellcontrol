@@ -35,6 +35,7 @@
  */
 import type { ManabaseSummary, ManabaseColorLine, ScryfallCard } from '@/deck-builder/types';
 import { producedManaColors, isManaSourceType } from '@/lib/deck-analysis/mana-sources';
+import { karstenMinimumSources } from '@/lib/deck-analysis/karsten-table';
 import { shortfallThresholdsForCurve } from './colorShortfall';
 
 export const WUBRG = ['W', 'U', 'B', 'R', 'G'] as const;
@@ -88,6 +89,40 @@ export function weightedColorDemand(cards: ScryfallCard[]): Record<ManaColor, nu
     }
   }
   return demand;
+}
+
+/**
+ * 5.4b: colored-source targets come from Karsten's 99-card table
+ * (`lib/deck-analysis/karsten-table.ts`) instead of pip counts. Set to false to
+ * restore the pip-weight heuristic (`weightedColorDemand` for the basics split,
+ * `ceil(pips x pacing ratio)` for the per-color target).
+ */
+export const KARSTEN_SOURCE_TARGETS = true;
+
+/**
+ * The sources a color needs by Karsten's table: for every nonland card with k
+ * pips of the color, the minimum for a cost of (mana value - k) other mana plus
+ * k pips, averaged over the color's cards weighted by k. A requirement is a
+ * property of a cost shape, not a count of cards (forty {W}{W} two-drops need
+ * the sources one does), so the mean replaces a pip total. 0 when the color has
+ * no pips.
+ */
+export function karstenColorRequirement(cards: ScryfallCard[]): Record<ManaColor, number> {
+  const weight: Record<ManaColor, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+  const weighted: Record<ManaColor, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+  for (const card of cards) {
+    const pips = cardColorPips(card);
+    const mv = Math.floor(card.cmc ?? 0);
+    for (const c of WUBRG) {
+      const k = pips[c] ?? 0;
+      if (k <= 0) continue;
+      weight[c] += k;
+      weighted[c] += k * karstenMinimumSources(Math.max(0, mv - k), k);
+    }
+  }
+  const out: Record<ManaColor, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+  for (const c of WUBRG) out[c] = weight[c] > 0 ? Math.round(weighted[c] / weight[c]) : 0;
+  return out;
 }
 
 /** Raw (unweighted) pip totals per color — the analysis panel's demand unit. */
@@ -214,7 +249,9 @@ export function planBasicColorSplit(input: BasicSplitInput): Record<string, numb
   const eligible = colors.filter((c): c is ManaColor => (WUBRG as readonly string[]).includes(c));
   if (eligible.length === 0 || basicsNeeded <= 0) return out;
 
-  const demand = weightedColorDemand(nonLandCards);
+  const demand = KARSTEN_SOURCE_TARGETS
+    ? karstenColorRequirement(nonLandCards)
+    : weightedColorDemand(nonLandCards);
   const pips = rawColorPips(nonLandCards);
   const totalDemand = eligible.reduce((s, c) => s + demand[c], 0);
 
@@ -277,6 +314,11 @@ export function planBasicColorSplit(input: BasicSplitInput): Record<string, numb
  * only colors still short of the bar; when every demanded color still needs
  * sources (the common case) the set equals the full identity and the boost
  * is byte-identical to before.
+ *
+ * 5.4b leaves this bar on the pip heuristic: it judges colors before any land is
+ * picked, and Karsten's absolute counts (28 for {1}{W}{W}) are not reachable
+ * from basics alone, which would keep every color "needed" and switch the
+ * narrowing off.
  *
  * Conservative on purpose: a color is dropped only when assured supply
  * STRICTLY exceeds its bar, and the bar here skips buildManabaseSummary's
@@ -373,6 +415,7 @@ export function buildManabaseSummary(
     curve[mv] = (curve[mv] ?? 0) + 1;
   }
   const thresholds = shortfallThresholdsForCurve(curve);
+  const karsten = karstenColorRequirement(nonLandCards);
 
   // Per-color target = the same coverage bar `isColorShort` judges against
   // (ratio × pips, forgiven under the splash-forgiveness floor), made concrete
@@ -383,7 +426,8 @@ export function buildManabaseSummary(
     const sources = landSources[c] + spellSources[c];
     const gated = sources === 0 || pips[c] >= thresholds.minDemand;
     // pips[c] >= 1 here (demanded filter), so ceil(pips*ratio) is always >= 1.
-    return gated ? Math.ceil(pips[c] * thresholds.ratio) : sources;
+    if (!gated) return sources;
+    return KARSTEN_SOURCE_TARGETS ? Math.max(1, karsten[c]) : Math.ceil(pips[c] * thresholds.ratio);
   });
 
   // A 5-color deck's raw per-color bars are computed independently, so they
