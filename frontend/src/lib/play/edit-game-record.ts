@@ -17,9 +17,17 @@ function deckFor(edit: GameResultEdit, seat: number) {
 export function applyEditToRecord(rec: GameRecord, edit: GameResultEdit): GameRecord {
   const players = rec.players.map((p) => {
     const deck = deckFor(edit, p.seat);
-    return deck === undefined
-      ? p
-      : { ...p, deckId: deck.deckId, deckName: deck.deckName, commander: deck.commander };
+    if (deck === undefined) return p;
+    // Same rule as the server's write: the version belongs to the deck the
+    // device saw, so a seat re-attributed to another deck no longer has one.
+    const { deckVersion, ...rest } = p;
+    return {
+      ...rest,
+      deckId: deck.deckId,
+      deckName: deck.deckName,
+      commander: deck.commander,
+      ...(deck.deckId === p.deckId && deckVersion ? { deckVersion } : {}),
+    };
   });
   const eliminated = new Set(players.filter((p) => p.eliminated).map((p) => p.seat));
   return {
@@ -51,6 +59,7 @@ export function applyEditToState(state: GameState, edit: GameResultEdit): GameSt
             deckName: deck.deckName,
             commander: deck.commander,
             colorIdentity: deck.colorIdentity,
+            deckVersion: deck.deckId === p.deckId ? (p.deckVersion ?? null) : null,
           };
     }),
   };

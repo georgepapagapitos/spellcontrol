@@ -233,6 +233,41 @@ describe('a finished local game and the server record', () => {
   });
 });
 
+describe('which list played', () => {
+  it('stamps a seat with the version of its deck as it stands at the start, and the record keeps it', async () => {
+    const { useDecksStore } = await import('./decks');
+    const { deckVersionOf } = await import('@/lib/deck/deck-version');
+    const deck = {
+      id: 'd-mine',
+      commander: null,
+      partnerCommander: null,
+      cards: [{ card: { oracle_id: 'o-a', name: 'A' } }],
+    } as never;
+    useDecksStore.setState({ decks: [deck] });
+    const seat = (name: string, deckId: string | null) => ({
+      name,
+      deckId,
+      deckName: null,
+      commander: null,
+      colorIdentity: [],
+    });
+    usePlayStore.getState().startLocal({
+      format: 'commander',
+      startingLife: 40,
+      commanderDamageEnabled: true,
+      poisonEnabled: false,
+      players: [seat('Mine', 'd-mine'), seat('Friend', 'not-on-this-device')],
+    });
+    const local = usePlayStore.getState().local!;
+    expect(local.players.map((p) => p.deckVersion)).toEqual([deckVersionOf(deck), null]);
+    usePlayStore.getState().endLocal(0);
+    const rec = usePlayStore.getState().history[0];
+    expect(rec.players[0].deckVersion).toBe(deckVersionOf(deck));
+    expect('deckVersion' in rec.players[1]).toBe(false);
+    useDecksStore.setState({ decks: [] });
+  });
+});
+
 describe('seats are people', () => {
   it('startLocal seats the account behind a seat, and a rematch keeps it', () => {
     usePlayStore.getState().startLocal({

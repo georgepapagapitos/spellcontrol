@@ -40,6 +40,8 @@ export interface CreateGameInput {
   hostColorIdentity?: string[];
   /** Computed client-side from the host's picked deck — see `GamePlayer.bracket`. */
   hostBracket?: 1 | 2 | 3 | 4 | 5 | null;
+  /** The host deck's list version — see `GamePlayer.deckVersion`. */
+  hostDeckVersion?: string | null;
   name?: string;
   visibility?: GameState['visibility'];
 }
@@ -289,6 +291,8 @@ export interface JoinGameInput {
   colorIdentity?: string[];
   /** Computed client-side from the picked deck — see `GamePlayer.bracket`. */
   bracket?: 1 | 2 | 3 | 4 | 5 | null;
+  /** The picked deck's list version — see `GamePlayer.deckVersion`. */
+  deckVersion?: string | null;
 }
 
 export async function joinGame(code: string, input: JoinGameInput): Promise<GameState> {

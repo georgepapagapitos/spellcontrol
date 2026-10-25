@@ -23,6 +23,9 @@ export interface GameResultParticipant {
   partner: string | null;
   /** Captured here because GameRecord/gameToRecord() drops it. */
   colorIdentity: string[];
+  /** `GamePlayer.deckVersion`. Absent on a row from before it was captured:
+   *  that reads "unknown", never a version of its own. */
+  deckVersion?: string | null;
   finalLife: number;
   eliminated: boolean;
 }

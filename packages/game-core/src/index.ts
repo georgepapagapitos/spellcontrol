@@ -137,6 +137,17 @@ export interface GamePlayer {
    * nothing needed migrating.
    */
   bracket?: 1 | 2 | 3 | 4 | 5 | null;
+  /**
+   * Which version of the seated deck is playing: `<card count>:<hash of the
+   * list>`, computed CLIENT-SIDE by the device that owns the deck (the server
+   * never sees a card list), so a later read can group tracked games by the
+   * list that played them. Null/absent means "unknown" (no deck, a friend's
+   * deck, a game recorded before this existed, or a deck reassigned after
+   * the fact) and must never be read as a version of its own. Grouping only.
+   * OPTIONAL by design, same as `bracket`: old rows read `undefined` and
+   * nothing needed migrating.
+   */
+  deckVersion?: string | null;
   life: number;
   poison: number;
   /**
@@ -540,6 +551,7 @@ export type GameAction =
           | 'colorIdentity'
           | 'panelColorKey'
           | 'bracket'
+          | 'deckVersion'
           | 'connected'
         >
       >;
@@ -1087,6 +1099,7 @@ export function makePlayer(input: {
   partner?: string | null;
   colorIdentity?: string[];
   bracket?: 1 | 2 | 3 | 4 | 5 | null;
+  deckVersion?: string | null;
   startingLife: number;
   isHost?: boolean;
   connected?: boolean;
@@ -1103,6 +1116,7 @@ export function makePlayer(input: {
     colorIdentity: input.colorIdentity ?? [],
     panelColorKey: null,
     bracket: input.bracket ?? null,
+    deckVersion: input.deckVersion ?? null,
     life: input.startingLife,
     poison: 0,
     commanderDamage: {},
@@ -1944,6 +1958,8 @@ export interface GameRecord {
     partner?: string | null;
     /** Optional for the same reason as `partner` — absent on a legacy row. */
     colorIdentity?: string[];
+    /** See `GamePlayer.deckVersion`. Absent on a record from before it existed. */
+    deckVersion?: string | null;
     finalLife: number;
     eliminated: boolean;
   }[];
@@ -2029,6 +2045,7 @@ export function gameToRecord(state: GameState, endedAt: number = Date.now()): Ga
       commander: p.commander,
       partner: p.partner,
       colorIdentity: p.colorIdentity,
+      ...(p.deckVersion ? { deckVersion: p.deckVersion } : {}),
       finalLife: p.life,
       eliminated: p.eliminated,
     })),

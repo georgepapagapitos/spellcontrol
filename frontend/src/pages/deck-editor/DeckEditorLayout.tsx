@@ -440,7 +440,12 @@ export function DeckEditorLayout({
                 />
               ) : undefined
             }
-            tableRecordSlot={<TableRecordPanel deckId={deck.id} />}
+            tableRecordSlot={
+              <TableRecordPanel
+                deckId={deck.id}
+                outcome={{ deck, clockLibrary: deckLibrary, speedPath }}
+              />
+            }
             aiReviewSlot={
               formatConfig?.hasCommander && deck.commander ? (
                 <>

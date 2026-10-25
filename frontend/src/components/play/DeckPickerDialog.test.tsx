@@ -103,6 +103,8 @@ describe('your own decks', () => {
       partner: null,
       colorIdentity: ['W', 'U', 'B', 'G'],
       bracket: null,
+      // The list as it stands: <cards>:<hash>, so a finished game can say which list played.
+      version: expect.stringMatching(/^\d+:[0-9a-f]{8}$/),
     });
     expect(onClose).toHaveBeenCalled();
   });
@@ -216,6 +218,7 @@ describe('the starter catalog', () => {
       partner: null,
       colorIdentity: ['G', 'W'],
       bracket: null,
+      version: null,
     });
   });
 
@@ -308,6 +311,7 @@ describe('a local seat', () => {
       partner: null,
       colorIdentity: ['B', 'G'],
       bracket: 3,
+      version: null,
     });
   });
 

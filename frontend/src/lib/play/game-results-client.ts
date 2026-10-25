@@ -24,6 +24,9 @@ export interface GameResultParticipant {
    *  single-commander seat. */
   partner: string | null;
   colorIdentity: string[];
+  /** The list version that played (`GamePlayer.deckVersion`); absent on a
+   *  game tracked before it was captured. */
+  deckVersion?: string | null;
   finalLife: number;
   eliminated: boolean;
 }
@@ -294,6 +297,7 @@ export function resultToRecord(r: PublicGameResult): GameRecord {
       commander: p.commander,
       partner: p.partner,
       colorIdentity: p.colorIdentity,
+      ...(p.deckVersion ? { deckVersion: p.deckVersion } : {}),
       finalLife: p.finalLife,
       eliminated: p.eliminated,
     })),

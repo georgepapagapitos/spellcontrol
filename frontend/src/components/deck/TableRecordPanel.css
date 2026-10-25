@@ -68,3 +68,73 @@
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
+
+/* Forecast against the table: the clock for this list beside the games played
+   with it. Label above value on a phone, side by side once there is room. */
+.table-record-outcome {
+  padding: var(--space-3) 0 0;
+  border-top: 0.5px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  container-type: inline-size;
+}
+
+.table-record-subhead {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.table-record-outcome-version {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.table-record-outcome-rows {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.table-record-outcome-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1);
+}
+
+.table-record-outcome-row dt {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.table-record-outcome-row dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+.table-record-outcome-n,
+.table-record-outcome-vs {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.table-record-outcome-note {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+@container (min-width: 28rem) {
+  .table-record-outcome-row {
+    grid-template-columns: 7rem minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+}

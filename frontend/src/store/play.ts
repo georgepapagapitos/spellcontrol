@@ -57,6 +57,8 @@ import {
   resultToRecord,
 } from '@/lib/play/game-results-client';
 import { useAuth } from './auth';
+import { useDecksStore } from './decks';
+import { versionOfDeckId } from '@/lib/deck/deck-version';
 import { toast } from './toasts';
 import { announceHostChange } from './play-host-notice';
 
@@ -980,6 +982,8 @@ export const usePlayStore = create<PlayState>()(
             commander: p.commander,
             partner: p.partner,
             colorIdentity: p.colorIdentity,
+            // From the deck as it stands now, not the setup: a rematch or profile may be stale.
+            deckVersion: versionOfDeckId(useDecksStore.getState().decks, p.deckId),
             startingLife: setup.startingLife,
             isHost: i === 0,
           })

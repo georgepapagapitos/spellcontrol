@@ -247,6 +247,7 @@ export function OnlineLobby({
         partner: picked?.partner ?? null,
         colorIdentity: picked?.colorIdentity ?? [],
         bracket: picked?.bracket ?? null,
+        deckVersion: picked?.version ?? null,
       },
     });
 
@@ -719,6 +720,7 @@ function SeatCard({
                     partner: picked?.partner ?? null,
                     colorIdentity: picked?.colorIdentity ?? [],
                     bracket: picked?.bracket ?? null,
+                    deckVersion: picked?.version ?? null,
                   },
                 })
               }

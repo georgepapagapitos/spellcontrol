@@ -31,7 +31,16 @@ export function applyResultEdit(
 } {
   const nextParticipants = participants.map((p) => {
     const deck = edit.decks.get(p.seat);
-    return deck === undefined ? p : { ...p, ...deck };
+    if (deck === undefined) return p;
+    // A re-attributed seat no longer knows which list played: the version
+    // belongs to the deck the device saw, so it survives only if the deck is
+    // the same one.
+    const { deckVersion, ...rest } = p;
+    return {
+      ...rest,
+      ...deck,
+      ...(deck.deckId === p.deckId && deckVersion ? { deckVersion } : {}),
+    };
   });
 
   const winner =
