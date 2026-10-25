@@ -140,24 +140,33 @@ describe('a horde turn', () => {
     expect(s.hordeTurn).toBe(1);
   });
 
-  it('confirming places permanents, resolves spells, and opens combat', async () => {
-    await readyLiveGame();
-    useHordeGameStore.getState().startHordeTurn();
-    const revealedIds = new Set(
-      useHordeGameStore.getState().pendingReveal!.revealed.map((c) => c.id)
-    );
-    useHordeGameStore.getState().confirmReveal();
-    const s = useHordeGameStore.getState();
-    expect(s.pendingReveal).toBeNull();
-    expect(['combat', 'ended']).toContain(s.phase);
-    // Every revealed card left the library either onto the battlefield or
-    // into the graveyard (resolved spells) — none vanish.
-    const onBoard = new Set(s.board!.battlefield.map((b) => b.card.id));
-    const inGrave = new Set(s.board!.zones.graveyard.map((c) => c.id));
-    for (const id of revealedIds) {
-      expect(onBoard.has(id) || inGrave.has(id)).toBe(true);
+  // The start seed comes from Math.random, so pin it: across these values the
+  // first reveal sometimes leaves the horde no creature, and that turn passes
+  // straight back to the survivors (E1035) instead of opening combat.
+  it.each(Array.from({ length: 40 }, (_, i) => i / 40))(
+    'confirming places permanents, resolves spells, and opens combat (random %s)',
+    async (random) => {
+      vi.spyOn(Math, 'random').mockReturnValue(random);
+      await readyLiveGame();
+      vi.restoreAllMocks();
+      useHordeGameStore.getState().startHordeTurn();
+      const revealedIds = new Set(
+        useHordeGameStore.getState().pendingReveal!.revealed.map((c) => c.id)
+      );
+      useHordeGameStore.getState().confirmReveal();
+      const s = useHordeGameStore.getState();
+      expect(s.pendingReveal).toBeNull();
+      expect(['combat', 'live', 'ended']).toContain(s.phase);
+      expect(s.phase === 'live').toBe(s.nothingAttacked);
+      // Every revealed card left the library either onto the battlefield or
+      // into the graveyard (resolved spells) — none vanish.
+      const onBoard = new Set(s.board!.battlefield.map((b) => b.card.id));
+      const inGrave = new Set(s.board!.zones.graveyard.map((c) => c.id));
+      for (const id of revealedIds) {
+        expect(onBoard.has(id) || inGrave.has(id)).toBe(true);
+      }
     }
-  });
+  );
 
   it('an attack reduces shared life and returns to the survivors', async () => {
     await readyLiveGame();
