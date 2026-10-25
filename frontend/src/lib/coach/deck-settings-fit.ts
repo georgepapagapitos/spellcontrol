@@ -47,12 +47,7 @@ import {
   ceilingsAreOpen,
   type BracketCeilings,
 } from '@/deck-builder/services/deckBuilder/bracketGuard';
-import {
-  isFastMana,
-  isMassLandDenialFloor,
-  isStaxPiece,
-  isTutor,
-} from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import { isMassLandDenialFloor } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { isExtraTurn } from '@/deck-builder/services/tagger/client';
 import { deckIntent, isGenericStaple, isOnTheme, type DeckIntent } from './deck-intent';
 import { isGameChangerName } from '@/deck-builder/services/deckBuilder/premiumCards';
@@ -74,7 +69,7 @@ export interface CoachDeckSettings {
   intent: DeckIntent;
   /** The target bracket as a number, or null for 'all' / unstated. */
   bracket: number | null;
-  /** Per-card floor ceilings for the target (MLD, extra turns, stax); Game Changers are `maxGameChangers`. */
+  /** Per-card floor ceilings for the target (MLD, extra turns); Game Changers are `maxGameChangers`. */
   ceilings: BracketCeilings;
 }
 
@@ -176,22 +171,24 @@ function incomingPrice(
   return out ? Math.max(0, usd(out) + change.deltaPrice) : undefined;
 }
 
-type FloorCategory = 'massLandDenial' | 'extraTurns' | 'stax';
+type FloorCategory = 'massLandDenial' | 'extraTurns';
 
 function floorCategory(name: string): FloorCategory | null {
   if (isMassLandDenialFloor(name)) return 'massLandDenial';
   if (isExtraTurn(name)) return 'extraTurns';
-  if (isStaxPiece(name)) return 'stax';
   return null;
 }
 
 /**
  * Bracket restraint: an add the estimator would count toward a floor above the
- * deck's target. Game Changers are checked on their own (`maxGameChangers`);
- * this covers the other per-card floors (mass land denial, extra turns, stax),
- * a two-card combo completion at Bracket 3 and below (it floors at 4), and, at
- * Bracket 1-2, the soft-score cards (fast mana, tutors) that lift a deck a
- * bracket with no hard floor. An unstated target restrains nothing.
+ * deck's target, limited to what Wizards' bracket rules state (the Feb 2025
+ * launch page, research 01-deckbuilding-math.md line 307; 06-primary-sources.md
+ * §4 for the Game Changer caps and the Oct 2025 removal of tutor limits).
+ * Game Changers are checked on their own (`maxGameChangers`). Here: mass land
+ * denial (none below Bracket 4), extra turns (bracketGuard's ceiling), and a
+ * two-card combo completion at Bracket 3 and below. Fast mana, tutors and stax
+ * have no rule of their own, so nothing hides them. An unstated target
+ * restrains nothing.
  */
 function bracketRestraint(
   change: Change,
@@ -209,9 +206,6 @@ function bracketRestraint(
   }
   if (change.lane === 'combos' && settings.bracket <= 3 && (change.comboPieces ?? 3) <= 2) {
     return true;
-  }
-  if (settings.bracket <= 2 && (isFastMana(change.name) || isTutor(change.name))) {
-    return !(out && (isFastMana(out.name) || isTutor(out.name)));
   }
   return false;
 }

@@ -31,6 +31,7 @@ import type { Change } from './deck-change';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { premiumReason } from '@/deck-builder/services/deckBuilder/premiumCards';
 import type { PlanScore, SubScoreKey } from '@/deck-builder/services/deckBuilder/planScore';
+import { isTutor } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { isInteractionMove, isOnTheme, isSpeedMove, type DeckIntent } from './deck-intent';
 import { combosCountAtBracket } from '@/deck-builder/services/deckBuilder/deckObjective/terms/combos';
 
@@ -138,6 +139,8 @@ function planBand(c: Change, promotedCombo: boolean, intent: DeckIntent | undefi
   if (intent === 'casual' && c.type === 'add' && !c.budding && (c.axis || isOnTheme(c))) {
     return -0.5;
   }
+  // A casual deck de-emphasizes tutors: a ranking nudge, never a hide (Wizards' rules have no tutor limit).
+  if (intent === 'casual' && c.type === 'add' && isTutor(c.name)) return 0.5;
   return c.budding || c.lane === 'budget' ? 1 : 0;
 }
 

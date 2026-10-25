@@ -1,8 +1,16 @@
 // Guard (E1038 3.2, the intent adapter): Coach follows what the deck is for.
 // A casual deck no longer gets its theme card swapped for a generic staple, a
 // Bracket 2 deck never gets a Game Changer, a combo that floors it at 4, mass
-// land denial or fast mana, and a Spike deck's interaction and speed lead.
-import { describe, it, expect } from 'vitest';
+// land denial or an extra-turn chain, and a Spike deck's interaction and speed lead.
+import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('@/deck-builder/services/tagger/client', async (orig) => ({
+  ...(await orig<object>()),
+  isExtraTurn: (n: string) => n.startsWith('Fixture Walk') || n.startsWith('Time Fixture'),
+  isMassLandDenial: (n: string) => n === 'Fixture Armageddon',
+  hasTag: (n: string, t: string) => n === 'Demonic Tutor' && t === 'tutor',
+  getCardRole: (n: string) => (n === 'Demonic Tutor' ? 'cardDraw' : null),
+}));
 import type { ScryfallCard } from '@/deck-builder/types';
 import { COACH_CARDS } from '@/deck-builder/services/deckBuilder/__fixtures__/coach-cards.fixtures';
 import { fromComboCompletion, fromGapCard, type Change } from './deck-change';
@@ -116,10 +124,22 @@ describe('bracket restraint', () => {
     expect(settingsBreak(gap('Imperial Seal'), b2, deck)).toBe('over-game-changers');
   });
 
-  it('withholds fast mana at Bracket 1-2 but not at 3', () => {
-    expect(settingsBreak(gap('Mox Opal'), b2, deck)).toBe('over-bracket');
-    expect(settingsBreak(gap('Mox Opal'), settingsFor(3), deck)).toBeNull();
+  it('does not hide fast mana or tutors: Wizards has no rule for either', () => {
+    expect(settingsBreak(gap('Mox Opal'), b2, deck)).toBeNull();
     expect(settingsBreak(gap('Sol Ring'), b2, deck)).toBeNull();
+  });
+
+  it('holds extra turns and mass land denial to the target', () => {
+    const turn = (n: string): Change => ({ ...gap('Harmonize'), name: n });
+    expect(settingsBreak(turn('Fixture Walk'), b2, deckOf([real('Doom Blade')]))).toBeNull();
+    const two = deckOf([
+      real('Doom Blade'),
+      { ...real('Doom Blade'), name: 'Time Fixture' },
+      { ...real('Doom Blade'), name: 'Time Fixture2' },
+    ]);
+    expect(settingsBreak(turn('Fixture Walk'), b2, two)).toBe('over-bracket');
+    expect(coachDeckSettings(generation(4))).toBeNull();
+    expect(settingsBreak(turn('Fixture Armageddon'), settingsFor(3), deck)).toBe('over-bracket');
   });
 
   it('withholds a two-card combo completion at Bracket 3 and below', () => {
@@ -180,6 +200,18 @@ describe('a Spike deck: interaction and speed first', () => {
 
   it('leads with removal and speed, before the better-played draw', () => {
     expect(names('spike')).toEqual(['Swords to Plowshares', 'Mox Opal', 'Harmonize']);
+  });
+
+  it('sinks a tutor on a casual deck without hiding it', () => {
+    const tutors = [
+      add('Demonic Tutor', { inclusion: 60 }),
+      add('Harmonize', { role: 'cardDraw', inclusion: 30 }),
+    ];
+    expect(rankCoachMoves(tutors, ctx('balanced'))[0].change.name).toBe('Demonic Tutor');
+    expect(rankCoachMoves(tutors, ctx('casual')).map((m) => m.change.name)).toEqual([
+      'Harmonize',
+      'Demonic Tutor',
+    ]);
   });
 
   it('leads a casual deck with its on-theme move', () => {
