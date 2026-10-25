@@ -45,6 +45,16 @@ export function sanitizeBracket(raw: unknown): 1 | 2 | 3 | 4 | 5 | null {
   return raw as 1 | 2 | 3 | 4 | 5;
 }
 
+/**
+ * Whitelist a client-computed deck version (`<count>:<hash>`, see
+ * `GamePlayer.deckVersion`). The server cannot recompute it, as it never sees
+ * the card list, so it only holds the shape: anything else is null, "unknown".
+ */
+const DECK_VERSION_RE = /^\d{1,4}:[0-9a-f]{8}$/;
+export function sanitizeDeckVersion(raw: unknown): string | null {
+  return typeof raw === 'string' && DECK_VERSION_RE.test(raw) ? raw : null;
+}
+
 type UpdatePlayerPatch = Extract<GameAction, { type: 'update-player' }>['patch'];
 
 /** Mirrors the create/join paths' name cap (40) for the free-text table note. */
@@ -77,6 +87,7 @@ function sanitizeAddedPlayer(raw: GamePlayer): GamePlayer {
     colorIdentity: sanitizeColorIdentity(r.colorIdentity),
     panelColorKey: sanitizePanelColorKey(r.panelColorKey),
     bracket: sanitizeBracket(r.bracket),
+    deckVersion: sanitizeDeckVersion(r.deckVersion),
     life: raw.life,
     poison: 0,
     commanderDamage: {},
@@ -322,6 +333,7 @@ export function sanitizeAction(action: GameAction): GameAction {
     if ('colorIdentity' in raw) patch.colorIdentity = sanitizeColorIdentity(raw.colorIdentity);
     if ('panelColorKey' in raw) patch.panelColorKey = sanitizePanelColorKey(raw.panelColorKey);
     if ('bracket' in raw) patch.bracket = sanitizeBracket(raw.bracket);
+    if ('deckVersion' in raw) patch.deckVersion = sanitizeDeckVersion(raw.deckVersion);
     if ('connected' in raw) patch.connected = raw.connected === true;
     return { ...action, patch };
   }

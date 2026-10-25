@@ -24,6 +24,7 @@ import {
   numericFieldError,
   sanitizeAction,
   sanitizeBracket,
+  sanitizeDeckVersion,
   sanitizeColorIdentity,
 } from '../games/action-validation';
 import { persistGameResult } from '../games/persist-result';
@@ -130,6 +131,7 @@ gamesRouter.post('/', createLimiter, requireAuth, async (req: Request, res: Resp
     hostPartner?: unknown;
     hostColorIdentity?: unknown;
     hostBracket?: unknown;
+    hostDeckVersion?: unknown;
     name?: unknown;
     visibility?: unknown;
   };
@@ -173,6 +175,7 @@ gamesRouter.post('/', createLimiter, requireAuth, async (req: Request, res: Resp
     partner: typeof body.hostPartner === 'string' ? body.hostPartner : null,
     colorIdentity: sanitizeColorIdentity(body.hostColorIdentity),
     bracket: sanitizeBracket(body.hostBracket),
+    deckVersion: sanitizeDeckVersion(body.hostDeckVersion),
     startingLife,
     isHost: true,
   });
@@ -295,6 +298,7 @@ gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, 
     partner?: unknown;
     colorIdentity?: unknown;
     bracket?: unknown;
+    deckVersion?: unknown;
   };
   const name =
     typeof body.name === 'string' && body.name.trim().length > 0
@@ -332,6 +336,10 @@ gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, 
             ? sanitizeColorIdentity(body.colorIdentity)
             : existing.colorIdentity,
         bracket: body.bracket !== undefined ? sanitizeBracket(body.bracket) : existing.bracket,
+        deckVersion:
+          body.deckVersion !== undefined
+            ? sanitizeDeckVersion(body.deckVersion)
+            : (existing.deckVersion ?? null),
       },
     });
     const updated = await db
@@ -364,6 +372,7 @@ gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, 
     partner: typeof body.partner === 'string' ? body.partner : null,
     colorIdentity: sanitizeColorIdentity(body.colorIdentity),
     bracket: sanitizeBracket(body.bracket),
+    deckVersion: sanitizeDeckVersion(body.deckVersion),
     startingLife: current.startingLife,
     isHost: false,
   });

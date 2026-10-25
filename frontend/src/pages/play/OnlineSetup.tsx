@@ -38,6 +38,7 @@ export function OnlineSetup({
     hostPartner: string | null;
     hostColorIdentity: string[];
     hostBracket: 1 | 2 | 3 | 4 | 5 | null;
+    hostDeckVersion: string | null;
     name: string;
     visibility: GameState['visibility'];
   }) => void;
@@ -51,6 +52,7 @@ export function OnlineSetup({
       partner: string | null;
       colorIdentity: string[];
       bracket: 1 | 2 | 3 | 4 | 5 | null;
+      deckVersion: string | null;
     }
   ) => void;
   onWatch: (code: string) => void;
@@ -117,6 +119,7 @@ export function OnlineSetup({
               partner: deck?.partner ?? null,
               colorIdentity: deck?.colorIdentity ?? [],
               bracket: deck?.bracket ?? null,
+              deckVersion: deck?.version ?? null,
             })
           }
           onWatch={onWatch}
@@ -139,6 +142,7 @@ export function OnlineSetup({
               hostCommander: deck?.commander ?? null,
               hostPartner: deck?.partner ?? null,
               hostBracket: deck?.bracket ?? null,
+              hostDeckVersion: deck?.version ?? null,
               name: tableName.trim(),
               visibility,
             });
@@ -244,6 +248,7 @@ export function OnlineSetup({
               partner: deck?.partner ?? null,
               colorIdentity: deck?.colorIdentity ?? [],
               bracket: deck?.bracket ?? null,
+              deckVersion: deck?.version ?? null,
             });
           }}
         >
@@ -417,6 +422,7 @@ export function OnlineBoardDoor({
                   commander: picked.commander,
                   partner: picked.partner,
                   colorIdentity: picked.colorIdentity,
+                  deckVersion: picked.version,
                 },
               });
             }}

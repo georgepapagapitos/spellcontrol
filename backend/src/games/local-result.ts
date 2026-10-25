@@ -1,6 +1,7 @@
 import { createGameState, makePlayer } from './state';
 import type { GameEvent, GameFormat, GamePlayer, GameState, TurnOrder } from './state';
 import { VALID_FORMATS } from './sessions';
+import { sanitizeDeckVersion } from './action-validation';
 
 /**
  * Rebuild a finished LOCAL game from an untrusted POST body into a `GameState`
@@ -155,6 +156,7 @@ export function parseLocalResult(body: unknown): LocalResultParse {
       commander: optStr(raw.commander, MAX_LABEL_LEN),
       partner: optStr(raw.partner, MAX_LABEL_LEN),
       colorIdentity: colors(raw.colorIdentity),
+      deckVersion: sanitizeDeckVersion(raw.deckVersion),
       startingLife: g.startingLife,
       isHost: raw.seat === 0,
     });

@@ -85,6 +85,28 @@ function finishedState(input: {
   };
 }
 
+describe('persistGameResult — deckVersion', () => {
+  it('stores the seat deck version in participants, and nothing for a seat without one', async () => {
+    await makeUser('pr-ver-a');
+    await makeUser('pr-ver-b');
+    const aId = await userId('pr-ver-a');
+    const bId = await userId('pr-ver-b');
+    const state = finishedState({ id: 'pr-ver-session', events: [], playerUserIds: [aId, bId] });
+    state.players[0].deckVersion = '99:0a1b2c3d';
+
+    await persistGameResult(state, pool);
+
+    const row = (
+      await pool.query(`SELECT participants FROM game_results WHERE session_id = $1`, [
+        'pr-ver-session',
+      ])
+    ).rows[0];
+    const bySeat = new Map(row.participants.map((p: { seat: number }) => [p.seat, p]));
+    expect((bySeat.get(0) as { deckVersion?: string }).deckVersion).toBe('99:0a1b2c3d');
+    expect('deckVersion' in (bySeat.get(1) as object)).toBe(false);
+  });
+});
+
 describe('persistGameResult — notable_events', () => {
   it('persists exactly the notable subset (eliminate/end/designation) of a mixed event log', async () => {
     await makeUser('pr-notable-a');

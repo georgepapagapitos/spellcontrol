@@ -19,6 +19,7 @@ import { signatureMissesCombos } from '@/lib/deck-analysis/bracket-signature';
 import { bracketTextWithEstimate } from '@/lib/deck-analysis/format-bracket-label';
 import type { ProductSummary } from '../../types';
 import { IconButton } from '@/components/shared/Button';
+import { deckVersionOf } from '@/lib/deck/deck-version';
 import './DeckPickerDialog.css';
 
 /**
@@ -43,6 +44,12 @@ export interface PickedDeck {
    * ever needing the deck's cards or tag data.
    */
   bracket: 1 | 2 | 3 | 4 | 5 | null;
+  /**
+   * The list as it stands at pick time (`deckVersionOf`), so a finished game
+   * can say which version of the deck played. Null for a deck whose cards this
+   * device does not hold (a friend's, a starter).
+   */
+  version: string | null;
 }
 
 function pickedFromDeck(deck: Deck): PickedDeck {
@@ -54,6 +61,7 @@ function pickedFromDeck(deck: Deck): PickedDeck {
     partner: deck.partnerCommander?.name ?? null,
     colorIdentity: deck.commander?.color_identity ?? [],
     bracket: (effectiveBracket(deck) as 1 | 2 | 3 | 4 | 5 | undefined) ?? null,
+    version: deckVersionOf(deck),
   };
 }
 
@@ -80,6 +88,7 @@ function pickedFromFriendDeck(deck: FriendDeck): PickedDeck {
     partner: null,
     colorIdentity: deck.colorIdentity,
     bracket: bracket && bracket >= 1 && bracket <= 5 ? (bracket as 1 | 2 | 3 | 4 | 5) : null,
+    version: null,
   };
 }
 
@@ -515,6 +524,7 @@ function StarterDecksTab({
       // A starter's bracket isn't estimated here (no owned Deck record to
       // hang a persisted estimate off of) — never a guess, so it's absent.
       bracket: null,
+      version: null,
     });
   };
 

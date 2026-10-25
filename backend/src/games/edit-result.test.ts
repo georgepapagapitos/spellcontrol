@@ -88,6 +88,22 @@ describe('applyResultEdit', () => {
     expect(out.summary).toBe(null);
   });
 
+  it('keeps the deck version only for a seat whose deck did not change', () => {
+    const before = [
+      seat({ seat: 0, deckId: 'a', deckVersion: '99:0a1b2c3d' }),
+      seat({ seat: 1, deckId: 'b', deckVersion: '98:ffffffff' }),
+    ];
+    const out = applyResultEdit(before, null, {
+      winnerSeat: 0,
+      decks: new Map([
+        [0, { deckId: 'a', deckName: 'A', commander: null, colorIdentity: [] }],
+        [1, { deckId: 'c', deckName: 'C', commander: null, colorIdentity: [] }],
+      ]),
+    });
+    expect(out.participants[0].deckVersion).toBe('99:0a1b2c3d');
+    expect('deckVersion' in out.participants[1]).toBe(false);
+  });
+
   it('never keeps a stale first place when the winner is cleared', () => {
     const out = applyResultEdit([seat({ seat: 0 }), seat({ seat: 1 })], summary([[0, 1]]), {
       winnerSeat: null,

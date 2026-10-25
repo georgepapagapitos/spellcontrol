@@ -307,6 +307,7 @@ describe('Open-your-board door — no deck picked', () => {
         commander: null,
         partner: null,
         colorIdentity: [],
+        deckVersion: expect.stringMatching(/^\d+:[0-9a-f]{8}$/),
       },
     });
   });

@@ -194,6 +194,19 @@ describe('applyAction', () => {
     expect(rec.players[1].colorIdentity).toEqual(['U', 'B']);
   });
 
+  it('gameToRecord carries each seat deckVersion, and omits it for a seat without one', () => {
+    let s = lobby(2);
+    s = applyAction(s, {
+      type: 'update-player',
+      seat: 0,
+      patch: { deckId: 'd1', deckVersion: '99:0a1b2c3d' },
+    });
+    s = applyAction(s, { type: 'end', winnerSeat: 0 });
+    const rec = gameToRecord(s, 9999);
+    expect(rec.players[0].deckVersion).toBe('99:0a1b2c3d');
+    expect('deckVersion' in rec.players[1]).toBe(false);
+  });
+
   it('end is a no-op when already finished', () => {
     let s = applyAction(lobby(), { type: 'start' });
     s = applyAction(s, { type: 'end', winnerSeat: 0 });

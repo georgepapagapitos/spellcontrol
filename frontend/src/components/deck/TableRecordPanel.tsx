@@ -5,9 +5,20 @@ import { aggregateDeckRecords, usePlayStore } from '../../store/play';
 import { aggregateMatchupRecords } from '@/lib/play/matchup-records';
 import { StackedBar } from '../shared/MeterBar';
 import { Button } from '@/components/shared/Button';
+import type { Deck } from '@/store/decks';
+import type { ClockCard } from '@/lib/mana-sim/opening-hand-sim';
+import type { SpeedPath } from '@/lib/mana-sim/speed-path';
+import { DeckOutcomeRead } from './DeckOutcomeRead';
 
 interface TableRecordPanelProps {
   deckId: string;
+  /** With the deck and its clock inputs the panel also sets the forecast
+   *  beside the games played with the list the deck holds now. */
+  outcome?: {
+    deck: Deck;
+    clockLibrary: readonly ClockCard[];
+    speedPath: SpeedPath | null;
+  };
 }
 
 /**
@@ -15,7 +26,7 @@ interface TableRecordPanelProps {
  * aggregation used by the Play/History tab (`aggregateDeckRecords` /
  * `aggregateMatchupRecords`). Physical games only; no theoretical grade.
  */
-export function TableRecordPanel({ deckId }: TableRecordPanelProps): JSX.Element {
+export function TableRecordPanel({ deckId, outcome }: TableRecordPanelProps): JSX.Element {
   const userId = useAuth((s) => s.user?.id ?? null);
   const history = usePlayStore((s) => s.history);
 
@@ -93,6 +104,15 @@ export function TableRecordPanel({ deckId }: TableRecordPanelProps): JSX.Element
             );
           })}
         </ul>
+      )}
+      {outcome && (
+        <DeckOutcomeRead
+          deck={outcome.deck}
+          history={history}
+          userId={userId}
+          clockLibrary={outcome.clockLibrary}
+          speedPath={outcome.speedPath}
+        />
       )}
     </div>
   );

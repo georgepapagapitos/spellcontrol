@@ -70,6 +70,7 @@ export async function buildGameResultRow(
     commander: p.commander,
     partner: p.partner ?? null,
     colorIdentity: p.colorIdentity ?? [],
+    ...(p.deckVersion ? { deckVersion: p.deckVersion } : {}),
     finalLife: p.life,
     eliminated: p.eliminated,
   }));

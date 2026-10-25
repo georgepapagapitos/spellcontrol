@@ -36,6 +36,20 @@ describe('parseLocalResult player count', () => {
   });
 });
 
+describe('parseLocalResult deckVersion', () => {
+  it('keeps a well-formed version and drops anything else to null', () => {
+    const body = game(3);
+    const players = body.game.players as Record<string, unknown>[];
+    players[0].deckVersion = '99:0a1b2c3d';
+    players[1].deckVersion = 'not a version';
+    const r = parseLocalResult(body);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.state.players.map((p) => p.deckVersion)).toEqual(['99:0a1b2c3d', null, null]);
+    }
+  });
+});
+
 describe('parseLocalResult turnOrder', () => {
   it('accepts clockwise', () => {
     const body = game(2);
