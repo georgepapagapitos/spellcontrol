@@ -23,7 +23,7 @@ import type { ValidationResult } from '@/deck-builder/services/deckBuilder/valid
 import type { BuildReport } from '@/deck-builder/types';
 import { MeterBar } from '../shared/MeterBar';
 import { Button } from '@/components/shared/Button';
-import { RoleBasisTip } from './RoleBasisTip';
+import { RoleBasis } from './RoleBasis';
 import { BuildReportPanel } from './BuildReportPanel';
 import { BracketBreakdown } from './BracketBreakdown';
 import type { ClockCard } from '@/lib/mana-sim/opening-hand-sim';
@@ -629,19 +629,6 @@ function RolesPanel({
           bars; one count replaced the note explaining three. */}
       <p className="deck-roles-note">
         Each card counts once, under its main role.
-        {roleTargets && (
-          <RoleBasisTip
-            targets={{
-              ramp: rampWant,
-              removal: removalWant,
-              boardwipe: wipesWant,
-              cardDraw: drawWant,
-            }}
-            commanderCounts={roleEdhrecCounts}
-            commanderDecks={commanderDecks}
-            bracket={bracket}
-          />
-        )}
         {librarySize ? (
           <span className="deck-roles-note-line">Odds are on the play, before a mulligan.</span>
         ) : null}
@@ -698,6 +685,19 @@ function RolesPanel({
           );
         })}
       </ul>
+      {roleTargets && (
+        <RoleBasis
+          targets={{
+            ramp: rampWant,
+            removal: removalWant,
+            boardwipe: wipesWant,
+            cardDraw: drawWant,
+          }}
+          commanderCounts={roleEdhrecCounts}
+          commanderDecks={commanderDecks}
+          bracket={bracket}
+        />
+      )}
     </>
   );
 }

@@ -303,13 +303,16 @@ three times on one screen, so these rulings now hold:
   count against its target already carries that. A role with no cards shows no
   odds, and the shared deck page reads the same.
 - **A role target shows its basis, and what kind of number each basis is
-  (2026-10-25, roadmap 3.3).** One `InfoTip` on the Roles note (not an icon per
-  row) puts each target beside three references: this commander's EDHREC count
-  (cards 1 in 4 of its decks play, with the deck count; an estimate), the median
-  and middle half across 93 EDHREC average decks (measured), and the Command
-  Zone's 2025 template (an estimate, from a secondary summary). With a bracket,
-  stated or estimated, it adds that bracket's lands, tutors and average mana
-  value. EDHREC gives no per-commander spread, so the tip never claims a
+  (2026-10-25, roadmap 3.3).** A "Where the targets come from" disclosure under
+  the Roles bars (a table is too tall for an `InfoTip` to clear the phone tab bar)
+  sets each target beside three references: this commander's EDHREC count (cards
+  1 in 4 of its decks play, with the deck count; an estimate), the median and
+  middle half across 93 EDHREC average decks (measured), and the Command Zone's
+  2025 template (an estimate, from a secondary summary). Numerals are tabular and
+  right-aligned, the middle half a small second line, a legend defines each
+  column, and the abbreviated headers keep 320px from overflowing. With a
+  bracket, stated or estimated, a last line adds that bracket's lands, tutors and
+  average mana value. EDHREC gives no per-commander spread, so it never claims a
   commander's "middle 50%". Display only: `roleBasis.ts` holds the references and
   never feeds the generator, whose targets `roleBasis.test.ts` pins.
 - **The deck is the commander and the mainboard (2026-09-25).** Every stat,
