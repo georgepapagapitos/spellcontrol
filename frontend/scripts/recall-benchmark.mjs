@@ -81,6 +81,8 @@ import {
 const { values: opt } = parseArgs({
   options: {
     seed: { type: 'string', default: '1' },
+    'sample-seed': { type: 'string' }, // deck-sample shuffle; defaults to --seed
+    dump: { type: 'string' }, // write per-query rows (JSON) for pooling across runs
     limit: { type: 'string', default: '40' },
     k: { type: 'string', default: '5' },
     trials: { type: 'string', default: '3' },
@@ -233,7 +235,7 @@ const allDecks = corpus.decks
   })
   .sort((a, b) => (a.id < b.id ? -1 : 1));
 const deduped = dedupeByJaccard(allDecks, 0.9);
-const sample = shuffled(deduped, rng(SEED)).slice(0, LIMIT);
+const sample = shuffled(deduped, rng(Number(opt['sample-seed'] ?? SEED))).slice(0, LIMIT);
 
 // ── per-commander EDHREC data ────────────────────────────────────────────────
 const commanderData = new Map(); // commander key -> { cards: Map(key->EDHRECCard), avg:Set|null } | null
@@ -280,7 +282,10 @@ async function liftPoolFor(name) {
   const slug = formatCommanderNameForUrl(name);
   const page = await edhrec(`/pages/cards/${slug}.json`, `cards/${slug}.json`);
   return page
-    ? { pool: parseCardLiftPool(page), total: page.container?.json_dict?.card?.potential_decks ?? 0 }
+    ? {
+        pool: parseCardLiftPool(page),
+        total: page.container?.json_dict?.card?.potential_decks ?? 0,
+      }
     : null;
 }
 
@@ -312,7 +317,7 @@ const extra = {}; // ranker -> { tail: [], jac: [] }
 for (const r of RANKERS) extra[r] = { tail: [], jac: [] };
 const refJaccard = [];
 const poolSizes = [];
-const notes = { decks: 0, skippedNoData: [], droppedHidden: 0, queries: 0, noLift: 0 };
+const notes = { decks: 0, skippedNoData: [], droppedHidden: 0, queries: 0, noLift: 0, thinCtx: 0 };
 
 for (const deck of sample) {
   const names = deck.commanders;
@@ -385,6 +390,7 @@ for (const deck of sample) {
     ),
   };
   const liftScores = new Map();
+  if (seedPools.size < CONTEXT) notes.thinCtx++;
   if (seedPools.size === 0) notes.noLift++;
   else {
     for (const c of aggregateLiftCandidates(seedPools, {
@@ -491,6 +497,7 @@ console.log(
     `${stats.skippedOffline} not cached (offline)`
 );
 if (notes.noLift) console.log(`decks with no usable lift context: ${notes.noLift}`);
+console.log(`decks with fewer than ${CONTEXT} cached lift context cards: ${notes.thinCtx}`);
 if (notes.skippedNoData.length)
   console.log(
     `skipped decks (${notes.skippedNoData.length}): ${notes.skippedNoData.slice(0, 6).join('; ')}${notes.skippedNoData.length > 6 ? '; ...' : ''}`
@@ -614,3 +621,11 @@ console.log(
   `\ncombo prior: ${Object.keys(corpus.combos ?? {}).length} combos from the corpus fixture, ` +
     `${comboIndex.size} distinct cards indexed.`
 );
+
+if (opt.dump) {
+  const { writeFileSync } = await import('node:fs');
+  writeFileSync(
+    opt.dump,
+    JSON.stringify({ seed: SEED, noLift: notes.noLift, thinCtx: notes.thinCtx, perQuery })
+  );
+}
