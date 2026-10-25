@@ -138,7 +138,38 @@ function landColors(text: string | undefined): string[] {
   return [...colors];
 }
 
+/**
+ * The sheet's data, structured, so the post-write check (`review-check.ts`)
+ * reads the same lists the model was shown instead of re-classifying.
+ */
+export interface DeckFacts {
+  /** Role key -> card names, as listed on the sheet (uncapped). */
+  roles: Record<keyof typeof ROLES, string[]>;
+  /** Target type -> card names that can answer it. */
+  answers: Record<'creature' | 'artifact' | 'enchantment' | 'planeswalker' | 'graveyard', string[]>;
+  creatureCount: number;
+  /** Removal (spot or any target answer) at mana value 2 or less. */
+  cheapRemoval: string[];
+  /** Removal that is an instant or has flash. */
+  instantRemoval: string[];
+  /** Every card in the deck, command zone included. */
+  deckNames: string[];
+}
+
 export function buildFactsSheet(input: FactsSheetInput): string {
+  return buildFacts(input).sheet;
+}
+
+/** Mana value from a mana cost; X counts as 0. Front face only. */
+export function cmcOf(manaCost?: string): number {
+  let n = 0;
+  for (const m of (manaCost ?? '').split(' // ')[0].matchAll(/\{([^}]+)\}/g)) {
+    n += /^\d+$/.test(m[1]) ? Number(m[1]) : m[1] === 'X' ? 0 : 1;
+  }
+  return n;
+}
+
+export function buildFacts(input: FactsSheetInput): { sheet: string; facts: DeckFacts } {
   const { commanders, cards, oracle, taggerHas, otagHas, bracket } = input;
   const byName = new Map(oracle.map((o) => [o.name, o]));
   const cmd = new Set(commanders);
@@ -165,10 +196,13 @@ export function buildFactsSheet(input: FactsSheetInput): string {
       )
       .map((c) => c.name);
 
+  const roleNames = {} as DeckFacts['roles'];
+  const targetNames = {} as DeckFacts['answers'];
   const lines: string[] = [];
   lines.push(`- Commander${commanders.length > 1 ? 's' : ''}: ${commanders.join(' and ')}`);
-  for (const spec of Object.values(ROLES)) {
+  for (const [key, spec] of Object.entries(ROLES) as [keyof typeof ROLES, RoleSpec][]) {
     const names = inRole(spec);
+    roleNames[key] = names;
     lines.push(`- ${spec.label} (${names.length}): ${list(names)}`);
   }
 
@@ -179,6 +213,7 @@ export function buildFactsSheet(input: FactsSheetInput): string {
           (otagHas ? t.otag.some((o) => otagHas(c.name, o)) : false) || t.text.test(textOf(c.name))
       )
       .map((c) => c.name);
+    targetNames[t.label as keyof DeckFacts['answers']] = names;
     return `${t.label}: ${list(names)}`;
   });
   const graveyard = spells
@@ -191,6 +226,7 @@ export function buildFactsSheet(input: FactsSheetInput): string {
         )
     )
     .map((c) => c.name);
+  targetNames.graveyard = graveyard;
   answers.push(`graveyard: ${list(graveyard)}`);
   lines.push(`- Answers by target type: ${answers.join(' | ')}`);
 
@@ -235,7 +271,22 @@ export function buildFactsSheet(input: FactsSheetInput): string {
     lines.push(`- Bracket signals: ${parts.length ? parts.join(' · ') : 'none found'}`);
   }
 
-  return lines.join('\n');
+  const removal = [...new Set([...roleNames.spot, ...Object.values(targetNames).flat()])].filter(
+    (n) => !targetNames.graveyard.includes(n) || roleNames.spot.includes(n)
+  );
+  const facts: DeckFacts = {
+    roles: roleNames,
+    answers: targetNames,
+    creatureCount: spells
+      .filter((c) => /\bCreature\b/.test(frontType(byName.get(c.name)?.typeLine)))
+      .reduce((n, c) => n + c.qty, 0),
+    cheapRemoval: removal.filter((n) => cmcOf(byName.get(n)?.manaCost) <= 2),
+    instantRemoval: removal.filter(
+      (n) => /\bInstant\b/.test(frontType(byName.get(n)?.typeLine)) || /\bflash\b/i.test(textOf(n))
+    ),
+    deckNames: [...commanders, ...cards.map((c) => c.name)],
+  };
+  return { sheet: lines.join('\n'), facts };
 }
 
 /** The sheet as a user-message section. */

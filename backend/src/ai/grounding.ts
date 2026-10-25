@@ -31,6 +31,17 @@ export interface Grounding {
     dropped: { sentence: string; failed: string[] }[];
     unchecked?: number;
   };
+  /**
+   * Review only (E1020): weakness sentences the post-write check found
+   * contradicted by the facts sheet, whether it regenerated, and what it cut
+   * from the second draft.
+   */
+  reviewCheck?: {
+    caught: { sentence: string; fact: string }[];
+    regenerated: boolean;
+    stripped?: { sentence: string; fact: string }[];
+    shippedContradicted?: true;
+  };
   truncated?: true;
 }
 
