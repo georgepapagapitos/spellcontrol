@@ -11,8 +11,8 @@
  * check carries the sample behind it as `[decks meeting the floor, decks
  * sampled]` so the row can show its denominator. Those pairs are the 08 corpus
  * run through `archetypeComponents.ts` (the TypeScript port reproduces the 08
- * CSV counts for 574 decks: 17 of 19 components exact on every deck, the rest
- * within one card).
+ * CSV counts for 574 decks: every component but artifacts exact on every deck,
+ * artifacts within one card on 5).
  *
  * A check fires only when:
  *  - the deck's archetype is one the measurement covers (the app's own read:
