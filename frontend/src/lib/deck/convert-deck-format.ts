@@ -36,6 +36,7 @@ const FORMAT_DERIVED_FIELDS = {
   deckGrade: undefined,
   bracketEstimation: undefined,
   roleTargets: undefined,
+  roleEdhrecCounts: undefined,
   gapAnalysis: undefined,
   hiddenGems: undefined,
   cardInclusionMap: undefined,

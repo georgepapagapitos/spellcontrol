@@ -30,6 +30,7 @@ import {
 import { isBasicLandName } from '@/lib/collection/allocations';
 import { fetchCommanderData, fetchPartnerCommanderData, fetchCardLiftPool } from '../edhrec/client';
 import { buildLiftIndex } from './liftSynergy';
+import { computeEdhrecRoleTargets } from './roleTargets';
 import { estimateBracket, type BracketEstimation } from './bracketEstimator';
 import { buildBracketFitPlan, type BracketFitPlan } from './bracketFit';
 import {
@@ -476,6 +477,7 @@ export function computeGradeAndBracket(input: GradeBracketInput): GradeBracketRe
 export interface CommanderDeckAnalysisResult extends GradeBracketResult {
   /** Per-role target counts derived from EDHREC + archetype/pacing blend. */
   roleTargets?: Record<string, number>;
+  roleEdhrecCounts?: Record<string, number>;
   /** Top EDHREC-recommended cards not already in the deck, ranked by inclusion. */
   gapAnalysis?: GapAnalysisCard[];
   /** Underrated suggestions the inclusion ranking missed (E146) — always set
@@ -488,12 +490,7 @@ export interface CommanderDeckAnalysisResult extends GradeBracketResult {
   /** E222: the cardFit sub-score's own misfit cascade, slim (name + reasons).
    *  Same lifecycle as planScore — undefined when the grade branch didn't run. */
   misfits?: MisfitSummary[];
-  /**
-   * EDHREC's own sample size for this commander (its `numDecks`) — already
-   * fetched here to feed planScore's byline (social W4's CommanderPopularityStat
-   * reuses it rather than re-fetching). `null` when EDHREC has no data for this
-   * commander (e.g. unreachable, or a commander it doesn't track).
-   */
+  /** EDHREC's `numDecks` for this commander, fetched here for planScore; `null` without data. */
   edhrecNumDecks?: number | null;
   /** Balanced cut/add optimize suggestions (the "Optimize" surface). */
   optimizeSwaps?: OptimizeSwaps;
@@ -1179,6 +1176,7 @@ export async function analyzeCommanderDeck(
       bracketEstimation: gradeBracket.bracketEstimation,
       deckGrade: gradeBracket.deckGrade,
       roleTargets,
+      roleEdhrecCounts: computeEdhrecRoleTargets(edhrecData),
       gapAnalysis,
       hiddenGems,
       cardInclusionMap,

@@ -100,6 +100,8 @@ export interface DeckDisplayProps {
   roleCounts?: Record<string, number>;
   /** Target role counts (balanced-roles generation); drives have/want display. */
   roleTargets?: Record<string, number>;
+  /** This commander's EDHREC role counts (cards 1 in 4 of its decks play); the Roles tip's reference. */
+  roleEdhrecCounts?: Record<string, number>;
   /** Target counts per DeckCategory bucket (generated decks only) — feeds the
    *  category-view section gauges (E124). Snapshotted at generation, never
    *  recomputed. */

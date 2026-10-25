@@ -23,6 +23,7 @@ import type { ValidationResult } from '@/deck-builder/services/deckBuilder/valid
 import type { BuildReport } from '@/deck-builder/types';
 import { MeterBar } from '../shared/MeterBar';
 import { Button } from '@/components/shared/Button';
+import { RoleBasis } from './RoleBasis';
 import { BuildReportPanel } from './BuildReportPanel';
 import { BracketBreakdown } from './BracketBreakdown';
 import type { ClockCard } from '@/lib/mana-sim/opening-hand-sim';
@@ -60,6 +61,7 @@ export function DeckAnalysisView({
   onSetArchetypeOverride,
   roleCounts,
   roleTargets,
+  roleEdhrecCounts,
   buildReport,
   rampSubtypeCounts,
   removalSubtypeCounts,
@@ -122,6 +124,8 @@ export function DeckAnalysisView({
   onSetArchetypeOverride?: (archetype: Archetype | null) => void;
   roleCounts?: Record<string, number>;
   roleTargets?: Record<string, number>;
+  /** This commander's EDHREC role counts: the Roles tip's reference. */
+  roleEdhrecCounts?: Record<string, number>;
   buildReport?: BuildReport;
   rampSubtypeCounts?: Record<string, number>;
   removalSubtypeCounts?: Record<string, number>;
@@ -437,6 +441,15 @@ export function DeckAnalysisView({
                 <RolesPanel
                   roleCounts={roleCounts}
                   roleTargets={roleTargets}
+                  roleEdhrecCounts={roleEdhrecCounts}
+                  commanderDecks={edhrecNumDecks}
+                  bracket={
+                    bracketOverride != null
+                      ? { value: bracketOverride, stated: true }
+                      : bracketEstimation
+                        ? { value: bracketEstimation.bracket, stated: false }
+                        : null
+                  }
                   rampSubtypeCounts={rampSubtypeCounts}
                   removalSubtypeCounts={removalSubtypeCounts}
                   boardwipeSubtypeCounts={boardwipeSubtypeCounts}
@@ -525,6 +538,9 @@ function Panel({
 function RolesPanel({
   roleCounts,
   roleTargets,
+  roleEdhrecCounts,
+  commanderDecks,
+  bracket,
   rampSubtypeCounts,
   removalSubtypeCounts,
   boardwipeSubtypeCounts,
@@ -533,6 +549,9 @@ function RolesPanel({
 }: {
   roleCounts?: Record<string, number>;
   roleTargets?: Record<string, number>;
+  roleEdhrecCounts?: Record<string, number>;
+  commanderDecks?: number | null;
+  bracket?: { value: 1 | 2 | 3 | 4 | 5; stated: boolean } | null;
   rampSubtypeCounts?: Record<string, number>;
   removalSubtypeCounts?: Record<string, number>;
   boardwipeSubtypeCounts?: Record<string, number>;
@@ -666,6 +685,19 @@ function RolesPanel({
           );
         })}
       </ul>
+      {roleTargets && (
+        <RoleBasis
+          targets={{
+            ramp: rampWant,
+            removal: removalWant,
+            boardwipe: wipesWant,
+            cardDraw: drawWant,
+          }}
+          commanderCounts={roleEdhrecCounts}
+          commanderDecks={commanderDecks}
+          bracket={bracket}
+        />
+      )}
     </>
   );
 }

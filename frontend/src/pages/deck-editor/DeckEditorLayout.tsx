@@ -290,6 +290,7 @@ export function DeckEditorLayout({
             }}
             roleCounts={deck.roleCounts}
             roleTargets={deck.roleTargets}
+            roleEdhrecCounts={deck.roleEdhrecCounts}
             categoryTargets={deck.categoryTargets}
             buildReport={deck.buildReport}
             onAddSuggestedCard={handleAddEngineCard}

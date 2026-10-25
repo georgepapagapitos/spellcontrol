@@ -723,3 +723,87 @@
     height: clamp(110px, 30vh, 220px);
   }
 }
+
+/* Where the role targets come from: a disclosure under the Roles bars. Numerals
+   are right-aligned and tabular; the middle half sits as a small second line. */
+.deck-role-basis {
+  margin-top: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.deck-role-basis-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  list-style: none;
+}
+
+.deck-role-basis-summary::-webkit-details-marker {
+  display: none;
+}
+
+.deck-role-basis[open] .deck-role-basis-summary svg {
+  transform: rotate(180deg);
+}
+
+.deck-role-basis-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+
+.deck-role-basis-table th,
+.deck-role-basis-table td {
+  padding: var(--space-1) var(--space-1-5);
+  text-align: right;
+  vertical-align: top;
+  font-weight: 400;
+}
+
+.deck-role-basis-table thead th {
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.deck-role-basis-table th:first-child {
+  padding-left: 0;
+  text-align: left;
+}
+
+.deck-role-basis-table td {
+  color: var(--text-primary);
+}
+
+.deck-role-basis-table tbody th {
+  color: var(--text-secondary);
+}
+
+.deck-role-basis-range {
+  display: block;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.deck-role-basis-legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.deck-role-basis-legend b {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.deck-role-basis-bracket {
+  margin: var(--space-2) 0 0;
+}
