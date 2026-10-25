@@ -5,15 +5,16 @@
 
 import {
   beats,
-  karstenBar,
   reachOf,
   SPENT,
   unionOf,
+  withoutOne,
   type CostStat,
   type HandFetch,
   type LandPerm,
   type SourcePerm,
 } from './engine-helpers';
+import { castabilityOf } from './engine-results';
 import { createGoalPlay } from './goal';
 import { isKeepableHand, librarySeed } from './opening-hand-sim';
 import { summarizeTurns, type TurnDistribution } from './turn-distribution';
@@ -31,8 +32,6 @@ import {
 } from './cost';
 import {
   ANY_COLOR,
-  MANA_SYMBOLS,
-  type CardCastability,
   type ManaGoal,
   type LandFace,
   type LandSearch,
@@ -43,7 +42,6 @@ import {
   type ManaMask,
   type ManaSimOptions,
   type ManaSimResult,
-  type ManaSymbol,
 } from './types';
 
 /** Flood is judged at the end of this turn. */
@@ -115,6 +113,15 @@ export function* simulateGoalSteps(
   return (yield* playGames(deck, options, goal)) as number[] | null;
 }
 
+/** Any run as a generator, for a caller that slices it and reads `options.onGame`. */
+export function* simulateGamesSteps(
+  deck: ManaDeck,
+  goal: ManaGoal | null,
+  options: ManaSimOptions
+): Generator<void> {
+  yield* playGames(deck, options, goal);
+}
+
 function* playGames(
   deck: ManaDeck,
   options: ManaSimOptions,
@@ -149,6 +156,10 @@ function* playGames(
   };
   const libraryIds = deck.library.map(idOf);
   const commanders = deck.commanders;
+  const opening = options.opening;
+  const openingIds = (opening?.hand ?? [])
+    .map((n) => idByName.get(n))
+    .filter((id): id is number => id !== undefined);
   const copies = new Map<number, number>();
   for (const id of libraryIds) copies.set(id, (copies.get(id) ?? 0) + 1);
   const isSpell = (c: ManaCard): boolean => c.cost !== null && !c.landCard;
@@ -689,12 +700,16 @@ function* playGames(
     let freeLeft = freeMulligan;
     for (let attempt = 0; ; attempt++) {
       order = shuffle(libraryIds, rand);
+      if (opening) order = [...openingIds, ...withoutOne(order, openingIds)];
       const seven = order.slice(0, 7);
       const last = mulls >= depth;
       let kept: number[];
       let bottomed: number[];
       let keeps: boolean;
-      if (mode === 'app') {
+      if (opening) {
+        keeps = true;
+        ({ kept, bottomed } = bottom(seven, opening.bottom ?? 0));
+      } else if (mode === 'app') {
         keeps = last || isKeepableHand(seven.map((id) => cards[id].sim));
         ({ kept, bottomed } = bottom(seven, keeps ? mulls : 0));
       } else {
@@ -719,6 +734,8 @@ function* playGames(
       addHandPips(id, 1);
     }
     let drops = 0;
+    let casts = 0;
+    const row = options.onGame && { casts: [0], drops: [0], online: 0 };
 
     for (let turn = 1; turn <= maxTurn; turn++) {
       if (budget && performance.now() >= budget.until) yield;
@@ -843,6 +860,7 @@ function* playGames(
           pool.length = kept;
         }
         const castId = pickCmd >= 0 ? -1 : hand[pick];
+        casts++;
         if (pickCmd >= 0) cmdCast[pickCmd] = true;
         else {
           addHandPips(hand[pick], -1);
@@ -885,9 +903,14 @@ function* playGames(
         }
       }
 
+      row?.casts.push(casts);
+      row?.drops.push(drops);
       if (goalPlay?.done()) {
-        onlineTurn = turn;
-        break;
+        if (row) row.online ||= turn;
+        else {
+          onlineTurn = turn;
+          break;
+        }
       }
       landsInPlaySum[turn] += lands.length;
       if (drops >= turn) onCurveDrops[turn]++;
@@ -901,65 +924,25 @@ function* playGames(
         }
       }
     }
+    if (row) options.onGame?.({ ...row, online: row.online || maxTurn + 1 });
     if (goalPlay) turns.push(onlineTurn);
   }
   if (goalPlay) return turns;
 
   // ── Results ───────────────────────────────────────────────────────────────
   const perTurn = (a: Float64Array): number[] => Array.from(a, (v, i) => (i === 0 ? 0 : v / games));
-  const rateOf = (n: number, d: number): number | null => (d > 0 ? n / d : null);
-
-  const castRow = (name: string, cost: ManaCost, sid: number, n: number): CardCastability => {
-    const s = costStats[sid];
-    const measuredOn = s.onTurn <= maxTurn;
-    const measuredNext = s.onTurn + 1 <= maxTurn;
-    const shortBy: Partial<Record<ManaSymbol, number>> = {};
-    for (let b = 0; b < 6; b++) {
-      if (s.short[b] > 0) shortBy[MANA_SYMBOLS[b]] = s.short[b] / s.onEnough;
-    }
-    return {
-      name,
-      mv: cost.mv,
-      cost: cost.text,
-      copies: n,
-      karstenBar: karstenBar(cost.mv),
-      onCurve: measuredOn ? s.on / games : null,
-      onCurveGivenMana: measuredOn ? rateOf(s.on, s.onEnough) : null,
-      nextTurn: measuredNext ? s.next / games : null,
-      nextTurnGivenMana: measuredNext ? rateOf(s.next, s.nextEnough) : null,
-      shortBy,
-    };
-  };
-
-  const rows: CardCastability[] = [];
-  for (const [id, n] of copies) {
-    if (cardCost[id] >= 0)
-      rows.push(castRow(cards[id].name, cards[id].cost as ManaCost, cardCost[id], n));
-  }
-  rows.sort(
-    (a, b) => (a.onCurve ?? 2) - (b.onCurve ?? 2) || a.mv - b.mv || a.name.localeCompare(b.name)
-  );
-
-  const mean = (pick: (r: CardCastability) => number | null): number | null => {
-    let sum = 0;
-    let n = 0;
-    for (const r of rows) {
-      const v = pick(r);
-      if (v === null) continue;
-      sum += v * r.copies;
-      n += r.copies;
-    }
-    return n > 0 ? sum / n : null;
-  };
-  let measured = 0;
-  let below = 0;
-  for (const r of rows) {
-    if (r.onCurve === null) continue;
-    measured += r.copies;
-    if (r.onCurveGivenMana !== null && r.onCurveGivenMana < r.karstenBar) below += r.copies;
-  }
-
-  const probes = (options.probes ?? []).map((cost, i) => castRow(cost.text, cost, probeCost[i], 0));
+  const { rows, probes, commanderRows, castability } = castabilityOf({
+    costStats,
+    cards,
+    copies,
+    cardCost,
+    commanders,
+    commanderCost,
+    probes: options.probes ?? [],
+    probeCost,
+    games,
+    maxTurn,
+  });
 
   const keptSizeShare: Record<number, number> = {};
   for (const [size, n] of Object.entries(keptSizes)) keptSizeShare[Number(size)] = n / games;
@@ -977,17 +960,8 @@ function* playGames(
     screw: { missedDropBy3: missed3 / games, missedDropBy4: missed4 / games },
     flood: { rate: floodCount / games, surplusLands: surplusCount / games },
     mana: { average: perTurn(manaSum), atLeastTurn: perTurn(manaAtLeast) },
-    castability: {
-      onCurve: mean((r) => r.onCurve),
-      onCurveGivenMana: mean((r) => r.onCurveGivenMana),
-      nextTurn: mean((r) => r.nextTurn),
-      nextTurnGivenMana: mean((r) => r.nextTurnGivenMana),
-      measured,
-      belowKarstenBar: below,
-    },
-    commanders: commanders.flatMap((c, i) =>
-      c.cost ? [castRow(c.name, c.cost, commanderCost[i], 1)] : []
-    ),
+    castability,
+    commanders: commanderRows,
     cards: rows,
     probes,
   };

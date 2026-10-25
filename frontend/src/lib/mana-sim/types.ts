@@ -194,6 +194,16 @@ export interface ManaDeck {
   library: readonly ManaCard[];
 }
 
+/** One simulated game, turn by turn (see `ManaSimOptions.onGame`). */
+export interface GameTrace {
+  /** Index = turn: spells cast so far, the commander and ramp included. */
+  casts: number[];
+  /** Index = turn: land drops made so far. */
+  drops: number[];
+  /** The turn the goal was met, or `horizon + 1` (no goal: `maxTurn + 1`) when it was not. */
+  online: number;
+}
+
 export interface ManaSimOptions {
   /** Games to simulate. Default 1000. */
   games?: number;
@@ -226,6 +236,21 @@ export interface ManaSimOptions {
   freeMulligan?: boolean;
   /** Counted mulligans allowed after the free one. Default 2 (`app`) or 3 (`karsten`, down to four cards). */
   mulliganDepth?: number;
+  /**
+   * Play on from a given opening instead of mulliganing to a keepable hand:
+   * `hand` is the cards dealt, by name (one copy each; the rest of the seven
+   * are random if it names fewer than seven), and `bottom` cards go to the
+   * library bottom London-style (0 keeps all seven). The hand is kept as
+   * dealt: no keep rule, no further mulligans. Without `hand`, a fresh seven
+   * each game, so `bottom: 0` is a free mulligan and `bottom: 1` a counted one.
+   */
+  opening?: { hand?: readonly string[]; bottom?: number };
+  /**
+   * Called once per game with what happened by the end of each turn, indexed
+   * by turn (0 unused). A goal run keeps playing after the goal is met, to
+   * `goal.horizon`, so the other counts cover the whole game.
+   */
+  onGame?: (game: GameTrace) => void;
   /** The starting player draws on turn 1 (CR 800.7, multiplayer). Default true. */
   drawOnTurnOne?: boolean;
   /** Opponents at the table (bond lands). Default 3. */

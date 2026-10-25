@@ -413,3 +413,108 @@
   min-width: 0;
   max-width: 100%;
 }
+
+/* ── Keep or mulligan — the dealt seven against a fresh seven and a six ──── */
+.deck-test-hand-advice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-2-5);
+  margin-top: var(--space-0-5);
+  border-top: 0.5px solid var(--border);
+}
+
+/* Two lines of sentence are held while the run lands, so the table below
+   never moves: the headline is one line, the sentence wraps to two on a phone. */
+.deck-test-hand-advice-verdict {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: baseline;
+  column-gap: var(--space-1-5);
+  min-height: 3.2em;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.deck-test-hand-advice-verdict > svg {
+  color: var(--accent);
+  align-self: center;
+}
+
+.deck-test-hand-advice-verdict > span {
+  grid-column: 1 / -1;
+  font-size: var(--text-xs);
+}
+
+.deck-test-hand-advice-verdict strong {
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  color: var(--text-primary);
+}
+
+.deck-test-hand-advice-verdict strong.is-mulligan {
+  color: var(--warn-text);
+}
+
+.deck-test-hand-advice-verdict strong.is-keep {
+  color: var(--accent);
+}
+
+.deck-test-hand-advice-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: var(--text-xs);
+}
+
+.deck-test-hand-advice-table th,
+.deck-test-hand-advice-table td {
+  padding: var(--space-1-5) var(--space-1);
+  border-top: 0.5px solid var(--border);
+  vertical-align: top;
+}
+
+.deck-test-hand-advice-table thead th {
+  border-top: 0;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-align: center;
+}
+
+.deck-test-hand-advice-table thead th:first-child {
+  width: 38%;
+}
+
+.deck-test-hand-advice-table tbody th {
+  color: var(--text-primary);
+  font-weight: 400;
+  text-align: left;
+}
+
+.deck-test-hand-advice-table td {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-test-hand-advice-table td strong {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.deck-test-hand-advice-range {
+  display: block;
+  color: var(--text-muted);
+}
+
+.deck-test-hand-advice-table tr.is-deciding {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.deck-test-hand-advice-decides {
+  display: block;
+  color: var(--accent);
+  font-weight: 600;
+}

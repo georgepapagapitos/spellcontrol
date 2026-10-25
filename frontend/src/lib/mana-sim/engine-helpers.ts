@@ -69,3 +69,13 @@ export interface CostStat {
   nextEnough: number;
   short: Float64Array;
 }
+
+/** `order` with one copy of each id in `ids` taken out, the rest in their order. */
+export function withoutOne(order: readonly number[], ids: readonly number[]): number[] {
+  const rest = order.slice();
+  for (const id of ids) {
+    const at = rest.indexOf(id);
+    if (at >= 0) rest.splice(at, 1);
+  }
+  return rest;
+}
