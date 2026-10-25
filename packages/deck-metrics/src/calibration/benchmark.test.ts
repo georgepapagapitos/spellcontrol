@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { estimateBracket, createTagLookup, HARDCODED_GAME_CHANGERS, SOFT_SCORE } from '../index';
 import {
   agreement,
+  baselines,
   bootstrapRate,
   createBench,
   disagreementCause,
@@ -24,7 +25,16 @@ import {
   type Corpus,
   type Violation,
 } from './benchmark';
-import { formatSet, reportScrollVault, reportSet, runCorpus, softHeadroom } from './report';
+import {
+  baselineRows,
+  formatSet,
+  formatSources,
+  reportAll,
+  reportScrollVault,
+  reportSet,
+  runCorpus,
+  softHeadroom,
+} from './report';
 
 const fixture = (name: string) => new URL(`../../calibration/fixtures/${name}`, import.meta.url);
 const corpus: Corpus = JSON.parse(
@@ -52,10 +62,50 @@ const KNOWN_CEDH_MISSES = [
   'edhtop16:summer-classic-3/77vpmG1KImfCQqdHk32rs6CbrlN2',
 ];
 
+describe('constant baselines', () => {
+  const classes = [
+    { label: 2, n: 6 },
+    { label: 3, n: 3 },
+    { label: 4, n: 1 },
+  ];
+
+  it('scores always-B3 and the majority class exactly and within one', () => {
+    const b = baselines(classes);
+    expect(b.n).toBe(10);
+    expect(b.alwaysB3).toEqual({ predicts: 3, exact: 3, withinOne: 10 });
+    expect(b.majority).toEqual({ predicts: 2, exact: 6, withinOne: 9 });
+  });
+
+  it('breaks majority ties toward the lower bracket and scores B3 as 0 when absent', () => {
+    const b = baselines([
+      { label: 5, n: 2 },
+      { label: 4, n: 2 },
+    ]);
+    expect(b.majority.predicts).toBe(4);
+    expect(b.alwaysB3).toEqual({ predicts: 3, exact: 0, withinOne: 2 });
+  });
+
+  it('prints the estimator beside both baselines', () => {
+    const a = agreement([
+      { label: 2, predicted: 2 },
+      { label: 3, predicted: 5 },
+    ]);
+    const rowsOut = baselineRows(a).join('\n');
+    expect(rowsOut).toContain('| estimator | 50.0% | 50.0% |');
+    expect(rowsOut).toContain('| always B3 | 50.0% | 100.0% |');
+  });
+});
+
 describe('bracket calibration benchmark', () => {
   it('prints the report on request', () => {
     const sets = [...new Set(corpus.decks.map((d) => d.set))];
+    const bySource = [
+      reportAll(rows),
+      ...sets.map((s) => reportSet(s, rows)),
+      reportScrollVault(rows),
+    ];
     const out = [
+      formatSources(bySource),
       ...sets.map((s) => formatSet(reportSet(s, rows))),
       formatSet(reportScrollVault(rows)),
       `Highest precon power signal: ${JSON.stringify(softHeadroom(rows, 'precon'))} (bumpAt ${SOFT_SCORE.bumpAt})`,
