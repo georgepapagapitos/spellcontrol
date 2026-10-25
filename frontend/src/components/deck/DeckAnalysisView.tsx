@@ -17,6 +17,8 @@ import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import { ROLE_TITLES } from '@/lib/deck-analysis/role-badges';
 import { formatChance, roleOdds, type OddsRole } from '@/lib/deck-analysis/role-odds';
 import { ARCHETYPE_LABEL } from '@/deck-builder/services/deckBuilder/strategyVocabulary';
+import { resolveAutoArchetype } from '@/deck-builder/services/deckBuilder/deckIdentity';
+import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import type { ValidationResult } from '@/deck-builder/services/deckBuilder/validationChecklist';
 import type { BuildReport } from '@/deck-builder/types';
 import { MeterBar } from '../shared/MeterBar';
@@ -194,6 +196,17 @@ export function DeckAnalysisView({
     const zone = new Set(commandZone.map((c) => c.name));
     return allCards.filter((c) => !zone.has(c.name));
   }, [allCards, commandZone]);
+  // The plan the archetype checks measure against: the same read the identity
+  // strip shows (owner's pick, chosen theme, the deck's engine, the build's read).
+  const planArchetype = useMemo(
+    () =>
+      resolveAutoArchetype({
+        override: archetypeOverride,
+        build: buildReport,
+        engine: analyzeDeckSynergy(allCards),
+      }),
+    [archetypeOverride, buildReport, allCards]
+  );
   const supportIdentity = useMemo(
     () => [...new Set(commandZone.flatMap((c) => c.color_identity ?? []))],
     [commandZone]
@@ -425,7 +438,12 @@ export function DeckAnalysisView({
                   cardDrawSubtypeCounts={cardDrawSubtypeCounts}
                   librarySize={simLibrary?.length}
                 />
-                <SupportRoles cards={supportCards} colorIdentity={supportIdentity} />
+                <SupportRoles
+                  cards={supportCards}
+                  colorIdentity={supportIdentity}
+                  commanders={commandZone}
+                  archetype={planArchetype}
+                />
               </Panel>
             )}
           </div>
