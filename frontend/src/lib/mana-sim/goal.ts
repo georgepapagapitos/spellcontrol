@@ -171,7 +171,8 @@ export function createGoalPlay(
       const window = play.order.slice(play.ptr, play.ptr + w);
       const take = Math.min(w, e.take > 0 ? e.take : e.draw);
       const ranked = window
-        .map((id, i) => ({ i, v: wanted(id) }))
+        .map((id, i) => ({ i, v: wanted(id), ok: !e.landOnly || cards[id].landCard }))
+        .filter((r) => r.ok)
         .sort((a, b) => b.v - a.v || a.i - b.i)
         .slice(0, take);
       const taken = new Set(ranked.map((r) => r.i));

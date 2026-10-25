@@ -151,6 +151,8 @@ export interface DrawEffect {
   look: number;
   /** Of the cards looked at, how many go to the hand; 0 with a draw = the drawn cards are the best of the look. */
   take: number;
+  /** The cards taken must be lands (Satyr Wayfinder). */
+  landOnly?: boolean;
   /** Scry or surveil this many. */
   scry: number;
   scryFirst: boolean;

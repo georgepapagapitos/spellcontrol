@@ -132,6 +132,24 @@ describe('simulateGoal', () => {
       expect(stuck.typicalTurn).toBeGreaterThanOrEqual(blank.typicalTurn - 1);
     });
 
+    it('a land-only reveal takes lands, never the piece', () => {
+      const named = [
+        ["Thassa's Oracle", 1],
+        ['Satyr Wayfinder', 12],
+      ] as const;
+      const landOnly = deckOf(named, [
+        ['Island', 20],
+        ['Forest', 16],
+      ]);
+      const lands = run(landOnly);
+      // The same card allowed to take anything finds the Oracle more often.
+      const mana = landOnly.library.map((c) =>
+        c.name === 'Satyr Wayfinder' ? { ...c, draw: { ...c.draw!, landOnly: false } } : c
+      );
+      const anything = run(buildManaDeck([], mana));
+      expect(anything.assembledBy[8]).toBeGreaterThan(lands.assembledBy[8]);
+    });
+
     it('a card the text does not show drawing but the tagger calls draw falls back to two cards', () => {
       const roleOf = (name: string) => (name === 'Rhystic Study' ? ('cardDraw' as const) : null);
       const named = [
