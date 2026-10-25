@@ -3,7 +3,17 @@
  * mechanics.
  */
 
-import { beats, karstenBar, reachOf, SPENT, unionOf } from './engine-helpers';
+import {
+  beats,
+  karstenBar,
+  reachOf,
+  SPENT,
+  unionOf,
+  type CostStat,
+  type HandFetch,
+  type LandPerm,
+  type SourcePerm,
+} from './engine-helpers';
 import { createGoalPlay } from './goal';
 import { isKeepableHand, librarySeed } from './opening-hand-sim';
 import { summarizeTurns, type TurnDistribution } from './turn-distribution';
@@ -40,45 +50,6 @@ import {
 export const FLOOD_TURN = 6;
 /** Land cards stuck in hand at FLOOD_TURN that count as surplus. */
 export const FLOOD_SURPLUS = 2;
-
-/** A land on the battlefield. */
-interface LandPerm {
-  card: number;
-  units: ManaMask[];
-  /** First turn it can tap. */
-  ready: number;
-  /** Played as a land drop (a fetch's land counts); false = put in by a ramp spell. */
-  fromDrop: boolean;
-}
-
-/** A rock, dork or other nonland mana permanent. */
-interface SourcePerm {
-  units: ManaMask[];
-  ready: number;
-  oneShot: boolean;
-  /** One-shot units not yet spent. */
-  left: number;
-}
-
-/** A fetch in hand, for the re-chosen-drops supply. */
-interface HandFetch {
-  mask: ManaMask;
-  /** Could be today's drop with an untapped target. */
-  now: boolean;
-  /** Drawn this turn. */
-  today: boolean;
-  search: LandSearch;
-}
-
-interface CostStat {
-  cost: ManaCost;
-  onTurn: number;
-  on: number;
-  onEnough: number;
-  next: number;
-  nextEnough: number;
-  short: Float64Array;
-}
 
 export function simulateManaDeck(deck: ManaDeck, options: ManaSimOptions = {}): ManaSimResult {
   return runGames(deck, options, null) as ManaSimResult;
