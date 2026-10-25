@@ -59,6 +59,8 @@ import { Chip } from '@/components/shared/Chip';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 import { AskYourOwn } from './AskYourOwn';
+import { MulliganAdvice } from './MulliganAdvice';
+import { useMulliganAdvice } from '@/lib/mana-sim/use-mulligan-advice';
 
 export interface DeckTestHandPanelHandle {
   reveal(): void;
@@ -196,14 +198,31 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
     // Kill categories only — see isKillClock: a strategic mass's "assembled"
     // turn tracks its evidence-pool size, not the deck's speed.
     const timedPath = useMemo(() => speedPathOf(deck?.winConditions), [deck?.winConditions]);
+    const commanderCards = useMemo(
+      () => [deck?.commander, deck?.partnerCommander].filter((c): c is ScryfallCard => !!c),
+      [deck?.commander, deck?.partnerCommander]
+    );
     const { clock: assemblyClock, pending: assemblyPending } = useAssemblyClock(
       clockLibrary,
       timedPath?.assembly ?? null,
       { iterations: 1000, wildcards: winConTutors }
     );
 
+    // The seven dealt, by name: the mulligan advice is about these, whatever is
+    // drawn or reordered afterwards.
+    const [dealt, setDealt] = useState<string[]>([]);
     const [hand, setHand] = useState<HandSlot[]>([]);
     const [pile, setPile] = useState<ScryfallCard[]>([]);
+    const advisorInput = useMemo(() => {
+      if (dealt.length !== HAND_SIZE || !clockLibrary?.every((c) => c.mana)) return null;
+      return {
+        commanders: toClockLibrary(commanderCards).map((c) => c.mana!),
+        library: clockLibrary.map((c) => c.mana!),
+        hand: dealt,
+        path: timedPath ? { assembly: timedPath.assembly, tutors: timedPath.tutors } : null,
+      };
+    }, [dealt, clockLibrary, commanderCards, timedPath]);
+    const { advice: mulliganAdvice, pending: advicePending } = useMulliganAdvice(advisorInput);
     // Monte-Carlo opening-hand stats — auto-run on open (see effect below).
     const [sim, setSim] = useState<SimResult | null>(null);
     const [simulating, setSimulating] = useState(false);
@@ -216,6 +235,7 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
       setTrackedDealKey(dealKey);
       const shuffled = shuffle(library);
       setHand(shuffled.slice(0, HAND_SIZE).map(makeSlot));
+      setDealt(shuffled.slice(0, HAND_SIZE).map((c) => c.name));
       setPile(shuffled.slice(HAND_SIZE));
     }
 
@@ -228,6 +248,7 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
     const handleDeal = () => {
       const shuffled = shuffle(library);
       setHand(shuffled.slice(0, HAND_SIZE).map(makeSlot));
+      setDealt(shuffled.slice(0, HAND_SIZE).map((c) => c.name));
       setPile(shuffled.slice(HAND_SIZE));
       setDrawnSlotId(null);
     };
@@ -352,8 +373,11 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
     // those would always look keepable. The keep heuristic itself lives in
     // `isKeepableHand`, shared with the simulator so the dealt-hand chip and
     // the simulated rate can never use different rules.
-    const isKeepable =
-      hand.length >= HAND_SIZE && isKeepableHand(hand.map((s) => toSimCard(s.card)));
+    // The simulated advice, once it lands, is the verdict: the land-count rule
+    // would otherwise contradict it (four lands and a rock reads as flood).
+    const isKeepable = mulliganAdvice
+      ? mulliganAdvice.verdict === 'keep'
+      : hand.length >= HAND_SIZE && isKeepableHand(hand.map((s) => toSimCard(s.card)));
 
     const slotIds = useMemo(() => hand.map((s) => s.id), [hand]);
 
@@ -500,7 +524,9 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                     as="li"
                     className={`deck-test-hand-chip is-verdict ${isKeepable ? 'is-keepable' : 'is-mulligan'}`}
                   >
-                    <strong>{isKeepable ? 'Keepable' : 'Mulligan'}</strong>
+                    <strong>
+                      {isKeepable ? (mulliganAdvice ? 'Keep' : 'Keepable') : 'Mulligan'}
+                    </strong>
                   </Chip>
                 )}
               </ul>
@@ -508,6 +534,14 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                 Avg lands in opening hand: <strong>{avgLandsInOpeningHand}</strong>
                 {hand.length > HAND_SIZE && <> · After {hand.length - HAND_SIZE} draws</>}
               </p>
+
+              {advisorInput && (
+                <MulliganAdvice
+                  advice={mulliganAdvice}
+                  pending={advicePending}
+                  hasPath={!!timedPath}
+                />
+              )}
 
               <section className="deck-test-hand-sim" aria-label="Opening hand simulation">
                 <div className="deck-test-hand-sim-bar">
