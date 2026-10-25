@@ -57,6 +57,7 @@ export function DeckAnalysisPane({
       bracketMissesCombos={host.bracketMissesCombos}
       onSetBracketOverride={host.onSetBracketOverride}
       clockLibrary={host.clockLibrary}
+      speedPath={host.speedPath}
       bracketTableSlot={host.bracketTableSlot}
       archetypeOverride={host.archetypeOverride}
       onSetArchetypeOverride={host.onSetArchetypeOverride}

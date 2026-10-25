@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { BracketBreakdown } from './BracketBreakdown';
+import { toClockLibrary } from '@/lib/mana-sim/hand-classify';
+import { drawCard } from '@/lib/mana-sim/__fixtures__/draw-cards';
 
 function makeEstimation(overrides: Partial<BracketEstimation> = {}): BracketEstimation {
   return {
@@ -532,5 +534,70 @@ describe('BracketBreakdown pod line', () => {
   it('offers no Copy button: the line is read out or selected', () => {
     render(<BracketBreakdown estimation={ratingOnly()} onSetBracketOverride={vi.fn()} />);
     expect(screen.queryByRole('button', { name: /copy/i })).toBeNull();
+  });
+});
+
+describe('BracketBreakdown speed read', () => {
+  // Real cards: six Thassa's Oracle (an alt-win card) in a 99 of Islands and
+  // Counterspell, so the clock has an honest, mostly-late answer.
+  const library = toClockLibrary([
+    ...Array.from({ length: 6 }, () => drawCard("Thassa's Oracle")),
+    ...Array.from({ length: 36 }, () => drawCard('Island')),
+    ...Array.from({ length: 57 }, () => drawCard('Counterspell')),
+  ]);
+  const speedPath = { assembly: [{ names: ["Thassa's Oracle"], need: 1 }], tutors: [] };
+
+  it('shows the share before the bracket turn, the sample size and the bracket expectation', async () => {
+    const est = makeEstimation({ bracket: 3, label: 'Upgraded' });
+    const { container } = render(
+      <BracketBreakdown estimation={est} clockLibrary={library} speedPath={speedPath} />
+    );
+    await waitFor(() => {
+      expect(container.querySelector('.bracket-speed-line')?.textContent).toMatch(
+        /^Comes together before turn 6 in (under 1%|\d+%) of games \(1,000 simulated\); Bracket 3 expects turn 6 or later\.$/
+      );
+    });
+    // The distribution, not one number: a column per bracket's turn, the estimate's marked.
+    const steps = [...container.querySelectorAll('.bracket-speed-step')];
+    expect(steps.map((el) => el.querySelector('.bracket-speed-turn')?.textContent)).toEqual([
+      'Before T4',
+      'Before T6',
+      'Before T8',
+      'Before T9',
+    ]);
+    expect(container.querySelectorAll('.bracket-speed-step--here')).toHaveLength(1);
+    expect(screen.getByText(/Estimate from a goldfish simulation/)).toBeTruthy();
+  });
+
+  it('reads Bracket 5 against turn 4 and says it sets no expectation', async () => {
+    const est = makeEstimation({ bracket: 5, label: 'cEDH' });
+    const { container } = render(
+      <BracketBreakdown estimation={est} clockLibrary={library} speedPath={speedPath} />
+    );
+    await waitFor(() => {
+      expect(container.querySelector('.bracket-speed-line')?.textContent).toMatch(
+        /before turn 4 .*Bracket 5 sets no turn expectation\.$/
+      );
+    });
+  });
+
+  it('shows nothing for a deck with no win path to time', () => {
+    const { container } = render(
+      <BracketBreakdown estimation={makeEstimation()} clockLibrary={library} speedPath={null} />
+    );
+    expect(container.querySelector('.bracket-speed')).toBeNull();
+    expect(screen.queryByText('Speed')).toBeNull();
+  });
+
+  it('holds back while combos are uncounted, since the path depends on them', () => {
+    const { container } = render(
+      <BracketBreakdown
+        estimation={makeEstimation()}
+        clockLibrary={library}
+        speedPath={speedPath}
+        combosUncounted
+      />
+    );
+    expect(container.querySelector('.bracket-speed')).toBeNull();
   });
 });

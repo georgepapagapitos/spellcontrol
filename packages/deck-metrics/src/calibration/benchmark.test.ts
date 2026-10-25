@@ -31,9 +31,11 @@ import {
   formatSources,
   reportAll,
   reportScrollVault,
+  formatClockCoverage,
   reportSet,
   runCorpus,
   softHeadroom,
+  type ClockSignals,
 } from './report';
 
 const fixture = (name: string) => new URL(`../../calibration/fixtures/${name}`, import.meta.url);
@@ -181,6 +183,35 @@ describe('bracket calibration benchmark', () => {
     expect(maxSoftStep).toBeLessThanOrEqual(swapSoftStepBound());
     expect(swaps).toBeGreaterThan(100_000);
   }, 600_000);
+});
+
+describe('clock signals', () => {
+  // Frozen output of the assembly clock over every corpus deck (rebuilt with
+  // frontend/src/lib/mana-sim/clock-signals.live.test.ts), so this needs no
+  // simulator. A soft-score weight was measured on it (2026-10-25: no bracket
+  // moves from 0 to 30 points) and not shipped; this is where the next one is measured.
+  const signals: ClockSignals = JSON.parse(fs.readFileSync(fixture('clock-signals.json'), 'utf8'));
+
+  it('covers every corpus deck, with a clock for nearly every tournament cEDH list and few of the rest', () => {
+    expect(Object.keys(signals).sort()).toEqual(corpus.decks.map((d) => d.id).sort());
+    const has = (set: string) =>
+      corpus.decks.filter((d) => d.set === set && signals[d.id].clock).length;
+    expect(has('cedh')).toBeGreaterThanOrEqual(44);
+    expect(has('precon')).toBeLessThanOrEqual(10);
+  });
+
+  it('never times a path with nothing in the library to draw', () => {
+    // Quick Draw: its one combo is the commander alone, which read as turn 1 in every game.
+    for (const s of Object.values(signals)) {
+      if (s.clock) expect(s.clock.assembledBy[1]).toBeLessThan(0.5);
+    }
+  });
+
+  it('prints the coverage', () => {
+    const out = formatClockCoverage(rows, signals);
+    if (REPORT) process.stdout.write(`\n${out}\n`);
+    expect(out).toContain('Clock coverage');
+  });
 });
 
 describe('benchmark statistics', () => {

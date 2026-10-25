@@ -15,7 +15,10 @@ import {
   softScorePoints,
   SOFT_SCORE,
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import { readSpeed, type ClockSignal } from '@spellcontrol/deck-metrics';
 import { formatBracketLabel } from '@/lib/deck-analysis/format-bracket-label';
+import { bracketSpeedLine, SPEED_MILESTONES } from '@/lib/deck-analysis/bracket-speed-line';
+import type { SpeedPath } from '@/lib/mana-sim/speed-path';
 import { bracketPodLine } from '@/lib/deck-analysis/bracket-pod-line';
 import { canShare, openShareSheet } from '@/lib/util/web-share';
 import { CLOCK_EARLY_TURN, clockShare, type ClockCard } from '@/lib/mana-sim/opening-hand-sim';
@@ -78,6 +81,20 @@ const SOFT_SCORE_TIP: ReactNode = (
         card count once. 10 pts each, max 20.
       </li>
     </ul>
+  </>
+);
+
+const SPEED_TIP: ReactNode = (
+  <>
+    <p className="info-tip-lead">
+      An estimate, not a rule. It plays the deck&apos;s own win path alone, with no opponents,
+      mulligans to a keepable seven, and counts the games where it is in place before each turn.
+    </p>
+    <p>
+      Wizards&apos; October 2025 update expects games to last at least 9 turns at Bracket 1, 8 at
+      Bracket 2, 6 at Bracket 3 and 4 at Bracket 4. Bracket 5 has no minimum.
+    </p>
+    <p>A deck with no win path to time, such as a pure combat deck, shows nothing here.</p>
   </>
 );
 
@@ -432,6 +449,7 @@ export function BracketBreakdown({
   combosUncounted = false,
   bracketOverride = null,
   clockLibrary,
+  speedPath,
   tableSlot,
   onSetBracketOverride,
 }: {
@@ -449,6 +467,9 @@ export function BracketBreakdown({
    *  With it, the rating-only judgment says how often the combo is assembled
    *  by the early turn, from the same seeded clock. */
   clockLibrary?: readonly ClockCard[];
+  /** The win path to time for the Speed read (`speedPathOf`), or null when the
+   *  deck has none. Needs `clockLibrary` too. */
+  speedPath?: SpeedPath | null;
   /** How the deck does at the table (BracketTableRead), owner only. Sits
    *  above the pod line, since it is evidence the pod may ask about. */
   tableSlot?: ReactNode;
@@ -495,6 +516,18 @@ export function BracketBreakdown({
     : earlyPending
       ? 'pending'
       : null;
+
+  // The Speed read: the deck's own win path, timed, against the turn its
+  // estimated bracket expects games to last to. Hidden when the deck has no path
+  // to time, or when the combos that make the path are still being counted.
+  const speedWildcards = speedPath?.tutors;
+  const { clock: speedClock, pending: speedPending } = useAssemblyClock(
+    clockLibrary,
+    combosUncounted ? null : (speedPath?.assembly ?? null),
+    { iterations: 1000, wildcards: speedWildcards ? [...speedWildcards] : undefined }
+  );
+  const speedSignal: ClockSignal | null = speedClock;
+  const speedReading = readSpeed(speedSignal, bracket);
 
   const judgment = combosUncounted
     ? null
@@ -783,6 +816,48 @@ export function BracketBreakdown({
           )}
         </div>
       </details>
+      {(speedReading || speedPending) && (
+        <div className="bracket-breakdown-section bracket-speed">
+          <h4 className="bracket-breakdown-heading">
+            Speed <InfoTip label="the speed estimate" text={SPEED_TIP} wide />
+          </h4>
+          {speedReading ? (
+            <>
+              <p className="bracket-speed-line">{bracketSpeedLine(speedReading)}</p>
+              <div
+                className="bracket-speed-steps"
+                role="img"
+                aria-label={`Share of games with the win path in place before each turn: ${SPEED_MILESTONES.map(
+                  (m) =>
+                    `before turn ${m.turn}, ${clockShare(speedSignal?.assembledBy[m.turn - 1] ?? 0)}`
+                ).join('; ')}`}
+              >
+                {SPEED_MILESTONES.map((m) => (
+                  <div
+                    key={m.turn}
+                    className={`bracket-speed-step${m.bracket === speedReading.bracket ? ' bracket-speed-step--here' : ''}`}
+                  >
+                    <span className="bracket-speed-share">
+                      {clockShare(speedSignal?.assembledBy[m.turn - 1] ?? 0)}
+                    </span>
+                    <MeterBar
+                      value={(speedSignal?.assembledBy[m.turn - 1] ?? 0) * 100}
+                      max={100}
+                      minPct={2}
+                    />
+                    <span className="bracket-speed-turn">Before T{m.turn}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="bracket-breakdown-footnote">
+                Estimate from a goldfish simulation of the deck&apos;s own win path.
+              </p>
+            </>
+          ) : (
+            <span className="bracket-speed-skel" aria-hidden />
+          )}
+        </div>
+      )}
       <p className="bracket-breakdown-footnote">
         Estimated from the card list alone. Use it to start the Rule 0 talk.
       </p>

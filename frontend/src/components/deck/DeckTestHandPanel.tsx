@@ -53,7 +53,8 @@ import { useAssemblyClock } from '@/lib/mana-sim/use-assembly-clock';
 import { cardCmc, isLand, toClockLibrary, toSimCard } from '@/lib/mana-sim/hand-classify';
 import { CardPreview } from '@/components/card/CardPreview';
 import { InfoTip } from '@/components/overlays/InfoTip';
-import { assemblyClockTip, isKillClock } from './WinConditionPanel';
+import { assemblyClockTip } from './WinConditionPanel';
+import { speedPathOf } from '@/lib/mana-sim/speed-path';
 import { Chip } from '@/components/shared/Chip';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
@@ -194,9 +195,10 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
     );
     // Kill categories only — see isKillClock: a strategic mass's "assembled"
     // turn tracks its evidence-pool size, not the deck's speed.
+    const timedPath = useMemo(() => speedPathOf(deck?.winConditions), [deck?.winConditions]);
     const { clock: assemblyClock, pending: assemblyPending } = useAssemblyClock(
       clockLibrary,
-      primaryWinCon && isKillClock(primaryWinCon.category) ? primaryWinCon.assembly : null,
+      timedPath?.assembly ?? null,
       { iterations: 1000, wildcards: winConTutors }
     );
 

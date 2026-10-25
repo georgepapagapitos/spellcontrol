@@ -28,7 +28,8 @@ import { MeterBar, StackedBar } from '@/components/shared/MeterBar';
 import { ColorPip, TypeIcon } from '@/components/shared/ManaSymbol';
 import { Tabs, type TabItem } from '@/components/overlays/Tabs';
 import { InfoTip } from '@/components/overlays/InfoTip';
-import { assemblyClockTip, isKillClock } from '@/components/deck/WinConditionPanel';
+import { assemblyClockTip } from '@/components/deck/WinConditionPanel';
+import { speedPathOf } from '@/lib/mana-sim/speed-path';
 import { Button } from '@/components/shared/Button';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -427,10 +428,10 @@ async function runSimBatch(deck: Deck, key: string): Promise<SimBatch> {
   const clockCards = toClockLibrary(deck.cards.map((slot) => slot.card));
   // Kill categories only — a strategic mass's "assembled" turn measures its
   // evidence-pool size rather than the deck's speed (see isKillClock).
-  const kills = !!primary && isKillClock(primary.category);
+  const timedPath = speedPathOf(deck.winConditions);
   const clock =
-    kills && primary?.assembly?.length && clockCards.length > 0
-      ? await assemblyClockAsync(clockCards, primary.assembly, {
+    timedPath && clockCards.length > 0
+      ? await assemblyClockAsync(clockCards, timedPath.assembly, {
           iterations: 1000,
           seed: 42,
           wildcards: deck.winConditions?.tutors,

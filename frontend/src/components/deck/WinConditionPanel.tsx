@@ -2,13 +2,13 @@ import { useMemo, type JSX } from 'react';
 import './WinConditionPanel.css';
 import { AlertTriangle, Hourglass, Tag, Trophy } from 'lucide-react';
 import type {
-  WinConCategory,
   WinConditionAnalysis,
   WinCondition,
 } from '@/deck-builder/services/winConditions/types';
 import { tagOnlyWinCons } from '@/deck-builder/services/winConditions/winConTags';
 import { assemblyClockSentence, clockShare, type ClockCard } from '@/lib/mana-sim/opening-hand-sim';
 import { useAssemblyClock } from '@/lib/mana-sim/use-assembly-clock';
+import { isKillClock, speedPathOf } from '@/lib/mana-sim/speed-path';
 import { InfoTip } from '@/components/overlays/InfoTip';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { IconButton } from '@/components/shared/Button';
@@ -43,35 +43,7 @@ export interface WinConditionPanelProps {
   onToggleWinConTag?: (cardName: string) => void;
 }
 
-/**
- * A path whose assembly IS the kill — the pieces resolving ends the game, so
- * the clock is a real kill turn. **This now gates whether the clock renders at
- * all**, not just its wording.
- *
- * Why: for a strategic mass (aristocrats / go-wide / poison / voltron),
- * "assembled" means `STRATEGIC_MIN_CARDS` of the evidence pool have been cast —
- * a *detector qualification* bar, not a "your plan is working" bar. Measured
- * over 19 real EDHREC average decks, the resulting turn is very nearly a pure
- * function of pool SIZE rather than deck speed:
- *
- *   pool 19-20 cards → t4-t9    (Atraxa poison t4, Ghired t9, Meren t8)
- *   pool 11-12 cards → t10-t24  (Muldrotha t10, Prosper t16, Winota t24)
- *   pool 5-6 cards   → t36-t42  (Tergrid t37, Godo t36, Miirym t41)
- *
- * Miirym reading "go-wide online by turn 41" — a deck that copies dragon tokens
- * every turn — is the tell: it has a 5-card go-wide evidence pool, and the
- * number was reporting that, dressed as a turn. Kill-category clocks over the
- * same corpus are coherent and track power (Najeela t3 · Kinnan/Urza t8 ·
- * Kaalia t10 · Korvold t11 · Edgar t14 · Krenko t15 · Lathril t23), so those
- * still show. Strategic paths keep their row and evidence, just no clock line.
- *
- * Restoring a number for strategic paths means defining a real per-category
- * "online" bar (10 poison counters, a payoff plus N bodies) — a modeling job
- * with no ground truth to validate against, deliberately not attempted here.
- */
-export function isKillClock(category: WinConCategory): boolean {
-  return category === 'infinite-combo' || category === 'alt-win';
-}
+export { isKillClock };
 
 /**
  * Shared methodology explainer for the kill-turn clock — one ⓘ per concept
@@ -202,16 +174,15 @@ export function WinConditionPanel({
   // path isn't a kill category, the analysis predates the assembly field, the
   // path has no discrete assembly (generic combat), or the deck no longer
   // holds the pieces.
-  const primary = analysis.primary;
   // Kill categories only — a strategic mass's "assembled" turn measures its
   // evidence-pool size, not its speed (see isKillClock). Null (→ hidden) when
   // the analysis predates the assembly field, the path has no discrete
   // assembly (generic combat), or the deck no longer holds the pieces.
-  const { clock, pending } = useAssemblyClock(
-    library,
-    primary && isKillClock(primary.category) ? primary.assembly : null,
-    { iterations: 1000, wildcards: analysis.tutors }
-  );
+  const timedPath = useMemo(() => speedPathOf(analysis), [analysis]);
+  const { clock, pending } = useAssemblyClock(library, timedPath?.assembly ?? null, {
+    iterations: 1000,
+    wildcards: analysis.tutors,
+  });
 
   const taggedNames = useMemo(() => new Set(winConTags ?? []), [winConTags]);
   // Names the engine already lists as evidence get their mark on that row

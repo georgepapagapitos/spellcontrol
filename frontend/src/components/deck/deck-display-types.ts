@@ -1,5 +1,6 @@
 import type { DeckView } from '@/lib/deck-analysis/deck-view';
 import type { ClockCard } from '@/lib/mana-sim/opening-hand-sim';
+import type { SpeedPath } from '@/lib/mana-sim/speed-path';
 import type {
   ScryfallCard,
   DeckCategory,
@@ -77,6 +78,8 @@ export interface DeckDisplayProps {
   onSetBracketOverride?: (bracket: 1 | 2 | 3 | 4 | 5 | null) => void;
   /** Mainboard, one entry per copy: lets the Bracket judgment quote the combo clock. */
   clockLibrary?: readonly ClockCard[];
+  /** The win path the Bracket panel's Speed read times (`speedPathOf`); null when there is none. */
+  speedPath?: SpeedPath | null;
   /** The Bracket panel's "At the table" read (owner only). */
   bracketTableSlot?: React.ReactNode;
   /** User-pinned archetype; when set it overrides the derived identity headline. */

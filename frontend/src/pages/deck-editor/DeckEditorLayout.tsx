@@ -157,6 +157,7 @@ export function DeckEditorLayout({
     mainboardLimit,
     existingCardCounts,
     deckLibrary,
+    speedPath,
     hasCopyMismatches,
     hasMissingSlots,
     deckOracleIds,
@@ -315,6 +316,7 @@ export function DeckEditorLayout({
             bracketMissesCombos={bracketAnalysis.missesCombos}
             onSetBracketOverride={(b) => updateDeck(deck.id, { bracketOverride: b })}
             clockLibrary={deckLibrary}
+            speedPath={speedPath}
             bracketTableSlot={
               <>
                 <BracketTableRead deckId={deck.id} />

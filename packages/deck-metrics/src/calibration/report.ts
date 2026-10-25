@@ -2,7 +2,7 @@
  * The calibration report: every number the benchmark gates on, as text. Printed
  * by `npm run calibrate` (CALIBRATION_REPORT=1), never by a plain test run.
  */
-import { floorOf, type BracketEstimation } from '../index';
+import { floorOf, type BracketEstimation, type ClockSignal } from '../index';
 import {
   agreement,
   baselines,
@@ -147,4 +147,45 @@ export function softHeadroom(rows: readonly Row[], set: string): { max: number; 
     if (r.est.softScore > max) [max, deck] = [r.est.softScore, r.deck.name];
   }
   return { max, deck };
+}
+
+// ── Speed signal ────────────────────────────────────────────────────────────
+
+/** `clock-signals.json`: the assembly clock run over each corpus deck (see
+ *  frontend/src/lib/mana-sim/clock-signals.live.test.ts). `clock` is null for a
+ *  deck with no modeled win path (generic combat, strategic plans). */
+export type ClockSignals = Record<
+  string,
+  { category: string | null; clock: (ClockSignal & { median: number }) | null }
+>;
+
+/**
+ * Where the clock exists and what it reads: per source and label, the decks
+ * with a modeled win path and their mean share assembled before turn 6. This is
+ * the input a future soft-score weight would be measured on: a weight was
+ * tried at 0 to 30 points (2026-10-25) and moved no bracket, so none ships.
+ */
+export function formatClockCoverage(rows: readonly Row[], signals: ClockSignals): string {
+  const groups = new Map<string, Row[]>();
+  for (const r of rows) {
+    const key = `${r.deck.set} B${r.deck.label}`;
+    groups.set(key, [...(groups.get(key) ?? []), r]);
+  }
+  const lines = [
+    '## Clock coverage',
+    '',
+    '| group | decks | with a clock | mean share before turn 6 |',
+    '|---|---|---|---|',
+  ];
+  for (const [key, rs] of [...groups].sort(([a], [b]) => a.localeCompare(b))) {
+    const shares = rs.flatMap((r) => {
+      const c = signals[r.deck.id]?.clock;
+      return c ? [c.assembledBy[5] ?? 0] : [];
+    });
+    const mean = shares.length ? shares.reduce((x, y) => x + y, 0) / shares.length : null;
+    lines.push(
+      `| ${key} | ${rs.length} | ${shares.length} | ${mean === null ? 'n/a' : pct(mean)} |`
+    );
+  }
+  return lines.join('\n');
 }

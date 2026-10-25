@@ -1,6 +1,14 @@
 export { checkRoleEvidence } from './roleEvidence';
 export { isIncidentalRampByTags, isRampByTags } from './rampRole';
 import { isRampByTags } from './rampRole';
+export {
+  readSpeed,
+  SPEED_MIN_RUNS,
+  TURN_EXPECTATIONS,
+  usableClock,
+  type ClockSignal,
+  type SpeedReading,
+} from './speed.js';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
