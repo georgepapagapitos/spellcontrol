@@ -29,7 +29,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 function range(values: readonly number[]): string {
   const lo = Math.min(...values);
   const hi = Math.max(...values);
-  return lo === hi ? `round ${lo}` : `rounds ${lo} to ${hi}`;
+  return lo === hi ? `turn ${lo}` : `turns ${lo} to ${hi}`;
 }
 
 /**
@@ -66,7 +66,8 @@ export function DeckOutcomeRead({
       </h4>
       <p className="table-record-outcome-version">
         This list: {plural(versionCardCount(version) ?? 0, 'card')}
-        {current.games > 0 ? `, ${plural(current.games, 'game')} tracked` : ''}
+        {current.games > 0 ? `, ${plural(current.games, 'game')} tracked` : ''}. Turn N is the
+        deck's own Nth turn, the table's round N.
       </p>
       <dl className="table-record-outcome-rows" aria-busy={pending}>
         <div className="table-record-outcome-row">
@@ -125,7 +126,7 @@ function wonRead(v: VersionOutcomes): JSX.Element | string {
   }
   return (
     <>
-      Ended in round {lowerMedian(v.winLengths)} in half of them, {range(v.winLengths)} in all
+      Won by turn {lowerMedian(v.winLengths)} in half of them, {range(v.winLengths)} in all
       <span className="table-record-outcome-n">from {plural(n, 'win')}</span>
     </>
   );
@@ -144,12 +145,14 @@ function lengthRead(v: VersionOutcomes, bracket: number | undefined): JSX.Elemen
       : null;
   return (
     <>
-      Half ended by round {median}, {range(v.lengths)} in all
+      Half ended by turn {median}, {range(v.lengths)} in all
       <span className="table-record-outcome-n">from {plural(n, 'game')}</span>
       {expected !== null ? (
         <span className="table-record-outcome-vs">
-          Bracket {bracket} expects games to last to turn {expected} or later.{' '}
-          {median >= expected ? 'These ran to that mark.' : 'These ended short of it.'}
+          Bracket {bracket} expects games to last to turn {expected} or later;{' '}
+          {median >= expected
+            ? `half of these lasted to turn ${median}.`
+            : `half of these ended by turn ${median}.`}
         </span>
       ) : (
         <span className="table-record-outcome-vs">

@@ -84,21 +84,23 @@ describe('DeckOutcomeRead', () => {
     expect(screen.getByText(/Win path in place by turn 6 in half of games/)).toBeTruthy();
   });
 
-  it('sets observed rounds and the bracket turn beside the forecast once there are enough games', () => {
+  it('sets observed turns and the bracket turn beside the forecast once there are enough games', () => {
     const wins = [10, 12, 14, 16, 20].map((t) => game({ turns: t, won: true }));
     renderRead([...wins, game({ turns: 30 })]);
     const won = screen.getByText('Games won').parentElement as HTMLElement;
     expect(
-      within(won).getByText(/Ended in round 7 in half of them, rounds 5 to 10 in all/)
+      within(won).getByText(/Won by turn 7 in half of them, turns 5 to 10 in all/)
     ).toBeTruthy();
     expect(within(won).getByText('from 5 wins')).toBeTruthy();
     const len = screen.getByText('Game length').parentElement as HTMLElement;
     expect(within(len).getByText('from 6 games')).toBeTruthy();
     // Bracket 3 expects turn 6 or later, and the median game went past it.
     expect(
-      within(len).getByText(/Bracket 3 expects games to last to turn 6 or later\./)
+      within(len).getByText(
+        /Bracket 3 expects games to last to turn 6 or later; half of these lasted to turn 7\./
+      )
     ).toBeTruthy();
-    expect(within(len).getByText(/These ran to that mark\./)).toBeTruthy();
+    expect(within(len).getByText(/half of these lasted to turn 7/)).toBeTruthy();
   });
 
   it('says there is no forecast when the deck has no win path to time', () => {
