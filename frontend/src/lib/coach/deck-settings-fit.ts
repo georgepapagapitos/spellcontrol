@@ -204,8 +204,11 @@ function bracketRestraint(
       (out && floorCategory(out.name) === cat ? 1 : 0);
     if (held + 1 > settings.ceilings[cat]) return true;
   }
-  if (change.lane === 'combos' && settings.bracket <= 3 && (change.comboPieces ?? 3) <= 2) {
-    return true;
+  // B1-2 bar two-card combos; B3 bars only the early ones, which the app reads as a
+  // two-card line Spellbook rates Ruthless (deck-metrics floorsAtFourAlone).
+  if (change.lane === 'combos') {
+    if (settings.bracket <= 2 && (change.comboPieces ?? 3) <= 2) return true;
+    if (settings.bracket === 3 && change.comboEarly) return true;
   }
   return false;
 }

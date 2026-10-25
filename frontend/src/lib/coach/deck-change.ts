@@ -173,6 +173,8 @@ export interface Change {
   comboPopularity?: number;
   /** Combos lane: how many cards the line takes. A two-card line floors a deck at Bracket 4. */
   comboPieces?: number;
+  /** Combos lane: a two-card line Spellbook rates Ruthless, the early-game signal deck-metrics' floorsAtFourAlone uses. */
+  comboEarly?: boolean;
   /** EDHREC synergy delta. Secondary signal; can be negative. */
   synergy?: number;
   /** Game-changer (bracket-relevant high-power) — must survive (protection + correctness). */
@@ -868,5 +870,6 @@ export function fromComboCompletion(
     ownership,
     comboPopularity: match.combo.popularity,
     comboPieces: match.combo.cards.length,
+    comboEarly: match.combo.cards.length <= 2 && match.combo.bracketTag === 'R',
   };
 }

@@ -142,24 +142,32 @@ describe('bracket restraint', () => {
     expect(settingsBreak(turn('Fixture Armageddon'), settingsFor(3), deck)).toBe('over-bracket');
   });
 
-  it('withholds a two-card combo completion at Bracket 3 and below', () => {
-    const twoCard = {
-      combo: {
-        cards: [
-          { cardName: 'A', oracleId: 'a' },
-          { cardName: 'Mox Opal', oracleId: 'b' },
-        ],
-        produces: ['Infinite mana'],
-        popularity: 900,
-      },
-      missingOracleIds: ['b'],
-    } as unknown as ComboMatch;
-    const row = fromComboCompletion(twoCard, 'Mox Opal', 'owned');
-    expect(row.comboPieces).toBe(2);
-    expect(settingsBreak(row, settingsFor(3), deck)).toBe('over-bracket');
+  it('bars two-card combos at Bracket 1-2, and at Bracket 3 only the early (Ruthless) ones', () => {
+    const match = (bracketTag: string | null, pieces = 2) =>
+      ({
+        combo: {
+          cards: [
+            { cardName: 'A', oracleId: 'a' },
+            { cardName: 'Mox Opal', oracleId: 'b' },
+            { cardName: 'C', oracleId: 'c' },
+          ].slice(0, pieces),
+          produces: ['Infinite mana'],
+          popularity: 900,
+          bracketTag,
+        },
+        missingOracleIds: ['b'],
+      }) as unknown as ComboMatch;
+    const late = fromComboCompletion(match('S'), 'Mox Opal', 'owned');
+    const early = fromComboCompletion(match('R'), 'Mox Opal', 'owned');
+    const three = fromComboCompletion(match('R', 3), 'Mox Opal', 'owned');
+    expect([late.comboPieces, late.comboEarly, early.comboEarly]).toEqual([2, false, true]);
+    expect(settingsBreak(late, b2, deck)).toBe('over-bracket');
+    expect(settingsBreak(early, b2, deck)).toBe('over-bracket');
+    expect(settingsBreak(late, settingsFor(3), deck)).toBeNull();
+    expect(settingsBreak(early, settingsFor(3), deck)).toBe('over-bracket');
+    expect(settingsBreak(three, b2, deck)).toBeNull();
+    expect(settingsBreak(three, settingsFor(3), deck)).toBeNull();
     expect(coachDeckSettings(generation(4))).toBeNull();
-    const threeCard = { ...row, comboPieces: 3 };
-    expect(settingsBreak(threeCard, settingsFor(3), deck)).toBeNull();
   });
 
   it('restrains nothing for a deck that states no bracket', () => {
