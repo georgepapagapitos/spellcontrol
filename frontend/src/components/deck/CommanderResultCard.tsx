@@ -147,7 +147,9 @@ export function CommanderResultCard({
   const showBar = coverageBar === true && readiness !== undefined;
   const showReadinessFact = readiness !== undefined && !showBar;
   const styles = playstyles?.slice(0, 2) ?? [];
-  const decks = numDecks ?? 0;
+  // With a coverage sample line the deck count is already on the tile, scoped to the bracket;
+  // a second, all-time count beside it would read as a contradiction.
+  const decks = completion?.basis ? 0 : (numDecks ?? 0);
   const hasFacts =
     owned || showReadinessFact || styles.length > 0 || decks > 0 || platformDeckCount !== undefined;
   return (

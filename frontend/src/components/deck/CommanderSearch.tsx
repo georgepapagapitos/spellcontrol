@@ -1,6 +1,6 @@
 import '@/styles/deck-builder-commander.css';
 import './CommanderSearch.css';
-import { Shuffle, SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   commanderFinderSupportsRegex,
@@ -77,6 +77,7 @@ import { getCurrency } from '@/lib/collection/currency';
 import { formatMoney } from '@/lib/collection/format-money';
 import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
+import { CommanderRandomButton } from './CommanderRandomButton';
 import { Chip } from '@/components/shared/Chip';
 import { Count } from '@/components/shared/Count';
 import { FilterChipsRow, type FilterChipDescriptor } from '@/components/shared/FilterChipsRow';
@@ -923,7 +924,9 @@ export function CommanderSearch({
   const sortOptions: Array<{ value: FinderSort; label: string }> = [
     ...(searching ? [{ value: 'match' as const, label: 'Best match' }] : []),
     { value: 'popular', label: 'Popular' },
-    ...(canScore ? [{ value: 'owned' as const, label: 'Most of the deck owned' }] : []),
+    ...(canScore
+      ? [{ value: 'owned' as const, label: isPhone ? 'Most owned' : 'Most of the deck owned' }]
+      : []),
     { value: 'name', label: 'Name' },
     // The popular list carries no mana values.
     ...(activeSource === 'owned' || searching || pdh
@@ -1108,13 +1111,12 @@ export function CommanderSearch({
             options={sortOptions}
             onChange={setSortChoice}
           />
-          <Button
-            icon={<Shuffle width={14} height={14} strokeWidth={1.8} />}
-            onClick={() => void handleRandom()}
+          <CommanderRandomButton
+            compact={isPhone}
+            busy={randomLoading}
             disabled={randomLoading || selecting !== null || (loading && entries.length === 0)}
-          >
-            {randomLoading ? 'Picking…' : 'Random'}
-          </Button>
+            onClick={() => void handleRandom()}
+          />
         </div>
       </div>
 

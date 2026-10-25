@@ -101,6 +101,25 @@ describe('CommanderResultCard', () => {
       expect(screen.getByText('Bracket 2 · 3,183 decks')).toBeTruthy();
     });
 
+    it('drops the all-time deck chip when the sample line carries the deck count', () => {
+      const { rerender } = render(
+        <CommanderResultCard
+          name="Atraxa"
+          colors={['W']}
+          numDecks={41000}
+          readiness={score}
+          coverageBar
+          completion={{ cost: null, held: null, basis: 'Bracket 2 · 2,206 decks' }}
+          onSelect={vi.fn()}
+        />
+      );
+      expect(screen.queryByText('41k decks')).toBeNull();
+      rerender(
+        <CommanderResultCard name="Atraxa" colors={['W']} numDecks={41000} onSelect={vi.fn()} />
+      );
+      expect(screen.getByText('41k decks')).toBeTruthy();
+    });
+
     it('says Pricing while the prices load, and omits empty notes', () => {
       render(
         <CommanderResultCard
