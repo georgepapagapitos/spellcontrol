@@ -96,6 +96,7 @@
 }
 
 .commander-finder-toolbar {
+  container: commander-toolbar / inline-size;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -253,5 +254,34 @@
 
   .commander-finder-toolbar {
     padding-top: var(--space-2);
+  }
+
+  /* Bracket, Sort and the Random icon share one row under the status line. */
+  .commander-finder-actions {
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+
+  .commander-finder-actions > .toolbar-popover {
+    min-width: 0;
+  }
+
+  .commander-finder-actions > :last-child {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+}
+
+/* At 320 the two pills and the Random icon no longer fit with their labels, so the
+   labels go visually hidden: the value still reads in context and the name stays. */
+@container commander-toolbar (max-width: 290px) {
+  .commander-finder-actions .toolbar-pill-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }

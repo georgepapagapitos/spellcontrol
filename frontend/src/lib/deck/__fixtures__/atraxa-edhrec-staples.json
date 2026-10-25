@@ -1,0 +1,1132 @@
+{
+  "all": {
+    "numDecks": 45865,
+    "staples": [
+      {
+        "name": "Sol Ring",
+        "inclusion": 85
+      },
+      {
+        "name": "Arcane Signet",
+        "inclusion": 78.8
+      },
+      {
+        "name": "Tekuthal, Inquiry Dominus",
+        "inclusion": 66.9
+      },
+      {
+        "name": "Evolution Sage",
+        "inclusion": 59.3
+      },
+      {
+        "name": "Swords to Plowshares",
+        "inclusion": 55.9
+      },
+      {
+        "name": "Ezuri, Stalker of Spheres",
+        "inclusion": 53
+      },
+      {
+        "name": "Vraska, Betrayal's Sting",
+        "inclusion": 52.7
+      },
+      {
+        "name": "Thrummingbird",
+        "inclusion": 50.8
+      },
+      {
+        "name": "Inexorable Tide",
+        "inclusion": 50.7
+      },
+      {
+        "name": "Tezzeret's Gambit",
+        "inclusion": 48.1
+      },
+      {
+        "name": "Farseek",
+        "inclusion": 46.9
+      },
+      {
+        "name": "Chromatic Lantern",
+        "inclusion": 43.6
+      },
+      {
+        "name": "Astral Cornucopia",
+        "inclusion": 42.7
+      },
+      {
+        "name": "Vorinclex, Monstrous Raider",
+        "inclusion": 41.9
+      },
+      {
+        "name": "Flux Channeler",
+        "inclusion": 40.6
+      },
+      {
+        "name": "Prologue to Phyresis",
+        "inclusion": 40.3
+      },
+      {
+        "name": "Cultivate",
+        "inclusion": 38.9
+      },
+      {
+        "name": "Counterspell",
+        "inclusion": 37.9
+      },
+      {
+        "name": "Everflowing Chalice",
+        "inclusion": 37.3
+      },
+      {
+        "name": "Infectious Inquiry",
+        "inclusion": 36.7
+      },
+      {
+        "name": "Path to Exile",
+        "inclusion": 36.2
+      },
+      {
+        "name": "Vraska's Fall",
+        "inclusion": 36
+      },
+      {
+        "name": "Bloated Contaminator",
+        "inclusion": 34.7
+      },
+      {
+        "name": "Venerated Rotpriest",
+        "inclusion": 34.4
+      },
+      {
+        "name": "Experimental Augury",
+        "inclusion": 33.7
+      },
+      {
+        "name": "Cankerbloom",
+        "inclusion": 32.7
+      },
+      {
+        "name": "Doubling Season",
+        "inclusion": 32.4
+      },
+      {
+        "name": "Brokers Ascendancy",
+        "inclusion": 32.2
+      },
+      {
+        "name": "Birds of Paradise",
+        "inclusion": 32.2
+      },
+      {
+        "name": "Ichor Rats",
+        "inclusion": 31.9
+      },
+      {
+        "name": "Unnatural Restoration",
+        "inclusion": 31.6
+      },
+      {
+        "name": "Dreamtide Whale",
+        "inclusion": 31
+      },
+      {
+        "name": "Deepglow Skate",
+        "inclusion": 30.8
+      },
+      {
+        "name": "Skrelv, Defector Mite",
+        "inclusion": 30.1
+      },
+      {
+        "name": "Nature's Lore",
+        "inclusion": 29.8
+      },
+      {
+        "name": "Phyresis Outbreak",
+        "inclusion": 29.7
+      },
+      {
+        "name": "Metastatic Evangel",
+        "inclusion": 29.7
+      },
+      {
+        "name": "Blighted Agent",
+        "inclusion": 29.6
+      },
+      {
+        "name": "Infectious Bite",
+        "inclusion": 29.3
+      },
+      {
+        "name": "Ixhel, Scion of Atraxa",
+        "inclusion": 29
+      },
+      {
+        "name": "Rhystic Study",
+        "inclusion": 28.3
+      },
+      {
+        "name": "Contagion Engine",
+        "inclusion": 28.1
+      },
+      {
+        "name": "Fellwar Stone",
+        "inclusion": 27.9
+      },
+      {
+        "name": "Tamiyo, Field Researcher",
+        "inclusion": 27.8
+      },
+      {
+        "name": "Glistening Sphere",
+        "inclusion": 26.7
+      },
+      {
+        "name": "Drown in Ichor",
+        "inclusion": 25.8
+      },
+      {
+        "name": "Voidwing Hybrid",
+        "inclusion": 25.6
+      },
+      {
+        "name": "Contaminant Grafter",
+        "inclusion": 25.3
+      },
+      {
+        "name": "Norn's Decree",
+        "inclusion": 25.3
+      },
+      {
+        "name": "Cyclonic Rift",
+        "inclusion": 25.3
+      },
+      {
+        "name": "Skithiryx, the Blight Dragon",
+        "inclusion": 25
+      },
+      {
+        "name": "Lightning Greaves",
+        "inclusion": 24.7
+      },
+      {
+        "name": "Three Visits",
+        "inclusion": 24.3
+      },
+      {
+        "name": "Heroic Intervention",
+        "inclusion": 24
+      },
+      {
+        "name": "Blightbelly Rat",
+        "inclusion": 24
+      },
+      {
+        "name": "Demonic Tutor",
+        "inclusion": 23.1
+      },
+      {
+        "name": "Contentious Plan",
+        "inclusion": 22.6
+      },
+      {
+        "name": "Teferi's Protection",
+        "inclusion": 22.5
+      },
+      {
+        "name": "Ajani, Sleeper Agent",
+        "inclusion": 22.2
+      },
+      {
+        "name": "Tainted Observer",
+        "inclusion": 21.9
+      },
+      {
+        "name": "Smothering Tithe",
+        "inclusion": 21.6
+      },
+      {
+        "name": "Ichormoon Gauntlet",
+        "inclusion": 21.6
+      },
+      {
+        "name": "Bloom Tender",
+        "inclusion": 21.5
+      },
+      {
+        "name": "Plague Stinger",
+        "inclusion": 20.6
+      },
+      {
+        "name": "Vishgraz, the Doomhive",
+        "inclusion": 20.1
+      },
+      {
+        "name": "Innkeeper's Talent",
+        "inclusion": 20
+      },
+      {
+        "name": "Atomize",
+        "inclusion": 19.8
+      },
+      {
+        "name": "Farewell",
+        "inclusion": 19.7
+      },
+      {
+        "name": "Phyrexian Swarmlord",
+        "inclusion": 19.6
+      },
+      {
+        "name": "Assassin's Trophy",
+        "inclusion": 19.4
+      },
+      {
+        "name": "Phyrexian Arena",
+        "inclusion": 19.2
+      },
+      {
+        "name": "Thirsting Roots",
+        "inclusion": 19.2
+      },
+      {
+        "name": "Norn's Choirmaster",
+        "inclusion": 19.1
+      },
+      {
+        "name": "Oath of Teferi",
+        "inclusion": 19
+      },
+      {
+        "name": "Kodama's Reach",
+        "inclusion": 18.6
+      },
+      {
+        "name": "Grateful Apparition",
+        "inclusion": 18.2
+      },
+      {
+        "name": "Swiftfoot Boots",
+        "inclusion": 18.1
+      },
+      {
+        "name": "Shalai, Voice of Plenty",
+        "inclusion": 17.9
+      },
+      {
+        "name": "Rampant Growth",
+        "inclusion": 17.8
+      },
+      {
+        "name": "Staff of Compleation",
+        "inclusion": 17.8
+      },
+      {
+        "name": "Ripples of Potential",
+        "inclusion": 17.6
+      },
+      {
+        "name": "Replicating Ring",
+        "inclusion": 17.6
+      },
+      {
+        "name": "Teferi, Master of Time",
+        "inclusion": 16.8
+      },
+      {
+        "name": "Bilious Skulldweller",
+        "inclusion": 16.6
+      },
+      {
+        "name": "Necrogen Rotpriest",
+        "inclusion": 16.6
+      },
+      {
+        "name": "Contagion Clasp",
+        "inclusion": 16.3
+      },
+      {
+        "name": "Skrelv's Hive",
+        "inclusion": 16.3
+      },
+      {
+        "name": "Oko, Thief of Crowns",
+        "inclusion": 16.2
+      },
+      {
+        "name": "Spark Double",
+        "inclusion": 16.1
+      },
+      {
+        "name": "Narset, Parter of Veils",
+        "inclusion": 16
+      },
+      {
+        "name": "Mana Drain",
+        "inclusion": 16
+      },
+      {
+        "name": "White Sun's Twilight",
+        "inclusion": 16
+      },
+      {
+        "name": "Vampiric Tutor",
+        "inclusion": 15.5
+      },
+      {
+        "name": "Expansion Algorithm",
+        "inclusion": 15.2
+      },
+      {
+        "name": "Fathom Mage",
+        "inclusion": 15
+      },
+      {
+        "name": "Esper Sentinel",
+        "inclusion": 14.7
+      },
+      {
+        "name": "Sword of Truth and Justice",
+        "inclusion": 14.7
+      },
+      {
+        "name": "Teferi, Hero of Dominaria",
+        "inclusion": 14.7
+      },
+      {
+        "name": "Tyrranax Rex",
+        "inclusion": 14.6
+      },
+      {
+        "name": "Supreme Verdict",
+        "inclusion": 14.5
+      },
+      {
+        "name": "Anguished Unmaking",
+        "inclusion": 14.4
+      },
+      {
+        "name": "Fierce Guardianship",
+        "inclusion": 14.3
+      },
+      {
+        "name": "Toxic Deluge",
+        "inclusion": 14.1
+      },
+      {
+        "name": "Carth the Lion",
+        "inclusion": 14.1
+      },
+      {
+        "name": "The Chain Veil",
+        "inclusion": 14
+      },
+      {
+        "name": "Radstorm",
+        "inclusion": 14
+      },
+      {
+        "name": "Teferi, Temporal Archmage",
+        "inclusion": 14
+      },
+      {
+        "name": "Forgotten Ancient",
+        "inclusion": 14
+      },
+      {
+        "name": "Noble Hierarch",
+        "inclusion": 13.7
+      },
+      {
+        "name": "Hardened Scales",
+        "inclusion": 13.7
+      },
+      {
+        "name": "Lae'zel, Vlaakith's Champion",
+        "inclusion": 13.6
+      },
+      {
+        "name": "Commander's Sphere",
+        "inclusion": 13.5
+      },
+      {
+        "name": "Ugin, the Spirit Dragon",
+        "inclusion": 13.4
+      },
+      {
+        "name": "Delighted Halfling",
+        "inclusion": 13.3
+      },
+      {
+        "name": "Ghostly Prison",
+        "inclusion": 13.3
+      },
+      {
+        "name": "Plague Myr",
+        "inclusion": 13.1
+      },
+      {
+        "name": "Tainted Strike",
+        "inclusion": 12.9
+      },
+      {
+        "name": "Teferi, Time Raveler",
+        "inclusion": 12.9
+      },
+      {
+        "name": "Elspeth, Sun's Champion",
+        "inclusion": 12.8
+      },
+      {
+        "name": "Atraxa, Grand Unifier",
+        "inclusion": 12.7
+      },
+      {
+        "name": "Reject Imperfection",
+        "inclusion": 12.4
+      },
+      {
+        "name": "Propaganda",
+        "inclusion": 12.2
+      },
+      {
+        "name": "An Offer You Can't Refuse",
+        "inclusion": 12.2
+      },
+      {
+        "name": "Pestilent Syphoner",
+        "inclusion": 11.9
+      },
+      {
+        "name": "Scheming Aspirant",
+        "inclusion": 11.7
+      },
+      {
+        "name": "Viral Drake",
+        "inclusion": 11.5
+      },
+      {
+        "name": "Crystalline Crawler",
+        "inclusion": 11.4
+      },
+      {
+        "name": "Patrolling Peacemaker",
+        "inclusion": 11.3
+      },
+      {
+        "name": "Beast Within",
+        "inclusion": 11.2
+      },
+      {
+        "name": "Swan Song",
+        "inclusion": 11
+      },
+      {
+        "name": "Mystic Remora",
+        "inclusion": 11
+      },
+      {
+        "name": "Viridian Corrupter",
+        "inclusion": 10.8
+      },
+      {
+        "name": "Enlightened Tutor",
+        "inclusion": 10.8
+      },
+      {
+        "name": "Myr Convert",
+        "inclusion": 10.7
+      },
+      {
+        "name": "Narset Transcendent",
+        "inclusion": 10.7
+      },
+      {
+        "name": "Wrenn and Realmbreaker",
+        "inclusion": 10.7
+      },
+      {
+        "name": "Expand the Sphere",
+        "inclusion": 10.6
+      },
+      {
+        "name": "Dovin's Veto",
+        "inclusion": 10.6
+      },
+      {
+        "name": "Oath of Nissa",
+        "inclusion": 10.5
+      },
+      {
+        "name": "Glistener Elf",
+        "inclusion": 10.4
+      }
+    ]
+  },
+  "core": {
+    "numDecks": 3183,
+    "staples": [
+      {
+        "name": "Sol Ring",
+        "inclusion": 77.6
+      },
+      {
+        "name": "Arcane Signet",
+        "inclusion": 75.1
+      },
+      {
+        "name": "Tekuthal, Inquiry Dominus",
+        "inclusion": 60.5
+      },
+      {
+        "name": "Thrummingbird",
+        "inclusion": 57.1
+      },
+      {
+        "name": "Ezuri, Stalker of Spheres",
+        "inclusion": 56.5
+      },
+      {
+        "name": "Evolution Sage",
+        "inclusion": 54.7
+      },
+      {
+        "name": "Tezzeret's Gambit",
+        "inclusion": 52.2
+      },
+      {
+        "name": "Swords to Plowshares",
+        "inclusion": 46.3
+      },
+      {
+        "name": "Astral Cornucopia",
+        "inclusion": 44.3
+      },
+      {
+        "name": "Vraska, Betrayal's Sting",
+        "inclusion": 43.7
+      },
+      {
+        "name": "Prologue to Phyresis",
+        "inclusion": 43.6
+      },
+      {
+        "name": "Inexorable Tide",
+        "inclusion": 43.2
+      },
+      {
+        "name": "Infectious Inquiry",
+        "inclusion": 42.7
+      },
+      {
+        "name": "Vraska's Fall",
+        "inclusion": 42.4
+      },
+      {
+        "name": "Cultivate",
+        "inclusion": 42.2
+      },
+      {
+        "name": "Cankerbloom",
+        "inclusion": 42.1
+      },
+      {
+        "name": "Unnatural Restoration",
+        "inclusion": 40.7
+      },
+      {
+        "name": "Chromatic Lantern",
+        "inclusion": 40.1
+      },
+      {
+        "name": "Farseek",
+        "inclusion": 40
+      },
+      {
+        "name": "Experimental Augury",
+        "inclusion": 39.7
+      },
+      {
+        "name": "Bloated Contaminator",
+        "inclusion": 37.3
+      },
+      {
+        "name": "Everflowing Chalice",
+        "inclusion": 37
+      },
+      {
+        "name": "Venerated Rotpriest",
+        "inclusion": 36.9
+      },
+      {
+        "name": "Infectious Bite",
+        "inclusion": 34.8
+      },
+      {
+        "name": "Ichor Rats",
+        "inclusion": 34.4
+      },
+      {
+        "name": "Ixhel, Scion of Atraxa",
+        "inclusion": 34.3
+      },
+      {
+        "name": "Phyresis Outbreak",
+        "inclusion": 34.1
+      },
+      {
+        "name": "Skrelv, Defector Mite",
+        "inclusion": 33.2
+      },
+      {
+        "name": "Drown in Ichor",
+        "inclusion": 32.3
+      },
+      {
+        "name": "Voidwing Hybrid",
+        "inclusion": 32.3
+      },
+      {
+        "name": "Metastatic Evangel",
+        "inclusion": 32
+      },
+      {
+        "name": "Glistening Sphere",
+        "inclusion": 32
+      },
+      {
+        "name": "Blightbelly Rat",
+        "inclusion": 31.6
+      },
+      {
+        "name": "Norn's Decree",
+        "inclusion": 30.8
+      },
+      {
+        "name": "Contaminant Grafter",
+        "inclusion": 30.1
+      },
+      {
+        "name": "Flux Channeler",
+        "inclusion": 30
+      },
+      {
+        "name": "Blighted Agent",
+        "inclusion": 29.5
+      },
+      {
+        "name": "Tainted Observer",
+        "inclusion": 29.4
+      },
+      {
+        "name": "Fellwar Stone",
+        "inclusion": 28.1
+      },
+      {
+        "name": "Dreamtide Whale",
+        "inclusion": 27.9
+      },
+      {
+        "name": "Thirsting Roots",
+        "inclusion": 27.7
+      },
+      {
+        "name": "Path to Exile",
+        "inclusion": 27.7
+      },
+      {
+        "name": "Vishgraz, the Doomhive",
+        "inclusion": 26.2
+      },
+      {
+        "name": "Brokers Ascendancy",
+        "inclusion": 26
+      },
+      {
+        "name": "Counterspell",
+        "inclusion": 25.5
+      },
+      {
+        "name": "Plague Stinger",
+        "inclusion": 25.3
+      },
+      {
+        "name": "Bilious Skulldweller",
+        "inclusion": 25.3
+      },
+      {
+        "name": "Phyrexian Swarmlord",
+        "inclusion": 25.2
+      },
+      {
+        "name": "Contentious Plan",
+        "inclusion": 25
+      },
+      {
+        "name": "Necrogen Rotpriest",
+        "inclusion": 24.8
+      },
+      {
+        "name": "Skithiryx, the Blight Dragon",
+        "inclusion": 24.5
+      },
+      {
+        "name": "Contagion Engine",
+        "inclusion": 23.8
+      },
+      {
+        "name": "Norn's Choirmaster",
+        "inclusion": 23.5
+      },
+      {
+        "name": "Vorinclex, Monstrous Raider",
+        "inclusion": 23.2
+      },
+      {
+        "name": "White Sun's Twilight",
+        "inclusion": 22.4
+      },
+      {
+        "name": "Nature's Lore",
+        "inclusion": 22.2
+      },
+      {
+        "name": "Grateful Apparition",
+        "inclusion": 21.8
+      },
+      {
+        "name": "Rampant Growth",
+        "inclusion": 21.5
+      },
+      {
+        "name": "Replicating Ring",
+        "inclusion": 21.3
+      },
+      {
+        "name": "Atomize",
+        "inclusion": 21.2
+      },
+      {
+        "name": "Phyrexian Arena",
+        "inclusion": 20.9
+      },
+      {
+        "name": "Fathom Mage",
+        "inclusion": 20.7
+      },
+      {
+        "name": "Pestilent Syphoner",
+        "inclusion": 20.1
+      },
+      {
+        "name": "Expand the Sphere",
+        "inclusion": 19.9
+      },
+      {
+        "name": "Swiftfoot Boots",
+        "inclusion": 19.8
+      },
+      {
+        "name": "Kodama's Reach",
+        "inclusion": 19.8
+      },
+      {
+        "name": "Reject Imperfection",
+        "inclusion": 19.7
+      },
+      {
+        "name": "Skrelv's Hive",
+        "inclusion": 19.4
+      },
+      {
+        "name": "Commander's Sphere",
+        "inclusion": 19.4
+      },
+      {
+        "name": "Contagion Clasp",
+        "inclusion": 19.3
+      },
+      {
+        "name": "Ajani, Sleeper Agent",
+        "inclusion": 19.2
+      },
+      {
+        "name": "Staff of Compleation",
+        "inclusion": 18.9
+      },
+      {
+        "name": "Deepglow Skate",
+        "inclusion": 18.9
+      },
+      {
+        "name": "Lightning Greaves",
+        "inclusion": 18.9
+      },
+      {
+        "name": "Tyrranax Rex",
+        "inclusion": 18.1
+      },
+      {
+        "name": "Myr Convert",
+        "inclusion": 18
+      },
+      {
+        "name": "Forgotten Ancient",
+        "inclusion": 17
+      },
+      {
+        "name": "Viridian Corrupter",
+        "inclusion": 16.7
+      },
+      {
+        "name": "Necrogen Communion",
+        "inclusion": 16.7
+      },
+      {
+        "name": "Plague Myr",
+        "inclusion": 16.6
+      },
+      {
+        "name": "Birds of Paradise",
+        "inclusion": 16.1
+      },
+      {
+        "name": "Hardened Scales",
+        "inclusion": 16.1
+      },
+      {
+        "name": "Three Visits",
+        "inclusion": 16.1
+      },
+      {
+        "name": "Innkeeper's Talent",
+        "inclusion": 15.8
+      },
+      {
+        "name": "Scheming Aspirant",
+        "inclusion": 15.5
+      },
+      {
+        "name": "Inspiring Call",
+        "inclusion": 14.9
+      },
+      {
+        "name": "Doubling Season",
+        "inclusion": 14.9
+      },
+      {
+        "name": "Vat Emergence",
+        "inclusion": 14.7
+      },
+      {
+        "name": "Beast Within",
+        "inclusion": 14.3
+      },
+      {
+        "name": "Whisper of the Dross",
+        "inclusion": 14.1
+      },
+      {
+        "name": "Phyrexian Censor",
+        "inclusion": 13.9
+      },
+      {
+        "name": "Mortify",
+        "inclusion": 13.7
+      },
+      {
+        "name": "Ripples of Potential",
+        "inclusion": 13.6
+      },
+      {
+        "name": "Putrefy",
+        "inclusion": 13.6
+      },
+      {
+        "name": "Tainted Strike",
+        "inclusion": 13.4
+      },
+      {
+        "name": "Crystalline Crawler",
+        "inclusion": 13.1
+      },
+      {
+        "name": "Serum Snare",
+        "inclusion": 12.7
+      },
+      {
+        "name": "Heroic Intervention",
+        "inclusion": 12.7
+      },
+      {
+        "name": "Brimaz, Blight of Oreskos",
+        "inclusion": 12.7
+      },
+      {
+        "name": "Corpsejack Menace",
+        "inclusion": 12.5
+      },
+      {
+        "name": "Winding Constrictor",
+        "inclusion": 12.4
+      },
+      {
+        "name": "Assassin's Trophy",
+        "inclusion": 12.3
+      },
+      {
+        "name": "Phyrexian Atlas",
+        "inclusion": 12.3
+      },
+      {
+        "name": "Viral Drake",
+        "inclusion": 12.1
+      },
+      {
+        "name": "Distorted Curiosity",
+        "inclusion": 12.1
+      },
+      {
+        "name": "Radstorm",
+        "inclusion": 12
+      },
+      {
+        "name": "Kami of Whispered Hopes",
+        "inclusion": 11.9
+      },
+      {
+        "name": "Venomous Brutalizer",
+        "inclusion": 11.9
+      },
+      {
+        "name": "Glissa, Herald of Predation",
+        "inclusion": 11.8
+      },
+      {
+        "name": "Ghostly Prison",
+        "inclusion": 11.8
+      },
+      {
+        "name": "Bring the Ending",
+        "inclusion": 11.7
+      },
+      {
+        "name": "Master Biomancer",
+        "inclusion": 11.6
+      },
+      {
+        "name": "Champion of Lambholt",
+        "inclusion": 11.6
+      },
+      {
+        "name": "Glistener Elf",
+        "inclusion": 11.5
+      },
+      {
+        "name": "Expansion Algorithm",
+        "inclusion": 11.5
+      },
+      {
+        "name": "Brokers Confluence",
+        "inclusion": 11.5
+      },
+      {
+        "name": "Patrolling Peacemaker",
+        "inclusion": 11.5
+      },
+      {
+        "name": "Shalai, Voice of Plenty",
+        "inclusion": 11.4
+      },
+      {
+        "name": "Steady Progress",
+        "inclusion": 11.4
+      },
+      {
+        "name": "Atraxa, Grand Unifier",
+        "inclusion": 11.1
+      },
+      {
+        "name": "Tamiyo, Field Researcher",
+        "inclusion": 11.1
+      },
+      {
+        "name": "Insight Engine",
+        "inclusion": 10.7
+      },
+      {
+        "name": "Hand of the Praetors",
+        "inclusion": 10.7
+      },
+      {
+        "name": "Anguished Unmaking",
+        "inclusion": 10.6
+      },
+      {
+        "name": "Negate",
+        "inclusion": 10.1
+      },
+      {
+        "name": "Fuel for the Cause",
+        "inclusion": 10.1
+      },
+      {
+        "name": "Sword of Truth and Justice",
+        "inclusion": 9.9
+      },
+      {
+        "name": "Elesh Norn",
+        "inclusion": 9.8
+      },
+      {
+        "name": "Grafted Exoskeleton",
+        "inclusion": 9.8
+      },
+      {
+        "name": "Merciless Eviction",
+        "inclusion": 9.6
+      },
+      {
+        "name": "Geth's Summons",
+        "inclusion": 9.6
+      },
+      {
+        "name": "Norn's Annex",
+        "inclusion": 9.3
+      },
+      {
+        "name": "Sunfall",
+        "inclusion": 9.2
+      },
+      {
+        "name": "The Ozolith",
+        "inclusion": 9.2
+      },
+      {
+        "name": "Phyresis",
+        "inclusion": 9
+      },
+      {
+        "name": "Simic Ascendancy",
+        "inclusion": 8.8
+      },
+      {
+        "name": "Propaganda",
+        "inclusion": 8.8
+      },
+      {
+        "name": "Cathars' Crusade",
+        "inclusion": 8.5
+      },
+      {
+        "name": "Bred for the Hunt",
+        "inclusion": 8.5
+      },
+      {
+        "name": "Golgari Signet",
+        "inclusion": 8.4
+      }
+    ]
+  }
+}

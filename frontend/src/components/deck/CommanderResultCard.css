@@ -44,6 +44,20 @@
   color: var(--text-secondary);
 }
 
+.commander-result-coverage-note {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.commander-result-coverage-cost {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.commander-result-coverage-note.is-basis {
+  color: var(--text-muted);
+}
+
 .commander-result-facts {
   display: flex;
   flex-wrap: wrap;

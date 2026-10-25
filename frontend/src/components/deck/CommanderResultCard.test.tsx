@@ -68,4 +68,71 @@ describe('CommanderResultCard', () => {
     fireEvent.click(screen.getByRole('button'));
     expect(onSelect).toHaveBeenCalledTimes(1);
   });
+
+  describe('completion notes under the coverage bar', () => {
+    const score = {
+      available: true,
+      ownedCount: 61,
+      totalCount: 99,
+      percent: 62,
+      weightedPercent: 70,
+      explainerLine: '61 of 99 staples owned',
+      ownedSamples: [],
+    };
+
+    it('shows the count, the cost to finish, what a deck holds and the sample', () => {
+      render(
+        <CommanderResultCard
+          name="Atraxa, Praetors' Voice"
+          colors={['W', 'U', 'B', 'G']}
+          readiness={score}
+          coverageBar
+          completion={{
+            cost: '~$48 to finish',
+            held: '3 you own are in your Atraxa deck',
+            basis: 'Bracket 2 · 3,183 decks',
+          }}
+          onSelect={vi.fn()}
+        />
+      );
+      expect(screen.getByText('You own 61 of its 99 staples')).toBeTruthy();
+      expect(screen.getByText('~$48 to finish')).toBeTruthy();
+      expect(screen.getByText('3 you own are in your Atraxa deck')).toBeTruthy();
+      expect(screen.getByText('Bracket 2 · 3,183 decks')).toBeTruthy();
+    });
+
+    it('drops the all-time deck chip when the sample line carries the deck count', () => {
+      const { rerender } = render(
+        <CommanderResultCard
+          name="Atraxa"
+          colors={['W']}
+          numDecks={41000}
+          readiness={score}
+          coverageBar
+          completion={{ cost: null, held: null, basis: 'Bracket 2 · 2,206 decks' }}
+          onSelect={vi.fn()}
+        />
+      );
+      expect(screen.queryByText('41k decks')).toBeNull();
+      rerender(
+        <CommanderResultCard name="Atraxa" colors={['W']} numDecks={41000} onSelect={vi.fn()} />
+      );
+      expect(screen.getByText('41k decks')).toBeTruthy();
+    });
+
+    it('says Pricing while the prices load, and omits empty notes', () => {
+      render(
+        <CommanderResultCard
+          name="Atraxa"
+          colors={['W']}
+          readiness={score}
+          coverageBar
+          completion={{ cost: null, held: null, basis: null }}
+          onSelect={vi.fn()}
+        />
+      );
+      expect(screen.getByText('Pricing…')).toBeTruthy();
+      expect(screen.queryByText(/Bracket/)).toBeNull();
+    });
+  });
 });

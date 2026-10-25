@@ -10,6 +10,14 @@ import { MeterBar } from '../shared/MeterBar';
 import type { ReadinessScore } from '@/lib/deck/commander-readiness';
 import type { MatchReason } from '@/lib/deck/commander-finder';
 
+/** The lines under a coverage bar: what finishing costs, what's already in a deck, and the sample behind it. */
+export interface CoverageNotes {
+  /** "~$48 to finish"; null while the prices load. */
+  cost: string | null;
+  held: string | null;
+  basis: string | null;
+}
+
 interface Props {
   name: string;
   /** Art URL when the caller already has it (a resolved ScryfallCard / owned
@@ -33,6 +41,8 @@ interface Props {
    */
   readiness?: ReadinessScore | 'loading';
   coverageBar?: boolean;
+  /** Cost, held-elsewhere and sample lines under the coverage bar. */
+  completion?: CoverageNotes;
   /** Why a plain-words search matched, quoted under the name. */
   reason?: MatchReason | null;
   /** The commander is in the player's collection. */
@@ -115,6 +125,7 @@ export function CommanderResultCard({
   typeLine,
   readiness,
   coverageBar,
+  completion,
   reason,
   owned,
   playstyles,
@@ -136,7 +147,9 @@ export function CommanderResultCard({
   const showBar = coverageBar === true && readiness !== undefined;
   const showReadinessFact = readiness !== undefined && !showBar;
   const styles = playstyles?.slice(0, 2) ?? [];
-  const decks = numDecks ?? 0;
+  // With a coverage sample line the deck count is already on the tile, scoped to the bracket;
+  // a second, all-time count beside it would read as a contradiction.
+  const decks = completion?.basis ? 0 : (numDecks ?? 0);
   const hasFacts =
     owned || showReadinessFact || styles.length > 0 || decks > 0 || platformDeckCount !== undefined;
   return (
@@ -178,10 +191,14 @@ export function CommanderResultCard({
         {showBar && (
           <span className="commander-result-coverage">
             <MeterBar
-              value={scored?.ownedCount ?? 0}
-              max={scored?.totalCount || 1}
+              value={scored ? (scored.weightedPercent ?? scored.percent) : 0}
+              max={100}
               indeterminate={readiness === 'loading'}
-              color={scored && scored.percent < 45 ? 'var(--warn-border)' : 'var(--success)'}
+              color={
+                scored && (scored.weightedPercent ?? scored.percent) < 45
+                  ? 'var(--warn-border)'
+                  : 'var(--success)'
+              }
               className="commander-result-coverage-bar"
             />
             <span className="commander-result-coverage-line">
@@ -191,6 +208,21 @@ export function CommanderResultCard({
                   ? `You own ${scored.ownedCount} of its ${scored.totalCount} staples`
                   : 'No staple data for this commander'}
             </span>
+            {completion && (
+              <>
+                <span className="commander-result-coverage-note commander-result-coverage-cost">
+                  {completion.cost ?? 'Pricing…'}
+                </span>
+                {completion.held && (
+                  <span className="commander-result-coverage-note">{completion.held}</span>
+                )}
+                {completion.basis && (
+                  <span className="commander-result-coverage-note is-basis">
+                    {completion.basis}
+                  </span>
+                )}
+              </>
+            )}
           </span>
         )}
         {hasFacts && (
