@@ -7,6 +7,8 @@ import {
   MULLIGAN_MARGIN,
   type DecidingMetric,
   type MulliganAdvice as Advice,
+  ADVISOR_TURNS,
+  type Mean,
   type OpeningOdds,
   type Rate,
 } from '@/lib/mana-sim/mulligan-advisor';
@@ -27,6 +29,8 @@ interface Row {
   metric: DecidingMetric | null;
   label: string;
   pick: (o: OpeningOdds) => Rate | null;
+  /** An average rather than a share: shown as a count of spells. */
+  mean?: (o: OpeningOdds) => Mean;
 }
 
 const spells = `${DEVELOPED_SPELLS} or more spells cast by turn ${DEVELOPED_TURN}`;
@@ -35,6 +39,12 @@ const ROWS: Row[] = [
   { metric: null, label: 'A spell cast by turn 3', pick: (o) => o.castBy3 },
   { metric: null, label: 'Four land drops by turn 4', pick: (o) => o.landsBy4 },
   { metric: 'developed', label: spells, pick: (o) => o.developed },
+  {
+    metric: null,
+    label: `Spells cast by turn ${ADVISOR_TURNS}, average`,
+    pick: () => null,
+    mean: (o) => o.spellsBy6,
+  },
   {
     metric: 'path',
     label: `Win path assembled by turn ${CLOCK_EARLY_TURN}`,
@@ -114,6 +124,17 @@ export function MulliganAdvice({ advice, pending, hasPath }: Props) {
               </th>
               {advice
                 ? [advice.hand, advice.mull7, advice.mull6].map((o, i) => {
+                    const m = r.mean?.(o);
+                    if (m) {
+                      return (
+                        <td key={i}>
+                          <strong>{m.mean.toFixed(1)}</strong>
+                          <span className="deck-test-hand-advice-range">
+                            {m.lo.toFixed(1)} to {m.hi.toFixed(1)}
+                          </span>
+                        </td>
+                      );
+                    }
                     const rate = r.pick(o);
                     return (
                       <td key={i}>

@@ -373,8 +373,11 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
     // those would always look keepable. The keep heuristic itself lives in
     // `isKeepableHand`, shared with the simulator so the dealt-hand chip and
     // the simulated rate can never use different rules.
-    const isKeepable =
-      hand.length >= HAND_SIZE && isKeepableHand(hand.map((s) => toSimCard(s.card)));
+    // The simulated advice, once it lands, is the verdict: the land-count rule
+    // would otherwise contradict it (four lands and a rock reads as flood).
+    const isKeepable = mulliganAdvice
+      ? mulliganAdvice.verdict === 'keep'
+      : hand.length >= HAND_SIZE && isKeepableHand(hand.map((s) => toSimCard(s.card)));
 
     const slotIds = useMemo(() => hand.map((s) => s.id), [hand]);
 
@@ -521,7 +524,9 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                     as="li"
                     className={`deck-test-hand-chip is-verdict ${isKeepable ? 'is-keepable' : 'is-mulligan'}`}
                   >
-                    <strong>{isKeepable ? 'Keepable' : 'Mulligan'}</strong>
+                    <strong>
+                      {isKeepable ? (mulliganAdvice ? 'Keep' : 'Keepable') : 'Mulligan'}
+                    </strong>
                   </Chip>
                 )}
               </ul>

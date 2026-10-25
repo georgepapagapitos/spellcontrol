@@ -45,6 +45,13 @@ export const DEVELOPED_SPELLS = 4;
 /** ... by the end of this turn. */
 export const DEVELOPED_TURN = 5;
 
+/** An average with its 95% range (1.96 standard errors). */
+export interface Mean {
+  mean: number;
+  lo: number;
+  hi: number;
+}
+
 export interface Rate {
   p: number;
   lo: number;
@@ -60,6 +67,8 @@ export interface OpeningOdds {
   landsBy4: Rate;
   /** P({@link DEVELOPED_SPELLS} or more spells cast by the end of turn {@link DEVELOPED_TURN}). */
   developed: Rate;
+  /** Spells cast by the end of turn {@link ADVISOR_TURNS} on average: what a card fewer costs. */
+  spellsBy6: Mean;
   /** P(win path assembled by turn {@link CLOCK_EARLY_TURN}); null when the deck has no timed path. */
   path: Rate | null;
 }
@@ -87,6 +96,14 @@ const rate = (n: number, of: number): Rate => {
   return { p, lo: Math.min(lo, p), hi: Math.max(hi, p) };
 };
 
+function meanOf(xs: readonly number[]): Mean {
+  const n = xs.length;
+  const mean = xs.reduce((a, b) => a + b, 0) / n;
+  const variance = n > 1 ? xs.reduce((a, b) => a + (b - mean) ** 2, 0) / (n - 1) : 0;
+  const half = 1.96 * Math.sqrt(variance / n);
+  return { mean, lo: mean - half, hi: mean + half };
+}
+
 /** Fold the games of one scenario into its odds. */
 export function oddsOf(
   games: readonly GameTrace[],
@@ -108,6 +125,7 @@ export function oddsOf(
       count((g) => g.casts[DEVELOPED_TURN] >= DEVELOPED_SPELLS),
       n
     ),
+    spellsBy6: meanOf(games.map((g) => g.casts[ADVISOR_TURNS])),
     path: pathOnline
       ? rate(pathOnline.filter((t) => t <= CLOCK_EARLY_TURN).length, pathOnline.length)
       : null,

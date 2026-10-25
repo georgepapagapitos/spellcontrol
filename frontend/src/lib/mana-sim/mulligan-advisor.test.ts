@@ -13,6 +13,7 @@ import {
   type Rate,
 } from './mulligan-advisor';
 import { mulliganAdviceAsync, adviceKey } from './use-mulligan-advice';
+import { wilsonInterval } from './turn-distribution';
 import { drawCard } from './__fixtures__/draw-cards';
 import { brago, BRAGO_UNTAPPED_DUALS } from './__fixtures__/decks';
 
@@ -45,11 +46,11 @@ const GOOD_KEEP = [
 const BORDERLINE_TWO = [
   'Plains',
   'Island',
-  'Brainstorm',
-  'Counterspell',
-  'Thraben Inspector',
+  "Sphinx's Revelation",
   'Sun Titan',
-  'Rhystic Study',
+  'Consecrated Sphinx',
+  'Dream Trawler',
+  'Brainstorm',
 ];
 
 describe('a dealt hand, played on', () => {
@@ -78,12 +79,12 @@ describe('a dealt hand, played on', () => {
     expect(a.edge).toBeLessThan(-MULLIGAN_MARGIN);
   });
 
-  it('a two-lander of cheap cards is a keep that says it is close', () => {
+  it('a two-lander of top-end cards is a keep that says it is close', () => {
     const a = advise(BORDERLINE_TWO);
     expect(a.verdict).toBe('keep');
     expect(a.close).toBe(true);
-    // The weak spot is named in the numbers: the fourth land.
-    expect(a.hand.landsBy4.p).toBeLessThan(a.mull7.landsBy4.p / 2);
+    // The weak spot is in the numbers: the land drops, behind a fresh seven's.
+    expect(a.hand.landsBy4.p).toBeLessThan(a.mull7.landsBy4.p);
   });
 
   it('carries the run count and a Wilson interval on every rate', () => {
@@ -100,6 +101,85 @@ describe('a dealt hand, played on', () => {
 
   it('is deterministic, and the order of the hand is not part of it', () => {
     expect(advise(GOOD_KEEP, 300)).toEqual(advise([...GOOD_KEEP].reverse(), 300));
+  });
+});
+
+/** P(at least `need` of `draws` cards are lands) from a library of `n` with `lands` lands. */
+function atLeast(need: number, draws: number, n: number, lands: number): number {
+  const choose = (a: number, b: number) => {
+    let r = 1;
+    for (let i = 0; i < b; i++) r = (r * (a - i)) / (i + 1);
+    return r;
+  };
+  let p = 0;
+  for (let j = Math.max(need, 0); j <= draws; j++)
+    p += (choose(lands, j) * choose(n - lands, draws - j)) / choose(n, draws);
+  return p;
+}
+
+describe('the dealt hand is played against the closed form', () => {
+  // 36 Islands and 63 Counterspells: a land is a land, so every land drop by
+  // turn 4 is "at least 4 - L lands in the four draws of turns 1 to 4" (the
+  // goldfish draws on turn 1, as in multiplayer Commander) from the 92 cards
+  // that are left. Counterspell is the only spell, and it is never a land.
+  const cards = [
+    ...Array.from({ length: 36 }, () => drawCard('Island')),
+    ...Array.from({ length: 63 }, () => drawCard('Counterspell')),
+  ];
+  const mana = buildManaDeck(
+    [],
+    toClockLibrary(cards).map((c) => c.mana!)
+  );
+
+  for (const held of [0, 1, 2, 3]) {
+    it(`a hand with ${held} lands makes four land drops by turn 4 as often as the hypergeometric says`, () => {
+      const hand = [...Array(held).fill('Island'), ...Array(7 - held).fill('Counterspell')];
+      const games = 6000;
+      let hit = 0;
+      simulateManaDeck(mana, {
+        games,
+        seed: 5,
+        maxTurn: 4,
+        opening: { hand, bottom: 0 },
+        onGame: (g) => (hit += g.drops[4] >= 4 ? 1 : 0),
+      });
+      const exact = atLeast(4 - held, 4, 92, 36 - held);
+      const { lo, hi } = wilsonInterval(hit, games);
+      expect(exact).toBeGreaterThanOrEqual(lo);
+      expect(exact).toBeLessThanOrEqual(hi);
+    });
+  }
+
+  it('a fresh seven needs the same four lands in eleven cards', () => {
+    const games = 6000;
+    let hit = 0;
+    simulateManaDeck(mana, {
+      games,
+      seed: 5,
+      maxTurn: 4,
+      opening: { bottom: 0 },
+      onGame: (g) => (hit += g.drops[4] >= 4 ? 1 : 0),
+    });
+    const { lo, hi } = wilsonInterval(hit, games);
+    const exact = atLeast(4, 11, 99, 36);
+    expect(exact).toBeGreaterThanOrEqual(lo);
+    expect(exact).toBeLessThanOrEqual(hi);
+  });
+});
+
+describe('a mulligan to six', () => {
+  it('casts fewer spells by turn 6 than a free mulligan, and never makes more land drops', () => {
+    const a = simulateMulliganAdvice({
+      commanders,
+      library,
+      hand: GOOD_KEEP,
+      path: null,
+      runs: 5000,
+    });
+    expect(a.mull6.spellsBy6.mean).toBeLessThan(a.mull7.spellsBy6.mean);
+    // London bottoms a spell, not a land, so the land drops are the free mulligan's.
+    expect(a.mull6.landsBy4.p).toBeLessThanOrEqual(a.mull7.landsBy4.hi);
+    expect(a.mull6.castBy3.p).toBeLessThanOrEqual(a.mull7.castBy3.hi);
   });
 });
 
@@ -212,6 +292,7 @@ describe('the recommendation rule', () => {
     castBy3: rate(0.9),
     landsBy4: rate(0.5),
     developed: rate(developed, half),
+    spellsBy6: { mean: 6, lo: 5.9, hi: 6.1 },
     path: path === null ? null : rate(path, half),
   });
 

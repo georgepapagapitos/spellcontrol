@@ -700,7 +700,10 @@ function* playGames(
     let freeLeft = freeMulligan;
     for (let attempt = 0; ; attempt++) {
       order = shuffle(libraryIds, rand);
-      if (opening) order = [...openingIds, ...withoutOne(order, openingIds)];
+      // The rest is shuffled on its own: taking the dealt cards out of an
+      // already-shuffled order would leave every other card early.
+      if (openingIds.length)
+        order = [...openingIds, ...shuffle(withoutOne(libraryIds, openingIds), rand)];
       const seven = order.slice(0, 7);
       const last = mulls >= depth;
       let kept: number[];
