@@ -537,7 +537,7 @@
 }
 
 .pod-rule0-signals li {
-  padding: 2px var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
@@ -557,7 +557,7 @@
 
 .pod-rule0-pick-hint {
   display: block;
-  margin-left: var(--space-6, 1.75rem);
+  margin-left: var(--space-5);
   font-size: var(--text-sm);
   color: var(--text-secondary);
 }
