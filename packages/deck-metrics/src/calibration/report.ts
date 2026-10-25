@@ -2,7 +2,7 @@
  * The calibration report: every number the benchmark gates on, as text. Printed
  * by `npm run calibrate` (CALIBRATION_REPORT=1), never by a plain test run.
  */
-import { floorOf, SOFT_SCORE, type BracketEstimation, type ClockSignal } from '../index';
+import { floorOf, type BracketEstimation, type ClockSignal } from '../index';
 import {
   agreement,
   baselines,
@@ -159,87 +159,13 @@ export type ClockSignals = Record<
   { category: string | null; clock: (ClockSignal & { median: number }) | null }
 >;
 
-/** The corpus again, each deck estimated with its clock when it has one. */
-export function runCorpusWithClocks(
-  bench: Bench,
-  decks: readonly CorpusDeck[],
-  signals: ClockSignals
-): Row[] {
-  return decks.map((deck) => ({
-    deck,
-    est: bench.estimate(bench.state(deck), signals[deck.id]?.clock ?? null),
-  }));
-}
-
-/** The bracket a row would get if the speed term carried `cap` points instead of
- *  the shipped weight: the same rule as the estimator, re-thresholded. */
-export function bracketAtSpeedCap(row: Row, cap: number): number {
-  const b = row.est.breakdown;
-  const base =
-    row.est.softScore -
-    Math.min(SOFT_SCORE.speedCap, (b.earlyAssemblyShare ?? 0) * SOFT_SCORE.speedCap);
-  const score = Math.min(100, base + (b.earlyAssemblyShare ?? 0) * cap);
-  const floor = floorOf(row.est.hardFloors);
-  if (
-    floor >= 4 &&
-    score >= SOFT_SCORE.cedhAt &&
-    b.gameChangerCount >= SOFT_SCORE.cedhMinGameChangers
-  )
-    return 5;
-  if (floor < 4 && score >= SOFT_SCORE.bumpAt) return Math.min(floor + 1, 4);
-  return floor;
-}
-
-interface Slice {
-  name: string;
-  /** Rows in this slice, each with the label it is scored against. */
-  pick: (r: Row) => number | null;
-}
-
-const SLICES: Slice[] = [
-  { name: 'all', pick: (r) => r.deck.label },
-  { name: 'cedh', pick: (r) => (r.deck.set === 'cedh' ? r.deck.label : null) },
-  { name: 'scrollvault', pick: (r) => r.deck.scrollvault?.bracket ?? null },
-];
-
 /**
- * Exact / within-one accuracy with the speed term at several weights, beside
- * the estimator with none, for the ones that matter: every labeled deck, the
- * tournament cEDH lists, and ScrollVault's labels (the only independent ones).
- * `base` is the estimator without a clock, `rows` with the shipped weight.
+ * Where the clock exists and what it reads: per source and label, the decks
+ * with a modeled win path and their mean share assembled before turn 6. This is
+ * the input a future soft-score weight would be measured on: a weight was
+ * tried at 0 to 30 points (2026-10-25) and moved no bracket, so none ships.
  */
-export function formatSpeedEffect(
-  base: readonly Row[],
-  rows: readonly Row[],
-  caps: readonly number[]
-): string {
-  const cell = (pred: (r: Row) => number) => (s: Slice) => {
-    const pairs = rows.flatMap((r) => {
-      const label = s.pick(r);
-      return label === null ? [] : [{ label, predicted: pred(r) }];
-    });
-    const a = agreement(pairs);
-    return `${a.exact}/${a.n} / ${a.withinOne}/${a.n}`;
-  };
-  const line = (name: string, pred: (r: Row) => number) =>
-    `| ${name} | ${SLICES.map(cell(pred)).join(' | ')} |`;
-  const baseBy = new Map(base.map((r) => [r.deck.id, r.est.bracket]));
-  return [
-    '## Speed signal: exact / within one, by speed weight',
-    '',
-    `| speed weight | ${SLICES.map((s) => s.name).join(' | ')} |`,
-    `|---|${SLICES.map(() => '---').join('|')}|`,
-    line('none (no clock)', (r) => baseBy.get(r.deck.id)!),
-    ...caps.map((cap) =>
-      line(`${cap} points${cap === SOFT_SCORE.speedCap ? ' (shipped)' : ''}`, (r) =>
-        bracketAtSpeedCap(r, cap)
-      )
-    ),
-  ].join('\n');
-}
-
-/** Where the clock exists and what it reads: per source and label, decks with one and the mean share before turn 6. */
-export function formatClockCoverage(rows: readonly Row[]): string {
+export function formatClockCoverage(rows: readonly Row[], signals: ClockSignals): string {
   const groups = new Map<string, Row[]>();
   for (const r of rows) {
     const key = `${r.deck.set} B${r.deck.label}`;
@@ -252,12 +178,13 @@ export function formatClockCoverage(rows: readonly Row[]): string {
     '|---|---|---|---|',
   ];
   for (const [key, rs] of [...groups].sort(([a], [b]) => a.localeCompare(b))) {
-    const withClock = rs.filter((r) => r.est.breakdown.earlyAssemblyShare !== undefined);
-    const mean = withClock.length
-      ? withClock.reduce((s, r) => s + r.est.breakdown.earlyAssemblyShare!, 0) / withClock.length
-      : null;
+    const shares = rs.flatMap((r) => {
+      const c = signals[r.deck.id]?.clock;
+      return c ? [c.assembledBy[5] ?? 0] : [];
+    });
+    const mean = shares.length ? shares.reduce((x, y) => x + y, 0) / shares.length : null;
     lines.push(
-      `| ${key} | ${rs.length} | ${withClock.length} | ${mean === null ? 'n/a' : pct(mean)} |`
+      `| ${key} | ${rs.length} | ${shares.length} | ${mean === null ? 'n/a' : pct(mean)} |`
     );
   }
   return lines.join('\n');

@@ -4,7 +4,7 @@ import { bracketSpeedLine } from './bracket-speed-line';
 
 const clock = (by5: number, runs = 1000) => ({
   runs,
-  assembledBy: [0, 0, 0, 0, 0, by5, 0.5],
+  assembledBy: [0, 0, 0, 0, 0, by5, 0.5, 0.6, 0.7, 0.8],
 });
 
 describe('bracketSpeedLine', () => {
@@ -20,7 +20,10 @@ describe('bracketSpeedLine', () => {
   });
 
   it('says Bracket 5 sets no expectation and reads against turn 4', () => {
-    const r = readSpeed({ runs: 1000, assembledBy: [0, 0, 0.05, 0.12, 0.3, 0.5, 0.6] }, 5)!;
+    const r = readSpeed(
+      { runs: 1000, assembledBy: [0, 0, 0.05, 0.12, 0.3, 0.5, 0.6, 0.7, 0.8, 0.9] },
+      5
+    )!;
     expect(bracketSpeedLine(r)).toBe(
       'Comes together before turn 4 in 12% of games (1,000 simulated); Bracket 5 sets no turn expectation.'
     );

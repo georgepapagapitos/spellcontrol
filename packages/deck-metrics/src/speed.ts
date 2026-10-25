@@ -5,8 +5,9 @@
  * The package has no simulator. The caller runs one (the app's assembly clock)
  * and hands in its distribution as a {@link ClockSignal}; this file only reads
  * it. The signal is an estimate from a goldfish model: it sees the deck's own
- * win path and no opposing play, so it feeds the soft score (never a floor) and
- * is always shown with its sample size.
+ * win path and no opposing play, so it is only ever displayed, always with its
+ * sample size. A soft-score weight was measured on the calibration corpus and
+ * moved no bracket from 0 to 30 points, so none ships.
  */
 
 /**
@@ -31,9 +32,6 @@ export interface ClockSignal {
   assembledBy: readonly number[];
 }
 
-/** The turn the soft score reads: Upgraded (Bracket 3) expects turn 6 or later, so this is "before turn 6". */
-export const SPEED_TURN = 5;
-
 /** Fewer games than this and a share is too loose to move a score. */
 export const SPEED_MIN_RUNS = 200;
 
@@ -51,14 +49,17 @@ function wilson(successes: number, n: number): { low: number; high: number } {
 }
 
 /** Share of games assembled by `turn`, clamped into [0, 1]; 0 for a turn the signal does not reach. */
-export function shareByTurn(clock: ClockSignal, turn: number): number {
+function shareByTurn(clock: ClockSignal, turn: number): number {
   const p = clock.assembledBy[Math.max(0, Math.floor(turn))] ?? 0;
   return Math.min(1, Math.max(0, p));
 }
 
+/** The turns a reading needs: Bracket 1's expectation, the furthest one. */
+const MIN_TURNS = TURN_EXPECTATIONS[1];
+
 /** Is there enough of a clock to read? */
 export function usableClock(clock: ClockSignal | null | undefined): clock is ClockSignal {
-  return !!clock && clock.runs >= SPEED_MIN_RUNS && clock.assembledBy.length > SPEED_TURN;
+  return !!clock && clock.runs >= SPEED_MIN_RUNS && clock.assembledBy.length >= MIN_TURNS;
 }
 
 export interface SpeedReading {

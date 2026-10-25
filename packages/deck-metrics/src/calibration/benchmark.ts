@@ -34,7 +34,6 @@ import {
   floorOf,
   SOFT_SCORE,
   type BracketEstimation,
-  type ClockSignal,
   type DetectedCombo,
   type RoleKey,
 } from '../index';
@@ -91,8 +90,7 @@ export interface Bench {
   corpus: Corpus;
   gameChangers: Set<string>;
   state(deck: CorpusDeck): DeckState;
-  /** `clock` is the deck's simulated clock, when it has a modeled win path. */
-  estimate(state: DeckState, clock?: ClockSignal | null): BracketEstimation;
+  estimate(state: DeckState): BracketEstimation;
   /** The list with one copy of `out` replaced by `add`, combos re-derived. */
   swap(deck: CorpusDeck, state: DeckState, out: string, add: string): DeckState;
 }
@@ -147,7 +145,7 @@ export function createBench(corpus: Corpus, gameChangers?: ReadonlySet<string>):
       combos: deck.combos,
       templatesSatisfied: new Set(deck.templatesSatisfied),
     }),
-    estimate(s, clock) {
+    estimate(s) {
       const names: string[] = [];
       const roleCounts: Record<string, number> = {};
       let mvTotal = 0;
@@ -170,8 +168,7 @@ export function createBench(corpus: Corpus, gameChangers?: ReadonlySet<string>):
         roleCounts,
         gc,
         tags,
-        s.commanders,
-        clock
+        s.commanders
       );
     },
     swap(deck, s, out, add) {

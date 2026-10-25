@@ -8,7 +8,7 @@ import type {
 import { tagOnlyWinCons } from '@/deck-builder/services/winConditions/winConTags';
 import { assemblyClockSentence, clockShare, type ClockCard } from '@/lib/mana-sim/opening-hand-sim';
 import { useAssemblyClock } from '@/lib/mana-sim/use-assembly-clock';
-import { isKillClock } from '@/lib/mana-sim/speed-path';
+import { isKillClock, speedPathOf } from '@/lib/mana-sim/speed-path';
 import { InfoTip } from '@/components/overlays/InfoTip';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { IconButton } from '@/components/shared/Button';
@@ -174,16 +174,15 @@ export function WinConditionPanel({
   // path isn't a kill category, the analysis predates the assembly field, the
   // path has no discrete assembly (generic combat), or the deck no longer
   // holds the pieces.
-  const primary = analysis.primary;
   // Kill categories only — a strategic mass's "assembled" turn measures its
   // evidence-pool size, not its speed (see isKillClock). Null (→ hidden) when
   // the analysis predates the assembly field, the path has no discrete
   // assembly (generic combat), or the deck no longer holds the pieces.
-  const { clock, pending } = useAssemblyClock(
-    library,
-    primary && isKillClock(primary.category) ? primary.assembly : null,
-    { iterations: 1000, wildcards: analysis.tutors }
-  );
+  const timedPath = useMemo(() => speedPathOf(analysis), [analysis]);
+  const { clock, pending } = useAssemblyClock(library, timedPath?.assembly ?? null, {
+    iterations: 1000,
+    wildcards: analysis.tutors,
+  });
 
   const taggedNames = useMemo(() => new Set(winConTags ?? []), [winConTags]);
   // Names the engine already lists as evidence get their mark on that row

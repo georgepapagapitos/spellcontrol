@@ -15,7 +15,7 @@ import {
   softScorePoints,
   SOFT_SCORE,
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import { readSpeed, SPEED_TURN, type ClockSignal } from '@spellcontrol/deck-metrics';
+import { readSpeed, type ClockSignal } from '@spellcontrol/deck-metrics';
 import { formatBracketLabel } from '@/lib/deck-analysis/format-bracket-label';
 import { bracketSpeedLine, SPEED_MILESTONES } from '@/lib/deck-analysis/bracket-speed-line';
 import type { SpeedPath } from '@/lib/mana-sim/speed-path';
@@ -47,7 +47,6 @@ const {
   interactionCap: INTERACTION_CAP,
   enginePer: ENGINE_PER,
   engineCap: ENGINE_CAP,
-  speedCap: SPEED_CAP,
   bumpAt: ELEVATE_BUMP_THRESHOLD,
   cedhAt: ELEVATE_CEDH_THRESHOLD,
   cedhMinGameChangers: CEDH_MIN_GAME_CHANGERS,
@@ -61,7 +60,7 @@ const SOFT_SCORE_TIP: ReactNode = (
   <>
     <p className="info-tip-lead">
       The power signal (0–100) can raise your bracket <strong>above</strong> the hard floor, never
-      below it. Up to six signals add to it:
+      below it. Five signals add to it:
     </p>
     <ul className="info-tip-list">
       <li>
@@ -80,10 +79,6 @@ const SOFT_SCORE_TIP: ReactNode = (
       <li>
         <strong>Combo engines</strong>: complete combos that set no floor. Combos through the same
         card count once. 10 pts each, max 20.
-      </li>
-      <li>
-        <strong>Speed</strong>: when the deck&apos;s win path has been simulated, up to 10 pts for
-        the share of games where it is in place before turn 6.
       </li>
     </ul>
   </>
@@ -549,10 +544,7 @@ export function BracketBreakdown({
   // breakdown doesn't carry, and softScore is rounded.
   const interactionPts = Math.max(
     0,
-    Math.min(
-      INTERACTION_CAP,
-      softScore - fastManaPts - tutorPts - lowCurvePts - pts.engines - Math.round(pts.speed)
-    )
+    Math.min(INTERACTION_CAP, softScore - fastManaPts - tutorPts - lowCurvePts - pts.engines)
   );
 
   const elevatedToCedh = floor >= 4 && softScore >= ELEVATE_CEDH_THRESHOLD && bracket === 5;
@@ -795,14 +787,6 @@ export function BracketBreakdown({
                 : 'No combos outside the floor'
             }
           />
-          {breakdown.earlyAssemblyShare !== undefined && (
-            <SoftScoreRow
-              label="Speed"
-              value={Math.round(pts.speed)}
-              max={SPEED_CAP}
-              detail={`${clockShare(breakdown.earlyAssemblyShare)} of ${(breakdown.clockRuns ?? 0).toLocaleString()} simulated games in place before turn ${SPEED_TURN + 1}`}
-            />
-          )}
           <div className="deck-bracket-row deck-bracket-total-row" role="row">
             <span className="deck-bracket-cell deck-bracket-total-label" role="cell">
               Total

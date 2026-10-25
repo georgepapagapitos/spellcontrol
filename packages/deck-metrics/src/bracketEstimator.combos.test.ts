@@ -240,7 +240,6 @@ describe('explainability helpers', () => {
       tutors: 0,
       curve: 15,
       engines: 0,
-      speed: 0,
     });
     expect(r.softScore).toBe(31);
   });

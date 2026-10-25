@@ -1,12 +1,9 @@
 export { checkRoleEvidence } from './roleEvidence';
 export { isIncidentalRampByTags, isRampByTags } from './rampRole';
 import { isRampByTags } from './rampRole';
-import { shareByTurn, SPEED_TURN, usableClock, type ClockSignal } from './speed.js';
 export {
   readSpeed,
-  shareByTurn,
   SPEED_MIN_RUNS,
-  SPEED_TURN,
   TURN_EXPECTATIONS,
   usableClock,
   type ClockSignal,
@@ -120,12 +117,6 @@ export interface BracketBreakdown {
   staxPieceNames: string[];
   averageCmc: number;
   interactionCount: number;
-  /** Share (0-1) of simulated games whose win path assembled before turn 6, when
-   *  the caller passed a clock (see `speed.ts`). Absent without one. It feeds
-   *  the soft score only. */
-  earlyAssemblyShare?: number;
-  /** Games behind `earlyAssemblyShare`. */
-  clockRuns?: number;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -447,11 +438,6 @@ export const SOFT_SCORE = {
   curvePer: 15,
   curveCap: 20,
   interactionCap: 15,
-  /** Points for assembling the win path before turn 6 (`SPEED_TURN`), scaled by
-   *  the share of simulated games that do. Added only when the caller passes a
-   *  clock; a deck with no modeled win path scores none, never a penalty. The
-   *  calibration corpus (2026-10-25) moves no bracket at 0 to 30. */
-  speedCap: 10,
   /** Per complete loop that sets no floor (drawing your library, say). A precon
    *  run (2026-09-23) topped out at 50 with these, well under `bumpAt`. */
   enginePer: 10,
@@ -474,11 +460,8 @@ export const SOFT_SCORE = {
 /** The soft-score components computable from the breakdown alone
  *  (interaction needs the deck's non-land count, so it isn't here). */
 export function softScorePoints(
-  b: Pick<
-    BracketBreakdown,
-    'fastManaCount' | 'tutorCount' | 'averageCmc' | 'loopEngineCount' | 'earlyAssemblyShare'
-  >
-): { fastMana: number; tutors: number; curve: number; engines: number; speed: number } {
+  b: Pick<BracketBreakdown, 'fastManaCount' | 'tutorCount' | 'averageCmc' | 'loopEngineCount'>
+): { fastMana: number; tutors: number; curve: number; engines: number } {
   const s = SOFT_SCORE;
   return {
     fastMana: Math.min(s.fastManaCap, b.fastManaCount * s.fastManaPer),
@@ -487,7 +470,6 @@ export function softScorePoints(
       ? Math.min(s.curveCap, Math.max(0, (s.curveThreshold - b.averageCmc) * s.curvePer))
       : 0,
     engines: Math.min(s.engineCap, (b.loopEngineCount ?? 0) * s.enginePer),
-    speed: Math.min(s.speedCap, Math.max(0, (b.earlyAssemblyShare ?? 0) * s.speedCap)),
   };
 }
 
@@ -810,10 +792,7 @@ export function estimateBracket(
   gameChangerNames: Set<string>,
   tags: TagLookup,
   /** The deck's commander(s). Optional; a combo they're part of assembles faster. */
-  commanderNames: readonly string[] = [],
-  /** The deck's simulated clock, when it has a modeled win path. Optional: the
-   *  package has no simulator, and a deck without one is scored without speed. */
-  clock?: ClockSignal | null
+  commanderNames: readonly string[] = []
 ): BracketEstimation {
   // ── 1. Count signals ──
 
@@ -1077,17 +1056,15 @@ export function estimateBracket(
     )
   );
 
-  const earlyAssemblyShare = usableClock(clock) ? shareByTurn(clock, SPEED_TURN) : undefined;
   const pts = softScorePoints({
     fastManaCount: fastMana.length,
     tutorCount: tutors.length,
     averageCmc,
     loopEngineCount,
-    earlyAssemblyShare,
   });
   const softScore = Math.min(
     100,
-    pts.fastMana + pts.tutors + pts.curve + pts.engines + pts.speed + interactionBonus
+    pts.fastMana + pts.tutors + pts.curve + pts.engines + interactionBonus
   );
 
   // ── 6. Final bracket ──
@@ -1132,7 +1109,6 @@ export function estimateBracket(
       staxPieceNames: staxPieces,
       averageCmc,
       interactionCount,
-      ...(earlyAssemblyShare === undefined ? {} : { earlyAssemblyShare, clockRuns: clock!.runs }),
     },
   };
 }
