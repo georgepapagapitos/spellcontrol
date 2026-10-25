@@ -4,12 +4,17 @@
  * snapshot is built from a deck and what the page already computed, and two
  * snapshots diff into rows. No React, no storage (see deck-since-store.ts).
  *
- * A snapshot is deliberately small (names and counts, not card payloads) so a
- * few dozen of them fit in localStorage. Every metric is optional: the bracket
- * and the async simulations arrive after the cards do, and a row appears only
- * when BOTH snapshots carry that metric, so a still-loading number never reads
- * as a change.
+ * What a baseline stores is the CARD LIST (names, counts, which are commanders)
+ * plus the few numbers that cannot be recomputed from cards alone (the bracket
+ * estimate and its signals, which need EDHREC and combo data, and the clock
+ * median). Every other number (lands, roles, castability) is recomputed for BOTH
+ * sides with today's classifiers, so a tagger refresh or a rule change cannot
+ * show a delta the user did not cause. Nothing shows unless the card list
+ * differs, so even the stored numbers only surface alongside the card change
+ * that moved them. Every metric is optional: a row appears only when BOTH sides
+ * carry it, so a still-loading number never reads as a change.
  */
+import type { ScryfallCard } from '@/deck-builder/types';
 import type { Deck } from '@/store/decks';
 import { effectiveBracket } from '@/store/decks';
 import { analyzeDeck } from '@/lib/deck-analysis/deck-analysis';
@@ -37,7 +42,28 @@ export interface DeckSnapshot {
   at: number;
   /** Card name to copies, commanders included. */
   cards: Record<string, number>;
+  /** Which of those names are the commander and partner. */
+  commanders: string[];
   metrics: SinceMetrics;
+}
+
+/** The numbers a baseline keeps, because cards alone cannot reproduce them. */
+export const LEDGER_KEYS = [
+  'bracket',
+  'gameChangers',
+  'extraTurns',
+  'massLandDenial',
+  'twoCardCombos',
+  'fastMana',
+  'tutors',
+  'clockTurn',
+] as const satisfies readonly (keyof SinceMetrics)[];
+
+/** A snapshot cut down to what is stored: the card list and the ledger numbers. */
+export function toStored(snap: DeckSnapshot): DeckSnapshot {
+  const metrics: SinceMetrics = {};
+  for (const k of LEDGER_KEYS) if (snap.metrics[k] != null) metrics[k] = snap.metrics[k];
+  return { at: snap.at, cards: snap.cards, commanders: snap.commanders, metrics };
 }
 
 /** The async numbers the page computes after paint; absent until they land. */
@@ -98,7 +124,63 @@ export function buildSnapshot(
     metrics.fastMana = b.fastManaCount;
     metrics.tutors = b.tutorCount;
   }
-  return { at, cards: cardCounts(deck), metrics };
+  const commanders = [deck.commander?.name, deck.partnerCommander?.name].filter(
+    (n): n is string => !!n
+  );
+  return { at, cards: cardCounts(deck), commanders, metrics };
+}
+
+type Pool = Record<string, ScryfallCard>;
+
+/**
+ * The deck as the baseline had it, rebuilt from today's card payloads plus
+ * `pool`, the payloads of cards that were in the baseline and have since left
+ * the deck. Null when a baseline card has no payload anywhere (it left through
+ * another device's edit, say), in which case only the card lists can be shown.
+ * The estimate and win-path fields are dropped: they describe today's list.
+ */
+export function reconstructDeck(deck: Deck, base: DeckSnapshot, pool: Pool): Deck | null {
+  const byName = new Map<string, ScryfallCard>();
+  for (const c of [deck.commander, deck.partnerCommander]) if (c) byName.set(c.name, c);
+  for (const c of deck.cards) byName.set(c.card.name, c.card);
+  for (const [name, card] of Object.entries(pool)) if (!byName.has(name)) byName.set(name, card);
+  const slots: Deck['cards'] = [];
+  for (const [name, qty] of Object.entries(base.cards)) {
+    const card = byName.get(name);
+    if (!card) return null;
+    if (base.commanders.includes(name)) continue;
+    for (let i = 0; i < qty; i++)
+      slots.push({ slotId: `since-${name}-${i}`, card, allocatedCopyId: null });
+  }
+  const commander = base.commanders[0] ? (byName.get(base.commanders[0]) ?? null) : null;
+  const partner = base.commanders[1] ? (byName.get(base.commanders[1]) ?? null) : null;
+  return {
+    ...deck,
+    commander,
+    partnerCommander: partner,
+    cards: slots,
+    bracketEstimation: undefined,
+    bracketOverride: undefined,
+    winConditions: undefined,
+  };
+}
+
+/**
+ * Keep the payloads of baseline cards that are no longer (fully) in the deck:
+ * cards that just left `prev` join the pool, and any entry the deck has back,
+ * or the baseline never held, is dropped.
+ */
+export function nextPool(pool: Pool, prev: Deck | null, deck: Deck, base: DeckSnapshot): Pool {
+  const now = cardCounts(deck);
+  const next: Pool = { ...pool };
+  if (prev) {
+    const gone = [prev.commander, prev.partnerCommander, ...prev.cards.map((c) => c.card)];
+    for (const c of gone) if (c && (now[c.name] ?? 0) < 1) next[c.name] = c;
+  }
+  for (const name of Object.keys(next)) {
+    if ((base.cards[name] ?? 0) <= (now[name] ?? 0)) delete next[name];
+  }
+  return next;
 }
 
 /** Whether two snapshots hold the same card list. */
@@ -173,6 +255,17 @@ export function diffSnapshots(
   rolesOf: (name: string) => readonly string[] = () => []
 ): DeckSince {
   const rows: SinceRow[] = [];
+  const added: SinceCard[] = [];
+  const removed: SinceCard[] = [];
+  for (const name of new Set([...Object.keys(base.cards), ...Object.keys(now.cards)])) {
+    const delta = (now.cards[name] ?? 0) - (base.cards[name] ?? 0);
+    if (delta === 0) continue;
+    const entry = { name, qty: Math.abs(delta), roles: [...rolesOf(name)] };
+    (delta > 0 ? added : removed).push(entry);
+  }
+  // A card list that has not changed has nothing to explain: no row, however
+  // the numbers came out.
+  if (added.length === 0 && removed.length === 0) return { rows, added, removed };
   for (const spec of SPECS) {
     const from = base.metrics[spec.key];
     const to = now.metrics[spec.key];
@@ -188,14 +281,6 @@ export function diffSnapshots(
       direction: to > from ? 'up' : 'down',
     });
   }
-  const added: SinceCard[] = [];
-  const removed: SinceCard[] = [];
-  for (const name of new Set([...Object.keys(base.cards), ...Object.keys(now.cards)])) {
-    const delta = (now.cards[name] ?? 0) - (base.cards[name] ?? 0);
-    if (delta === 0) continue;
-    const entry = { name, qty: Math.abs(delta), roles: [...rolesOf(name)] };
-    (delta > 0 ? added : removed).push(entry);
-  }
   const byName = (a: SinceCard, b: SinceCard) => a.name.localeCompare(b.name);
   added.sort(byName);
   removed.sort(byName);
@@ -204,7 +289,7 @@ export function diffSnapshots(
 
 /** True when the diff has anything to say. */
 export function hasChanges(d: DeckSince): boolean {
-  return d.rows.length > 0 || d.added.length > 0 || d.removed.length > 0;
+  return d.added.length > 0 || d.removed.length > 0;
 }
 
 const ROLE_WORDS: Record<string, string> = {

@@ -328,19 +328,23 @@ three times on one screen, so these rulings now hold:
   for this deck or that finish a one-away combo — "in color identity and
   bought recently" is not a recommendation.
 - **The "Since" strip answers "what did my edits do" (2026-10-25, E1038 3.4).**
-  One insight-strip row above the Deck tab's toolbar, shown only when the deck
-  differs from its baseline: "Since earlier today" plus the first three changed
-  numbers, opening (native `<details>`) into every changed metric and the cards
-  added and removed, each tagged with the role it fills. The baseline is
-  per-device (`deck-since-store.ts`, localStorage, never synced, no sync kind):
-  a visit more than 30 minutes after the last change rolls the previous end
-  state into the baseline, so the strip shows this session's edits and anything
-  another device pushed in between. "Mark changes as seen" is a sibling
-  control, not inside the summary. A row appears only when both snapshots
-  measured it, so a number still loading (bracket, castability, the assembly
-  clock) never reads as a change; castability needs two points to count.
-  Direction is an arrow-free "A to B": rising lands or a rising bracket is not
-  good or bad on its own, so no tone colors the metric rows.
+  One insight-strip row above the Deck tab's toolbar, shown only when the CARD
+  LIST differs from its baseline: "Since earlier today" plus the first three
+  changed numbers, opening (native `<details>`) into every changed metric and
+  the cards added and removed, each tagged with the role it fills. The baseline
+  is the stored card list, never stored numbers: lands, roles and castability
+  are recomputed for both sides with today's classifiers, so a tagger refresh
+  or a rule change cannot show a delta nobody caused. The exceptions are the
+  numbers cards alone cannot reproduce (the bracket estimate and its signals,
+  the clock median); they ride with the baseline and surface only beside the
+  card change. It is per-device (`deck-since-store.ts`, localStorage, never
+  synced, no sync kind): a visit more than 30 minutes after the last change
+  rolls the previous end state into the baseline, so the strip shows this
+  session's edits and anything another device pushed in between. "Mark changes
+  as seen" is a sibling control, not inside the summary. A row appears only when
+  both sides measured it, so a number still loading never reads as a change;
+  castability needs two points to count. Rows read "A to B" with no tone: a
+  rising land count or bracket is not good or bad on its own.
 - **List is the default deck view** (reversing E127's card-forward grid). The
   list is the editing surface — editable count, kebab, reorder, price, mana cost,
   hover-peek; the grid is a gallery that fits ~8 cards per row on desktop and

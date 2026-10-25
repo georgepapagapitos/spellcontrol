@@ -9,11 +9,15 @@
  * baseline, so the read shows what changed since the last session ended; within
  * a session the baseline holds, so the edits made so far stay on screen.
  */
+import type { ScryfallCard } from '@/deck-builder/types';
 import { sameCards, type DeckSnapshot } from './deck-since';
 
 export interface BaselineRecord {
   baseline: DeckSnapshot;
   latest: DeckSnapshot;
+  /** Payloads of baseline cards that have left the deck, so the baseline's
+   *  numbers can be recomputed with today's classifiers. */
+  pool: Record<string, ScryfallCard>;
 }
 
 /** A visit this long after the last change starts a new session. */
@@ -22,7 +26,7 @@ export const SESSION_GAP_MS = 30 * 60 * 1000;
 /** Decks remembered per device; the least recently changed are dropped. */
 export const MAX_RECORDS = 40;
 
-const KEY = 'deck-since-v1';
+const KEY = 'deck-since-v2';
 
 /** Open a deck page: the first visit seeds both snapshots, a late one rolls the baseline. */
 export function startSession(
@@ -30,8 +34,10 @@ export function startSession(
   current: DeckSnapshot,
   now: number
 ): BaselineRecord {
-  if (!rec) return { baseline: current, latest: current };
-  if (now - rec.latest.at > SESSION_GAP_MS) return { baseline: rec.latest, latest: rec.latest };
+  if (!rec) return { baseline: current, latest: current, pool: {} };
+  if (now - rec.latest.at > SESSION_GAP_MS) {
+    return { baseline: rec.latest, latest: rec.latest, pool: {} };
+  }
   return rec;
 }
 
@@ -41,16 +47,20 @@ export function startSession(
  * land after the cards) are filled in from now, so they have a "before" to
  * compare against once the cards change.
  */
-export function observe(rec: BaselineRecord, current: DeckSnapshot): BaselineRecord {
+export function observe(
+  rec: BaselineRecord,
+  current: DeckSnapshot,
+  pool: BaselineRecord['pool'] = rec.pool
+): BaselineRecord {
   const baseline = sameCards(rec.baseline, current)
     ? { ...rec.baseline, metrics: { ...current.metrics, ...rec.baseline.metrics } }
     : rec.baseline;
-  return { baseline, latest: current };
+  return { baseline, latest: current, pool };
 }
 
 /** "Got it": the deck as it stands becomes the baseline. */
 export function markSeen(rec: BaselineRecord): BaselineRecord {
-  return { baseline: rec.latest, latest: rec.latest };
+  return { baseline: rec.latest, latest: rec.latest, pool: {} };
 }
 
 type Records = Record<string, BaselineRecord>;
@@ -70,7 +80,14 @@ function readAll(): Records {
 
 function isRecord(v: unknown): v is BaselineRecord {
   const r = v as BaselineRecord | undefined;
-  return !!r?.baseline?.cards && !!r.latest?.cards && !!r.baseline.metrics && !!r.latest.metrics;
+  return (
+    !!r?.baseline?.cards &&
+    !!r.latest?.cards &&
+    !!r.baseline.metrics &&
+    !!r.latest.metrics &&
+    Array.isArray(r.baseline.commanders) &&
+    !!r.pool
+  );
 }
 
 export function loadRecord(deckId: string): BaselineRecord | null {

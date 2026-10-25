@@ -5,7 +5,17 @@ import { getAllCardRoles } from '@/deck-builder/services/tagger/client';
 import { toClockLibrary } from '@/lib/mana-sim/hand-classify';
 import { speedPathOf } from '@/lib/mana-sim/speed-path';
 import { useAssemblyClock } from '@/lib/mana-sim/use-assembly-clock';
-import { buildSnapshot, diffSnapshots, hasChanges, type DeckSince } from '@/lib/deck/deck-since';
+import {
+  buildSnapshot,
+  diffSnapshots,
+  hasChanges,
+  nextPool,
+  reconstructDeck,
+  sameCards,
+  toStored,
+  type DeckSince,
+  type DeckSnapshot,
+} from '@/lib/deck/deck-since';
 import {
   loadRecord,
   markSeen,
@@ -61,19 +71,39 @@ export function useDeckSince(deck: Deck | null): DeckSinceState | null {
   );
 
   const held = useRef<{ id: string; rec: BaselineRecord } | null>(null);
+  const prevDeck = useRef<Deck | null>(null);
   const [view, setView] = useState<{ id: string; rec: BaselineRecord } | null>(null);
 
   useEffect(() => {
-    if (!deckId || !current) return;
-    const open =
-      held.current?.id === deckId
-        ? held.current.rec
-        : startSession(loadRecord(deckId), current, Date.now());
-    const next = observe(open, current);
-    held.current = { id: deckId, rec: next };
-    saveRecord(deckId, next);
+    if (!deck || !current) return;
+    const stored = toStored(current);
+    const same = held.current?.id === deck.id;
+    const open = same ? held.current!.rec : startSession(loadRecord(deck.id), stored, Date.now());
+    const pool = nextPool(open.pool, same ? prevDeck.current : null, deck, open.baseline);
+    const next = observe(open, stored, pool);
+    held.current = { id: deck.id, rec: next };
+    prevDeck.current = deck;
+    saveRecord(deck.id, next);
     setView(held.current);
-  }, [deckId, current]);
+  }, [deck, current]);
+
+  // The baseline's own numbers, recomputed with today's classifiers from the
+  // card list it stored, so a delta can only come from a card that moved. The
+  // stored ledger numbers (bracket, signals, clock) ride along unchanged.
+  const baselineDeck = useMemo(() => {
+    if (!deck || !current || !view || view.id !== deck.id) return null;
+    if (sameCards(view.rec.baseline, current)) return null;
+    return reconstructDeck(deck, view.rec.baseline, view.rec.pool);
+  }, [deck, current, view]);
+  const baseCommanders = useMemo(
+    () => [baselineDeck?.commander, baselineDeck?.partnerCommander].filter((c) => c != null),
+    [baselineDeck]
+  );
+  const baseLibrary = useMemo(
+    () => (baselineDeck ? baselineDeck.cards.map((c) => c.card) : []),
+    [baselineDeck]
+  );
+  const baseCastable = useCastability(baseCommanders, baseLibrary)?.average ?? null;
 
   const dismiss = useCallback(() => {
     if (!deckId || held.current?.id !== deckId) return;
@@ -84,12 +114,21 @@ export function useDeckSince(deck: Deck | null): DeckSinceState | null {
   }, [deckId]);
 
   const since = useMemo(() => {
-    if (!view || view.id !== deckId) return null;
-    const d = diffSnapshots(view.rec.baseline, view.rec.latest, getAllCardRoles);
+    if (!view || !current || view.id !== deck?.id) return null;
+    const stored = view.rec.baseline;
+    const base: DeckSnapshot = baselineDeck
+      ? {
+          ...stored,
+          metrics: {
+            ...buildSnapshot(baselineDeck, taggerReady, { castable: baseCastable }).metrics,
+            ...stored.metrics,
+          },
+        }
+      : stored;
+    const d = diffSnapshots(base, current, getAllCardRoles);
     return hasChanges(d) ? d : null;
     // taggerReady: the role chips beside each card come from the tagger.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, deckId, taggerReady]);
+  }, [view, current, deck?.id, baselineDeck, baseCastable, taggerReady]);
 
   return useMemo(
     () => (view && since ? { since, baselineAt: view.rec.baseline.at, dismiss } : null),

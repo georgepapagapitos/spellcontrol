@@ -70,47 +70,67 @@ describe('baselineLabel', () => {
 });
 
 describe('useDeckSince', () => {
+  const KEY = 'deck-since-v2';
+  const start = ['Sol Ring', 'Forest', 'Command Tower'];
+
   it('shows nothing on first sight, then what an edit changed, then clears on dismiss', async () => {
-    const first = makeDeck(['Sol Ring', 'Forest'], ATRAXA);
     const { result, rerender } = renderHook(({ deck }) => useDeckSince(deck), {
-      initialProps: { deck: first },
+      initialProps: { deck: makeDeck(start, ATRAXA) },
     });
-    await waitFor(() => expect(localStorage.getItem('deck-since-v1')).not.toBeNull());
+    await waitFor(() => expect(localStorage.getItem(KEY)).not.toBeNull());
     expect(result.current).toBeNull();
 
-    rerender({ deck: makeDeck(['Sol Ring', 'Forest', 'Command Tower', 'Cultivate'], ATRAXA) });
+    // Cut a land and add a ramp spell: the cut card's payload comes from the pool.
+    rerender({ deck: makeDeck(['Sol Ring', 'Forest', 'Cultivate'], ATRAXA) });
     await waitFor(() => expect(result.current).not.toBeNull());
     expect(
-      result.current?.since?.rows.map((r) => `${r.label} ${r.fromText} to ${r.toText}`)
-    ).toEqual(['Lands 1 to 2']);
-    expect(result.current?.since?.added.map((c) => c.name)).toEqual(['Command Tower', 'Cultivate']);
+      result.current?.since.rows.map((r) => `${r.label} ${r.fromText} to ${r.toText}`)
+    ).toEqual(['Lands 2 to 1']);
+    expect(result.current?.since.added.map((c) => c.name)).toEqual(['Cultivate']);
+    expect(result.current?.since.removed.map((c) => c.name)).toEqual(['Command Tower']);
 
     act(() => result.current?.dismiss());
     await waitFor(() => expect(result.current).toBeNull());
   });
 
   it('keeps the unseen edits across a quick return and rolls the baseline after a long gap', async () => {
-    const base = makeDeck(['Sol Ring', 'Forest'], ATRAXA);
-    const edited = makeDeck(['Sol Ring', 'Forest', 'Forest', 'Rhystic Study'], ATRAXA);
-    const a = renderHook(({ deck }) => useDeckSince(deck), { initialProps: { deck: base } });
-    await waitFor(() => expect(localStorage.getItem('deck-since-v1')).not.toBeNull());
+    const edited = makeDeck(['Sol Ring', 'Forest'], ATRAXA);
+    const a = renderHook(({ deck }) => useDeckSince(deck), {
+      initialProps: { deck: makeDeck(start, ATRAXA) },
+    });
+    await waitFor(() => expect(localStorage.getItem(KEY)).not.toBeNull());
     a.rerender({ deck: edited });
     await waitFor(() => expect(a.result.current).not.toBeNull());
     a.unmount();
 
-    // Back within the gap: the same edits are still unseen.
     const b = renderHook(({ deck }) => useDeckSince(deck), { initialProps: { deck: edited } });
     await waitFor(() =>
-      expect(b.result.current?.since?.added.map((c) => c.name)).toContain('Rhystic Study')
+      expect(b.result.current?.since.removed.map((c) => c.name)).toContain('Command Tower')
     );
     b.unmount();
 
-    // Back after the gap: last session's end state is the baseline, so no change.
-    const later = Date.now() + SESSION_GAP_MS + 60_000;
-    const spy = vi.spyOn(Date, 'now').mockReturnValue(later);
+    const spy = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + SESSION_GAP_MS + 60_000);
     const c = renderHook(({ deck }) => useDeckSince(deck), { initialProps: { deck: edited } });
     await act(async () => {});
     expect(c.result.current).toBeNull();
     spy.mockRestore();
+  });
+
+  it('shows no strip when only the classifiers moved: same cards, different stored numbers', async () => {
+    const deck = makeDeck(start, ATRAXA);
+    const cards = { [ATRAXA]: 1, 'Sol Ring': 1, Forest: 1, 'Command Tower': 1 };
+    const old = {
+      at: Date.now() - 1000,
+      cards,
+      commanders: [ATRAXA],
+      metrics: { bracket: 1, clockTurn: 12 },
+    };
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({ [deck.id]: { baseline: old, latest: old, pool: {} } })
+    );
+    const { result } = renderHook(() => useDeckSince(deck));
+    await act(async () => {});
+    expect(result.current).toBeNull();
   });
 });
