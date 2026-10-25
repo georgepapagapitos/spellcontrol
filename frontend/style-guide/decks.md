@@ -1019,6 +1019,22 @@ one question and made you pick which. Rulings:
   staples". Coverage and readiness used to show side by side as two numbers
   for one question; the second one is gone. It needs `MIN_COLLECTION_SIZE`
   cards to say anything and never runs for Pauper Commander.
+- **Completeness at a target bracket (E1038, roadmap 4.1).** Under the coverage
+  sort a **Bracket** menu (Any, then 1 to 5) cuts every commander's staple pool
+  to that bracket: EDHREC's page for the bracket (too few decks there falls back
+  to all brackets, and the tile says so), then Game Changers out below bracket 3
+  and at most three at bracket 3 (`filterStaplesForBracket`). The order is
+  inclusion-weighted (`weightedPercent`: owning a card 85% of decks run counts
+  for more than a 4% card) and the bar shows that figure; the line under it
+  stays a plain count. Under the bar a tile adds the cost to finish ("~$48 to
+  finish", the missing staples priced in one batched lookup, "Pricing…" until it
+  lands, unpriced cards counted aloud), the cards you own that are already in
+  one of your decks ("3 you own are in your Atraxa deck": every copy is bound,
+  `lib/deck/held-elsewhere.ts`) and the sample behind it ("Bracket 2 · 3,183
+  decks · 3 Game Changers left out"). Ranking every commander would be
+  thousands of EDHREC pages, so a pass scores the 60 most-played of the list
+  and a hint under the toolbar says how far it looked ("Checked EDHREC's 12
+  most-played commanders, not every one. Pick colors to see more.").
 - **Scoring a whole list re-sorts in steps.** Under the coverage sort every
   result is scored four at a time; the order refreshes every 12 scores and on
   completion, never per score, so tiles don't jump under the pointer.

@@ -103,14 +103,25 @@ const fetchCommandersWithinColors = vi.fn(async (_colors: string[]) => [
 const fetchPlaystyleCommanders = vi.fn(async (_slug: string) => [
   top('Teysa Karlov', ['W', 'B'], 20000),
 ]);
-const fetchCommanderData = vi.fn(async (_name: string) => ({
-  cardlists: { allNonLand: [{ name: 'Sol Ring' }, { name: 'Goblin Bombardment' }] },
-}));
+const fetchCommanderData = vi.fn(
+  async (_name: string, _budget?: unknown, _bracket?: number | string) => ({
+    cardlists: {
+      allNonLand: [
+        { name: 'Sol Ring', inclusion: 80 },
+        { name: 'Rhystic Study', inclusion: 30 },
+        { name: 'Goblin Bombardment', inclusion: 20 },
+      ],
+    },
+    stats: { numDecks: 3183 },
+  })
+);
 vi.mock('@/deck-builder/services/edhrec/client', () => ({
   fetchTopCommanders: (c: string[]) => fetchTopCommanders(c),
   fetchCommandersWithinColors: (c: string[]) => fetchCommandersWithinColors(c),
   fetchAllCommanderNames: vi.fn(async () => ['Krenko, Mob Boss']),
-  fetchCommanderData: (n: string) => fetchCommanderData(n),
+  fetchCommanderData: (n: string, budget?: unknown, bracket?: number | string) =>
+    fetchCommanderData(n, budget, bracket),
+  isPoolTooThin: () => false,
   fetchPlaystyleCommanders: (s: string) => fetchPlaystyleCommanders(s),
 }));
 
@@ -152,6 +163,8 @@ vi.mock('@/deck-builder/services/scryfall/client', () => ({
   getCardByName: (n: string) => getCardByName(n),
   getOwnedPrinting: (id: string, n: string) => getOwnedPrinting(id, n),
   getCardPrice: () => '2.40',
+  getGameChangerNames: async () => new Set(['Rhystic Study']),
+  getCardsByNames: async (names: string[]) => new Map(names.map((n) => [n, card(n, [], '')])),
 }));
 vi.mock('@/lib/discover/aggregates-client', () => ({
   getCommanderStatsBatch: vi.fn(async () => new Map()),
@@ -420,7 +433,11 @@ describe('the "From my collection" door', () => {
     );
     expect(await screen.findByText(/builds with only your cards/)).toBeTruthy();
     await waitFor(() =>
-      expect(fetchCommanderData).toHaveBeenCalledWith('Chatterfang, Squirrel General')
+      expect(fetchCommanderData).toHaveBeenCalledWith(
+        'Chatterfang, Squirrel General',
+        undefined,
+        undefined
+      )
     );
     expect((await screen.findAllByText(/You own \d+ of its \d+ staples/)).length).toBeGreaterThan(
       0
@@ -449,6 +466,47 @@ describe('readiness', () => {
     await screen.findByText('Atraxa, Praetors’ Voice');
     await waitFor(() => expect(fetchCommanderData).toHaveBeenCalled());
     expect((await screen.findAllByText(/You own \d+%/)).length).toBeGreaterThan(0);
+  });
+});
+
+describe('completeness at a target bracket', () => {
+  const openByCoverage = async () => {
+    collectionCards = [KRENKO, ...filler(20)];
+    // Owning Sol Ring: a free copy, and one already used by a deck.
+    collectionCards.push(owned('Sol Ring', [], '', 'Artifact'));
+    render(<CommanderSearch value={null} onSelect={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('radio', { name: /^All commanders/ }));
+    await screen.findByText('Atraxa, Praetors’ Voice');
+    fireEvent.click(screen.getByRole('button', { name: /^Sort/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Most of the deck owned' }));
+  };
+
+  it('prices what is left to buy and says how many decks the numbers come from', async () => {
+    await openByCoverage();
+    expect((await screen.findAllByText(/^~\$\d+ to finish$/)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('3,183 decks')).length).toBeGreaterThan(0);
+  });
+
+  it('cuts the pool to the chosen bracket and leaves the Game Changers out', async () => {
+    await openByCoverage();
+    await screen.findAllByText(/You own 1 of its 3 staples/);
+    fireEvent.click(screen.getByRole('button', { name: /^Bracket/ }));
+    fireEvent.click(await screen.findByRole('option', { name: '2 · Core' }));
+    await waitFor(() =>
+      expect(fetchCommanderData).toHaveBeenCalledWith(expect.any(String), undefined, 2)
+    );
+    expect((await screen.findAllByText(/You own 1 of its 2 staples/)).length).toBeGreaterThan(0);
+    expect(
+      (await screen.findAllByText(/Bracket 2 · 3,183 decks · 1 Game Changer left out/)).length
+    ).toBeGreaterThan(0);
+    expect(screen.getByText(/Game Changers are left out\./)).toBeTruthy();
+  });
+
+  it('says it checked only the most-played commanders when browsing the popular list', async () => {
+    await openByCoverage();
+    expect(
+      (await screen.findByText(/not every one\. Pick colors to see more\./)).textContent
+    ).toContain('Checked EDHREC');
   });
 });
 

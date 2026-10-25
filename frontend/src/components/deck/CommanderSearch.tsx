@@ -1,7 +1,7 @@
 import '@/styles/deck-builder-commander.css';
 import './CommanderSearch.css';
 import { Shuffle, SlidersHorizontal } from 'lucide-react';
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   commanderFinderSupportsRegex,
   getCardByName,
@@ -11,7 +11,6 @@ import {
 } from '@/deck-builder/services/scryfall/client';
 import {
   fetchAllCommanderNames,
-  fetchCommanderData,
   fetchCommandersWithinColors,
   fetchPlaystyleCommanders,
   fetchTopCommanders,
@@ -19,12 +18,16 @@ import {
 import type { ScryfallCard, DeckFormat, EDHRECTopCommander } from '@/deck-builder/types';
 import { useCollectionStore } from '../../store/collection';
 import {
-  computeReadiness,
+  coverageHintFor,
+  scoreShortlist,
   extractCommanderCandidates,
   isPdhCommanderCandidate,
   MIN_COLLECTION_SIZE,
-  type ReadinessScore,
 } from '@/lib/deck/commander-readiness';
+import { heldByDecks } from '@/lib/deck/held-elsewhere';
+import { useAllocations } from '@/lib/collection/allocations';
+import { useCoverageNotes } from './use-coverage-notes';
+import { BRACKET_OPTIONS, useBracketPref, useCommanderReadiness } from './use-commander-readiness';
 import {
   classifyCommanderPlaystyles,
   classifyOwnedCommanderPlaystyles,
@@ -181,6 +184,13 @@ const SCORE_RESORT_EVERY = 12;
 /** Commanders "Worth buying the commander for" scores, and how many it shows. */
 const BUY_POOL = 30;
 const BUY_SHOWN = 6;
+/**
+ * Most commanders one "Most of the deck owned" pass scores, most-played first.
+ * Each costs an EDHREC page; the list says so when it stops short.
+ * ponytail: a cap, not paging; raise it or score on demand if the note starts to bite.
+ */
+const SCORE_CAP = 60;
+
 /** Playstyle chips shown before "N more" on a wide screen. */
 const STYLE_PREVIEW = 9;
 
@@ -305,29 +315,20 @@ export function CommanderSearch({
   const canScore = !pdh && collectionCards.length >= MIN_COLLECTION_SIZE;
 
   // ── Readiness: how much of a commander's deck you own ─────────────────
-  const [readiness, setReadiness] = useState<Map<string, ReadinessScore | 'loading'>>(new Map());
-  const readinessInflight = useRef<Set<string>>(new Set());
-  const readinessDone = useRef<Set<string>>(new Set());
-  const ensureReadiness = useCallback(
-    async (name: string): Promise<void> => {
-      if (!canScore) return;
-      const key = name.toLowerCase();
-      if (readinessDone.current.has(key) || readinessInflight.current.has(key)) return;
-      readinessInflight.current.add(key);
-      setReadiness((prev) => new Map(prev).set(key, 'loading'));
-      let score: ReadinessScore;
-      try {
-        const data = await fetchCommanderData(name);
-        score = computeReadiness(data.cardlists.allNonLand, ownedCardNames);
-      } catch {
-        score = computeReadiness([], ownedCardNames);
-      }
-      readinessDone.current.add(key);
-      readinessInflight.current.delete(key);
-      setReadiness((prev) => new Map(prev).set(key, score));
-    },
-    [canScore, ownedCardNames]
+  // Cut for the target bracket when one is chosen; cards whose every copy is
+  // in one of your decks are labeled rather than counted as free.
+  const [bracket, setBracket] = useBracketPref();
+  const allocations = useAllocations();
+  const heldBy = useMemo(
+    () => heldByDecks(collectionCards, allocations),
+    [collectionCards, allocations]
   );
+  const { readiness, ensureReadiness } = useCommanderReadiness({
+    canScore,
+    ownedCardNames,
+    heldBy,
+    bracket,
+  });
 
   // Covers a prefilled selection; a hover or the eager load usually cached it.
   useEffect(() => {
@@ -588,13 +589,18 @@ export function CommanderSearch({
   // The sort reads a snapshot taken every few scores rather than the live
   // map, so tiles don't jump under the pointer while the list is scored.
   const scoringOn = sort === 'owned' && canScore;
-  const scoringKey = `${scoringOn}|${activeSource}|${remoteKey}|${entries.length}`;
+  const scoringKey = `${scoringOn}|${activeSource}|${remoteKey}|${entries.length}|${bracket ?? 'all'}`;
   const [scoring, setScoring] = useState<{ key: string; done: number; of: number } | null>(null);
   const [scoreSnapshot, setScoreSnapshot] = useState<Map<string, number>>(new Map());
   const readinessRef = useRef(readiness);
   useEffect(() => {
     readinessRef.current = readiness;
   }, [readiness]);
+  const [snapshotBracket, setSnapshotBracket] = useState(bracket);
+  if (snapshotBracket !== bracket) {
+    setSnapshotBracket(bracket);
+    setScoreSnapshot(new Map());
+  }
   const entriesRef = useRef(entries);
   useEffect(() => {
     entriesRef.current = entries;
@@ -603,12 +609,12 @@ export function CommanderSearch({
   useEffect(() => {
     if (!scoringOn) return;
     let cancelled = false;
-    const names = entriesRef.current.map((e) => e.name);
+    const names = scoreShortlist(entriesRef.current, SCORE_CAP).map((e) => e.name);
     if (names.length === 0) return;
     const snapshot = () => {
       const map = new Map<string, number>();
       for (const [k, v] of readinessRef.current) {
-        if (v !== 'loading' && v.available) map.set(k, v.percent);
+        if (v !== 'loading' && v.available) map.set(k, v.weightedPercent ?? v.percent);
       }
       setScoreSnapshot(map);
     };
@@ -675,6 +681,10 @@ export function CommanderSearch({
       cancelled = true;
     };
   }, [visibleNames, canScore, ensureReadiness]);
+
+  const coverageShown = sort === 'owned' && canScore;
+  const visibleList = visible.map((e) => e.name);
+  const completionFor = useCoverageNotes(coverageShown, visibleList, readiness);
 
   // "N on SpellControl" for the visible tiles (social W4), one batch per page.
   const [platformCounts, setPlatformCounts] = useState<Map<string, number>>(new Map());
@@ -937,6 +947,9 @@ export function CommanderSearch({
         ? `Popular ${comboName ? `${comboName} ` : ''}commanders on EDHREC${checking}`
         : `${count(total)}${checking}`;
 
+  const popularBrowse = browsingPopular && colors.size === 0;
+  const coverageHint = coverageHintFor(entries.length, SCORE_CAP, bracket, nouns, popularBrowse);
+
   const relax = (r: Relaxation) => {
     if (r.id === 'source') setSource('all');
     else if (r.id === 'within') setColorMode('within');
@@ -1079,6 +1092,15 @@ export function CommanderSearch({
               Clear all
             </Button>
           )}
+          {coverageShown && (
+            <SelectMenu
+              label="Bracket"
+              ariaLabel="Target bracket for coverage"
+              value={bracket ?? 0}
+              options={BRACKET_OPTIONS}
+              onChange={(next) => setBracket(next === 0 ? null : next)}
+            />
+          )}
           <SelectMenu
             label="Sort"
             ariaLabel="Sort commanders"
@@ -1095,6 +1117,8 @@ export function CommanderSearch({
           </Button>
         </div>
       </div>
+
+      {coverageShown && coverageHint && <p className="commander-finder-hint">{coverageHint}</p>}
 
       {playstyleIds.length > 0 && (
         <ul className="commander-finder-style-notes">
@@ -1172,6 +1196,7 @@ export function CommanderSearch({
                     owned={activeSource === 'all' && ownedLegendNames.has(e.name.toLowerCase())}
                     readiness={canScore ? readiness.get(e.name.toLowerCase()) : undefined}
                     coverageBar={sort === 'owned'}
+                    completion={completionFor(e.name)}
                     playstyles={playstyleLabels(
                       // The playstyles you filtered by lead, so the tile says why it's here.
                       [...e.playstyleIds].sort(

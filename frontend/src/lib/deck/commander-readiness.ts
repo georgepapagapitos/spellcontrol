@@ -1,4 +1,5 @@
 import type { EnrichedCard } from '@/types/index';
+import { bracketLabel } from '@spellcontrol/deck-metrics';
 import { isCommanderEligible } from './commanders';
 
 /**
@@ -45,6 +46,73 @@ export interface ReadinessScore {
   explainerLine: string;
   /** Up to MAX_OWNED_SAMPLES owned staple names, highest-inclusion first. */
   ownedSamples: string[];
+  /**
+   * Percent of the pool's total inclusion you own (0-100): owning a card 85% of
+   * decks run counts for more than a 4% card. The finder ranks by this; the
+   * count above is what the tile shows. Absent on a score built elsewhere.
+   */
+  weightedPercent?: number;
+  /** Pool staples you don't own, highest-inclusion first (what "to finish" prices). */
+  missingNames?: string[];
+  /** Owned staples whose every copy sits in one of your decks, with those decks. */
+  heldElsewhere?: HeldStaple[];
+  /** Game Changers dropped from the pool because the target bracket bars them. */
+  excludedGameChangers?: number;
+  /** Decks behind the inclusion numbers (EDHREC's sample for this page). */
+  sampleDecks?: number;
+  /** The target bracket the pool was cut for; null when none was chosen. */
+  bracket?: number | null;
+  /** The bracket page had too few decks, so the all-brackets page was used. */
+  broadFallback?: boolean;
+}
+
+export interface HeldStaple {
+  name: string;
+  decks: string[];
+}
+
+/** Options that shape one score. All optional: no options is the plain count. */
+export interface ReadinessOptions {
+  /** Target Commander bracket (1 to 5); null or absent leaves the pool uncut. */
+  bracket?: number | null;
+  /** Game Changer names, as {@link filterStaplesForBracket} reads them. */
+  gameChangers?: ReadonlySet<string>;
+  /** Lowercased owned name to the decks holding every copy of it. */
+  heldBy?: ReadonlyMap<string, string[]>;
+  sampleDecks?: number;
+  broadFallback?: boolean;
+}
+
+/** Brackets 1 and 2 bar Game Changers; bracket 3 allows up to three. */
+export const BRACKET_3_GAME_CHANGER_LIMIT = 3;
+
+/**
+ * Cut a commander's staple list for a target bracket. The Commander Brackets
+ * rules bar Game Changers in brackets 1 and 2 and allow at most three in
+ * bracket 3; 4 and 5 have no limit. The staples arrive sorted by inclusion, so
+ * the three bracket-3 keepers are the most-played ones.
+ */
+export function filterStaplesForBracket<T extends ReadinessStaple>(
+  staples: readonly T[],
+  bracket: number | null | undefined,
+  gameChangers: ReadonlySet<string>
+): { staples: T[]; excluded: number } {
+  if (!bracket || bracket >= 4) return { staples: [...staples], excluded: 0 };
+  const limit = bracket === 3 ? BRACKET_3_GAME_CHANGER_LIMIT : 0;
+  let kept = 0;
+  let excluded = 0;
+  const out: T[] = [];
+  for (const staple of staples) {
+    if (gameChangers.has(staple.name)) {
+      if (kept >= limit) {
+        excluded += 1;
+        continue;
+      }
+      kept += 1;
+    }
+    out.push(staple);
+  }
+  return { staples: out, excluded };
 }
 
 /**
@@ -106,7 +174,8 @@ export function isPdhCommanderCandidate(card: EnrichedCard): boolean {
  */
 export function computeReadiness(
   staples: ReadinessStaple[],
-  ownedNames: Set<string>
+  ownedNames: Set<string>,
+  options: ReadinessOptions = {}
 ): ReadinessScore {
   if (staples.length === 0) {
     return {
@@ -119,20 +188,150 @@ export function computeReadiness(
     };
   }
 
-  const pool = staples.slice(0, READINESS_POOL_SIZE);
+  const bracket = options.bracket ?? null;
+  const cut = filterStaplesForBracket(staples, bracket, options.gameChangers ?? new Set());
+  const pool = cut.staples.slice(0, READINESS_POOL_SIZE);
   const totalCount = pool.length;
   const ownedSamples: string[] = [];
+  const missingNames: string[] = [];
+  const heldElsewhere: HeldStaple[] = [];
   let ownedCount = 0;
+  let ownedWeight = 0;
+  let totalWeight = 0;
 
   for (const staple of pool) {
-    if (ownedNames.has(staple.name.toLowerCase())) {
+    const key = staple.name.toLowerCase();
+    totalWeight += staple.inclusion;
+    if (ownedNames.has(key)) {
       ownedCount += 1;
+      ownedWeight += staple.inclusion;
       if (ownedSamples.length < MAX_OWNED_SAMPLES) ownedSamples.push(staple.name);
+      const decks = options.heldBy?.get(key);
+      if (decks && decks.length > 0) heldElsewhere.push({ name: staple.name, decks });
+    } else {
+      missingNames.push(staple.name);
     }
   }
 
   const percent = totalCount > 0 ? Math.round((ownedCount / totalCount) * 100) : 0;
+  const weightedPercent = totalWeight > 0 ? Math.round((ownedWeight / totalWeight) * 100) : percent;
   const explainerLine = `${ownedCount} of ${totalCount} staples owned`;
 
-  return { available: true, ownedCount, totalCount, percent, explainerLine, ownedSamples };
+  return {
+    available: true,
+    ownedCount,
+    totalCount,
+    percent,
+    explainerLine,
+    ownedSamples,
+    weightedPercent,
+    missingNames,
+    heldElsewhere,
+    excludedGameChangers: cut.excluded,
+    sampleDecks: options.sampleDecks,
+    bracket,
+    broadFallback: options.broadFallback,
+  };
+}
+
+/** What finishing the deck costs: the missing staples priced, and how many had no price. */
+export interface CompletionCost {
+  total: number;
+  priced: number;
+  unpriced: number;
+}
+
+/** Sum the missing staples' prices (lowercased-name keyed); an unpriced card is counted, not guessed. */
+export function completionCost(
+  score: ReadinessScore,
+  prices: ReadonlyMap<string, number>
+): CompletionCost {
+  let total = 0;
+  let priced = 0;
+  let unpriced = 0;
+  for (const name of score.missingNames ?? []) {
+    const price = prices.get(name.toLowerCase());
+    if (price === undefined) unpriced += 1;
+    else {
+      total += price;
+      priced += 1;
+    }
+  }
+  return { total, priced, unpriced };
+}
+
+/** "3 of them are in your Atraxa deck", or null when none are held. */
+export function heldLine(score: ReadinessScore): string | null {
+  const held = score.heldElsewhere ?? [];
+  if (held.length === 0) return null;
+  const decks = [...new Set(held.flatMap((h) => h.decks))];
+  const where = decks.length === 1 ? `your ${decks[0]} deck` : `${decks.length} of your decks`;
+  return `${held.length} you own ${held.length === 1 ? 'is' : 'are'} in ${where}`;
+}
+
+/**
+ * Where the numbers come from, so a tile can show its sample: "Bracket 2 · 3,183
+ * decks · 3 Game Changers left out", or the fallback when the bracket's page was
+ * too thin to trust. Null when the score carries no deck count.
+ */
+export function basisLine(score: ReadinessScore): string | null {
+  const parts: string[] = [];
+  const decks = score.sampleDecks;
+  const deckText =
+    decks === undefined || decks <= 0
+      ? null
+      : `${decks.toLocaleString()} ${decks === 1 ? 'deck' : 'decks'}`;
+  if (score.bracket && score.broadFallback) {
+    parts.push(`Too few ${bracketLabel(score.bracket)} decks, so all brackets`);
+  } else if (score.bracket) {
+    parts.push(`Bracket ${score.bracket}`);
+  }
+  if (deckText) parts.push(deckText);
+  const gc = score.excludedGameChangers ?? 0;
+  if (gc > 0) parts.push(`${gc} Game ${gc === 1 ? 'Changer' : 'Changers'} left out`);
+  return parts.length > 0 ? parts.join(' · ') : null;
+}
+
+/**
+ * The hint under the toolbar for the coverage sort: what the ranking weighs, the
+ * bracket's Game Changer rule, and how far the pass looked (it scores a capped,
+ * most-played shortlist, never every commander).
+ */
+export function coverageHintFor(
+  count: number,
+  cap: number,
+  bracket: number | null,
+  nouns: string,
+  /** The list is EDHREC's popular list with no color chosen. */
+  popularBrowse: boolean
+): string | null {
+  const o = { count, cap, nouns, popularBrowse };
+  if (o.count === 0) return null;
+  const gc =
+    bracket === null || bracket >= 4
+      ? ''
+      : bracket < 3
+        ? ' Game Changers are left out.'
+        : ' Up to three Game Changers are kept.';
+  const how = bracket
+    ? `Ranked by how often Bracket ${bracket} decks play the cards you own.${gc}`
+    : 'Ranked by how often decks play the cards you own.';
+  const reach =
+    o.count > o.cap
+      ? ` Checked the ${o.cap} most-played of ${o.count.toLocaleString()} ${o.nouns} here. Pick colors to rank others.`
+      : o.popularBrowse
+        ? ` Checked EDHREC's ${o.count} most-played ${o.nouns}, not every one. Pick colors to see more.`
+        : '';
+  return how + reach;
+}
+
+/** The commanders a coverage pass scores: the `cap` most-played of the list. */
+export function scoreShortlist<T extends { popularity?: number }>(
+  entries: readonly T[],
+  cap: number
+): T[] {
+  if (entries.length <= cap) return [...entries];
+  return [...entries]
+    .sort((a, b) => (a.popularity ?? Infinity) - (b.popularity ?? Infinity))
+    .slice(0, cap);
 }
