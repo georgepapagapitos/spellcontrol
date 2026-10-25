@@ -7,6 +7,7 @@ import { hasCurveRoom } from './curveUtils';
 import { wipeAsymmetryTieBreak, wipeScopeCollateralTieBreak } from './wipeTieBreaks';
 import { BudgetTracker } from './budgetTracker';
 import type { BracketGuard } from './bracketGuard';
+import { blendWithLift } from './liftBlend';
 import { matchesExpectedType, ROLE_CAP_HATCH_MAX_PER_PASS } from './categorize';
 import {
   passesRoleCap,
@@ -580,12 +581,23 @@ export function pickFromPrefetchedWithCurve(
     });
 
   // Separate into high-synergy cards (any type) and regular cards
-  const highSynergyCards = allCandidates.filter((c) => isHighSynergyCard(c));
-  const regularTypedCards = allCandidates.filter(
-    (c) => c.primary_type !== 'Unknown' && !isHighSynergyCard(c)
+  // Inclusion:lift blend (liftBlend.ts): each phase's list gives lift picks a
+  // third of its slots. The staple tier below reads allCandidates, not these,
+  // so a staple never loses its slot to a lift pick. Board wipes keep their
+  // own order (no lift lane for them).
+  const blendLift = (list: EDHRECCard[]): EDHRECCard[] =>
+    blendWithLift(
+      list,
+      (c) => liftTie(c.name, liftTieBreak),
+      brewLevel,
+      (c) => roleCapConfig?.cardRoleMap.get(c.name) === 'boardwipe'
+    ) as EDHRECCard[];
+  const highSynergyCards = blendLift(allCandidates.filter((c) => isHighSynergyCard(c)));
+  const regularTypedCards = blendLift(
+    allCandidates.filter((c) => c.primary_type !== 'Unknown' && !isHighSynergyCard(c))
   );
-  const regularUnknownCards = allCandidates.filter(
-    (c) => c.primary_type === 'Unknown' && !isHighSynergyCard(c)
+  const regularUnknownCards = blendLift(
+    allCandidates.filter((c) => c.primary_type === 'Unknown' && !isHighSynergyCard(c))
   );
 
   // Log high synergy card info for debugging
