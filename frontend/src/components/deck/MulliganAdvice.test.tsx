@@ -21,11 +21,12 @@ describe('MulliganAdvice', () => {
     );
     expect(container.querySelector('strong.is-mulligan')?.textContent).toBe('Mulligan');
     expect(container.querySelector('.deck-test-hand-advice-verdict')?.textContent).toMatch(
-      /4 or more spells cast by turn 5: \d+% with this hand, \d+% with a fresh seven\./
+      /Decided on 4 or more spells cast by turn 5: \d+% with this hand, \d+% with a fresh seven\./
     );
     const deciding = container.querySelectorAll('tr.is-deciding');
     expect(deciding).toHaveLength(1);
     expect(deciding[0].textContent).toContain('Decides');
+    expect(deciding[0].textContent).toContain('4 or more spells');
     // Every cell carries its range, and the heading names the run size, not the test's.
     expect(container.querySelectorAll('.deck-test-hand-advice-range')).toHaveLength(9);
     expect(container.textContent).toContain('2,000 games each');

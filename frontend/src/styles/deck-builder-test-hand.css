@@ -424,15 +424,16 @@
   border-top: 0.5px solid var(--border);
 }
 
-/* Two lines of sentence are held while the run lands, so the table below
-   never moves: the headline is one line, the sentence wraps to two on a phone. */
+/* The headline and two lines of sentence are held, in both states, so the
+   table below never moves: the sentence wraps to two lines on a phone. */
 .deck-test-hand-advice-verdict {
   margin: 0;
   display: grid;
   grid-template-columns: auto auto 1fr;
   align-items: baseline;
   column-gap: var(--space-1-5);
-  min-height: 3.2em;
+  align-content: start;
+  min-height: calc(1.5 * var(--text-md) + 2 * 1.5 * var(--text-xs));
   font-size: var(--text-sm);
   line-height: 1.5;
   color: var(--text-muted);
@@ -510,11 +511,25 @@
 }
 
 .deck-test-hand-advice-table tr.is-deciding {
+  /* A tint, and the verdict line names the row in words. */
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
-.deck-test-hand-advice-decides {
-  display: block;
-  color: var(--accent);
-  font-weight: 600;
+/* A cell's place while the run lands: the two lines a real one holds, shimmered. */
+.deck-test-hand-advice-table td.is-pending {
+  background: linear-gradient(
+    90deg,
+    var(--surface-raised) 25%,
+    var(--border) 50%,
+    var(--surface-raised) 75%
+  );
+  background-size: 200% 100%;
+  background-clip: content-box;
+  animation: skeleton-shimmer var(--motion-shimmer) ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-test-hand-advice-table td.is-pending {
+    animation: none;
+  }
 }

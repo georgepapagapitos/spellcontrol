@@ -48,7 +48,7 @@ function adviceSentence(a: Advice): string {
   const mine = (path ? a.hand.path : a.hand.developed) as Rate;
   const fresh = (path ? a.mull7.path : a.mull7.developed) as Rate;
   const what = path ? `Win path assembled by turn ${CLOCK_EARLY_TURN}` : spells;
-  return `${what[0].toUpperCase()}${what.slice(1)}: ${pct(mine.p)} with this hand, ${pct(fresh.p)} with a fresh seven.`;
+  return `Decided on ${what[0].toLowerCase()}${what.slice(1)}: ${pct(mine.p)} with this hand, ${pct(fresh.p)} with a fresh seven.`;
 }
 
 function adviceHeadline(a: Advice): string {
@@ -110,29 +110,28 @@ export function MulliganAdvice({ advice, pending, hasPath }: Props) {
             <tr key={r.label} className={advice && r.metric === advice.metric ? 'is-deciding' : ''}>
               <th scope="row">
                 {r.label}
-                {advice && r.metric === advice.metric && (
-                  <span className="deck-test-hand-advice-decides">Decides</span>
-                )}
+                {advice && r.metric === advice.metric && <span className="sr-only"> Decides</span>}
               </th>
-              {advice ? (
-                [advice.hand, advice.mull7, advice.mull6].map((o, i) => {
-                  const rate = r.pick(o);
-                  return (
-                    <td key={i}>
-                      {rate && (
-                        <>
-                          <strong>{pct(rate.p)}</strong>
-                          <span className="deck-test-hand-advice-range">{span(rate)}</span>
-                        </>
-                      )}
+              {advice
+                ? [advice.hand, advice.mull7, advice.mull6].map((o, i) => {
+                    const rate = r.pick(o);
+                    return (
+                      <td key={i}>
+                        {rate && (
+                          <>
+                            <strong>{pct(rate.p)}</strong>
+                            <span className="deck-test-hand-advice-range">{span(rate)}</span>
+                          </>
+                        )}
+                      </td>
+                    );
+                  })
+                : [0, 1, 2].map((i) => (
+                    <td key={i} className="is-pending" aria-hidden>
+                      <strong>&nbsp;</strong>
+                      <span className="deck-test-hand-advice-range">&nbsp;</span>
                     </td>
-                  );
-                })
-              ) : (
-                <td colSpan={3}>
-                  <span className="win-con-clock-skel" aria-hidden />
-                </td>
-              )}
+                  ))}
             </tr>
           ))}
         </tbody>
