@@ -4,7 +4,7 @@
 .combo-reach {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-1-5);
   padding-top: var(--space-2);
   border-top: 0.5px solid var(--border);
 }
@@ -45,38 +45,6 @@
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-primary);
-}
-
-.combo-reach-track {
-  display: block;
-  height: 6px;
-  border-radius: 3px;
-  background: var(--surface-raised);
-  overflow: hidden;
-}
-
-.combo-reach-fill {
-  display: block;
-  height: 100%;
-  border-radius: 3px;
-  background: var(--accent);
-}
-
-.combo-reach.is-pending .combo-reach-track {
-  background: linear-gradient(
-    90deg,
-    var(--surface-raised) 25%,
-    var(--border) 50%,
-    var(--surface-raised) 75%
-  );
-  background-size: 200% 100%;
-  animation: skeleton-shimmer var(--motion-shimmer) ease-in-out infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .combo-reach.is-pending .combo-reach-track {
-    animation: none;
-  }
 }
 
 .combo-reach-scope,

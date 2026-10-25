@@ -8,6 +8,7 @@ import {
   type ReachPlan,
 } from '@/lib/mana-sim/combo-reach';
 import type { ClockCard } from '@/lib/mana-sim/opening-hand-sim';
+import { MeterBar } from '@/components/shared/MeterBar';
 import { useAssemblyClock } from '@/lib/mana-sim/use-assembly-clock';
 
 const pct = (x: number): number => Math.round(x * 100);
@@ -71,7 +72,7 @@ export function ComboReach({
   const turns = clock ? reachTurns(clock) : null;
   const waiting = !clock && (pending || !library || !seen);
   if (!clock && !waiting)
-    return <p className="combo-reach-note">Not timed: a piece is not in the deck.</p>;
+    return <p className="combo-reach-note">Not timed: a piece isn't in the deck.</p>;
 
   return (
     <div
@@ -99,9 +100,7 @@ export function ComboReach({
                 <span>T{turn}</span>
                 <span className="combo-reach-pct">{t ? `${pct(t.p)}%` : '…'}</span>
               </span>
-              <span className="combo-reach-track" aria-hidden="true">
-                <span className="combo-reach-fill" style={{ width: `${t ? pct(t.p) : 0}%` }} />
-              </span>
+              <MeterBar value={t ? t.p * 100 : 0} />
             </li>
           );
         })}
@@ -113,7 +112,7 @@ export function ComboReach({
                 ? `, ${tutors.length} ${tutors.length === 1 ? 'tutor' : 'tutors'} counted as extra outs`
                 : ', no tutors in the deck'
             }.`
-          : ' '}
+          : '\u00a0'}
       </p>
     </div>
   );
