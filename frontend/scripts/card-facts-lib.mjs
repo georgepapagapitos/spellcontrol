@@ -166,6 +166,15 @@ export async function importSrc(...relPaths) {
           'src',
           'index.ts'
         ),
+        '@spellcontrol/binder-routing': join(
+          FRONTEND,
+          '..',
+          'packages',
+          'binder-routing',
+          'src',
+          'index.ts'
+        ),
+        '@spellcontrol/game-core': join(FRONTEND, '..', 'packages', 'game-core', 'src', 'index.ts'),
         '@': join(FRONTEND, 'src'),
       },
     },
