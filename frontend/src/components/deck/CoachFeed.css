@@ -590,3 +590,16 @@
   font-size: var(--text-xs);
   color: var(--text-secondary);
 }
+
+/* The price line belongs to its row: the divider sits under the line, not above it. */
+.coach-feed-buys-list > li > .deck-card-row {
+  border-bottom: 0;
+}
+
+.coach-feed-buys-list > li {
+  border-bottom: 0.5px solid var(--border);
+}
+
+.coach-feed-buys-list > li:last-child {
+  border-bottom: 0;
+}

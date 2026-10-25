@@ -71,7 +71,7 @@ export function CutsBuys({
       ) : (
         <>
           <p className="coach-feed-buys-note">Ranked by how much the deck gains per dollar.</p>
-          <ul className="list-stack list-stack--flush coach-feed-rows" aria-label="Best buys">
+          <ul className="list-stack list-stack--flush coach-feed-rows coach-feed-buys-list" aria-label="Best buys">
             {ranked.map((b, i) => {
               const change: Change = { ...b.change, id: `buy:${b.change.id}` };
               return (
