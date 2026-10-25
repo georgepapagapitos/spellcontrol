@@ -144,7 +144,7 @@ describe('analyzeCommanderDeck: a generated deck keeps its build plan', () => {
 
   it('derives its own targets for a hand-built deck, and grades with no land override', async () => {
     const { result, graded } = await analyze(LATHRIL, false);
-    expect(result?.roleTargets?.ramp).toBe(14); // not the generator's 15: no plan to read
+    expect(result?.roleTargets?.ramp).toBe(15); // derived, not read from a plan (5.4c: the lower base total scales ramp up)
     expect(graded?.[7]).toBeUndefined();
     expect(graded?.[8]).toBeUndefined();
   });

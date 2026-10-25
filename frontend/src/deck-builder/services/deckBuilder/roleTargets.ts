@@ -581,8 +581,22 @@ export function decideBuildArchetype(input: {
 
 // ─── Base Targets (format-only, backward compat) ────────────────────
 
+/**
+ * The 99-card base targets, from the measured baseline across 93 EDHREC average
+ * decks (docs/research/deck-intelligence-2026-10/08-archetype-densities-measured.md
+ * section 4.1): medians ramp 10, spot removal 8, sweepers 2, draw 9. Ramp and
+ * removal already matched; sweepers (was 3) and draw (was 10) moved. Only the
+ * base changes: the archetype multipliers and the EDHREC blend apply on top.
+ * Flip to false to restore the previous uncited 10 / 8 / 3 / 10.
+ */
+export const USE_MEASURED_ROLE_BASELINE = true;
+
+const BASE_99_MEASURED = { ramp: 10, removal: 8, boardwipe: 2, cardDraw: 9 } as const;
+const BASE_99_PREVIOUS = { ramp: 10, removal: 8, boardwipe: 3, cardDraw: 10 } as const;
+
 export function getBaseRoleTargets(format: DeckSize): Record<RoleKey, number> {
-  if (format >= 99) return { ramp: 10, removal: 8, boardwipe: 3, cardDraw: 10 };
+  if (format >= 99)
+    return { ...(USE_MEASURED_ROLE_BASELINE ? BASE_99_MEASURED : BASE_99_PREVIOUS) };
   if (format >= 60) return { ramp: 4, removal: 5, boardwipe: 2, cardDraw: 4 };
   if (format >= 40) return { ramp: 2, removal: 3, boardwipe: 1, cardDraw: 2 };
   const ratio = format / 99;
