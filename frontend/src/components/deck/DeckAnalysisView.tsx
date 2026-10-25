@@ -31,6 +31,7 @@ import { DeckCurvePhases } from './DeckCurvePhases';
 import { DeckTypeBreakdown } from './DeckTypeBreakdown';
 import { SaltiestPanel } from './SaltiestPanel';
 import { DeckIdentityCard } from './DeckIdentityCard';
+import { SupportRoles } from './SupportRoles';
 import { type DeckManaData } from '@/lib/deck-analysis/deck-mana-types';
 import type { AnalysisTabId } from '@/lib/deck-analysis/deck-view';
 
@@ -185,6 +186,17 @@ export function DeckAnalysisView({
   const commandZone = useMemo(
     () => [commander, partnerCommander].filter((c): c is ScryfallCard => !!c),
     [commander, partnerCommander]
+  );
+  // Support roles and answer coverage read the mainboard without the command
+  // zone, the same cards the role counts use; the commander's identity says
+  // which targets the deck's colors could answer at all.
+  const supportCards = useMemo(() => {
+    const zone = new Set(commandZone.map((c) => c.name));
+    return allCards.filter((c) => !zone.has(c.name));
+  }, [allCards, commandZone]);
+  const supportIdentity = useMemo(
+    () => [...new Set(commandZone.flatMap((c) => c.color_identity ?? []))],
+    [commandZone]
   );
   // The simulation's two halves. `manaCards` lists the command zone first.
   const [simCommanders, simLibrary] = useMemo(() => {
@@ -413,6 +425,7 @@ export function DeckAnalysisView({
                   cardDrawSubtypeCounts={cardDrawSubtypeCounts}
                   librarySize={simLibrary?.length}
                 />
+                <SupportRoles cards={supportCards} colorIdentity={supportIdentity} />
               </Panel>
             )}
           </div>
