@@ -124,7 +124,7 @@ function Rows({
             The deck is played twice on the same shuffles, once as built and once with{' '}
             {tapped.lands === 1 ? 'its' : `its ${tapped.lands}`} tapped-or-conditional{' '}
             {tapped.lands === 1 ? 'land' : 'lands'} entering untapped. The loss is the mana the
-            second deck has on turns 1 to {TAPPED_TURNS} that the first does not, added up.
+            second deck has on turns 1 to {TAPPED_TURNS} that the first doesn't, added up.
           </p>
           <Table
             head={range(TAPPED_TURNS)}
