@@ -44,7 +44,7 @@ import { isAltWinCard } from '@/deck-builder/services/winConditions/detect';
 import { classifyAnswer } from '../answerCoverage';
 import { classifyCard } from '@/deck-builder/services/synergy/classify';
 import { buildManabaseSummary } from '../manabaseMath';
-import { isColorlessOnlyLand } from '../landPower';
+import { isColorlessOnlyLand, tappedKind } from '../landPower';
 import { buildCommanderProfile, isTribalProfile } from '../commanderProfile';
 import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
 import { evictionKeeper } from './evictionKeeper';
@@ -78,6 +78,11 @@ import { evictionKeeper } from './evictionKeeper';
 // (≥2 seeds — the #968 rule), game changers, and load-bearing engine cards.
 
 export const MAX_COHERENCE_SWAPS = 3;
+
+// A land swapped in for a short color never plays slower than the land it replaces: an
+// always-tapped dual does not stand in for an untapped-capable one, and a shock or check
+// land counts as untapped-capable (E1040).
+const TEMPO_RANK = { untapped: 0, conditional: 0, tapped: 1 } as const;
 
 // A channel land flagged while a color is short is swapped only for a fixer, never a
 // basic, and the swap moves no spell, so it is not rationed with the spell swaps.
@@ -278,7 +283,10 @@ export async function applyCoherenceRepair(
   };
 
   // Best pool candidate clearing EVERY hard gate the pick-time path enforces.
-  const findCandidate = (pred?: (card: ScryfallCard) => boolean): ScryfallCard | null => {
+  const findCandidate = (
+    pred?: (card: ScryfallCard) => boolean,
+    respectRoleTargets = false
+  ): ScryfallCard | null => {
     const ranked = [...pool]
       .filter(
         (c) =>
@@ -301,6 +309,14 @@ export async function applyCoherenceRepair(
       // surplus rebalance and the combo audit's orphan eviction.
       if (getFrontFaceTypeLine(card).includes('Land')) continue;
       if (pred && !pred(card)) continue;
+      // A swap that exists to drop a flagged card never adds to a role that is
+      // already at its target: Plague Myr came in for Necrogen Rotpriest with
+      // ramp 14 of 11 (E1040). Swaps that fill a named hole skip this check.
+      if (respectRoleTargets) {
+        const role = getCardRole(card.name);
+        const target = role ? state.roleTargets?.[role] : undefined;
+        if (role && target != null && (state.currentRoleCounts[role] ?? 0) >= target) continue;
+      }
       if (ctx.cardAllowed && !ctx.cardAllowed(card)) continue;
       if (!fitsColorIdentity(card, colorIdentity)) continue;
       const isGC = state.gameChangerNames.has(c.name);
@@ -415,12 +431,27 @@ export async function applyCoherenceRepair(
       // Refill from the next fixing nonbasic that makes the short color, so the deck
       // keeps its nonbasic count; a basic is the last resort.
       const identity = new Set(state.context.colorIdentity);
-      const spare = ctx.landSpares?.find(
-        (s) =>
-          !state.usedNames.has(s.name) &&
-          (!ownedOnly || !notInCollection(s.name, collectionNames)) &&
-          producedManaColors(s, identity).includes(f.basicFixColor!)
-      );
+      // The nonbasic floor: a basic for a working colorless land costs a nonbasic, never
+      // below the count the player set (Zo-Zu asked for 6 and would have lost Tectonic Edge
+      // to a Mountain). A dead fetch still goes, it taps for nothing.
+      const nonBasics = state.categories.lands.filter(
+        (l) => !/\bbasic\b/i.test(getFrontFaceTypeLine(l))
+      ).length;
+      const basicBlocked =
+        ctx.nonBasicTarget != null &&
+        nonBasics <= ctx.nonBasicTarget &&
+        isColorlessOnlyLand(cut, { typalFixing: tribal });
+      const findSpare = (keepTempo: boolean) =>
+        ctx.landSpares?.find(
+          (s) =>
+            !state.usedNames.has(s.name) &&
+            (!keepTempo || TEMPO_RANK[tappedKind(s)] <= TEMPO_RANK[tappedKind(cut)]) &&
+            (!ownedOnly || !notInCollection(s.name, collectionNames)) &&
+            producedManaColors(s, identity).includes(f.basicFixColor!)
+        );
+      // A land that plays slower is not a fix (E1040). Only when the nonbasic floor leaves
+      // no untapped way to add the color does a tapped one stand in.
+      const spare = findSpare(true) ?? (basicBlocked ? findSpare(false) : undefined);
       if (spare) {
         state.categories.lands[idx] = spare;
         state.usedNames.delete(cut.name);
@@ -433,19 +464,7 @@ export async function applyCoherenceRepair(
         continue;
       }
       if (isChannelFinding(f)) continue;
-      // A basic for a working colorless land costs a nonbasic: never below the
-      // count the player set (Zo-Zu asked for 6 and would have lost Tectonic Edge
-      // to a Mountain). A dead fetch still goes, it taps for nothing.
-      const nonBasics = state.categories.lands.filter(
-        (l) => !/\bbasic\b/i.test(getFrontFaceTypeLine(l))
-      ).length;
-      if (
-        ctx.nonBasicTarget != null &&
-        nonBasics <= ctx.nonBasicTarget &&
-        isColorlessOnlyLand(cut, { typalFixing: tribal })
-      ) {
-        continue;
-      }
+      if (basicBlocked) continue;
       const basic = await ctx.getBasicLand(basicName);
       if (!basic) continue;
       state.categories.lands[idx] = { ...basic };
@@ -489,7 +508,7 @@ export async function applyCoherenceRepair(
     }
 
     if (isProtected(loc.card)) continue;
-    const replacement = findCandidate();
+    const replacement = findCandidate(undefined, true);
     if (!replacement) continue;
     removeCard(loc.card, loc.category);
     commitAdd(replacement);

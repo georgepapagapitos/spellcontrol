@@ -459,10 +459,7 @@ describe('colorsNeedingSources (E118 — deck-context fixing need)', () => {
         oracle_text: "{T}: Add one mana of any color in your commander's color identity.",
         produced_mana: ['W', 'U', 'B', 'R', 'G'],
       });
-    const cards = [
-      ...nonland.map((c) => card(c as Partial<ScryfallCard>)),
-      ...[0, 1, 2].map(rock),
-    ];
+    const cards = [...nonland.map((c) => card(c as Partial<ScryfallCard>)), ...[0, 1, 2].map(rock)];
     const identity = new Set(colorIdentity);
     expect([...colorsNeedingSources(cards, identity, basicCount)]).toEqual([]);
     // The Karsten split still sizes the deck's own basics: it differs from the pip one here.
