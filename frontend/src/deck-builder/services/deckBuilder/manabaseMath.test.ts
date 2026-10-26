@@ -1,11 +1,18 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import splitFixture from './__fixtures__/basic-split-panel.fixture.json';
 import type { ScryfallCard } from '@/deck-builder/types';
+import { KARSTEN_99_TABLE, karstenMinimumSources } from '@/lib/deck-analysis/karsten-table';
 import {
   buildManabaseSummary,
   cardColorPips,
   colorSourceCounts,
   colorsNeedingSources,
   fetchableBasicColors,
+  karstenColorRequirement,
+  KARSTEN_SOURCE_TARGETS,
   planBasicColorSplit,
   weightedColorDemand,
 } from './manabaseMath';
@@ -178,7 +185,7 @@ describe('planBasicColorSplit', () => {
   it('closes the residual deficit: W-skewed nonbasics push basics toward the starved color', () => {
     // Equal W/U pip demand, but every picked nonbasic already makes W.
     const nonland = [wallOfOmens, card({ name: 'Azorius Bird', mana_cost: '{1}{U}', cmc: 2 })];
-    const wSources = Array.from({ length: 4 }, (_, i) =>
+    const wSources = Array.from({ length: 8 }, (_, i) =>
       card({ name: `W Land ${i}`, type_line: 'Land', produced_mana: ['W'] })
     );
     const split = planBasicColorSplit({
@@ -188,7 +195,8 @@ describe('planBasicColorSplit', () => {
       colors: ['W', 'U'],
       basicsNeeded: 6,
     });
-    // Old pip-proportional split: 3/3. Residual: W already has 4 sources, U has 0.
+    // Old pip-proportional split: 3/3. Both cost {1}{x} (19 sources by Karsten); W already has
+    // 8 sources and U has 0, so the shortfalls are 11 and 19.
     expect(split.U).toBeGreaterThan(split.W);
     expect(split.W + split.U).toBe(6);
   });
@@ -207,7 +215,8 @@ describe('planBasicColorSplit', () => {
       colors: ['W', 'U'],
       basicsNeeded: 6,
     });
-    // capacity 6 → desired W 5.2, U floored to 2 → apportion({5.2, 2}, 6) = {4, 2}.
+    // {W}{W} on turn 2 asks 30 sources: the shortfall is far past 6 basics, but the
+    // splash keeps its floor of 2 sources, so the budget goes 4 / 2.
     expect(split).toEqual({ W: 4, U: 2 });
   });
 
@@ -429,5 +438,170 @@ describe('colorsNeedingSources (E118 — deck-context fixing need)', () => {
 
   it('is empty for a colorless identity', () => {
     expect(colorsNeedingSources(wPips(20), new Set(), 5).size).toBe(0);
+  });
+});
+
+describe('Karsten source targets (5.4b)', () => {
+  it('is on', () => {
+    expect(KARSTEN_SOURCE_TARGETS).toBe(true);
+  });
+
+  it('looks up every cell of his 99-card table, and clamps past its edge', () => {
+    // The 19 published minimums: C 19, 1C 19, 2C 18, 3C 16, 4C 15, 5C 14, CC 30 ...
+    for (const cell of KARSTEN_99_TABLE) {
+      const generic = Number(cell.cost.match(/^\d*/)![0] || 0);
+      const pips = cell.cost.replace(/^\d*/, '').length;
+      expect(karstenMinimumSources(generic, pips)).toBe(cell.minimum[0]);
+    }
+    expect(karstenMinimumSources(9, 1)).toBe(14); // a nine-drop costs like 5C
+    expect(karstenMinimumSources(0, 5)).toBe(39); // CCCCC reads as CCCC
+    expect(karstenMinimumSources(3, 4)).toBe(36); // 3CCCC reads as 1CCCC
+  });
+
+  const swiftspear = card({ name: 'Monastery Swiftspear', mana_cost: '{R}', cmc: 1 });
+  const wrath = card({
+    name: 'Wrath of God',
+    mana_cost: '{2}{W}{W}',
+    cmc: 4,
+    type_line: 'Sorcery',
+  });
+  const cryptic = card({
+    name: 'Cryptic Command',
+    mana_cost: '{1}{U}{U}{U}',
+    cmc: 4,
+    type_line: 'Instant',
+  });
+  const collected = card({
+    name: 'Collected Company',
+    mana_cost: '{3}{G}',
+    cmc: 4,
+    type_line: 'Instant',
+  });
+
+  it('reads each card by the table: C 19, 2CC 26, 1CCC 33, 3C 16', () => {
+    expect(karstenColorRequirement([swiftspear]).R).toBe(19);
+    expect(karstenColorRequirement([wrath]).W).toBe(26);
+    expect(karstenColorRequirement([cryptic]).U).toBe(33);
+    expect(karstenColorRequirement([collected]).G).toBe(16);
+  });
+
+  it("counts a multicolor card's other colors as generic mana for the color asked about", () => {
+    // Supreme Verdict {1}{W}{W}{U}, mana value 4: white sees two pips and two other
+    // mana (2CC, 26); blue sees one pip and three other mana (3C, 16), scaled by
+    // its pip share (1 of 3, over two colors: 0.67) to 11.
+    const req = karstenColorRequirement([supremeVerdict]);
+    expect(req.W).toBe(26);
+    expect(req.U).toBe(11);
+  });
+
+  it('weights a color by its pips, and does not grow with the number of cards', () => {
+    expect(karstenColorRequirement([wrath, wrath, wrath, wrath]).W).toBe(26);
+    // one 2WW (2 pips, 26) and one 1W (1 pip, 19): (2*26 + 1*19) / 3 = 23.7
+    expect(karstenColorRequirement([wrath, wallOfOmens]).W).toBe(24);
+    expect(karstenColorRequirement([wrath]).B).toBe(0);
+  });
+
+  it('gives a three-card minor color its few sources, not an equal share', () => {
+    // Thirty white one-drops and three blue ones: both are "C" shapes (19), but blue
+    // carries 9% of the pips, so its requirement is scaled to about 3 sources.
+    const w = Array.from({ length: 30 }, (_, i) =>
+      card({ name: `W ${i}`, mana_cost: '{W}', cmc: 1 })
+    );
+    const u = Array.from({ length: 3 }, (_, i) =>
+      card({ name: `U ${i}`, mana_cost: '{U}', cmc: 1 })
+    );
+    const split = planBasicColorSplit({
+      nonLandCards: [...w, ...u],
+      pickedLands: [],
+      identity: new Set(['W', 'U']),
+      colors: ['W', 'U'],
+      basicsNeeded: 20,
+    });
+    expect(split.W + split.U).toBe(20);
+    expect(split.U).toBeGreaterThanOrEqual(2);
+    expect(split.U).toBeLessThanOrEqual(4);
+  });
+
+  describe('on a real deck', () => {
+    // Zo-Zu the Punisher, mono-red, 70 red pips: the old bar was ceil(70 x 0.6) = 42
+    // sources, so 36 sources of red read as short. Karsten's table asks 23.
+    const Z = JSON.parse(
+      readFileSync(
+        resolve(dirname(fileURLToPath(import.meta.url)), '__fixtures__', 'zozu-deck.fixture.json'),
+        'utf8'
+      )
+    ) as { decklist: string[]; cards: ScryfallCard[] };
+    const real = (n: string) => Z.cards.find((c) => c.name === n)!;
+    const spells = Z.decklist.map(real).filter((c) => c && !/\bland\b/i.test(c.type_line));
+    const mountains = (n: number) => Array.from({ length: n }, () => real('Mountain'));
+
+    it('asks 23 red sources of the Zo-Zu list', () => {
+      expect(karstenColorRequirement(spells).R).toBe(23);
+    });
+
+    it('calls 36 red sources enough, and 21 short by two', () => {
+      const red = new Set(['R']);
+      const enough = buildManabaseSummary(mountains(27), spells, red).lines[0];
+      expect(enough).toMatchObject({ color: 'R', pips: 70, sources: 36, target: 23, short: false });
+      const thin = buildManabaseSummary(mountains(12), spells, red).lines[0];
+      expect(thin).toMatchObject({ sources: 21, target: 23, short: true });
+    });
+  });
+
+  describe('the basics fill each color shortfall (real panel decks)', () => {
+    // Nonland cards and nonbasic lands from the 2026-10-25 panel dumps. The first
+    // 5.4b cut split basics by requirement share and over-seated the minor color:
+    // Lathril Forest 19 + Swamp 1 became Forest 8 + Swamp 12, Isshin got 6 Swamps,
+    // Yuriko bracket 4 went 9 Swamp / 8 Island against 54 blue and 25 black pips.
+    type Deck = (typeof splitFixture.decks)[keyof typeof splitFixture.decks];
+    const run = (deck: Deck) => {
+      const identity = new Set<string>(deck.colorIdentity);
+      const basicsNeeded = Object.values(deck.oldBasics).reduce((a, b) => a + b, 0);
+      const nonLandCards = deck.nonland as unknown as ScryfallCard[];
+      const pickedLands = deck.nonbasicLands as unknown as ScryfallCard[];
+      const split = planBasicColorSplit({
+        nonLandCards,
+        pickedLands,
+        identity,
+        colors: deck.colorIdentity,
+        basicsNeeded,
+      });
+      const req = karstenColorRequirement(nonLandCards);
+      const made = colorSourceCounts(pickedLands, identity);
+      const spell = colorSourceCounts(nonLandCards, identity);
+      const sources = (c: 'W' | 'U' | 'B' | 'R' | 'G') => made[c] + spell[c] + (split[c] ?? 0);
+      return { split, req, sources, basicsNeeded };
+    };
+
+    it.each([
+      ['lathril-blade-of-the-elves', 'G'],
+      ['isshin-two-heavens-as-one', 'R'],
+      ['yuriko-the-tiger-s-shadow-bracket4', 'U'],
+    ] as const)(
+      '%s: the primary color keeps the most basics, and every color meets its requirement',
+      (slug, primary) => {
+        const { split, req, sources, basicsNeeded } = run(splitFixture.decks[slug]);
+        expect(Object.values(split).reduce((a, b) => a + b, 0)).toBe(basicsNeeded);
+        const most = Math.max(...Object.values(split));
+        expect(split[primary]).toBe(most);
+        // Lathril 4/16, Isshin 2/8/6, Yuriko 4/13: the minor color is a minority of the basics.
+        expect(split[primary]).toBeGreaterThan(basicsNeeded / 2.5);
+        for (const c of splitFixture.decks[slug].colorIdentity as ('W' | 'U' | 'B' | 'R' | 'G')[]) {
+          expect(sources(c)).toBeGreaterThanOrEqual(req[c]);
+        }
+      }
+    );
+
+    it('seats almost no black in Lathril and Isshin, whose duals already make it', () => {
+      expect(run(splitFixture.decks['lathril-blade-of-the-elves']).split.B).toBeLessThanOrEqual(4);
+      expect(run(splitFixture.decks['isshin-two-heavens-as-one']).split.B).toBeLessThanOrEqual(2);
+    });
+
+    it("scales a minor color by its pip share: the requirement of one color never exceeds Karsten's figure", () => {
+      const { req } = run(splitFixture.decks['lathril-blade-of-the-elves']);
+      // 16 black pips against 75 green: black keeps about 30% of its table figure.
+      expect(req.B).toBeLessThan(req.G / 2);
+      expect(karstenColorRequirement([wrath]).W).toBe(26); // a lone color keeps the full figure
+    });
   });
 });

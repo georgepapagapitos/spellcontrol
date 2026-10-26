@@ -1,0 +1,1747 @@
+{
+  "_source": "Real 2026-10-25 panel dumps (baseline b7bbc935e): the nonland cards and the nonbasic lands the basics split saw, with the basics the old split seated.",
+  "decks": {
+    "lathril-blade-of-the-elves": {
+      "colorIdentity": ["B", "G"],
+      "oldBasics": {
+        "Forest": 19,
+        "Swamp": 1
+      },
+      "nonbasicLands": [
+        {
+          "name": "Command Tower",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "{T}: Add one mana of any color in your commander's color identity."
+        },
+        {
+          "name": "Path of Ancestry",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "This land enters tapped.\n{T}: Add one mana of any color in your commander's color identity. When that mana is spent to cast a creature spell"
+        },
+        {
+          "name": "Gilt-Leaf Palace",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "As this land enters, you may reveal an Elf card from your hand. If you don't, this land enters tapped.\n{T}: Add {B} or {G}."
+        },
+        {
+          "name": "Boseiju, Who Endures",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Legendary Land",
+          "oracle_text": "{T}: Add {G}.\nChannel \u2014 {1}{G}, Discard this card: Destroy target artifact, enchantment, or nonbasic land an opponent controls. That player "
+        },
+        {
+          "name": "Woodland Cemetery",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "This land enters tapped unless you control a Swamp or a Forest.\n{T}: Add {B} or {G}."
+        },
+        {
+          "name": "Overgrown Tomb",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land \u2014 Swamp Forest",
+          "oracle_text": "({T}: Add {B} or {G}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped."
+        },
+        {
+          "name": "Llanowar Wastes",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "{T}: Add {C}.\n{T}: Add {B} or {G}. This land deals 1 damage to you."
+        },
+        {
+          "name": "Wirewood Lodge",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "{T}: Add {C}.\n{G}, {T}: Untap target Elf."
+        },
+        {
+          "name": "Takenuma, Abandoned Mire",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Legendary Land",
+          "oracle_text": "{T}: Add {B}.\nChannel \u2014 {3}{B}, Discard this card: Mill three cards, then return a creature or planeswalker card from your graveyard to your"
+        },
+        {
+          "name": "Undergrowth Stadium",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "This land enters tapped unless you have two or more opponents.\n{T}: Add {B} or {G}."
+        },
+        {
+          "name": "Deathcap Glade",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "This land enters tapped unless you control two or more other lands.\n{T}: Add {B} or {G}."
+        },
+        {
+          "name": "Three Tree City",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Legendary Land",
+          "oracle_text": "As Three Tree City enters, choose a creature type.\n{T}: Add {C}.\n{2}, {T}: Choose a color. Add an amount of mana of that color equal to the "
+        },
+        {
+          "name": "Twilight Mire",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "{T}: Add {C}.\n{B/G}, {T}: Add {B}{B}, {B}{G}, or {G}{G}."
+        },
+        {
+          "name": "Necroblossom Snarl",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "As this land enters, you may reveal a Swamp or Forest card from your hand. If you don't, this land enters tapped.\n{T}: Add {B} or {G}."
+        }
+      ],
+      "nonland": [
+        {
+          "name": "Sol Ring",
+          "mana_cost": "{1}",
+          "cmc": 1,
+          "type_line": "Artifact",
+          "oracle_text": "{T}: Add {C}{C}."
+        },
+        {
+          "name": "Arcane Signet",
+          "mana_cost": "{2}",
+          "cmc": 2,
+          "type_line": "Artifact",
+          "oracle_text": "{T}: Add one mana of any color in your commander's color identity."
+        },
+        {
+          "name": "Chord of Calling",
+          "mana_cost": "{X}{G}{G}{G}",
+          "cmc": 3,
+          "type_line": "Instant",
+          "oracle_text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's"
+        },
+        {
+          "name": "Shamanic Revelation",
+          "mana_cost": "{3}{G}{G}",
+          "cmc": 5,
+          "type_line": "Sorcery",
+          "oracle_text": "Draw a card for each creature you control.\nFerocious \u2014 You gain 4 life for each creature you control with power 4 or greater."
+        },
+        {
+          "name": "Pact of the Serpent",
+          "mana_cost": "{1}{B}{B}",
+          "cmc": 3,
+          "type_line": "Sorcery",
+          "oracle_text": "Choose a creature type. Target player draws X cards and loses X life, where X is the number of creatures they control of the chosen type."
+        },
+        {
+          "name": "Genesis Wave",
+          "mana_cost": "{X}{G}{G}{G}",
+          "cmc": 3,
+          "type_line": "Sorcery",
+          "oracle_text": "Reveal the top X cards of your library. You may put any number of permanent cards with mana value X or less from among them onto the battlef"
+        },
+        {
+          "name": "Finale of Devastation",
+          "mana_cost": "{X}{G}{G}",
+          "cmc": 2,
+          "type_line": "Sorcery",
+          "oracle_text": "Search your library and/or graveyard for a creature card with mana value X or less and put it onto the battlefield. If you search your libra"
+        },
+        {
+          "name": "Staff of Domination",
+          "mana_cost": "{3}",
+          "cmc": 3,
+          "type_line": "Artifact",
+          "oracle_text": "{1}: Untap this artifact.\n{2}, {T}: You gain 1 life.\n{3}, {T}: Untap target creature.\n{4}, {T}: Tap target creature.\n{5}, {T}: Draw a card."
+        },
+        {
+          "name": "Vanquisher's Banner",
+          "mana_cost": "{5}",
+          "cmc": 5,
+          "type_line": "Artifact",
+          "oracle_text": "As this artifact enters, choose a creature type.\nCreatures you control of the chosen type get +1/+1.\nWhenever you cast a creature spell of t"
+        },
+        {
+          "name": "Guardian Project",
+          "mana_cost": "{3}{G}",
+          "cmc": 4,
+          "type_line": "Enchantment",
+          "oracle_text": "Whenever a nontoken creature you control enters, if it doesn't have the same name as another creature you control or a creature card in your"
+        },
+        {
+          "name": "Assassin's Trophy",
+          "mana_cost": "{B}{G}",
+          "cmc": 2,
+          "type_line": "Instant",
+          "oracle_text": "Destroy target permanent an opponent controls. Its controller may search their library for a basic land card, put it onto the battlefield, t"
+        },
+        {
+          "name": "Putrefy",
+          "mana_cost": "{1}{B}{G}",
+          "cmc": 3,
+          "type_line": "Instant",
+          "oracle_text": "Destroy target artifact or creature. It can't be regenerated."
+        },
+        {
+          "name": "Fell the Profane // Fell Mire",
+          "mana_cost": null,
+          "cmc": 4,
+          "type_line": "Instant // Land",
+          "oracle_text": "Destroy target creature or planeswalker. // As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {B}."
+        },
+        {
+          "name": "Binding the Old Gods",
+          "mana_cost": "{2}{B}{G}",
+          "cmc": 4,
+          "type_line": "Enchantment \u2014 Saga",
+          "oracle_text": "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI \u2014 Destroy target nonland permanent an opponent co"
+        },
+        {
+          "name": "Beast Within",
+          "mana_cost": "{2}{G}",
+          "cmc": 3,
+          "type_line": "Instant",
+          "oracle_text": "Destroy target permanent. Its controller creates a 3/3 green Beast creature token."
+        },
+        {
+          "name": "Freyalise, Llanowar's Fury",
+          "mana_cost": "{3}{G}{G}",
+          "cmc": 5,
+          "type_line": "Legendary Planeswalker \u2014 Freyalise",
+          "oracle_text": "+2: Create a 1/1 green Elf Druid creature token with \"{T}: Add {G}.\"\n\u22122: Destroy target artifact or enchantment.\n\u22126: Draw a card for each gr"
+        },
+        {
+          "name": "Golgari Charm",
+          "mana_cost": "{B}{G}",
+          "cmc": 2,
+          "type_line": "Instant",
+          "oracle_text": "Choose one \u2014\n\u2022 All creatures get -1/-1 until end of turn.\n\u2022 Destroy target enchantment.\n\u2022 Regenerate each creature you control."
+        },
+        {
+          "name": "Priest of Titania",
+          "mana_cost": "{1}{G}",
+          "cmc": 2,
+          "type_line": "Creature \u2014 Elf Druid",
+          "oracle_text": "{T}: Add {G} for each Elf on the battlefield."
+        },
+        {
+          "name": "Elvish Archdruid",
+          "mana_cost": "{1}{G}{G}",
+          "cmc": 3,
+          "type_line": "Creature \u2014 Elf Druid",
+          "oracle_text": "Other Elf creatures you control get +1/+1.\n{T}: Add {G} for each Elf you control."
+        },
+        {
+          "name": "Marwyn, the Nurturer",
+          "mana_cost": "{2}{G}",
+          "cmc": 3,
+          "type_line": "Legendary Creature \u2014 Elf Druid",
+          "oracle_text": "Whenever another Elf you control enters, put a +1/+1 counter on Marwyn.\n{T}: Add an amount of {G} equal to Marwyn's power."
+        },
+        {
+          "name": "Circle of Dreams Druid",
+          "mana_cost": "{G}{G}{G}",
+          "cmc": 3,
+          "type_line": "Creature \u2014 Elf Druid",
+          "oracle_text": "{T}: Add {G} for each creature you control."
+        },
+        {
+          "name": "Wirewood Channeler",
+          "mana_cost": "{3}{G}",
+          "cmc": 4,
+          "type_line": "Creature \u2014 Elf Druid",
+          "oracle_text": "{T}: Add X mana of any one color, where X is the number of Elves on the battlefield."
+        },
+        {
+          "name": "Llanowar Tribe",
+          "mana_cost": "{G}{G}{G}",
+          "cmc": 3,
+          "type_line": "Creature \u2014 Elf Druid",
+          "oracle_text": "{T}: Add {G}{G}{G}."
+        },
+        {
+          "name": "Llanowar Elves",
+          "mana_cost": "{G}",
+          "cmc": 1,
+          "type_line": "Creature \u2014 Elf Druid",
+          "oracle_text": "{T}: Add {G}."
+        },
+        {
+          "name": "Elvish Mystic",
+          "mana_cost": "{G}",
+          "cmc": 1,
+          "type_line": "Creature \u2014 Elf Druid",
+          "oracle_text": "{T}: Add {G}."
+        },
+        {
+          "name": "Beast Whisperer",
+          "mana_cost": "{2}{G}{G}",
+          "cmc": 4,
+          "type_line": "Creature \u2014 Elf Druid",
+          "oracle_text": "Whenever you cast a creature spell, draw a card."
+        },
+        {
+          "name": "Reclamation Sage",
+          "mana_cost": "{2}{G}",
+          "cmc": 3,
+          "type_line": "Creature \u2014 Elf Shaman",
+          "oracle_text": "When this creature enters, you may destroy target artifact or enchantment."
+        },
+        {
+          "name": "Fyndhorn Elves",
+          "mana_cost": "{G}",
+          "cmc": 1,
+          "type_line": "Creature \u2014 Elf Druid",
+          "oracle_text": "{T}: Add {G}."
+        },
+        {
+          "name": "Imperious Perfect",
+          "mana_cost": "{2}{G}",
+          "cmc": 3,
+          "type_line": "Creature \u2014 Elf Warrior",
+          "oracle_text": "Other Elves you control get +1/+1.\n{G}, {T}: Create a 1/1 green Elf Warrior creature token."
+        },
+        {
+          "name": "Elves of Deep Shadow",
+          "mana_cost": "{G}",
+          "cmc": 1,
+          "type_line": "Creature \u2014 Elf Druid",
+          "oracle_text": "{T}: Add {B}. This creature deals 1 damage to you."
+        },
+        {
+          "name": "Leaf-Crowned Visionary",
+          "mana_cost": "{G}{G}",
+          "cmc": 2,
+          "type_line": "Creature \u2014 Elf Druid",
+          "oracle_text": "Other Elves you control get +1/+1.\nWhenever you cast an Elf spell, you may pay {G}. If you do, draw a card."
+        },
+        {
+          "name": "Canopy Tactician",
+          "mana_cost": "{3}{G}",
+          "cmc": 4,
+          "type_line": "Creature \u2014 Elf Warrior",
+          "oracle_text": "Other Elves you control get +1/+1.\n{T}: Add {G}{G}{G}."
+        },
+        {
+          "name": "Elvish Warmaster",
+          "mana_cost": "{1}{G}",
+          "cmc": 2,
+          "type_line": "Creature \u2014 Elf Warrior",
+          "oracle_text": "Whenever one or more other Elves you control enter, create a 1/1 green Elf Warrior creature token. This ability triggers only once each turn"
+        },
+        {
+          "name": "Dwynen, Gilt-Leaf Daen",
+          "mana_cost": "{2}{G}{G}",
+          "cmc": 4,
+          "type_line": "Legendary Creature \u2014 Elf Warrior",
+          "oracle_text": "Reach (This creature can block creatures with flying.)\nOther Elf creatures you control get +1/+1.\nWhenever Dwynen attacks, you gain 1 life f"
+        },
+        {
+          "name": "Shaman of the Pack",
+          "mana_cost": "{1}{B}{G}",
+          "cmc": 3,
+          "type_line": "Creature \u2014 Elf Shaman",
+          "oracle_text": "When this creature enters, target opponent loses life equal to the number of Elves you control."
+        },
+        {
+          "name": "Lys Alana Huntmaster",
+          "mana_cost": "{2}{G}{G}",
+          "cmc": 4,
+          "type_line": "Creature \u2014 Elf Warrior",
+          "oracle_text": "Whenever you cast an Elf spell, you may create a 1/1 green Elf Warrior creature token."
+        },
+        {
+          "name": "Ezuri, Renegade Leader",
+          "mana_cost": "{1}{G}{G}",
+          "cmc": 3,
+          "type_line": "Legendary Creature \u2014 Elf Warrior",
+          "oracle_text": "{G}: Regenerate another target Elf.\n{2}{G}{G}{G}: Elf creatures you control get +3/+3 and gain trample until end of turn."
+        },
+        {
+          "name": "Skemfar Shadowsage",
+          "mana_cost": "{3}{B}",
+          "cmc": 4,
+          "type_line": "Creature \u2014 Elf Cleric",
+          "oracle_text": "When this creature enters, choose one \u2014\n\u2022 Each opponent loses X life, where X is the greatest number of creatures you control that have a cr"
+        },
+        {
+          "name": "Elvish Champion",
+          "mana_cost": "{1}{G}{G}",
+          "cmc": 3,
+          "type_line": "Creature \u2014 Elf",
+          "oracle_text": "Other Elf creatures get +1/+1 and have forestwalk. (They can't be blocked as long as defending player controls a Forest.)"
+        },
+        {
+          "name": "Wolverine Riders",
+          "mana_cost": "{4}{G}{G}",
+          "cmc": 6,
+          "type_line": "Creature \u2014 Elf Warrior",
+          "oracle_text": "At the beginning of each upkeep, create a 1/1 green Elf Warrior creature token.\nWhenever another Elf you control enters, you gain life equal"
+        },
+        {
+          "name": "Immaculate Magistrate",
+          "mana_cost": "{3}{G}",
+          "cmc": 4,
+          "type_line": "Creature \u2014 Elf Shaman",
+          "oracle_text": "{T}: Put a +1/+1 counter on target creature for each Elf you control."
+        },
+        {
+          "name": "Abomination of Llanowar",
+          "mana_cost": "{1}{B}{G}",
+          "cmc": 3,
+          "type_line": "Legendary Creature \u2014 Elf Horror",
+          "oracle_text": "Vigilance; menace (This creature can't be blocked except by two or more creatures.)\nAbomination of Llanowar's power and toughness are each e"
+        },
+        {
+          "name": "Dionus, Elvish Archdruid",
+          "mana_cost": "{3}{G}",
+          "cmc": 4,
+          "type_line": "Legendary Creature \u2014 Elf Druid",
+          "oracle_text": "Elves you control have \"Whenever this creature becomes tapped during your turn, untap it and put a +1/+1 counter on it. This ability trigger"
+        },
+        {
+          "name": "Poison-Tip Archer",
+          "mana_cost": "{2}{B}{G}",
+          "cmc": 4,
+          "type_line": "Creature \u2014 Elf Archer",
+          "oracle_text": "Reach (This creature can block creatures with flying.)\nDeathtouch (Any amount of damage this deals to a creature is enough to destroy it.)\nW"
+        },
+        {
+          "name": "Craterhoof Behemoth",
+          "mana_cost": "{5}{G}{G}{G}",
+          "cmc": 8,
+          "type_line": "Creature \u2014 Beast",
+          "oracle_text": "Haste\nWhen this creature enters, creatures you control gain trample and get +X/+X until end of turn, where X is the number of creatures you "
+        },
+        {
+          "name": "Elvish Harbinger",
+          "mana_cost": "{2}{G}",
+          "cmc": 3,
+          "type_line": "Creature \u2014 Elf Druid",
+          "oracle_text": "When this creature enters, you may search your library for an Elf card, reveal it, then shuffle and put that card on top.\n{T}: Add one mana "
+        },
+        {
+          "name": "Ruthless Winnower",
+          "mana_cost": "{3}{B}{B}",
+          "cmc": 5,
+          "type_line": "Creature \u2014 Elf Rogue",
+          "oracle_text": "At the beginning of each player's upkeep, that player sacrifices a non-Elf creature of their choice."
+        },
+        {
+          "name": "Heritage Druid",
+          "mana_cost": "{G}",
+          "cmc": 1,
+          "type_line": "Creature \u2014 Elf Druid",
+          "oracle_text": "Tap three untapped Elves you control: Add {G}{G}{G}."
+        },
+        {
+          "name": "Champions of the Perfect",
+          "mana_cost": "{3}{G}",
+          "cmc": 4,
+          "type_line": "Creature \u2014 Elf Warrior",
+          "oracle_text": "As an additional cost to cast this spell, behold an Elf and exile it. (Exile an Elf you control or an Elf card from your hand.)\nWhenever you"
+        },
+        {
+          "name": "Wood Elves",
+          "mana_cost": "{2}{G}",
+          "cmc": 3,
+          "type_line": "Creature \u2014 Elf Scout",
+          "oracle_text": "When this creature enters, search your library for a Forest card, put that card onto the battlefield, then shuffle."
+        },
+        {
+          "name": "Deathrite Shaman",
+          "mana_cost": "{B/G}",
+          "cmc": 1,
+          "type_line": "Creature \u2014 Elf Shaman",
+          "oracle_text": "{T}: Exile target land card from a graveyard. Add one mana of any color. (Activate only as an instant.)\n{B}, {T}: Exile target instant or so"
+        },
+        {
+          "name": "Morcant's Loyalist",
+          "mana_cost": "{1}{B}{G}",
+          "cmc": 3,
+          "type_line": "Creature \u2014 Elf Warrior",
+          "oracle_text": "Other Elves you control get +1/+1.\nWhen this creature dies, return another target Elf card from your graveyard to your hand."
+        },
+        {
+          "name": "Heroic Intervention",
+          "mana_cost": "{1}{G}",
+          "cmc": 2,
+          "type_line": "Instant",
+          "oracle_text": "Permanents you control gain hexproof and indestructible until end of turn."
+        },
+        {
+          "name": "Elven Ambush",
+          "mana_cost": "{3}{G}",
+          "cmc": 4,
+          "type_line": "Instant",
+          "oracle_text": "Create a 1/1 green Elf Warrior creature token for each Elf you control."
+        },
+        {
+          "name": "Galadhrim Ambush",
+          "mana_cost": "{3}{G}",
+          "cmc": 4,
+          "type_line": "Instant",
+          "oracle_text": "Create X 1/1 green Elf Warrior creature tokens, where X is the number of attacking creatures.\nPrevent all combat damage that would be dealt "
+        },
+        {
+          "name": "Elvish Promenade",
+          "mana_cost": "{3}{G}",
+          "cmc": 4,
+          "type_line": "Kindred Sorcery \u2014 Elf",
+          "oracle_text": "Create a 1/1 green Elf Warrior creature token for each Elf you control."
+        },
+        {
+          "name": "Swiftfoot Boots",
+          "mana_cost": "{2}",
+          "cmc": 2,
+          "type_line": "Artifact \u2014 Equipment",
+          "oracle_text": "Equipped creature has hexproof and haste. (It can't be the target of spells or abilities your opponents control. It can attack and {T} no ma"
+        },
+        {
+          "name": "Lightning Greaves",
+          "mana_cost": "{2}",
+          "cmc": 2,
+          "type_line": "Artifact \u2014 Equipment",
+          "oracle_text": "Equipped creature has haste and shroud. (It can't be the target of spells or abilities.)\nEquip {0}"
+        },
+        {
+          "name": "Elderfang Venom",
+          "mana_cost": "{2}{B}{G}",
+          "cmc": 4,
+          "type_line": "Enchantment",
+          "oracle_text": "Attacking Elves you control have deathtouch.\nWhenever an Elf you control dies, each opponent loses 1 life and you gain 1 life."
+        },
+        {
+          "name": "Prowess of the Fair",
+          "mana_cost": "{1}{B}",
+          "cmc": 2,
+          "type_line": "Kindred Enchantment \u2014 Elf",
+          "oracle_text": "Whenever another nontoken Elf is put into your graveyard from the battlefield, you may create a 1/1 green Elf Warrior creature token."
+        },
+        {
+          "name": "Doubling Season",
+          "mana_cost": "{4}{G}",
+          "cmc": 5,
+          "type_line": "Enchantment",
+          "oracle_text": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.\nIf an effect would put "
+        },
+        {
+          "name": "Quest for Renewal",
+          "mana_cost": "{1}{G}",
+          "cmc": 2,
+          "type_line": "Enchantment",
+          "oracle_text": "Whenever a creature you control becomes tapped, you may put a quest counter on this enchantment.\nAs long as there are four or more quest cou"
+        },
+        {
+          "name": "Beastmaster Ascension",
+          "mana_cost": "{2}{G}",
+          "cmc": 3,
+          "type_line": "Enchantment",
+          "oracle_text": "Whenever a creature you control attacks, you may put a quest counter on this enchantment.\nAs long as this enchantment has seven or more ques"
+        },
+        {
+          "name": "Umbral Mantle",
+          "mana_cost": "{3}",
+          "cmc": 3,
+          "type_line": "Artifact \u2014 Equipment",
+          "oracle_text": "Equipped creature has \"{3}, {Q}: This creature gets +2/+2 until end of turn.\" ({Q} is the untap symbol.)\nEquip {0}"
+        },
+        {
+          "name": "Tyvar Kell",
+          "mana_cost": "{2}{G}{G}",
+          "cmc": 4,
+          "type_line": "Legendary Planeswalker \u2014 Tyvar",
+          "oracle_text": "Elves you control have \"{T}: Add {B}.\"\n+1: Put a +1/+1 counter on up to one target Elf. Untap it. It gains deathtouch until end of turn.\n0: "
+        }
+      ]
+    },
+    "isshin-two-heavens-as-one": {
+      "colorIdentity": ["B", "R", "W"],
+      "oldBasics": {
+        "Plains": 6,
+        "Mountain": 9,
+        "Swamp": 1
+      },
+      "nonbasicLands": [
+        {
+          "name": "Command Tower",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "{T}: Add one mana of any color in your commander's color identity."
+        },
+        {
+          "name": "Exotic Orchard",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "{T}: Add one mana of any color that a land an opponent controls could produce."
+        },
+        {
+          "name": "Eiganjo, Seat of the Empire",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Legendary Land",
+          "oracle_text": "{T}: Add {W}.\nChannel \u2014 {2}{W}, Discard this card: It deals 4 damage to target attacking or blocking creature. This ability costs {1} less t"
+        },
+        {
+          "name": "Nomad Outpost",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "This land enters tapped.\n{T}: Add {R}, {W}, or {B}."
+        },
+        {
+          "name": "Sokenzan, Crucible of Defiance",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Legendary Land",
+          "oracle_text": "{T}: Add {R}.\nChannel \u2014 {3}{R}, Discard this card: Create two 1/1 colorless Spirit creature tokens. They gain haste until end of turn. This "
+        },
+        {
+          "name": "Takenuma, Abandoned Mire",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Legendary Land",
+          "oracle_text": "{T}: Add {B}.\nChannel \u2014 {3}{B}, Discard this card: Mill three cards, then return a creature or planeswalker card from your graveyard to your"
+        },
+        {
+          "name": "Clifftop Retreat",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "This land enters tapped unless you control a Mountain or a Plains.\n{T}: Add {R} or {W}."
+        },
+        {
+          "name": "Savai Triome",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land \u2014 Mountain Plains Swamp",
+          "oracle_text": "({T}: Add {R}, {W}, or {B}.)\nThis land enters tapped.\nCycling {3} ({3}, Discard this card: Draw a card.)"
+        },
+        {
+          "name": "Sacred Foundry",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land \u2014 Mountain Plains",
+          "oracle_text": "({T}: Add {R} or {W}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped."
+        },
+        {
+          "name": "Dragonskull Summit",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "This land enters tapped unless you control a Swamp or a Mountain.\n{T}: Add {B} or {R}."
+        },
+        {
+          "name": "Isolated Chapel",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "This land enters tapped unless you control a Plains or a Swamp.\n{T}: Add {W} or {B}."
+        },
+        {
+          "name": "Path of Ancestry",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "This land enters tapped.\n{T}: Add one mana of any color in your commander's color identity. When that mana is spent to cast a creature spell"
+        },
+        {
+          "name": "Godless Shrine",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land \u2014 Plains Swamp",
+          "oracle_text": "({T}: Add {W} or {B}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped."
+        },
+        {
+          "name": "Blood Crypt",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land \u2014 Swamp Mountain",
+          "oracle_text": "({T}: Add {B} or {R}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped."
+        },
+        {
+          "name": "Battlefield Forge",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "{T}: Add {C}.\n{T}: Add {R} or {W}. This land deals 1 damage to you."
+        },
+        {
+          "name": "Spectator Seating",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "This land enters tapped unless you have two or more opponents.\n{T}: Add {R} or {W}."
+        },
+        {
+          "name": "Caves of Koilos",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "{T}: Add {C}.\n{T}: Add {W} or {B}. This land deals 1 damage to you."
+        },
+        {
+          "name": "Smoldering Marsh",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land \u2014 Swamp Mountain",
+          "oracle_text": "({T}: Add {B} or {R}.)\nThis land enters tapped unless you control two or more basic lands."
+        },
+        {
+          "name": "Sundown Pass",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "This land enters tapped unless you control two or more other lands.\n{T}: Add {R} or {W}."
+        },
+        {
+          "name": "Vault of Champions",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "This land enters tapped unless you have two or more opponents.\n{T}: Add {W} or {B}."
+        }
+      ],
+      "nonland": [
+        {
+          "name": "Deadly Dispute",
+          "mana_cost": "{1}{B}",
+          "cmc": 2,
+          "type_line": "Instant",
+          "oracle_text": "As an additional cost to cast this spell, sacrifice an artifact or creature.\nDraw two cards and create a Treasure token. (It's an artifact w"
+        },
+        {
+          "name": "Jeska's Will",
+          "mana_cost": "{2}{R}",
+          "cmc": 3,
+          "type_line": "Sorcery",
+          "oracle_text": "Choose one. If you control a commander as you cast this spell, you may choose both instead.\n\u2022 Add {R} for each card in target opponent's han"
+        },
+        {
+          "name": "Sword of the Animist",
+          "mana_cost": "{2}",
+          "cmc": 2,
+          "type_line": "Legendary Artifact \u2014 Equipment",
+          "oracle_text": "Equipped creature gets +1/+1.\nWhenever equipped creature attacks, you may search your library for a basic land card, put it onto the battlef"
+        },
+        {
+          "name": "Sol Ring",
+          "mana_cost": "{1}",
+          "cmc": 1,
+          "type_line": "Artifact",
+          "oracle_text": "{T}: Add {C}{C}."
+        },
+        {
+          "name": "Arcane Signet",
+          "mana_cost": "{2}",
+          "cmc": 2,
+          "type_line": "Artifact",
+          "oracle_text": "{T}: Add one mana of any color in your commander's color identity."
+        },
+        {
+          "name": "Talisman of Conviction",
+          "mana_cost": "{2}",
+          "cmc": 2,
+          "type_line": "Artifact",
+          "oracle_text": "{T}: Add {C}.\n{T}: Add {R} or {W}. This artifact deals 1 damage to you."
+        },
+        {
+          "name": "Talisman of Hierarchy",
+          "mana_cost": "{2}",
+          "cmc": 2,
+          "type_line": "Artifact",
+          "oracle_text": "{T}: Add {C}.\n{T}: Add {W} or {B}. This artifact deals 1 damage to you."
+        },
+        {
+          "name": "Talisman of Indulgence",
+          "mana_cost": "{2}",
+          "cmc": 2,
+          "type_line": "Artifact",
+          "oracle_text": "{T}: Add {C}.\n{T}: Add {B} or {R}. This artifact deals 1 damage to you."
+        },
+        {
+          "name": "Boros Signet",
+          "mana_cost": "{2}",
+          "cmc": 2,
+          "type_line": "Artifact",
+          "oracle_text": "{1}, {T}: Add {R}{W}."
+        },
+        {
+          "name": "Orzhov Signet",
+          "mana_cost": "{2}",
+          "cmc": 2,
+          "type_line": "Artifact",
+          "oracle_text": "{1}, {T}: Add {W}{B}."
+        },
+        {
+          "name": "Boros Charm",
+          "mana_cost": "{R}{W}",
+          "cmc": 2,
+          "type_line": "Instant",
+          "oracle_text": "Choose one \u2014\n\u2022 Boros Charm deals 4 damage to target player or planeswalker.\n\u2022 Permanents you control gain indestructible until end of turn.\n"
+        },
+        {
+          "name": "Swords to Plowshares",
+          "mana_cost": "{W}",
+          "cmc": 1,
+          "type_line": "Instant",
+          "oracle_text": "Exile target creature. Its controller gains life equal to its power."
+        },
+        {
+          "name": "Path to Exile",
+          "mana_cost": "{W}",
+          "cmc": 1,
+          "type_line": "Instant",
+          "oracle_text": "Exile target creature. Its controller may search their library for a basic land card, put that card onto the battlefield tapped, then shuffl"
+        },
+        {
+          "name": "Anguished Unmaking",
+          "mana_cost": "{1}{W}{B}",
+          "cmc": 3,
+          "type_line": "Instant",
+          "oracle_text": "Exile target nonland permanent. You lose 3 life."
+        },
+        {
+          "name": "Will of the Mardu",
+          "mana_cost": "{2}{W}",
+          "cmc": 3,
+          "type_line": "Instant",
+          "oracle_text": "Choose one. If you control a commander as you cast this spell, you may choose both instead.\n\u2022 Create a number of 1/1 red Warrior creature to"
+        },
+        {
+          "name": "Generous Gift",
+          "mana_cost": "{2}{W}",
+          "cmc": 3,
+          "type_line": "Instant",
+          "oracle_text": "Destroy target permanent. Its controller creates a 3/3 green Elephant creature token."
+        },
+        {
+          "name": "Ruinous Ultimatum",
+          "mana_cost": "{R}{R}{W}{W}{W}{B}{B}",
+          "cmc": 7,
+          "type_line": "Sorcery",
+          "oracle_text": "Destroy all nonland permanents your opponents control."
+        },
+        {
+          "name": "Godo, Bandit Warlord",
+          "mana_cost": "{5}{R}",
+          "cmc": 6,
+          "type_line": "Legendary Creature \u2014 Human Barbarian",
+          "oracle_text": "When Godo enters, you may search your library for an Equipment card, put it onto the battlefield, then shuffle.\nWhenever Godo attacks for th"
+        },
+        {
+          "name": "Aurelia, the Warleader",
+          "mana_cost": "{2}{R}{R}{W}{W}",
+          "cmc": 6,
+          "type_line": "Legendary Creature \u2014 Angel",
+          "oracle_text": "Flying, vigilance, haste\nWhenever Aurelia attacks for the first time each turn, untap all creatures you control. After this phase, there is "
+        },
+        {
+          "name": "Captain Lannery Storm",
+          "mana_cost": "{2}{R}",
+          "cmc": 3,
+          "type_line": "Legendary Creature \u2014 Human Pirate",
+          "oracle_text": "Haste\nWhenever Captain Lannery Storm attacks, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of an"
+        },
+        {
+          "name": "Adeline, Resplendent Cathar",
+          "mana_cost": "{1}{W}{W}",
+          "cmc": 3,
+          "type_line": "Legendary Creature \u2014 Human Knight",
+          "oracle_text": "Vigilance\nAdeline's power is equal to the number of creatures you control.\nWhenever you attack, for each opponent, create a 1/1 white Human "
+        },
+        {
+          "name": "Krenko, Tin Street Kingpin",
+          "mana_cost": "{2}{R}",
+          "cmc": 3,
+          "type_line": "Legendary Creature \u2014 Goblin",
+          "oracle_text": "Whenever Krenko attacks, put a +1/+1 counter on it, then create a number of 1/1 red Goblin creature tokens equal to Krenko's power."
+        },
+        {
+          "name": "Anim Pakal, Thousandth Moon",
+          "mana_cost": "{1}{R}{W}",
+          "cmc": 3,
+          "type_line": "Legendary Creature \u2014 Human Soldier",
+          "oracle_text": "Whenever you attack with one or more non-Gnome creatures, put a +1/+1 counter on Anim Pakal, then create X 1/1 colorless Gnome artifact crea"
+        },
+        {
+          "name": "Caesar, Legion's Emperor",
+          "mana_cost": "{1}{R}{W}{B}",
+          "cmc": 4,
+          "type_line": "Legendary Creature \u2014 Human Soldier",
+          "oracle_text": "Whenever you attack, you may sacrifice another creature. When you do, choose two \u2014\n\u2022 Create two 1/1 red and white Soldier creature tokens wi"
+        },
+        {
+          "name": "Etali, Primal Storm",
+          "mana_cost": "{4}{R}{R}",
+          "cmc": 6,
+          "type_line": "Legendary Creature \u2014 Elder Dinosaur",
+          "oracle_text": "Whenever Etali attacks, exile the top card of each player's library, then you may cast any number of spells from among those cards without p"
+        },
+        {
+          "name": "Aurelia, the Law Above",
+          "mana_cost": "{3}{R}{W}",
+          "cmc": 5,
+          "type_line": "Legendary Creature \u2014 Angel",
+          "oracle_text": "Flying, vigilance, haste\nWhenever a player attacks with three or more creatures, you draw a card.\nWhenever a player attacks with five or mor"
+        },
+        {
+          "name": "Hero of Bladehold",
+          "mana_cost": "{2}{W}{W}",
+          "cmc": 4,
+          "type_line": "Creature \u2014 Human Knight",
+          "oracle_text": "Battle cry (Whenever this creature attacks, each other attacking creature gets +1/+0 until end of turn.)\nWhenever this creature attacks, cre"
+        },
+        {
+          "name": "Skyknight Vanguard",
+          "mana_cost": "{R}{W}",
+          "cmc": 2,
+          "type_line": "Creature \u2014 Human Knight",
+          "oracle_text": "Flying\nWhenever this creature attacks, create a 1/1 white Soldier creature token that's tapped and attacking."
+        },
+        {
+          "name": "Alesha, Who Laughs at Fate",
+          "mana_cost": "{1}{B}{R}",
+          "cmc": 3,
+          "type_line": "Legendary Creature \u2014 Human Warrior",
+          "oracle_text": "First strike\nWhenever Alesha attacks, put a +1/+1 counter on it.\nRaid \u2014 At the beginning of your end step, if you attacked this turn, return"
+        },
+        {
+          "name": "Commissar Severina Raine",
+          "mana_cost": "{1}{W}{B}",
+          "cmc": 3,
+          "type_line": "Legendary Creature \u2014 Human Soldier",
+          "oracle_text": "Leading from the Front \u2014 Whenever Commissar Severina Raine attacks, each opponent loses X life, where X is the number of other attacking cre"
+        },
+        {
+          "name": "Brutal Hordechief",
+          "mana_cost": "{3}{B}",
+          "cmc": 4,
+          "type_line": "Creature \u2014 Orc Warrior",
+          "oracle_text": "Whenever a creature you control attacks, defending player loses 1 life and you gain 1 life.\n{3}{R/W}{R/W}: Creatures your opponents control "
+        },
+        {
+          "name": "Iroas, God of Victory",
+          "mana_cost": "{2}{R}{W}",
+          "cmc": 4,
+          "type_line": "Legendary Enchantment Creature \u2014 God",
+          "oracle_text": "Indestructible\nAs long as your devotion to red and white is less than seven, Iroas isn't a creature.\nCreatures you control have menace.\nPrev"
+        },
+        {
+          "name": "Otharri, Suns' Glory",
+          "mana_cost": "{3}{R}{W}",
+          "cmc": 5,
+          "type_line": "Legendary Creature \u2014 Phoenix",
+          "oracle_text": "Flying, lifelink, haste\nWhenever Otharri attacks, you get an experience counter. Then create a 2/2 red Rebel creature token that's tapped an"
+        },
+        {
+          "name": "Kellogg, Dangerous Mind",
+          "mana_cost": "{1}{B}{R}",
+          "cmc": 3,
+          "type_line": "Legendary Creature \u2014 Human Mercenary",
+          "oracle_text": "First strike, haste\nWhenever Kellogg attacks, create a Treasure token.\nSacrifice five Treasures: Gain control of target creature for as long"
+        },
+        {
+          "name": "Zurgo Stormrender",
+          "mana_cost": "{R}{W}{B}",
+          "cmc": 3,
+          "type_line": "Legendary Creature \u2014 Orc Warrior",
+          "oracle_text": "Mobilize 1 (Whenever this creature attacks, create a tapped and attacking 1/1 red Warrior creature token. Sacrifice it at the beginning of t"
+        },
+        {
+          "name": "Goldspan Dragon",
+          "mana_cost": "{3}{R}{R}",
+          "cmc": 5,
+          "type_line": "Creature \u2014 Dragon",
+          "oracle_text": "Flying, haste\nWhenever this creature attacks or becomes the target of a spell, create a Treasure token.\nTreasures you control have \"{T}, Sac"
+        },
+        {
+          "name": "Breena, the Demagogue",
+          "mana_cost": "{1}{W}{B}",
+          "cmc": 3,
+          "type_line": "Legendary Creature \u2014 Bird Warlock",
+          "oracle_text": "Flying\nWhenever a player attacks one of your opponents, if that opponent has more life than another of your opponents, that attacking player"
+        },
+        {
+          "name": "Tectonic Giant",
+          "mana_cost": "{2}{R}{R}",
+          "cmc": 4,
+          "type_line": "Creature \u2014 Elemental Giant",
+          "oracle_text": "Whenever this creature attacks or becomes the target of a spell an opponent controls, choose one \u2014\n\u2022 This creature deals 3 damage to each op"
+        },
+        {
+          "name": "Caustic Bronco",
+          "mana_cost": "{1}{B}",
+          "cmc": 2,
+          "type_line": "Creature \u2014 Snake Horse Mount",
+          "oracle_text": "Whenever this creature attacks, reveal the top card of your library and put it into your hand. You lose life equal to that card's mana value"
+        },
+        {
+          "name": "Laelia, the Blade Reforged",
+          "mana_cost": "{2}{R}",
+          "cmc": 3,
+          "type_line": "Legendary Creature \u2014 Spirit Warrior",
+          "oracle_text": "Haste\nWhenever Laelia attacks, exile the top card of your library. You may play that card this turn.\nWhenever one or more cards are put into"
+        },
+        {
+          "name": "Esper Sentinel",
+          "mana_cost": "{W}",
+          "cmc": 1,
+          "type_line": "Artifact Creature \u2014 Human Soldier",
+          "oracle_text": "Whenever an opponent casts their first noncreature spell each turn, draw a card unless that player pays {X}, where X is this creature's powe"
+        },
+        {
+          "name": "Battle Angels of Tyr",
+          "mana_cost": "{2}{W}{W}",
+          "cmc": 4,
+          "type_line": "Creature \u2014 Angel Knight",
+          "oracle_text": "Flying, myriad\nWhenever this creature deals combat damage to a player, draw a card if that player has more cards in hand than each other pla"
+        },
+        {
+          "name": "Drakuseth, Maw of Flames",
+          "mana_cost": "{4}{R}{R}{R}",
+          "cmc": 7,
+          "type_line": "Legendary Creature \u2014 Dragon",
+          "oracle_text": "Flying\nWhenever Drakuseth attacks, Drakuseth deals 4 damage to any target and 3 damage to each of up to two other targets."
+        },
+        {
+          "name": "Karlach, Fury of Avernus",
+          "mana_cost": "{4}{R}",
+          "cmc": 5,
+          "type_line": "Legendary Creature \u2014 Tiefling Barbarian",
+          "oracle_text": "Whenever you attack, if it's the first combat phase of the turn, untap all attacking creatures. They gain first strike until end of turn. Af"
+        },
+        {
+          "name": "Voice of Victory",
+          "mana_cost": "{1}{W}",
+          "cmc": 2,
+          "type_line": "Creature \u2014 Human Bard",
+          "oracle_text": "Mobilize 2 (Whenever this creature attacks, create two tapped and attacking 1/1 red Warrior creature tokens. Sacrifice them at the beginning"
+        },
+        {
+          "name": "Ainok Strike Leader",
+          "mana_cost": "{1}{W}",
+          "cmc": 2,
+          "type_line": "Creature \u2014 Dog Warrior",
+          "oracle_text": "Whenever you attack with this creature and/or your commander, for each opponent, create a 1/1 red Goblin creature token that's tapped and at"
+        },
+        {
+          "name": "Raiyuu, Storm's Edge",
+          "mana_cost": "{2}{R}{W}",
+          "cmc": 4,
+          "type_line": "Legendary Creature \u2014 Human Samurai",
+          "oracle_text": "First strike\nWhenever a Samurai or Warrior you control attacks alone, untap it. If it's the first combat phase of the turn, there is an addi"
+        },
+        {
+          "name": "Sun Titan",
+          "mana_cost": "{4}{W}{W}",
+          "cmc": 6,
+          "type_line": "Creature \u2014 Giant",
+          "oracle_text": "Vigilance\nWhenever this creature enters or attacks, you may return target permanent card with mana value 3 or less from your graveyard to th"
+        },
+        {
+          "name": "Relentless Assault",
+          "mana_cost": "{2}{R}{R}",
+          "cmc": 4,
+          "type_line": "Sorcery",
+          "oracle_text": "Untap all creatures that attacked this turn. After this main phase, there is an additional combat phase followed by an additional main phase"
+        },
+        {
+          "name": "Helm of the Host",
+          "mana_cost": "{4}",
+          "cmc": 4,
+          "type_line": "Legendary Artifact \u2014 Equipment",
+          "oracle_text": "At the beginning of combat on your turn, create a token that's a copy of equipped creature, except the token isn't legendary. That token gai"
+        },
+        {
+          "name": "Lightning Greaves",
+          "mana_cost": "{2}",
+          "cmc": 2,
+          "type_line": "Artifact \u2014 Equipment",
+          "oracle_text": "Equipped creature has haste and shroud. (It can't be the target of spells or abilities.)\nEquip {0}"
+        },
+        {
+          "name": "Swiftfoot Boots",
+          "mana_cost": "{2}",
+          "cmc": 2,
+          "type_line": "Artifact \u2014 Equipment",
+          "oracle_text": "Equipped creature has hexproof and haste. (It can't be the target of spells or abilities your opponents control. It can attack and {T} no ma"
+        },
+        {
+          "name": "Dolmen Gate",
+          "mana_cost": "{2}",
+          "cmc": 2,
+          "type_line": "Artifact",
+          "oracle_text": "Prevent all combat damage that would be dealt to attacking creatures you control."
+        },
+        {
+          "name": "Windcrag Siege",
+          "mana_cost": "{1}{R}{W}",
+          "cmc": 3,
+          "type_line": "Enchantment",
+          "oracle_text": "As this enchantment enters, choose Mardu or Jeskai.\n\u2022 Mardu \u2014 If a creature attacking causes a triggered ability of a permanent you control "
+        },
+        {
+          "name": "Fervent Charge",
+          "mana_cost": "{1}{R}{W}{B}",
+          "cmc": 4,
+          "type_line": "Enchantment",
+          "oracle_text": "Whenever a creature you control attacks, it gets +2/+2 until end of turn."
+        },
+        {
+          "name": "Mardu Ascendancy",
+          "mana_cost": "{R}{W}{B}",
+          "cmc": 3,
+          "type_line": "Enchantment",
+          "oracle_text": "Whenever a nontoken creature you control attacks, create a 1/1 red Goblin creature token that's tapped and attacking.\nSacrifice this enchant"
+        },
+        {
+          "name": "Warleader's Call",
+          "mana_cost": "{1}{R}{W}",
+          "cmc": 3,
+          "type_line": "Enchantment",
+          "oracle_text": "Creatures you control get +1/+1.\nWhenever a creature you control enters, this enchantment deals 1 damage to each opponent."
+        },
+        {
+          "name": "All-Out Assault",
+          "mana_cost": "{2}{R}{W}{B}",
+          "cmc": 5,
+          "type_line": "Enchantment",
+          "oracle_text": "Creatures you control get +1/+1 and have deathtouch.\nWhen this enchantment enters, if it's your main phase, there is an additional combat ph"
+        },
+        {
+          "name": "Rising of the Day",
+          "mana_cost": "{2}{R}",
+          "cmc": 3,
+          "type_line": "Enchantment",
+          "oracle_text": "Creatures you control have haste.\nLegendary creatures you control get +1/+0."
+        },
+        {
+          "name": "Bastion of Remembrance",
+          "mana_cost": "{2}{B}",
+          "cmc": 3,
+          "type_line": "Enchantment",
+          "oracle_text": "When this enchantment enters, create a 1/1 white Human Soldier creature token.\nWhenever a creature you control dies, each opponent loses 1 l"
+        },
+        {
+          "name": "Within Range",
+          "mana_cost": "{3}{B}",
+          "cmc": 4,
+          "type_line": "Enchantment",
+          "oracle_text": "When this enchantment enters, create two 1/1 red Warrior creature tokens.\nWhenever you attack, each opponent loses life equal to the number "
+        },
+        {
+          "name": "Aggravated Assault",
+          "mana_cost": "{2}{R}",
+          "cmc": 3,
+          "type_line": "Enchantment",
+          "oracle_text": "{3}{R}{R}: Untap all creatures you control. After this main phase, there is an additional combat phase followed by an additional main phase."
+        },
+        {
+          "name": "Reconnaissance",
+          "mana_cost": "{W}",
+          "cmc": 1,
+          "type_line": "Enchantment",
+          "oracle_text": "{0}: Remove target attacking creature you control from combat and untap it. (If you activate during end of combat, the creature will untap a"
+        }
+      ]
+    },
+    "yuriko-the-tiger-s-shadow-bracket4": {
+      "colorIdentity": ["B", "U"],
+      "oldBasics": {
+        "Island": 16,
+        "Swamp": 1
+      },
+      "nonbasicLands": [
+        {
+          "name": "Otawara, Soaring City",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Legendary Land",
+          "oracle_text": "{T}: Add {U}.\nChannel \u2014 {3}{U}, Discard this card: Return target artifact, creature, enchantment, or planeswalker to its owner's hand. This "
+        },
+        {
+          "name": "Command Tower",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "{T}: Add one mana of any color in your commander's color identity."
+        },
+        {
+          "name": "Polluted Delta",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for an Island or Swamp card, put it onto the battlefield, then shuffle."
+        },
+        {
+          "name": "Watery Grave",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land \u2014 Island Swamp",
+          "oracle_text": "({T}: Add {U} or {B}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped."
+        },
+        {
+          "name": "Shizo, Death's Storehouse",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Legendary Land",
+          "oracle_text": "{T}: Add {B}.\n{B}, {T}: Target legendary creature gains fear until end of turn. (It can't be blocked except by artifact creatures and/or bla"
+        },
+        {
+          "name": "Underground River",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "{T}: Add {C}.\n{T}: Add {U} or {B}. This land deals 1 damage to you."
+        },
+        {
+          "name": "Takenuma, Abandoned Mire",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Legendary Land",
+          "oracle_text": "{T}: Add {B}.\nChannel \u2014 {3}{B}, Discard this card: Mill three cards, then return a creature or planeswalker card from your graveyard to your"
+        },
+        {
+          "name": "Morphic Pool",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "This land enters tapped unless you have two or more opponents.\n{T}: Add {U} or {B}."
+        },
+        {
+          "name": "Sunken Hollow",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land \u2014 Island Swamp",
+          "oracle_text": "({T}: Add {U} or {B}.)\nThis land enters tapped unless you control two or more basic lands."
+        },
+        {
+          "name": "Drowned Catacomb",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "This land enters tapped unless you control an Island or a Swamp.\n{T}: Add {U} or {B}."
+        },
+        {
+          "name": "Clearwater Pathway // Murkwater Pathway",
+          "mana_cost": null,
+          "cmc": 0,
+          "type_line": "Land // Land",
+          "oracle_text": "{T}: Add {U}. // {T}: Add {B}."
+        },
+        {
+          "name": "Shipwreck Marsh",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "This land enters tapped unless you control two or more other lands.\n{T}: Add {U} or {B}."
+        },
+        {
+          "name": "Exotic Orchard",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "{T}: Add one mana of any color that a land an opponent controls could produce."
+        },
+        {
+          "name": "Choked Estuary",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land",
+          "oracle_text": "As this land enters, you may reveal an Island or Swamp card from your hand. If you don't, this land enters tapped.\n{T}: Add {U} or {B}."
+        },
+        {
+          "name": "Underground Sea",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Land \u2014 Island Swamp",
+          "oracle_text": "({T}: Add {U} or {B}.)"
+        }
+      ],
+      "nonland": [
+        {
+          "name": "Dark Ritual",
+          "mana_cost": "{B}",
+          "cmc": 1,
+          "type_line": "Instant",
+          "oracle_text": "Add {B}{B}{B}."
+        },
+        {
+          "name": "Sol Ring",
+          "mana_cost": "{1}",
+          "cmc": 1,
+          "type_line": "Artifact",
+          "oracle_text": "{T}: Add {C}{C}."
+        },
+        {
+          "name": "Arcane Signet",
+          "mana_cost": "{2}",
+          "cmc": 2,
+          "type_line": "Artifact",
+          "oracle_text": "{T}: Add one mana of any color in your commander's color identity."
+        },
+        {
+          "name": "Talisman of Dominance",
+          "mana_cost": "{2}",
+          "cmc": 2,
+          "type_line": "Artifact",
+          "oracle_text": "{T}: Add {C}.\n{T}: Add {U} or {B}. This artifact deals 1 damage to you."
+        },
+        {
+          "name": "Dimir Signet",
+          "mana_cost": "{2}",
+          "cmc": 2,
+          "type_line": "Artifact",
+          "oracle_text": "{1}, {T}: Add {U}{B}."
+        },
+        {
+          "name": "Thought Vessel",
+          "mana_cost": "{2}",
+          "cmc": 2,
+          "type_line": "Artifact",
+          "oracle_text": "You have no maximum hand size.\n{T}: Add {C}."
+        },
+        {
+          "name": "Brainstorm",
+          "mana_cost": "{U}",
+          "cmc": 1,
+          "type_line": "Instant",
+          "oracle_text": "Draw three cards, then put two cards from your hand on top of your library in any order."
+        },
+        {
+          "name": "Lim-D\u00fbl's Vault",
+          "mana_cost": "{U}{B}",
+          "cmc": 2,
+          "type_line": "Instant",
+          "oracle_text": "Look at the top five cards of your library. As many times as you choose, you may pay 1 life, put those cards on the bottom of your library i"
+        },
+        {
+          "name": "Mystical Tutor",
+          "mana_cost": "{U}",
+          "cmc": 1,
+          "type_line": "Instant",
+          "oracle_text": "Search your library for an instant or sorcery card, reveal it, then shuffle and put that card on top."
+        },
+        {
+          "name": "Dig Through Time",
+          "mana_cost": "{6}{U}{U}",
+          "cmc": 8,
+          "type_line": "Instant",
+          "oracle_text": "Delve (Each card you exile from your graveyard while casting this spell pays for {1}.)\nLook at the top seven cards of your library. Put two "
+        },
+        {
+          "name": "Vampiric Tutor",
+          "mana_cost": "{B}",
+          "cmc": 1,
+          "type_line": "Instant",
+          "oracle_text": "Search your library for a card, then shuffle and put that card on top. You lose 2 life."
+        },
+        {
+          "name": "Sea Gate Restoration // Sea Gate, Reborn",
+          "mana_cost": null,
+          "cmc": 7,
+          "type_line": "Sorcery // Land",
+          "oracle_text": "Draw cards equal to the number of cards in your hand plus one. You have no maximum hand size for the rest of the game. // As this land enter"
+        },
+        {
+          "name": "Treasure Cruise",
+          "mana_cost": "{7}{U}",
+          "cmc": 8,
+          "type_line": "Sorcery",
+          "oracle_text": "Delve (Each card you exile from your graveyard while casting this spell pays for {1}.)\nDraw three cards."
+        },
+        {
+          "name": "Ponder",
+          "mana_cost": "{U}",
+          "cmc": 1,
+          "type_line": "Sorcery",
+          "oracle_text": "Look at the top three cards of your library, then put them back in any order. You may shuffle.\nDraw a card."
+        },
+        {
+          "name": "Demonic Tutor",
+          "mana_cost": "{1}{B}",
+          "cmc": 2,
+          "type_line": "Sorcery",
+          "oracle_text": "Search your library for a card, put that card into your hand, then shuffle."
+        },
+        {
+          "name": "Doomsday",
+          "mana_cost": "{B}{B}{B}",
+          "cmc": 3,
+          "type_line": "Sorcery",
+          "oracle_text": "Search your library and graveyard for five cards and exile the rest. Put the chosen cards on top of your library in any order. You lose half"
+        },
+        {
+          "name": "Sensei's Divining Top",
+          "mana_cost": "{1}",
+          "cmc": 1,
+          "type_line": "Artifact",
+          "oracle_text": "{1}: Look at the top three cards of your library, then put them back in any order.\n{T}: Draw a card, then put this artifact on top of its ow"
+        },
+        {
+          "name": "Scroll Rack",
+          "mana_cost": "{2}",
+          "cmc": 2,
+          "type_line": "Artifact",
+          "oracle_text": "{1}, {T}: Exile any number of cards from your hand face down. Put that many cards from the top of your library into your hand. Then look at "
+        },
+        {
+          "name": "Rhystic Study",
+          "mana_cost": "{2}{U}",
+          "cmc": 3,
+          "type_line": "Enchantment",
+          "oracle_text": "Whenever an opponent casts a spell, you may draw a card unless that player pays {1}."
+        },
+        {
+          "name": "Deadly Rollick",
+          "mana_cost": "{3}{B}",
+          "cmc": 4,
+          "type_line": "Instant",
+          "oracle_text": "If you control a commander, you may cast this spell without paying its mana cost.\nExile target creature."
+        },
+        {
+          "name": "Fell the Profane // Fell Mire",
+          "mana_cost": null,
+          "cmc": 4,
+          "type_line": "Instant // Land",
+          "oracle_text": "Destroy target creature or planeswalker. // As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {B}."
+        },
+        {
+          "name": "Sink into Stupor // Soporific Springs",
+          "mana_cost": null,
+          "cmc": 3,
+          "type_line": "Instant // Land",
+          "oracle_text": "Return target spell or nonland permanent an opponent controls to its owner's hand. // As this land enters, you may pay 3 life. If you don't,"
+        },
+        {
+          "name": "Snuff Out",
+          "mana_cost": "{3}{B}",
+          "cmc": 4,
+          "type_line": "Instant",
+          "oracle_text": "If you control a Swamp, you may pay 4 life rather than pay this spell's mana cost.\nDestroy target nonblack creature. It can't be regenerated"
+        },
+        {
+          "name": "Dismember",
+          "mana_cost": "{1}{B/P}{B/P}",
+          "cmc": 3,
+          "type_line": "Instant",
+          "oracle_text": "({B/P} can be paid with either {B} or 2 life.)\nTarget creature gets -5/-5 until end of turn."
+        },
+        {
+          "name": "Cyclonic Rift",
+          "mana_cost": "{1}{U}",
+          "cmc": 2,
+          "type_line": "Instant",
+          "oracle_text": "Return target nonland permanent you don't control to its owner's hand.\nOverload {6}{U} (You may cast this spell for its overload cost. If yo"
+        },
+        {
+          "name": "Prosperous Thief",
+          "mana_cost": "{2}{U}",
+          "cmc": 3,
+          "type_line": "Creature \u2014 Human Ninja",
+          "oracle_text": "Ninjutsu {1}{U} ({1}{U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and atta"
+        },
+        {
+          "name": "Ingenious Infiltrator",
+          "mana_cost": "{2}{U}{B}",
+          "cmc": 4,
+          "type_line": "Creature \u2014 Vedalken Ninja",
+          "oracle_text": "Ninjutsu {U}{B} ({U}{B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and atta"
+        },
+        {
+          "name": "Mistblade Shinobi",
+          "mana_cost": "{2}{U}",
+          "cmc": 3,
+          "type_line": "Creature \u2014 Human Ninja",
+          "oracle_text": "Ninjutsu {U} ({U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking."
+        },
+        {
+          "name": "Ninja of the Deep Hours",
+          "mana_cost": "{3}{U}",
+          "cmc": 4,
+          "type_line": "Creature \u2014 Human Ninja",
+          "oracle_text": "Ninjutsu {1}{U} ({1}{U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and atta"
+        },
+        {
+          "name": "Silver-Fur Master",
+          "mana_cost": "{U}{B}",
+          "cmc": 2,
+          "type_line": "Creature \u2014 Rat Ninja",
+          "oracle_text": "Ninjutsu {U}{B} ({U}{B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and atta"
+        },
+        {
+          "name": "Changeling Outcast",
+          "mana_cost": "{B}",
+          "cmc": 1,
+          "type_line": "Creature \u2014 Shapeshifter",
+          "oracle_text": "Changeling (This card is every creature type.)\nThis creature can't block and can't be blocked."
+        },
+        {
+          "name": "Thousand-Faced Shadow",
+          "mana_cost": "{U}",
+          "cmc": 1,
+          "type_line": "Creature \u2014 Human Ninja",
+          "oracle_text": "Ninjutsu {2}{U}{U} ({2}{U}{U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped an"
+        },
+        {
+          "name": "Moon-Circuit Hacker",
+          "mana_cost": "{1}{U}",
+          "cmc": 2,
+          "type_line": "Enchantment Creature \u2014 Human Ninja",
+          "oracle_text": "Ninjutsu {U} ({U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking."
+        },
+        {
+          "name": "Ornithopter",
+          "mana_cost": "{0}",
+          "cmc": 0,
+          "type_line": "Artifact Creature \u2014 Thopter",
+          "oracle_text": "Flying"
+        },
+        {
+          "name": "Tetsuko Umezawa, Fugitive",
+          "mana_cost": "{1}{U}",
+          "cmc": 2,
+          "type_line": "Legendary Creature \u2014 Human Rogue",
+          "oracle_text": "Creatures you control with power or toughness 1 or less can't be blocked."
+        },
+        {
+          "name": "Spectral Sailor",
+          "mana_cost": "{U}",
+          "cmc": 1,
+          "type_line": "Creature \u2014 Spirit Pirate",
+          "oracle_text": "Flash (You may cast this spell any time you could cast an instant.)\nFlying\n{3}{U}: Draw a card."
+        },
+        {
+          "name": "Fallen Shinobi",
+          "mana_cost": "{3}{U}{B}",
+          "cmc": 5,
+          "type_line": "Creature \u2014 Zombie Ninja",
+          "oracle_text": "Ninjutsu {2}{U}{B} ({2}{U}{B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped an"
+        },
+        {
+          "name": "Higure, the Still Wind",
+          "mana_cost": "{3}{U}{U}",
+          "cmc": 5,
+          "type_line": "Legendary Creature \u2014 Human Ninja",
+          "oracle_text": "Ninjutsu {2}{U}{U} ({2}{U}{U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped an"
+        },
+        {
+          "name": "Satoru, the Infiltrator",
+          "mana_cost": "{U}{B}",
+          "cmc": 2,
+          "type_line": "Legendary Creature \u2014 Human Ninja Rogue",
+          "oracle_text": "Menace\nWhenever Satoru and/or one or more other nontoken creatures you control enter, if none of them were cast or no mana was spent to cast"
+        },
+        {
+          "name": "Faerie Seer",
+          "mana_cost": "{U}",
+          "cmc": 1,
+          "type_line": "Creature \u2014 Faerie Wizard",
+          "oracle_text": "Flying\nWhen this creature enters, scry 2. (Look at the top two cards of your library, then put any number of them on the bottom and the rest"
+        },
+        {
+          "name": "Sakashima's Student",
+          "mana_cost": "{2}{U}{U}",
+          "cmc": 4,
+          "type_line": "Creature \u2014 Human Ninja",
+          "oracle_text": "Ninjutsu {1}{U} ({1}{U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and atta"
+        },
+        {
+          "name": "Baleful Strix",
+          "mana_cost": "{U}{B}",
+          "cmc": 2,
+          "type_line": "Artifact Creature \u2014 Bird",
+          "oracle_text": "Flying, deathtouch\nWhen this creature enters, draw a card."
+        },
+        {
+          "name": "Mothdust Changeling",
+          "mana_cost": "{U}",
+          "cmc": 1,
+          "type_line": "Creature \u2014 Shapeshifter",
+          "oracle_text": "Changeling (This card is every creature type.)\nTap an untapped creature you control: This creature gains flying until end of turn."
+        },
+        {
+          "name": "Slither Blade",
+          "mana_cost": "{U}",
+          "cmc": 1,
+          "type_line": "Creature \u2014 Snake Rogue",
+          "oracle_text": "This creature can't be blocked."
+        },
+        {
+          "name": "Mist-Syndicate Naga",
+          "mana_cost": "{2}{U}",
+          "cmc": 3,
+          "type_line": "Creature \u2014 Snake Ninja",
+          "oracle_text": "Ninjutsu {2}{U} ({2}{U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and atta"
+        },
+        {
+          "name": "Skullsnatcher",
+          "mana_cost": "{1}{B}",
+          "cmc": 2,
+          "type_line": "Creature \u2014 Rat Ninja",
+          "oracle_text": "Ninjutsu {B} ({B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking."
+        },
+        {
+          "name": "Triton Shorestalker",
+          "mana_cost": "{U}",
+          "cmc": 1,
+          "type_line": "Creature \u2014 Merfolk Rogue",
+          "oracle_text": "This creature can't be blocked."
+        },
+        {
+          "name": "Nashi, Moon Sage's Scion",
+          "mana_cost": "{1}{B}{B}",
+          "cmc": 3,
+          "type_line": "Legendary Creature \u2014 Rat Ninja",
+          "oracle_text": "Ninjutsu {3}{B} ({3}{B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and atta"
+        },
+        {
+          "name": "Gingerbrute",
+          "mana_cost": "{1}",
+          "cmc": 1,
+          "type_line": "Artifact Creature \u2014 Food Golem",
+          "oracle_text": "Haste (This creature can attack and {T} as soon as it comes under your control.)\n{1}: This creature can't be blocked this turn except by cre"
+        },
+        {
+          "name": "Throat Slitter",
+          "mana_cost": "{4}{B}",
+          "cmc": 5,
+          "type_line": "Creature \u2014 Rat Ninja",
+          "oracle_text": "Ninjutsu {2}{B} ({2}{B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and atta"
+        },
+        {
+          "name": "Hydroelectric Specimen // Hydroelectric Laboratory",
+          "mana_cost": null,
+          "cmc": 3,
+          "type_line": "Creature \u2014 Weird // Land",
+          "oracle_text": "Flash\nWhen this creature enters, you may change the target of target instant or sorcery spell with a single target to this creature. // As t"
+        },
+        {
+          "name": "Silent-Blade Oni",
+          "mana_cost": "{3}{U}{U}{B}{B}",
+          "cmc": 7,
+          "type_line": "Creature \u2014 Demon Ninja",
+          "oracle_text": "Ninjutsu {4}{U}{B} ({4}{U}{B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped an"
+        },
+        {
+          "name": "Mist-Cloaked Herald",
+          "mana_cost": "{U}",
+          "cmc": 1,
+          "type_line": "Creature \u2014 Merfolk Warrior",
+          "oracle_text": "This creature can't be blocked."
+        },
+        {
+          "name": "Mockingbird",
+          "mana_cost": "{X}{U}",
+          "cmc": 1,
+          "type_line": "Creature \u2014 Bird Bard",
+          "oracle_text": "Flying\nYou may have this creature enter as a copy of any creature on the battlefield with mana value less than or equal to the amount of man"
+        },
+        {
+          "name": "Thassa's Oracle",
+          "mana_cost": "{U}{U}",
+          "cmc": 2,
+          "type_line": "Creature \u2014 Merfolk Wizard",
+          "oracle_text": "When this creature enters, look at the top X cards of your library, where X is your devotion to blue. Put up to one of them on top of your l"
+        },
+        {
+          "name": "Commandeer",
+          "mana_cost": "{5}{U}{U}",
+          "cmc": 7,
+          "type_line": "Instant",
+          "oracle_text": "You may exile two blue cards from your hand rather than pay this spell's mana cost.\nGain control of target noncreature spell. You may choose"
+        },
+        {
+          "name": "Misdirection",
+          "mana_cost": "{3}{U}{U}",
+          "cmc": 5,
+          "type_line": "Instant",
+          "oracle_text": "You may exile a blue card from your hand rather than pay this spell's mana cost.\nChange the target of target spell with a single target."
+        },
+        {
+          "name": "Fierce Guardianship",
+          "mana_cost": "{2}{U}",
+          "cmc": 3,
+          "type_line": "Instant",
+          "oracle_text": "If you control a commander, you may cast this spell without paying its mana cost.\nCounter target noncreature spell."
+        },
+        {
+          "name": "Force of Will",
+          "mana_cost": "{3}{U}{U}",
+          "cmc": 5,
+          "type_line": "Instant",
+          "oracle_text": "You may pay 1 life and exile a blue card from your hand rather than pay this spell's mana cost.\nCounter target spell."
+        },
+        {
+          "name": "Flare of Denial",
+          "mana_cost": "{1}{U}{U}",
+          "cmc": 3,
+          "type_line": "Instant",
+          "oracle_text": "You may sacrifice a nontoken blue creature rather than pay this spell's mana cost.\nCounter target spell."
+        },
+        {
+          "name": "Counterspell",
+          "mana_cost": "{U}{U}",
+          "cmc": 2,
+          "type_line": "Instant",
+          "oracle_text": "Counter target spell."
+        },
+        {
+          "name": "An Offer You Can't Refuse",
+          "mana_cost": "{U}",
+          "cmc": 1,
+          "type_line": "Instant",
+          "oracle_text": "Counter target noncreature spell. Its controller creates two Treasure tokens. (They're artifacts with \"{T}, Sacrifice this token: Add one ma"
+        },
+        {
+          "name": "Temporal Trespass",
+          "mana_cost": "{8}{U}{U}{U}",
+          "cmc": 11,
+          "type_line": "Sorcery",
+          "oracle_text": "Delve (Each card you exile from your graveyard while casting this spell pays for {1}.)\nTake an extra turn after this one. Exile Temporal Tre"
+        },
+        {
+          "name": "Temporal Mastery",
+          "mana_cost": "{5}{U}{U}",
+          "cmc": 7,
+          "type_line": "Sorcery",
+          "oracle_text": "Take an extra turn after this one. Exile Temporal Mastery.\nMiracle {1}{U} (You may cast this card for its miracle cost when you draw it if i"
+        },
+        {
+          "name": "Lightning Greaves",
+          "mana_cost": "{2}",
+          "cmc": 2,
+          "type_line": "Artifact \u2014 Equipment",
+          "oracle_text": "Equipped creature has haste and shroud. (It can't be the target of spells or abilities.)\nEquip {0}"
+        },
+        {
+          "name": "Cover of Darkness",
+          "mana_cost": "{1}{B}",
+          "cmc": 2,
+          "type_line": "Enchantment",
+          "oracle_text": "As this enchantment enters, choose a creature type.\nCreatures of the chosen type have fear. (They can't be blocked except by artifact creatu"
+        },
+        {
+          "name": "Kaito, Bane of Nightmares",
+          "mana_cost": "{2}{U}{B}",
+          "cmc": 4,
+          "type_line": "Legendary Planeswalker \u2014 Kaito",
+          "oracle_text": "Ninjutsu {1}{U}{B} ({1}{U}{B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped an"
+        }
+      ]
+    }
+  }
+}
