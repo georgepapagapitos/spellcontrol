@@ -24,6 +24,7 @@ vi.mock('@/deck-builder/services/scryfall/client', () => ({
   getCachedCard: () => undefined,
   getCardsByNames: (n: string[]) => getCardsByNames(n),
   getGameChangerNames: async () => new Set<string>(),
+  getGameChangerNamesNow: () => new Set<string>(),
 }));
 
 const cut = (name: string): Change => ({

@@ -5,7 +5,7 @@
  */
 import type { ComboMatchResponse } from '@/types/combos';
 import type { Deck } from '@/store/decks';
-import { getGameChangerNames } from '@/deck-builder/services/scryfall/client';
+import { getGameChangerNamesNow } from '@/deck-builder/services/scryfall/client';
 import { coachCombos, loadCoachObjective, protectionSourcesFrom } from './coach-objective';
 import type { CoachObjectiveResult } from './coach-objective';
 
@@ -19,7 +19,9 @@ export interface CutSwapSources {
 
 /** The objective for the sources' deck, or why it can't be scored. */
 export async function loadSourcesObjective(src: CutSwapSources): Promise<CoachObjectiveResult> {
-  const gameChangerNames = await getGameChangerNames().catch(() => new Set<string>());
+  // Not awaited: on a cold page the live list queues behind the analysis's own Scryfall
+  // requests, and the objective's time is the pairing's budget (E1039).
+  const gameChangerNames = getGameChangerNamesNow();
   const d = src.deck;
   const ownedNames = new Set(src.owned.map((c) => c.name));
   return loadCoachObjective(d, {
