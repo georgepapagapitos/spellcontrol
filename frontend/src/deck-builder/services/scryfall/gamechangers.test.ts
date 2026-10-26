@@ -123,3 +123,48 @@ describe('getGameChangerNamesNow (E1039)', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('a hung or failing live fetch (E1039 review)', () => {
+  it('times out, answers with the hardcoded floor and frees the latch', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(globalThis, 'fetch').mockReturnValue(pending<Response>());
+      const { liveCardRepository } = await freshClient();
+
+      const result = liveCardRepository.getGameChangerNames();
+      await vi.advanceTimersByTimeAsync(16_000);
+
+      expect(await result).toEqual(new Set(HARDCODED_GAME_CHANGERS));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a later call after a failure fetches again instead of reusing the floor as fresh', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('nope', { status: 500 }))
+      .mockResolvedValue(searchPage(['Cyclonic Rift'], false));
+    const { liveCardRepository } = await freshClient();
+
+    const first = await liveCardRepository.getGameChangerNames();
+    expect(first).toEqual(new Set(HARDCODED_GAME_CHANGERS));
+    const second = await liveCardRepository.getGameChangerNames();
+
+    expect(second).toEqual(new Set(['Cyclonic Rift']));
+    expect(fetchSpy.mock.calls.length).toBeGreaterThan(1);
+  });
+
+  it('stops paginating at the page cap and keeps the hardcoded floor', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async () => searchPage(['Live Only'], true));
+    const { liveCardRepository } = await freshClient();
+
+    const names = await liveCardRepository.getGameChangerNames();
+
+    expect(fetchSpy.mock.calls.length).toBeLessThanOrEqual(5);
+    expect(names.has('Live Only')).toBe(true);
+    for (const n of HARDCODED_GAME_CHANGERS) expect(names.has(n)).toBe(true);
+  });
+});

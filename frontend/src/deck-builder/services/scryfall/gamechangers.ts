@@ -48,17 +48,32 @@ export function liveGetGameChangerNames(): Promise<Set<string>> {
 }
 let gameChangerInFlight: Promise<Set<string>> | null = null;
 
+/** The whole paginated fetch gets this long; the list is ~53 cards, one page. */
+const GC_FETCH_TIMEOUT_MS = 15_000;
+const MAX_GC_PAGES = 5;
+
 async function fetchGameChangerNames(): Promise<Set<string>> {
   const names = new Set<string>();
   let page = 1;
   let hasMore = true;
   let completedFully = true;
+  // A hung request must not wedge every caller sharing the in-flight latch: past the
+  // deadline (or the page cap) the fetch counts as incomplete, like a broken page.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('gamechanger fetch timed out')), GC_FETCH_TIMEOUT_MS);
+  });
+  deadline.catch(() => undefined);
 
   while (hasMore) {
     try {
-      const response = await scryfallFetch<ScryfallSearchResponse>(
-        `/cards/search?q=${encodeURIComponent('is:gamechanger')}&page=${page}`
-      );
+      if (page > MAX_GC_PAGES) throw new Error('gamechanger fetch overran its page cap');
+      const response = await Promise.race([
+        scryfallFetch<ScryfallSearchResponse>(
+          `/cards/search?q=${encodeURIComponent('is:gamechanger')}&page=${page}`
+        ),
+        deadline,
+      ]);
       for (const card of response.data) {
         names.add(card.name);
         // For DFCs, also index by front face so EDHREC name lookups match
@@ -73,12 +88,14 @@ async function fetchGameChangerNames(): Promise<Set<string>> {
       break;
     }
   }
+  clearTimeout(timer);
 
   if (names.size === 0) {
     // First-page network failure → fall back to hardcoded list so the live path
     // also degrades gracefully rather than zeroing the GC floor.
     logger.debug('[Scryfall] GC live fetch returned empty; using hardcoded fallback');
     gameChangerNamesCache = new Set(HARDCODED_GAME_CHANGERS);
+    completedFully = false;
   } else if (completedFully) {
     // Every page landed — the live list is the current RC list, full stop.
     // Log drift (a hardcoded name the live list lacks) rather than silently
@@ -96,7 +113,9 @@ async function fetchGameChangerNames(): Promise<Set<string>> {
     // floor so a page that never arrived can't undercount the GC set.
     gameChangerNamesCache = new Set([...HARDCODED_GAME_CHANGERS, ...names]);
   }
-  gameChangerCacheTimestamp = Date.now();
+  // Only a complete live list counts as fresh: after a failure or partial result the
+  // floor answers meanwhile and the next caller tries the fetch again.
+  if (completedFully) gameChangerCacheTimestamp = Date.now();
   logger.debug(`[Scryfall] Cached ${gameChangerNamesCache.size} game changer card names`);
   return gameChangerNamesCache;
 }
