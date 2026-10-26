@@ -1,0 +1,503 @@
+{
+ "_source": "Real 2026-10-25 panel dump (Atraxa, Praetors' Voice budget75, treatment of #3047): the 63 nonland cards the pre-pick merit bar saw, and the lands the old merit bar seated vs the ones the Karsten split's bar seated. produced_mana is Scryfall's, from the generator's cached responses (Commander's Sphere is read in the commander's identity).",
+ "colorIdentity": [
+  "B",
+  "G",
+  "U",
+  "W"
+ ],
+ "basicCount": 13,
+ "nonland": [
+  {
+   "name": "Farseek",
+   "mana_cost": "{1}{G}",
+   "cmc": 2,
+   "type_line": "Sorcery",
+   "oracle_text": "Search your library for a Plains, Island, Swamp, or Mountain card, put it onto the battlefield tapped, then shuffle."
+  },
+  {
+   "name": "Nature's Lore",
+   "mana_cost": "{1}{G}",
+   "cmc": 2,
+   "type_line": "Sorcery",
+   "oracle_text": "Search your library for a Forest card, put that card onto the battlefield, then shuffle."
+  },
+  {
+   "name": "Cultivate",
+   "mana_cost": "{2}{G}",
+   "cmc": 3,
+   "type_line": "Sorcery",
+   "oracle_text": "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle."
+  },
+  {
+   "name": "Rampant Growth",
+   "mana_cost": "{1}{G}",
+   "cmc": 2,
+   "type_line": "Sorcery",
+   "oracle_text": "Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle."
+  },
+  {
+   "name": "Sol Ring",
+   "mana_cost": "{1}",
+   "cmc": 1,
+   "type_line": "Artifact",
+   "oracle_text": "{T}: Add {C}{C}.",
+   "produced_mana": [
+    "C"
+   ]
+  },
+  {
+   "name": "Arcane Signet",
+   "mana_cost": "{2}",
+   "cmc": 2,
+   "type_line": "Artifact",
+   "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+   "produced_mana": [
+    "B",
+    "G",
+    "R",
+    "U",
+    "W"
+   ]
+  },
+  {
+   "name": "Astral Cornucopia",
+   "mana_cost": "{X}{X}{X}",
+   "cmc": 0,
+   "type_line": "Artifact",
+   "oracle_text": "This artifact enters with X charge counters on it.\n{T}: Choose a color. Add one mana of that color for each charge counter on this artifact.",
+   "produced_mana": [
+    "B",
+    "G",
+    "R",
+    "U",
+    "W"
+   ]
+  },
+  {
+   "name": "Everflowing Chalice",
+   "mana_cost": "{0}",
+   "cmc": 0,
+   "type_line": "Artifact",
+   "oracle_text": "Multikicker {2} (You may pay an additional {2} any number of times as you cast this spell.)\nThis artifact enters with a charge counter on it for each time it was kicked.\n{T}: Add {C} for each charge counter on this artifact.",
+   "produced_mana": [
+    "C"
+   ]
+  },
+  {
+   "name": "Chromatic Lantern",
+   "mana_cost": "{3}",
+   "cmc": 3,
+   "type_line": "Artifact",
+   "oracle_text": "Lands you control have \"{T}: Add one mana of any color.\"\n{T}: Add one mana of any color.",
+   "produced_mana": [
+    "B",
+    "G",
+    "R",
+    "U",
+    "W"
+   ]
+  },
+  {
+   "name": "Commander's Sphere",
+   "mana_cost": "{3}",
+   "cmc": 3,
+   "type_line": "Artifact",
+   "oracle_text": "{T}: Add one mana of any color in your commander's color identity.\nSacrifice this artifact: Draw a card.",
+   "produced_mana": [
+    "B",
+    "G",
+    "U",
+    "W"
+   ]
+  },
+  {
+   "name": "Fellwar Stone",
+   "mana_cost": "{2}",
+   "cmc": 2,
+   "type_line": "Artifact",
+   "oracle_text": "{T}: Add one mana of any color that a land an opponent controls could produce.",
+   "produced_mana": [
+    "B",
+    "G",
+    "R",
+    "U",
+    "W"
+   ]
+  },
+  {
+   "name": "Replicating Ring",
+   "mana_cost": "{3}",
+   "cmc": 3,
+   "type_line": "Snow Artifact",
+   "oracle_text": "{T}: Add one mana of any color.\nAt the beginning of your upkeep, put a night counter on this artifact. Then if it has eight or more night co",
+   "produced_mana": [
+    "B",
+    "G",
+    "R",
+    "U",
+    "W"
+   ]
+  },
+  {
+   "name": "Prologue to Phyresis",
+   "mana_cost": "{1}{U}",
+   "cmc": 2,
+   "type_line": "Instant",
+   "oracle_text": "Each opponent gets a poison counter.\nDraw a card."
+  },
+  {
+   "name": "Experimental Augury",
+   "mana_cost": "{1}{U}",
+   "cmc": 2,
+   "type_line": "Instant",
+   "oracle_text": "Look at the top three cards of your library. Put one of them into your hand and the rest on the bottom of your library in any order. Proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)"
+  },
+  {
+   "name": "Steady Progress",
+   "mana_cost": "{2}{U}",
+   "cmc": 3,
+   "type_line": "Instant",
+   "oracle_text": "Proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)\nDraw a card."
+  },
+  {
+   "name": "Brainstorm",
+   "mana_cost": "{U}",
+   "cmc": 1,
+   "type_line": "Instant",
+   "oracle_text": "Draw three cards, then put two cards from your hand on top of your library in any order."
+  },
+  {
+   "name": "Tezzeret's Gambit",
+   "mana_cost": "{3}{U/P}",
+   "cmc": 4,
+   "type_line": "Sorcery",
+   "oracle_text": "({U/P} can be paid with either {U} or 2 life.)\nDraw two cards, then proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)"
+  },
+  {
+   "name": "Insight Engine",
+   "mana_cost": "{2}{U}",
+   "cmc": 3,
+   "type_line": "Artifact",
+   "oracle_text": "{2}, {T}: Put a charge counter on this artifact, then draw a card for each charge counter on it."
+  },
+  {
+   "name": "Bred for the Hunt",
+   "mana_cost": "{1}{G}{U}",
+   "cmc": 3,
+   "type_line": "Enchantment",
+   "oracle_text": "Whenever a creature you control with a +1/+1 counter on it deals combat damage to a player, you may draw a card."
+  },
+  {
+   "name": "Infectious Inquiry",
+   "mana_cost": "{2}{B}",
+   "cmc": 3,
+   "type_line": "Sorcery",
+   "oracle_text": "You draw two cards and you lose 2 life. Each opponent gets a poison counter."
+  },
+  {
+   "name": "Contentious Plan",
+   "mana_cost": "{1}{U}",
+   "cmc": 2,
+   "type_line": "Sorcery",
+   "oracle_text": "Proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)\nDraw a card."
+  },
+  {
+   "name": "Swords to Plowshares",
+   "mana_cost": "{W}",
+   "cmc": 1,
+   "type_line": "Instant",
+   "oracle_text": "Exile target creature. Its controller gains life equal to its power."
+  },
+  {
+   "name": "Vraska's Fall",
+   "mana_cost": "{2}{B}",
+   "cmc": 3,
+   "type_line": "Instant",
+   "oracle_text": "Each opponent sacrifices a creature or planeswalker of their choice and gets a poison counter."
+  },
+  {
+   "name": "Infectious Bite",
+   "mana_cost": "{1}{G}",
+   "cmc": 2,
+   "type_line": "Instant",
+   "oracle_text": "Target creature you control deals damage equal to its power to target creature you don't control. Each opponent gets a poison counter."
+  },
+  {
+   "name": "Path to Exile",
+   "mana_cost": "{W}",
+   "cmc": 1,
+   "type_line": "Instant",
+   "oracle_text": "Exile target creature. Its controller may search their library for a basic land card, put that card onto the battlefield tapped, then shuffle."
+  },
+  {
+   "name": "Whisper of the Dross",
+   "mana_cost": "{B}",
+   "cmc": 1,
+   "type_line": "Instant",
+   "oracle_text": "Target creature gets -1/-1 until end of turn. Proliferate. (Choose any number of permanents and/or players, then give each another counter o"
+  },
+  {
+   "name": "Assassin's Trophy",
+   "mana_cost": "{B}{G}",
+   "cmc": 2,
+   "type_line": "Instant",
+   "oracle_text": "Destroy target permanent an opponent controls. Its controller may search their library for a basic land card, put it onto the battlefield, then shuffle."
+  },
+  {
+   "name": "Drown in Ichor",
+   "mana_cost": "{1}{B}",
+   "cmc": 2,
+   "type_line": "Sorcery",
+   "oracle_text": "Target creature gets -4/-4 until end of turn. Proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)"
+  },
+  {
+   "name": "White Sun's Twilight",
+   "mana_cost": "{X}{W}{W}",
+   "cmc": 2,
+   "type_line": "Sorcery",
+   "oracle_text": "You gain X life. Create X 1/1 colorless Phyrexian Mite artifact creature tokens with toxic 1 and \"This token can't block.\" If X is 5 or more"
+  },
+  {
+   "name": "Sunfall",
+   "mana_cost": "{3}{W}{W}",
+   "cmc": 5,
+   "type_line": "Sorcery",
+   "oracle_text": "Exile all creatures. Incubate X, where X is the number of creatures exiled this way. (Create an Incubator token with X +1/+1 counters on it "
+  },
+  {
+   "name": "Damn",
+   "mana_cost": "{B}{B}",
+   "cmc": 2,
+   "type_line": "Sorcery",
+   "oracle_text": "Destroy target creature. A creature destroyed this way can't be regenerated.\nOverload {2}{W}{W} (You may cast this spell for its overload co"
+  },
+  {
+   "name": "Skrelv, Defector Mite",
+   "mana_cost": "{W}",
+   "cmc": 1,
+   "type_line": "Legendary Artifact Creature \u2014 Phyrexian Mite",
+   "oracle_text": "Toxic 1 (Players dealt combat damage by this creature also get a poison counter.)\nSkrelv can't block.\n{W/P}, {T}: Choose a color. Another target creature you control gains toxic 1 and hexproof from that color until end of turn. It can't be blocked by creatures of that color this turn. ({W/P} can be paid with either {W} or 2 life.)"
+  },
+  {
+   "name": "Ezuri, Stalker of Spheres",
+   "mana_cost": "{2}{G}{U}",
+   "cmc": 4,
+   "type_line": "Legendary Creature \u2014 Phyrexian Elf Warrior",
+   "oracle_text": "When Ezuri enters, you may pay {3}. If you do, proliferate twice.\nWhenever you proliferate, draw a card."
+  },
+  {
+   "name": "Tekuthal, Inquiry Dominus",
+   "mana_cost": "{2}{U}{U}",
+   "cmc": 4,
+   "type_line": "Legendary Creature \u2014 Phyrexian Horror",
+   "oracle_text": "Flying\nIf you would proliferate, proliferate twice instead.\n{1}{U/P}{U/P}, Remove three counters from among other artifacts, creatures, and planeswalkers you control: Put an indestructible counter on Tekuthal. ({U/P} can be paid with either {U} or 2 life.)"
+  },
+  {
+   "name": "Evolution Sage",
+   "mana_cost": "{2}{G}",
+   "cmc": 3,
+   "type_line": "Creature \u2014 Elf Druid",
+   "oracle_text": "Landfall \u2014 Whenever a land you control enters, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)"
+  },
+  {
+   "name": "Thrummingbird",
+   "mana_cost": "{1}{U}",
+   "cmc": 2,
+   "type_line": "Creature \u2014 Phyrexian Bird Horror",
+   "oracle_text": "Flying\nWhenever this creature deals combat damage to a player, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)"
+  },
+  {
+   "name": "Plague Myr",
+   "mana_cost": "{2}",
+   "cmc": 2,
+   "type_line": "Artifact Creature \u2014 Phyrexian Myr",
+   "oracle_text": "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\n{T}: Add {C}.",
+   "produced_mana": [
+    "C"
+   ]
+  },
+  {
+   "name": "Ixhel, Scion of Atraxa",
+   "mana_cost": "{1}{W}{B}{G}",
+   "cmc": 4,
+   "type_line": "Legendary Creature \u2014 Phyrexian Angel",
+   "oracle_text": "Flying, vigilance, toxic 2\nCorrupted \u2014 At the beginning of your end step, each opponent who has three or more poison counters exiles the top card of their library face down. You may look at and play those cards for as long as they remain exiled, and you may spend mana as though it were mana of any color to cast those spells."
+  },
+  {
+   "name": "Cankerbloom",
+   "mana_cost": "{1}{G}",
+   "cmc": 2,
+   "type_line": "Creature \u2014 Phyrexian Fungus",
+   "oracle_text": "{1}, Sacrifice this creature: Choose one \u2014\n\u2022 Destroy target artifact.\n\u2022 Destroy target enchantment.\n\u2022 Proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)"
+  },
+  {
+   "name": "Fathom Mage",
+   "mana_cost": "{2}{G}{U}",
+   "cmc": 4,
+   "type_line": "Creature \u2014 Human Wizard",
+   "oracle_text": "Evolve (Whenever a creature you control enters, if that creature has greater power or toughness than this creature, put a +1/+1 counter on t"
+  },
+  {
+   "name": "Crystalline Crawler",
+   "mana_cost": "{4}",
+   "cmc": 4,
+   "type_line": "Artifact Creature \u2014 Construct",
+   "oracle_text": "Converge \u2014 This creature enters with a +1/+1 counter on it for each color of mana spent to cast it.\nRemove a +1/+1 counter from this creatur"
+  },
+  {
+   "name": "Viridian Corrupter",
+   "mana_cost": "{1}{G}{G}",
+   "cmc": 3,
+   "type_line": "Creature \u2014 Phyrexian Elf Shaman",
+   "oracle_text": "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\nWhen this crea"
+  },
+  {
+   "name": "Flux Channeler",
+   "mana_cost": "{2}{U}",
+   "cmc": 3,
+   "type_line": "Creature \u2014 Human Wizard",
+   "oracle_text": "Whenever you cast a noncreature spell, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)"
+  },
+  {
+   "name": "Bloated Contaminator",
+   "mana_cost": "{2}{G}",
+   "cmc": 3,
+   "type_line": "Creature \u2014 Phyrexian Beast",
+   "oracle_text": "Trample\nToxic 1 (Players dealt combat damage by this creature also get a poison counter.)\nWhenever this creature deals combat damage to a player, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)"
+  },
+  {
+   "name": "Deepglow Skate",
+   "mana_cost": "{4}{U}",
+   "cmc": 5,
+   "type_line": "Creature \u2014 Fish",
+   "oracle_text": "When this creature enters, double the number of each kind of counter on any number of target permanents."
+  },
+  {
+   "name": "Metastatic Evangel",
+   "mana_cost": "{1}{W}",
+   "cmc": 2,
+   "type_line": "Creature \u2014 Phyrexian Human Cleric",
+   "oracle_text": "Whenever another nontoken creature you control enters, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)"
+  },
+  {
+   "name": "Voidwing Hybrid",
+   "mana_cost": "{U}{B}",
+   "cmc": 2,
+   "type_line": "Creature \u2014 Phyrexian Bat",
+   "oracle_text": "Flying\nToxic 1 (Players dealt combat damage by this creature also get a poison counter.)\nWhen you proliferate, return this card from your graveyard to your hand."
+  },
+  {
+   "name": "Blightbelly Rat",
+   "mana_cost": "{1}{B}",
+   "cmc": 2,
+   "type_line": "Creature \u2014 Phyrexian Rat",
+   "oracle_text": "Toxic 1 (Players dealt combat damage by this creature also get a poison counter.)\nWhen this creature dies, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)"
+  },
+  {
+   "name": "Blighted Agent",
+   "mana_cost": "{1}{U}",
+   "cmc": 2,
+   "type_line": "Creature \u2014 Phyrexian Human Rogue",
+   "oracle_text": "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\nThis creature can't be blocked."
+  },
+  {
+   "name": "Hapatra, the Desert Frost",
+   "mana_cost": "{3}{U}",
+   "cmc": 4,
+   "type_line": "Legendary Creature \u2014 Human Wizard",
+   "oracle_text": "When Hapatra enters, for each opponent, tap up to one target creature that player controls. Put a stun counter on each of those creatures. ("
+  },
+  {
+   "name": "Sanctum Lurker",
+   "mana_cost": "{2}{B}",
+   "cmc": 3,
+   "type_line": "Creature \u2014 Horror",
+   "oracle_text": "When this creature enters, empower Jace 1.\nPlaneswalkers you control aren't put into their owners' graveyards for having 0 loyalty.\nPlaneswa"
+  },
+  {
+   "name": "Guiding Hydra",
+   "mana_cost": "{X}{W}",
+   "cmc": 1,
+   "type_line": "Creature \u2014 Hydra Horror",
+   "oracle_text": "This creature enters with X +1/+1 counters on it.\nAt the beginning of combat on your turn, you may remove a +1/+1 counter from this creature"
+  },
+  {
+   "name": "Tainted Observer",
+   "mana_cost": "{1}{G}{U}",
+   "cmc": 3,
+   "type_line": "Creature \u2014 Phyrexian Bird",
+   "oracle_text": "Flying\nToxic 1 (Players dealt combat damage by this creature also get a poison counter.)\nWhenever another creature you control enters, you may pay {2}. If you do, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)"
+  },
+  {
+   "name": "Vishgraz, the Doomhive",
+   "mana_cost": "{2}{W}{B}{G}",
+   "cmc": 5,
+   "type_line": "Legendary Creature \u2014 Phyrexian Insect",
+   "oracle_text": "Menace, toxic 1 (Players dealt combat damage by this creature also get a poison counter.)\nWhen Vishgraz enters, create three 1/1 colorless Phyrexian Mite artifact creature tokens with toxic 1 and \"This token can't block.\"\nVishgraz gets +1/+1 for each poison counter your opponents have."
+  },
+  {
+   "name": "Grateful Apparition",
+   "mana_cost": "{1}{W}",
+   "cmc": 2,
+   "type_line": "Creature \u2014 Spirit",
+   "oracle_text": "Flying\nWhenever this creature deals combat damage to a player or planeswalker, proliferate. (Choose any number of permanents and/or players,"
+  },
+  {
+   "name": "Plague Stinger",
+   "mana_cost": "{1}{B}",
+   "cmc": 2,
+   "type_line": "Creature \u2014 Phyrexian Insect Horror",
+   "oracle_text": "Flying\nInfect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)"
+  },
+  {
+   "name": "Contagion Clasp",
+   "mana_cost": "{2}",
+   "cmc": 2,
+   "type_line": "Artifact",
+   "oracle_text": "When this artifact enters, put a -1/-1 counter on target creature.\n{4}, {T}: Proliferate. (Choose any number of permanents and/or players, t"
+  },
+  {
+   "name": "Corrupted Conscience",
+   "mana_cost": "{3}{U}{U}",
+   "cmc": 5,
+   "type_line": "Enchantment \u2014 Aura",
+   "oracle_text": "Enchant creature\nYou control enchanted creature.\nEnchanted creature has infect. (It deals damage to creatures in the form of -1/-1 counters "
+  },
+  {
+   "name": "Brokers Ascendancy",
+   "mana_cost": "{G}{W}{U}",
+   "cmc": 3,
+   "type_line": "Enchantment",
+   "oracle_text": "At the beginning of your end step, put a +1/+1 counter on each creature you control and a loyalty counter on each planeswalker you control."
+  },
+  {
+   "name": "Counterspell",
+   "mana_cost": "{U}{U}",
+   "cmc": 2,
+   "type_line": "Instant",
+   "oracle_text": "Counter target spell."
+  },
+  {
+   "name": "Inexorable Tide",
+   "mana_cost": "{3}{U}{U}",
+   "cmc": 5,
+   "type_line": "Enchantment",
+   "oracle_text": "Whenever you cast a spell, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)"
+  },
+  {
+   "name": "Swiftfoot Boots",
+   "mana_cost": "{2}",
+   "cmc": 2,
+   "type_line": "Artifact \u2014 Equipment",
+   "oracle_text": "Equipped creature has hexproof and haste. (It can't be the target of spells or abilities your opponents control. It can attack and {T} no ma"
+  },
+  {
+   "name": "Elspeth, Sun's Champion",
+   "mana_cost": "{4}{W}{W}",
+   "cmc": 6,
+   "type_line": "Legendary Planeswalker \u2014 Elspeth",
+   "oracle_text": "+1: Create three 1/1 white Soldier creature tokens.\n\u22123: Destroy all creatures with power 4 or greater.\n\u22127: You get an emblem with \"Creatures"
+  }
+ ]
+}
