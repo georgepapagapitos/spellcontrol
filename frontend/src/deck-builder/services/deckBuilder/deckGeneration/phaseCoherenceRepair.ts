@@ -301,6 +301,7 @@ export async function applyCoherenceRepair(
           calculateCardPriority(b, state.cfg.brewLevel) -
           calculateCardPriority(a, state.cfg.brewLevel)
       );
+    let leastOver: { card: ScryfallCard; over: number } | null = null;
     for (const c of ranked) {
       const card = ctx.scryfallCardMap.get(c.name)!;
       // E485: `allNonLand` still carries utility lands, and this swaps a spell
@@ -309,14 +310,6 @@ export async function applyCoherenceRepair(
       // surplus rebalance and the combo audit's orphan eviction.
       if (getFrontFaceTypeLine(card).includes('Land')) continue;
       if (pred && !pred(card)) continue;
-      // A swap that exists to drop a flagged card never adds to a role that is
-      // already at its target: Plague Myr came in for Necrogen Rotpriest with
-      // ramp 14 of 11 (E1040). Swaps that fill a named hole skip this check.
-      if (respectRoleTargets) {
-        const role = getCardRole(card.name);
-        const target = role ? state.roleTargets?.[role] : undefined;
-        if (role && target != null && (state.currentRoleCounts[role] ?? 0) >= target) continue;
-      }
       if (ctx.cardAllowed && !ctx.cardAllowed(card)) continue;
       if (!fitsColorIdentity(card, colorIdentity)) continue;
       const isGC = state.gameChangerNames.has(c.name);
@@ -336,9 +329,24 @@ export async function applyCoherenceRepair(
       // optional (a `null` here just means "don't swap this finding"), so no
       // escape hatch is needed: the loop simply keeps looking.
       if (qualifiedPayoffMismatch(card, nonLands(), poolCardObjs)) continue;
+      // A swap that exists to drop a flagged card prefers a card that does not add to a
+      // role already at its target: Plague Myr came in for Necrogen Rotpriest with ramp
+      // 14 of 11 (E1040). That only steers the choice. If every candidate is over target,
+      // the least-over one still replaces the flagged card, since a dead card is worse.
+      if (respectRoleTargets) {
+        const role = getCardRole(card.name);
+        const target = role ? state.roleTargets?.[role] : undefined;
+        if (role && target != null) {
+          const over = (state.currentRoleCounts[role] ?? 0) - target;
+          if (over >= 0) {
+            if (!leastOver || over < leastOver.over) leastOver = { card, over };
+            continue;
+          }
+        }
+      }
       return card;
     }
-    return null;
+    return leastOver?.card ?? null;
   };
 
   // Gate bookkeeping on an accepted add — mirrors pickFromPrefetched.

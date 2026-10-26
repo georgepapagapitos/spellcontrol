@@ -307,6 +307,32 @@ describe('applyCoherenceRepair', () => {
     }
   });
 
+  it('still replaces a flagged dead card when every candidate is over its role target (E1040, Carth the Lion)', async () => {
+    // Atraxa budget50: Carth the Lion tutors planeswalkers and the deck has none. Mortify was
+    // the only replacement and removal was at target, so the dead card stayed. It is cut anyway.
+    const state = makeState();
+    state.edhrecData!.cardlists.allNonLand = state.edhrecData!.cardlists.allNonLand.filter(
+      (c) => !c.name.startsWith('Safe Filler')
+    );
+    state.edhrecData!.cardlists.allNonLand.push(
+      edhrecCard('Mortify', 90),
+      edhrecCard('Swords to Plowshares', 85)
+    );
+    state.roleTargets = { ramp: 11, removal: 7, boardwipe: 3, cardDraw: 10 };
+    state.currentRoleCounts = { ramp: 11, removal: 9, boardwipe: 3, cardDraw: 10 };
+    addToDeck(state, scryfallCard('Carth the Lion', { type_line: 'Legendary Creature' }));
+    vi.mocked(getCardRole).mockImplementation((n) =>
+      n === 'Mortify' ? 'removal' : n === 'Swords to Plowshares' ? 'removal' : null
+    );
+    try {
+      const { repairs } = await applyCoherenceRepair(state, makeCtx(state));
+      expect(repairs.map((r) => [r.cut, r.added])).toEqual([['Carth the Lion', 'Mortify']]);
+      expect(deckNames(state)).not.toContain('Carth the Lion');
+    } finally {
+      vi.mocked(getCardRole).mockImplementation(() => null);
+    }
+  });
+
   it('bans the cut card name so no downstream phase can re-add it', async () => {
     const state = makeState();
     addToDeck(state, scryfallCard('Junk Card'));
