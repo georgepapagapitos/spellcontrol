@@ -100,12 +100,22 @@ export function weightedColorDemand(cards: ScryfallCard[]): Record<ManaColor, nu
 export const KARSTEN_SOURCE_TARGETS = true;
 
 /**
- * The sources a color needs by Karsten's table: for every nonland card with k
- * pips of the color, the minimum for a cost of (mana value - k) other mana plus
- * k pips, averaged over the color's cards weighted by k. A requirement is a
- * property of a cost shape, not a count of cards (forty {W}{W} two-drops need
- * the sources one does), so the mean replaces a pip total. 0 when the color has
- * no pips.
+ * The sources a color needs by Karsten's table. For every nonland card with k
+ * pips of the color, the table gives the minimum for a cost of (mana value - k)
+ * other mana plus k pips; the color's shape is the mean over its cards weighted
+ * by k. A requirement belongs to a cost shape, not to a card count (forty {W}{W}
+ * two-drops need the sources one does), hence a mean and not a sum.
+ *
+ * The table answers "how many sources cast THIS card on curve", for a card the
+ * deck is built around. A color that carries less than an even share of the
+ * deck's pips has proportionally fewer such cards to cast, so its requirement
+ * is scaled by (its pip share x number of colors), at most 1: a primary color
+ * keeps the full figure, a splash with a few percent of the pips keeps a few
+ * percent of it (and never falls under the splash floor in the basics split).
+ * Without this, one {1}{B} card asked as many black sources as forty white
+ * ones (Lathril: Forest 19 + Swamp 1 became Forest 8 + Swamp 12). The scale is
+ * this module's judgment, not Karsten's; his figure is the cap.
+ * 0 when the color has no pips.
  */
 export function karstenColorRequirement(cards: ScryfallCard[]): Record<ManaColor, number> {
   const weight: Record<ManaColor, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 };
@@ -120,8 +130,13 @@ export function karstenColorRequirement(cards: ScryfallCard[]): Record<ManaColor
       weighted[c] += k * karstenMinimumSources(Math.max(0, mv - k), k);
     }
   }
+  const colors = WUBRG.filter((c) => weight[c] > 0);
+  const totalPips = colors.reduce((sum, c) => sum + weight[c], 0);
   const out: Record<ManaColor, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 };
-  for (const c of WUBRG) out[c] = weight[c] > 0 ? Math.round(weighted[c] / weight[c]) : 0;
+  for (const c of colors) {
+    const scale = Math.min(1, (weight[c] / totalPips) * colors.length);
+    out[c] = Math.round((weighted[c] / weight[c]) * scale);
+  }
   return out;
 }
 
@@ -268,6 +283,43 @@ export function planBasicColorSplit(input: BasicSplitInput): Record<string, numb
   const produced = colorSourceCounts(pickedLands, identity, typalFixing);
   const spellSources = colorSourceCounts(nonLandCards, identity, typalFixing);
 
+  if (KARSTEN_SOURCE_TARGETS) {
+    // The requirement is a count of SOURCES, so the basics fill each color's
+    // shortfall after what the nonbasics and rocks already make: a color the
+    // duals cover gets no basics, and what the shortfalls leave over follows the
+    // pips, so the primary color keeps the rest.
+    const shortfall = eligible.map((c) =>
+      Math.max(
+        0,
+        Math.max(demand[c], pips[c] > 0 ? SPLASH_FLOOR : 0) - produced[c] - spellSources[c]
+      )
+    );
+    const needed = shortfall.reduce((a, b) => a + b, 0);
+    const alloc =
+      needed >= basicsNeeded
+        ? apportion(shortfall, basicsNeeded)
+        : apportion(
+            eligible.map((c) => pips[c]),
+            basicsNeeded - needed
+          ).map((extra, i) => extra + shortfall[i]);
+    // Every demanded color keeps at least one basic (a Basic-supertype search
+    // needs a real target) and, if the budget allows, the splash floor of two
+    // sources however large the primary color's shortfall.
+    const mins = eligible.map((c, k) =>
+      pips[c] > 0
+        ? Math.max(
+            1,
+            Math.min(SPLASH_FLOOR - produced[c] - spellSources[c], alloc[k] + basicsNeeded)
+          )
+        : 0
+    );
+    const floored = enforceMinimums(mins, alloc);
+    eligible.forEach((c, i) => {
+      out[c] = floored[i];
+    });
+    return out;
+  }
+
   // Total color-production capacity once basics land: every source counts once
   // per color it makes, so duals legitimately push the sum past the land count.
   let capacity = basicsNeeded;
@@ -356,6 +408,24 @@ export function colorsNeedingSources(
     if (assured <= target) need.add(c);
   }
   return need;
+}
+
+/** Raise each index to its minimum, taking from whichever index has the most above its own. */
+function enforceMinimums(mins: number[], allocated: number[]): number[] {
+  const result = [...allocated];
+  for (let i = 0; i < result.length; i++) {
+    while (result[i] < mins[i]) {
+      let donor = -1;
+      for (let j = 0; j < result.length; j++) {
+        if (j === i || result[j] <= mins[j]) continue;
+        if (donor === -1 || result[j] - mins[j] > result[donor] - mins[donor]) donor = j;
+      }
+      if (donor === -1) break;
+      result[donor] -= 1;
+      result[i] += 1;
+    }
+  }
+  return result;
 }
 
 /**
