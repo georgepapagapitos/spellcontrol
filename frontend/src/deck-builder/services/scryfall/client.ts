@@ -19,7 +19,11 @@ import { apiUrl } from '@/lib/api/api-base';
 import type { ScryfallCardRef } from '@/lib/cards/scryfall-card-link';
 import { persistCard, readCachedCards } from './cache';
 import { priceUnpricedFromOtherPrintings } from './unpricedPrintings';
-import { HARDCODED_GAME_CHANGERS as SHARED_GAME_CHANGERS } from '@spellcontrol/deck-metrics';
+import {
+  liveGetGameChangerNames,
+  offlineGetGameChangerNames,
+  peekGameChangerNames,
+} from './gamechangers';
 
 /**
  * Cheap synchronous gate used to short-circuit every Scryfall call when the
@@ -1538,109 +1542,20 @@ export function getCachedCard(name: string, arenaOnly = false): ScryfallCard | u
   return cached ? freshCopy(cached) : undefined;
 }
 
-/**
- * Official Commander Game Changers list — now shared.
- *
- * The list itself moved to `@spellcontrol/deck-metrics` because the backend
- * needs the same one for the AI `check_bracket` tool and has no other source
- * (its card cache stores a trimmed field set with no `game_changer` flag). Two
- * hand-maintained copies would drift, and this list drives a HARD bracket floor
- * — the two apps would end up disagreeing about a deck's bracket. This module
- * still owns the LIVE `is:gamechanger` query, which is authoritative on a
- * complete fetch (see `liveGetGameChangerNames`) and falls back to this list
- * only when the live fetch fails or breaks mid-page.
- */
-const HARDCODED_GAME_CHANGERS = SHARED_GAME_CHANGERS;
-
-// Cached set of game changer card names from Scryfall
-let gameChangerNamesCache: Set<string> | null = null;
-let gameChangerCacheTimestamp = 0;
-const GC_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
-
-/**
- * Live fetch of all `is:gamechanger` card names from Scryfall, paginated.
- *
- * A COMPLETE live fetch is authoritative on its own, not unioned with the
- * hardcoded list — the RC removes cards from the GC list too (ten in Oct
- * 2025), and unioning would keep flooring a removed card until someone edits
- * the hardcoded copy. The hardcoded list is only ever a fallback: whole (page
- * 1 fails, so there's nothing live to trust) or partial-floor (pagination
- * breaks after page 1, so the live set so far is unioned rather than risking
- * an undercount from a page that never arrived).
- */
-async function liveGetGameChangerNames(): Promise<Set<string>> {
-  if (gameChangerNamesCache && Date.now() - gameChangerCacheTimestamp < GC_CACHE_TTL) {
-    return gameChangerNamesCache;
-  }
-
-  const names = new Set<string>();
-  let page = 1;
-  let hasMore = true;
-  let completedFully = true;
-
-  while (hasMore) {
-    try {
-      const response = await scryfallFetch<ScryfallSearchResponse>(
-        `/cards/search?q=${encodeURIComponent('is:gamechanger')}&page=${page}`
-      );
-      for (const card of response.data) {
-        names.add(card.name);
-        // For DFCs, also index by front face so EDHREC name lookups match
-        if (card.name.includes(' // ')) {
-          names.add(frontFaceName(card.name));
-        }
-      }
-      hasMore = response.has_more;
-      page++;
-    } catch {
-      completedFully = false;
-      break;
-    }
-  }
-
-  if (names.size === 0) {
-    // First-page network failure → fall back to hardcoded list so the live path
-    // also degrades gracefully rather than zeroing the GC floor.
-    logger.debug('[Scryfall] GC live fetch returned empty; using hardcoded fallback');
-    gameChangerNamesCache = new Set(HARDCODED_GAME_CHANGERS);
-  } else if (completedFully) {
-    // Every page landed — the live list is the current RC list, full stop.
-    // Log drift (a hardcoded name the live list lacks) rather than silently
-    // floor it, so a stale hardcoded copy shows up before someone hits it.
-    const stale = [...HARDCODED_GAME_CHANGERS].filter((n) => !names.has(n));
-    if (stale.length > 0) {
-      logger.debug(
-        `[Scryfall] hardcoded GC list has ${stale.length} card(s) the live list no longer does (drift): ${stale.join(', ')}`
-      );
-    }
-    gameChangerNamesCache = names;
-  } else {
-    // Partial live set (pagination broke mid-way) — union with the hardcoded
-    // floor so a page that never arrived can't undercount the GC set.
-    gameChangerNamesCache = new Set([...HARDCODED_GAME_CHANGERS, ...names]);
-  }
-  gameChangerCacheTimestamp = Date.now();
-  logger.debug(`[Scryfall] Cached ${gameChangerNamesCache.size} game changer card names`);
-  return gameChangerNamesCache;
-}
-
-/**
- * Offline game-changer names: seeded from the hardcoded Feb 2026 RC list so
- * native/offline users get correct GC floors without a network call.
- */
-async function offlineGetGameChangerNames(): Promise<Set<string>> {
-  if (gameChangerNamesCache && Date.now() - gameChangerCacheTimestamp < GC_CACHE_TTL) {
-    return gameChangerNamesCache;
-  }
-  // Seed from the hardcoded Feb 2026 RC list so native/offline users get
-  // correct GC floors without a network call.
-  gameChangerNamesCache = new Set(HARDCODED_GAME_CHANGERS);
-  gameChangerCacheTimestamp = Date.now();
-  return gameChangerNamesCache;
-}
-
 export async function getGameChangerNames(): Promise<Set<string>> {
   return getCardRepository().getGameChangerNames();
+}
+
+/**
+ * The Game Changer list without waiting on the network (E1039): the in-memory list, else
+ * the last complete live list this browser saw, else the hardcoded one. A list that is not
+ * fresh is refreshed in the background. For callers that must not queue behind other
+ * Scryfall requests (Coach's objective); the rest await `getGameChangerNames`.
+ */
+export function getGameChangerNamesNow(): Set<string> {
+  const { known, fresh } = peekGameChangerNames();
+  if (!fresh) void getGameChangerNames().catch(() => undefined);
+  return known;
 }
 
 // Cached ban list results by format
