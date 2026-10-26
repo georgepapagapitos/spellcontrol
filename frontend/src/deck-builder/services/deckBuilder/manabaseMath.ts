@@ -249,6 +249,12 @@ export interface BasicSplitInput {
   basicsNeeded: number;
   /** A typal deck: its any-color creature lands count as every color. */
   typalFixing?: boolean;
+  /**
+   * Split by the pip-weight heuristic even while KARSTEN_SOURCE_TARGETS is on.
+   * The pre-pick merit bar (`colorsNeedingSources`) is graded on pips, so the
+   * basics it assumes must be the pip split too (E1040).
+   */
+  pipWeighted?: boolean;
 }
 
 /**
@@ -260,11 +266,12 @@ export interface BasicSplitInput {
  */
 export function planBasicColorSplit(input: BasicSplitInput): Record<string, number> {
   const { nonLandCards, pickedLands, identity, colors, basicsNeeded, typalFixing } = input;
+  const karsten = KARSTEN_SOURCE_TARGETS && !input.pipWeighted;
   const out: Record<string, number> = {};
   const eligible = colors.filter((c): c is ManaColor => (WUBRG as readonly string[]).includes(c));
   if (eligible.length === 0 || basicsNeeded <= 0) return out;
 
-  const demand = KARSTEN_SOURCE_TARGETS
+  const demand = karsten
     ? karstenColorRequirement(nonLandCards)
     : weightedColorDemand(nonLandCards);
   const pips = rawColorPips(nonLandCards);
@@ -283,7 +290,7 @@ export function planBasicColorSplit(input: BasicSplitInput): Record<string, numb
   const produced = colorSourceCounts(pickedLands, identity, typalFixing);
   const spellSources = colorSourceCounts(nonLandCards, identity, typalFixing);
 
-  if (KARSTEN_SOURCE_TARGETS) {
+  if (karsten) {
     // The requirement is a count of SOURCES, so the basics fill each color's
     // shortfall after what the nonbasics and rocks already make: a color the
     // duals cover gets no basics, and what the shortfalls leave over follows the
@@ -370,7 +377,11 @@ export function planBasicColorSplit(input: BasicSplitInput): Record<string, numb
  * 5.4b leaves this bar on the pip heuristic: it judges colors before any land is
  * picked, and Karsten's absolute counts (28 for {1}{W}{W}) are not reachable
  * from basics alone, which would keep every color "needed" and switch the
- * narrowing off.
+ * narrowing off. The basics it assumes are the pip split too (E1040): #3047 left
+ * them on the Karsten split, which hands a four-color deck's minor colors fewer
+ * assumed basics, so Atraxa budget75 read green and blue as needing sources,
+ * switched the merit boost on, and a tapped G/U gain land took a slot from an
+ * untapped-capable U/B dual.
  *
  * Conservative on purpose: a color is dropped only when assured supply
  * STRICTLY exceeds its bar, and the bar here skips buildManabaseSummary's
@@ -399,6 +410,7 @@ export function colorsNeedingSources(
     colors: eligible,
     basicsNeeded: plannedBasics,
     typalFixing,
+    pipWeighted: true,
   });
   const need = new Set<string>();
   for (const c of eligible as ManaColor[]) {

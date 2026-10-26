@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import meritBarFixture from './__fixtures__/atraxa-merit-bar.fixture.json';
 import splitFixture from './__fixtures__/basic-split-panel.fixture.json';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { KARSTEN_99_TABLE, karstenMinimumSources } from '@/lib/deck-analysis/karsten-table';
@@ -438,6 +439,40 @@ describe('colorsNeedingSources (E118 — deck-context fixing need)', () => {
 
   it('is empty for a colorless identity', () => {
     expect(colorsNeedingSources(wPips(20), new Set(), 5).size).toBe(0);
+  });
+
+  it('assumes the pip-weight basics, not the Karsten split (E1040, Atraxa budget75)', () => {
+    // The bar is graded on pips before any land is picked, so the basics it
+    // assumes must be the pip split. On the Karsten split blue read as needing
+    // sources, the merit boost came on, and a tapped G/U gain land took a slot
+    // from untapped-capable U/B duals (Drowned Catacomb, Sunken Hollow). The
+    // fixture is the deck's 63 nonland cards from the panel dump, plus three more
+    // any-color rocks, which puts blue on the edge of the bar (the pre-pick card
+    // list itself was not dumped).
+    const { colorIdentity, basicCount, nonland } = meritBarFixture;
+    const rock = (i: number) =>
+      card({
+        name: `Arcane Signet ${i}`,
+        mana_cost: '{2}',
+        cmc: 2,
+        type_line: 'Artifact',
+        oracle_text: "{T}: Add one mana of any color in your commander's color identity.",
+        produced_mana: ['W', 'U', 'B', 'R', 'G'],
+      });
+    const cards = [...nonland.map((c) => card(c as Partial<ScryfallCard>)), ...[0, 1, 2].map(rock)];
+    const identity = new Set(colorIdentity);
+    expect([...colorsNeedingSources(cards, identity, basicCount)]).toEqual([]);
+    // The Karsten split still sizes the deck's own basics: it differs from the pip one here.
+    const base = {
+      nonLandCards: cards,
+      pickedLands: [],
+      identity,
+      colors: colorIdentity,
+      basicsNeeded: basicCount,
+    };
+    expect(planBasicColorSplit({ ...base, pipWeighted: true })).not.toEqual(
+      planBasicColorSplit(base)
+    );
   });
 });
 

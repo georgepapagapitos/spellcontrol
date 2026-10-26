@@ -41,7 +41,11 @@ import { applyCoherenceRepair, MAX_COHERENCE_SWAPS } from './phaseCoherenceRepai
 import type { CoherenceRepairContext } from './phaseCoherenceRepair';
 import type { GenerationState } from './state';
 import { auditDeckCoherence } from '../coherenceAudit';
-import { readsAsProtection, isFreeInteraction } from '@/deck-builder/services/tagger/client';
+import {
+  readsAsProtection,
+  isFreeInteraction,
+  getCardRole,
+} from '@/deck-builder/services/tagger/client';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -284,6 +288,51 @@ describe('applyCoherenceRepair', () => {
   // against the shipped deck. removeCard() must veto the name so nothing
   // downstream can re-pick it (every downstream add site already gates on
   // state.bannedCards — see phaseRoleSurplusRebalance's own veto test).
+  it('adds nothing to a role already over its target when it drops an unjustified card (E1040)', async () => {
+    // Atraxa budget75: Necrogen Rotpriest went out and Plague Myr came in with ramp 14 of 11.
+    const state = makeState();
+    state.roleTargets = { ramp: 11, removal: 7, boardwipe: 3, cardDraw: 10 };
+    state.currentRoleCounts = { ramp: 14, removal: 7, boardwipe: 3, cardDraw: 10 };
+    state.edhrecData!.cardlists.allNonLand.unshift(edhrecCard('Plague Myr', 95));
+    addToDeck(state, scryfallCard('Necrogen Rotpriest', { type_line: 'Creature' })); // not in pool
+    vi.mocked(getCardRole).mockImplementation((n) => (n === 'Plague Myr' ? 'ramp' : null));
+    try {
+      const { repairs } = await applyCoherenceRepair(state, makeCtx(state));
+      expect(repairs.map((r) => [r.cut, r.added])).toEqual([
+        ['Necrogen Rotpriest', 'Safe Filler A'],
+      ]);
+      expect(deckNames(state)).not.toContain('Plague Myr');
+    } finally {
+      vi.mocked(getCardRole).mockImplementation(() => null);
+    }
+  });
+
+  it('still replaces a flagged dead card when every candidate is over its role target (E1040, Carth the Lion)', async () => {
+    // Atraxa budget50: Carth the Lion tutors planeswalkers and the deck has none. Mortify was
+    // the only replacement and removal was at target, so the dead card stayed. It is cut anyway.
+    const state = makeState();
+    state.edhrecData!.cardlists.allNonLand = state.edhrecData!.cardlists.allNonLand.filter(
+      (c) => !c.name.startsWith('Safe Filler')
+    );
+    state.edhrecData!.cardlists.allNonLand.push(
+      edhrecCard('Mortify', 90),
+      edhrecCard('Swords to Plowshares', 85)
+    );
+    state.roleTargets = { ramp: 11, removal: 7, boardwipe: 3, cardDraw: 10 };
+    state.currentRoleCounts = { ramp: 11, removal: 9, boardwipe: 3, cardDraw: 10 };
+    addToDeck(state, scryfallCard('Carth the Lion', { type_line: 'Legendary Creature' }));
+    vi.mocked(getCardRole).mockImplementation((n) =>
+      n === 'Mortify' ? 'removal' : n === 'Swords to Plowshares' ? 'removal' : null
+    );
+    try {
+      const { repairs } = await applyCoherenceRepair(state, makeCtx(state));
+      expect(repairs.map((r) => [r.cut, r.added])).toEqual([['Carth the Lion', 'Mortify']]);
+      expect(deckNames(state)).not.toContain('Carth the Lion');
+    } finally {
+      vi.mocked(getCardRole).mockImplementation(() => null);
+    }
+  });
+
   it('bans the cut card name so no downstream phase can re-add it', async () => {
     const state = makeState();
     addToDeck(state, scryfallCard('Junk Card'));
@@ -845,6 +894,27 @@ describe('applyCoherenceRepair', () => {
         'Overgrown Tomb',
         'Breeding Pool',
       ]);
+    });
+
+    it('skips an always-tapped spare for the untapped-capable one behind it (E1040)', async () => {
+      const real = muldrothaLands();
+      // Real oracle text of the gain land the Atraxa budget75 build seated.
+      const pym = scryfallCard('Pym Technologies', {
+        type_line: 'Land',
+        oracle_text:
+          'This land enters tapped.\nWhen this land enters, you gain 1 life.\n{T}: Add {G} or {U}.',
+        produced_mana: ['G', 'U'],
+      });
+      const state = greenHeavy();
+      state.categories.lands = [real('Otawara, Soaring City')];
+      const { repairs } = await applyCoherenceRepair(
+        state,
+        makeCtx(state, { landSpares: [pym, real('Breeding Pool')] })
+      );
+      expect(repairs.map((r) => [r.cut, r.added])).toEqual([
+        ['Otawara, Soaring City', 'Breeding Pool'],
+      ]);
+      expect(state.usedNames.has('Pym Technologies')).toBe(false);
     });
 
     it('keeps the channel land of the short color, and a 40%+ staple', async () => {

@@ -41,7 +41,7 @@ function isBasicLand(card: ScryfallCard): boolean {
  * Regex heuristic; ceiling = exotic tapped wordings. Upgrade path is a
  * curated exception set if a specific card misreads.
  */
-function tappedKind(card: ScryfallCard): 'untapped' | 'conditional' | 'tapped' {
+export function tappedKind(card: ScryfallCard): 'untapped' | 'conditional' | 'tapped' {
   const ot = (card.oracle_text ?? card.card_faces?.[0]?.oracle_text ?? '').toLowerCase();
   if (!/enters (the battlefield )?tapped/.test(ot)) return 'untapped';
   if (/unless|you may pay|if you don'?t|pay \d+ life|as .* enters/.test(ot)) return 'conditional';
