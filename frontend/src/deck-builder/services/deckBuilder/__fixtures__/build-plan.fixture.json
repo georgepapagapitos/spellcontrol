@@ -369,7 +369,7 @@
         },
         "archetype": "tokens",
         "detectedPacing": "midrange",
-        "roleTargets": { "ramp": 13, "removal": 5, "boardwipe": 1, "cardDraw": 9 },
+        "roleTargets": { "ramp": 13, "removal": 5, "boardwipe": 1, "cardDraw": 8 },
         "grade": "A"
       }
     }
