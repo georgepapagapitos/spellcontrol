@@ -175,6 +175,7 @@ import { ensureLiftPools, getLiftIndex, MAX_LIFT_SEEDS } from './deckGeneration/
 import { deckScorePhase } from './deckGeneration/phaseDeckScore';
 import { cardRelevancyPhase } from './deckGeneration/phaseCardRelevancy';
 import { stapleManaRocksPhase, STAPLE_ROCK_NAMES } from './deckGeneration/phaseStapleManaRocks';
+import { stapleGuaranteePhase } from './deckGeneration/phaseStapleGuarantee';
 import { finalStatsPhase } from './deckGeneration/phaseFinalStats';
 import { applyComboFloor } from './deckGeneration/phaseApplyComboFloor';
 import {
@@ -4536,6 +4537,13 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     maxCmc,
     resolveOwned,
   });
+  // E1043: a staple rock the build priced out goes back in here, one swap,
+  // after every pass that could reroute (see phaseStapleGuarantee.ts).
+  const stapleRepairs = await stapleGuaranteePhase(state, budgetTracker);
+  if (stapleRepairs.length > 0) {
+    coherenceRepairs.push(...stapleRepairs);
+    detectedCombos = refreshComboCompleteness(detectedCombos, state);
+  }
   // Emergent combo-completion disclosure: diff the truly-final detectedCombos
   // just refreshed above against the generation-start baseline captured
   // right after must-includes were seeded (state.baselineDetectedCombos) —
