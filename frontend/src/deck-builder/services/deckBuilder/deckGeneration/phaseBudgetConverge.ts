@@ -29,6 +29,7 @@ import {
   isOwnedBudgetExempt,
   isOwnedRarityExempt,
   fitsColorIdentity,
+  exceedsBudget,
 } from '../deckFilters';
 import { calculateCardPriority } from '../cardPicking';
 import { parsePrice } from '../costAnalyzer';
@@ -277,7 +278,7 @@ export async function applyBudgetConvergence(
   };
 
   let total = totalNow();
-  if (total <= ctx.deckBudget) return { applied: 0, finalTotal: total, repairs };
+  if (!exceedsBudget(total, ctx.deckBudget)) return { applied: 0, finalTotal: total, repairs };
 
   const standardPool = state.edhrecData?.cardlists.allNonLand;
   if (!standardPool || standardPool.length === 0) {
@@ -608,12 +609,16 @@ export async function applyBudgetConvergence(
 
   // Runs bounded rounds of priciest-cuttable-first swaps against whichever
   // `isCuttable` predicate the stage below passes in, sharing `applied`/
-  // `total`/MAX bounds across stages. `total > ctx.deckBudget` already stops
+  // `total`/MAX bounds across stages. `exceedsBudget(total, ctx.deckBudget)` already stops
   // a stage the moment the deck converges, so calling this twice (stage 1
   // fully-unprotected, stage 2 soft-eligible too) is just "try the cheaper,
   // safer pool first."
   const runRounds = (isCuttable: (card: ScryfallCard) => boolean): void => {
-    for (let round = 0; round < MAX_BUDGET_ROUNDS && total > ctx.deckBudget; round++) {
+    for (
+      let round = 0;
+      round < MAX_BUDGET_ROUNDS && exceedsBudget(total, ctx.deckBudget);
+      round++
+    ) {
       // Priciest-first each round: the biggest single swap makes the fastest
       // progress toward budget, and a fresh sort picks up any composition
       // change (a previous round's swap, role/GC counters shifting what's
@@ -626,7 +631,7 @@ export async function applyBudgetConvergence(
 
       let progressed = false;
       for (const { card, price } of cuttable) {
-        if (total <= ctx.deckBudget || applied >= MAX_BUDGET_SWAPS) break;
+        if (!exceedsBudget(total, ctx.deckBudget) || applied >= MAX_BUDGET_SWAPS) break;
         // The card may already have been swapped out earlier this round via a
         // different candidate's replacement path — re-verify it's still seated.
         if (!findInDeck(card.name)) continue;
@@ -669,10 +674,10 @@ export async function applyBudgetConvergence(
   // answer of its kind) yield last of all, so a soft label that only says
   // "synergy engine piece" can't take Flux Channeler (40.6%) over a card the
   // deck plays less.
-  if (total > ctx.deckBudget) {
+  if (exceedsBudget(total, ctx.deckBudget)) {
     runRounds((c) => !isHardProtected(c) && !keeps(c));
   }
-  if (total > ctx.deckBudget) {
+  if (exceedsBudget(total, ctx.deckBudget)) {
     runRounds((c) => !isHardProtected(c));
   }
 
@@ -688,7 +693,7 @@ export async function applyBudgetConvergence(
     );
   }
 
-  if (finalTotal <= ctx.deckBudget) {
+  if (!exceedsBudget(finalTotal, ctx.deckBudget)) {
     return { applied, finalTotal, repairs };
   }
 

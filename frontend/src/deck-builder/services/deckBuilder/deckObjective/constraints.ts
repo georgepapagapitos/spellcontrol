@@ -21,6 +21,7 @@ import {
   isOwnedBudgetExempt,
   isOwnedRarityExempt,
   notLegalForFormat,
+  exceedsBudget,
 } from '../deckFilters';
 import { bracketCeilings, type BracketCeilings } from '../bracketGuard';
 import { estimateBracket, floorOf } from '../bracketEstimator';
@@ -430,7 +431,7 @@ export function checkConstraints(
       if (isOwnedBudgetExempt(c.name, ownedSet, ignoreOwnedBudget)) continue;
       spend += priceOf(c, currency) ?? 0;
     }
-    if (spend > cz.deckBudget) {
+    if (exceedsBudget(spend, cz.deckBudget)) {
       add({
         check: 'budget',
         magnitude: Math.round((spend - cz.deckBudget) * 100) / 100,
