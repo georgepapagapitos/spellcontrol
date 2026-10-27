@@ -1051,6 +1051,15 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
             buildReport as unknown as Record<string, unknown>,
             await pageInclusion(commander, partnerCommander)
           ),
+          // On a total budget the fair bar is what budget decks play: Enchantress's
+          // Presence is in 76% of Sythis budget decks, Kiora of Fire and Ashes in 0.8%
+          // of Ur-Dragon ones, and budget repair traded the first for a 15% card.
+          swapInclusionBudget: custom.deckBudget
+            ? swapInclusion(
+                buildReport as unknown as Record<string, unknown>,
+                await pageInclusion(commander, partnerCommander, 'budget')
+              )
+            : undefined,
           invariants: {
             hard: hardViolations(deckViolations).length,
             soft: deckViolations.length - hardViolations(deckViolations).length,
@@ -1158,15 +1167,17 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
   });
 });
 
-/** The commander's base EDHREC page as name -> inclusion (empty when it can't be read). */
+/** The commander's EDHREC page (base, or the budget page) as name -> inclusion;
+ *  empty when it can't be read. */
 async function pageInclusion(
   commander: ScryfallCard,
-  partner: ScryfallCard | null
+  partner: ScryfallCard | null,
+  budgetOption?: 'budget'
 ): Promise<Map<string, number>> {
   try {
     const data = partner
-      ? await fetchPartnerCommanderData(commander.name, partner.name)
-      : await fetchCommanderData(commander.name);
+      ? await fetchPartnerCommanderData(commander.name, partner.name, budgetOption)
+      : await fetchCommanderData(commander.name, budgetOption);
     return new Map(
       [...data.cardlists.allNonLand, ...data.cardlists.lands].map((c) => [c.name, c.inclusion])
     );
