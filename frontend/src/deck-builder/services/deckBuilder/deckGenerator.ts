@@ -168,14 +168,18 @@ import {
   countAllCards as stCountAllCards,
   protectedMustIncludeNames,
 } from './deckGeneration/state';
-import { detectCombosPhase, refreshComboCompleteness } from './deckGeneration/phaseDetectCombos';
+import {
+  detectCombosPhase,
+  newlyCompletedComboNotes,
+  refreshComboCompleteness,
+} from './deckGeneration/phaseDetectCombos';
 import { gapAnalysisPhase } from './deckGeneration/phaseGapAnalysis';
 import { liftPicksPhase } from './deckGeneration/phaseLiftPicks';
 import { ensureLiftPools, getLiftIndex, MAX_LIFT_SEEDS } from './deckGeneration/liftPools';
 import { deckScorePhase } from './deckGeneration/phaseDeckScore';
 import { cardRelevancyPhase } from './deckGeneration/phaseCardRelevancy';
 import { stapleManaRocksPhase, STAPLE_ROCK_NAMES } from './deckGeneration/phaseStapleManaRocks';
-import { stapleGuaranteePhase } from './deckGeneration/phaseStapleGuarantee';
+import { guaranteeStaples } from './deckGeneration/phaseStapleGuarantee';
 import { finalStatsPhase } from './deckGeneration/phaseFinalStats';
 import { applyComboFloor } from './deckGeneration/phaseApplyComboFloor';
 import {
@@ -884,28 +888,6 @@ export function buildLandSqueezeTrimNote(
     return `${wildcardCount} stronger card${wildcardCount === 1 ? '' : 's'} (${wildcardList}) added, nothing needed to be cut.`;
   }
   return `${wildcardCount} stronger card${wildcardCount === 1 ? '' : 's'} (${wildcardList}) replaced ${cutNames.length === 1 ? 'the lowest-value pick' : 'the lowest-value picks'}: ${cutList}.`;
-}
-
-/**
- * Emergent combo-completion disclosure: names combos that were NOT complete
- * at generation start but ARE complete in the final deck — i.e. the
- * algorithm's own picks (curve/role/synergy fill, combo floor, coherence
- * repair, …) completed a latent combo with cards already locked in
- * (commander, must-includes), with zero prior disclosure. Composed
- * POST-HOC by the caller diffing state.baselineDetectedCombos against the
- * truly-final detectedCombos — this function only turns that diff into
- * prose. One row per combo (live decks can complete a dozen+ at once — see
- * comboUpsideNotes for the same one-row-per-item precedent) rather than a
- * single run-on sentence. Undefined when nothing newly completed (the
- * common case).
- */
-export function buildComboCompletionNote(newlyComplete: DetectedCombo[]): string[] | undefined {
-  if (newlyComplete.length === 0) return undefined;
-  return newlyComplete.map((combo) => {
-    const cards = combo.cards.join(' + ');
-    const results = combo.results.length > 0 ? combo.results.join(', ') : 'a combo finish';
-    return `${cards}: produces ${results}`;
-  });
 }
 
 /**
@@ -4537,27 +4519,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     maxCmc,
     resolveOwned,
   });
-  // E1043: a staple rock the build priced out goes back in here, one swap,
-  // after every pass that could reroute (see phaseStapleGuarantee.ts).
-  const stapleRepairs = await stapleGuaranteePhase(state, budgetTracker);
-  if (stapleRepairs.length > 0) {
-    coherenceRepairs.push(...stapleRepairs);
-    detectedCombos = refreshComboCompleteness(detectedCombos, state);
-  }
-  // Emergent combo-completion disclosure: diff the truly-final detectedCombos
-  // just refreshed above against the generation-start baseline captured
-  // right after must-includes were seeded (state.baselineDetectedCombos) —
-  // whatever completed in between is credit to the algorithm's own picks,
-  // not the user's must-includes. Composed here (not earlier) so it
-  // reconciles to the final deck by construction: nothing after this point
-  // changes combo membership.
-  const baselineCompleteIds = new Set(
-    (state.baselineDetectedCombos ?? []).filter((dc) => dc.isComplete).map((dc) => dc.comboId)
-  );
-  const newlyCompletedCombos = (detectedCombos ?? []).filter(
-    (dc) => dc.isComplete && !baselineCompleteIds.has(dc.comboId)
-  );
-  const comboCompletionNotes = buildComboCompletionNote(newlyCompletedCombos);
+  detectedCombos = await guaranteeStaples(state, budgetTracker, detectedCombos, coherenceRepairs);
+  // Composed after the last pass that changes combo membership, so it
+  // reconciles to the final deck by construction.
+  const comboCompletionNotes = newlyCompletedComboNotes(state, detectedCombos);
 
   // Hidden-synergy "package picks": EDHREC lift candidates not in the pool
   // for this commander but strongly co-played with cards already in the

@@ -59,7 +59,6 @@ import {
   buildLandSqueezeTrimNote,
   reconcileLandSqueezeDisclosure,
   buildComboUpsideNotes,
-  buildComboCompletionNote,
   resolvePriceSanity,
   isOverRoleCap,
   bumpRoleCapCount,
@@ -73,6 +72,7 @@ import {
   ROLE_SURPLUS_TRIM_PENALTY,
   assembleCardProvenance,
 } from './deckGenerator';
+import { buildComboCompletionNote } from './deckGeneration/phaseDetectCombos';
 
 function sc(name: string): ScryfallCard {
   return {

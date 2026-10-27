@@ -12,7 +12,12 @@
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
 import { getCardRole } from '@/deck-builder/services/tagger/client';
 import { getByCardName } from '@/lib/cards/card-text';
-import type { CoherenceRepair, DeckCategory, ScryfallCard } from '@/deck-builder/types';
+import type {
+  CoherenceRepair,
+  DeckCategory,
+  DetectedCombo,
+  ScryfallCard,
+} from '@/deck-builder/types';
 import {
   constrainsToCollection,
   exceedsCmcCap,
@@ -27,11 +32,26 @@ import {
 import { categorizeCards, stampRoleSubtypes } from '../categorize';
 import type { BudgetTracker } from '../budgetTracker';
 import { evictionKeeper } from './evictionKeeper';
+import { refreshComboCompleteness } from './phaseDetectCombos';
 import { STAPLE_ROCKS, STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
 import { markBanned, markUsed, protectedMustIncludeNames, type GenerationState } from './state';
 
 /** A staple rock is guaranteed on a total budget when it costs at most this share of it. */
 export const STAPLE_MAX_BUDGET_SHARE = 0.2;
+
+/** The generator's hook: run the guarantee, disclose its swaps with the
+ *  coherence repairs, and return the combo list refreshed for the swap. */
+export async function guaranteeStaples(
+  state: GenerationState,
+  budgetTracker: BudgetTracker | null,
+  detectedCombos: DetectedCombo[] | undefined,
+  repairs: CoherenceRepair[]
+): Promise<DetectedCombo[] | undefined> {
+  const swaps = await stapleGuaranteePhase(state, budgetTracker);
+  if (swaps.length === 0) return detectedCombos;
+  repairs.push(...swaps);
+  return refreshComboCompleteness(detectedCombos, state);
+}
 
 export async function stapleGuaranteePhase(
   state: GenerationState,
