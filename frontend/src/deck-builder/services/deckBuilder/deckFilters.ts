@@ -45,6 +45,13 @@ export function fitsLandSlot(card: ScryfallCard): boolean {
   return !fitsSpellSlot(card) || isMdfcLand(card);
 }
 
+/** E1045: a deck total is a sum of two-decimal prices, and float addition can
+ *  land it a hair above an exact budget (a $25.00 deck summed past 25, and the
+ *  note read "$0.00 over your $25 budget"). Compare in whole cents. */
+export function exceedsBudget(total: number, budget: number): boolean {
+  return Math.round(total * 100) > Math.round(budget * 100);
+}
+
 // Check if a card exceeds the max price limit
 // Cards with no price are treated as exceeding the limit when a budget is active
 export function exceedsMaxPrice(

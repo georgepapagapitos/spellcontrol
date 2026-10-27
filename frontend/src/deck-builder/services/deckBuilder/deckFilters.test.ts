@@ -22,6 +22,7 @@ import {
   fitsSpellSlot,
   withFrontFaces,
   type UserCapsConfig,
+  exceedsBudget,
 } from './deckFilters';
 import type { ScryfallCard } from '@/deck-builder/types';
 
@@ -43,6 +44,19 @@ function makeCard(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
     ...overrides,
   };
 }
+
+describe('exceedsBudget (E1045)', () => {
+  it('compares in whole cents, so a float sum on the budget is not over it', () => {
+    expect(
+      exceedsBudget(
+        [24.37, 0.42, 0.21].reduce((a, b) => a + b, 0),
+        25
+      )
+    ).toBe(false);
+    expect(exceedsBudget(25.01, 25)).toBe(true);
+    expect(exceedsBudget(24.99, 25)).toBe(false);
+  });
+});
 
 describe('fitsColorIdentity', () => {
   it('passes when card identity is a subset of the commander identity', () => {

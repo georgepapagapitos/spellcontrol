@@ -409,6 +409,22 @@ describe('buildThinPoolFillNote (E282)', () => {
 });
 
 describe('buildOverBudgetNote', () => {
+  // E1045: isshin-budget25 summed to $25.00 by float addition, a hair over 25,
+  // and the note read "$0.00 over your $25 budget ... No cheaper alternative".
+  it('reads a total that sums to exactly the budget as within it', () => {
+    const total = [24.37, 0.42, 0.21].reduce((a, b) => a + b, 0);
+    expect(total).toBeGreaterThan(25); // the float sum lands past the budget
+    expect(
+      buildOverBudgetNote({
+        finalTotal: total,
+        deckBudget: 25,
+        currency: 'USD',
+        comboBudgetSkipCount: 0,
+        convergedSwapCount: 11,
+      })
+    ).toBe('Deck totals $25.00. 11 substitutions kept it under your $25 budget.');
+  });
+
   it('returns undefined when the final total is within budget', () => {
     expect(
       buildOverBudgetNote({

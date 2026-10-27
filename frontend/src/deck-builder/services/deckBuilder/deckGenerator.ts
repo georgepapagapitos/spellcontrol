@@ -77,6 +77,7 @@ import {
   userCapsWithoutPrice,
   fitsSpellSlot,
   withFrontFaces,
+  exceedsBudget,
 } from './deckFilters';
 import { computeEffectiveNonBasicLandCount } from './targetCounts';
 import { BudgetTracker } from './budgetTracker';
@@ -502,7 +503,7 @@ export function buildOverBudgetNote(params: {
   const swaps = params.convergedSwapCount ?? 0;
   const swapWord = swaps === 1 ? 'substitution' : 'substitutions';
 
-  if (params.finalTotal <= params.deckBudget) {
+  if (!exceedsBudget(params.finalTotal, params.deckBudget)) {
     if (swaps > 0) {
       return `${subject} ${sym}${params.finalTotal.toFixed(2)}. ${swaps} ${swapWord} kept it under your ${sym}${params.deckBudget} budget.`;
     }
