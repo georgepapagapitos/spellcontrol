@@ -744,6 +744,39 @@ function buildCardRelevancy(
   return out;
 }
 
+/** The late passes' swap lists, each entry a {cut, added} pair. */
+const SWAP_LISTS = [
+  'budgetRepairs',
+  'surplusConversions',
+  'coherenceRepairs',
+  'wholeDeckSearchSwaps',
+] as const;
+
+/**
+ * EDHREC inclusion on the commander's page for every card a late pass cut or
+ * added. cardRelevancy covers the final deck, so a cut card's inclusion was
+ * missing for 71% of swaps, and a staple a late pass threw away (Counterspell
+ * 79% for Primal Amulet's budget) only showed up when a gate critic noticed.
+ * staple-loss.py reads this. Page-less cards (budget pool, Scryfall fill) stay out.
+ */
+function swapInclusion(
+  report: Record<string, unknown>,
+  page: Map<string, number>
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const key of SWAP_LISTS) {
+    const rows = report[key];
+    if (!Array.isArray(rows)) continue;
+    for (const row of rows as { cut?: string; added?: string }[]) {
+      for (const name of [row.cut, row.added]) {
+        const pct = name ? (page.get(name) ?? page.get(frontFaceName(name))) : undefined;
+        if (name && pct !== undefined) out[name] = Math.round(pct * 10) / 10;
+      }
+    }
+  }
+  return out;
+}
+
 interface SummaryEntry {
   slug: string;
   commander: string;
@@ -1014,6 +1047,10 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
           buildReport,
           themeFidelity: themeFidelityDump(deck, themePages),
           cardRelevancy: buildCardRelevancy(deck),
+          swapInclusion: swapInclusion(
+            buildReport as unknown as Record<string, unknown>,
+            await pageInclusion(commander, partnerCommander)
+          ),
           invariants: {
             hard: hardViolations(deckViolations).length,
             soft: deckViolations.length - hardViolations(deckViolations).length,
@@ -1120,6 +1157,23 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
     }
   });
 });
+
+/** The commander's base EDHREC page as name -> inclusion (empty when it can't be read). */
+async function pageInclusion(
+  commander: ScryfallCard,
+  partner: ScryfallCard | null
+): Promise<Map<string, number>> {
+  try {
+    const data = partner
+      ? await fetchPartnerCommanderData(commander.name, partner.name)
+      : await fetchCommanderData(commander.name);
+    return new Map(
+      [...data.cardlists.allNonLand, ...data.cardlists.lands].map((c) => [c.name, c.inclusion])
+    );
+  } catch {
+    return new Map();
+  }
+}
 
 /**
  * Every name the generator could have asked Scryfall for by name on this row:
