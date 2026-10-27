@@ -129,3 +129,41 @@ export function refreshComboCompleteness(
     .filter((dc) => dc.isComplete || dc.missingCards.length <= 2);
   return refreshed.length > 0 ? refreshed : undefined;
 }
+
+/**
+ * Emergent combo-completion disclosure: names combos that were NOT complete
+ * at generation start but ARE complete in the final deck — i.e. the
+ * algorithm's own picks (curve/role/synergy fill, combo floor, coherence
+ * repair, …) completed a latent combo with cards already locked in
+ * (commander, must-includes), with zero prior disclosure. Composed
+ * POST-HOC by newlyCompletedComboNotes diffing state.baselineDetectedCombos against the
+ * truly-final detectedCombos — this function only turns that diff into
+ * prose. One row per combo (live decks can complete a dozen+ at once — see
+ * comboUpsideNotes for the same one-row-per-item precedent) rather than a
+ * single run-on sentence. Undefined when nothing newly completed (the
+ * common case).
+ */
+export function buildComboCompletionNote(newlyComplete: DetectedCombo[]): string[] | undefined {
+  if (newlyComplete.length === 0) return undefined;
+  return newlyComplete.map((combo) => {
+    const cards = combo.cards.join(' + ');
+    const results = combo.results.length > 0 ? combo.results.join(', ') : 'a combo finish';
+    return `${cards}: produces ${results}`;
+  });
+}
+
+/** The emergent combo-completion disclosure for the final deck: combos complete
+ *  now that weren't at generation start (state.baselineDetectedCombos, taken
+ *  right after must-includes were seeded). What completed in between is the
+ *  algorithm's own doing, not the user's must-includes. */
+export function newlyCompletedComboNotes(
+  state: GenerationState,
+  detectedCombos: DetectedCombo[] | undefined
+): string[] | undefined {
+  const baselineCompleteIds = new Set(
+    (state.baselineDetectedCombos ?? []).filter((dc) => dc.isComplete).map((dc) => dc.comboId)
+  );
+  return buildComboCompletionNote(
+    (detectedCombos ?? []).filter((dc) => dc.isComplete && !baselineCompleteIds.has(dc.comboId))
+  );
+}
