@@ -89,10 +89,27 @@ export function stampProvenance(
         : `Swapped in for ${swap.cut} after checking the whole deck`;
 }
 
-/** The report's fields for the search: no key at all when it changed nothing. */
+/** The report's fields for the search: no key at all when it changed nothing.
+ *  A card the search brought in that a later pass cut (the budget last
+ *  resort, E1044) is said so on its swap and in the note, the way the build
+ *  report annotates every other add-claiming record. */
 export function reportFields(state: GenerationState) {
   const search = state.wholeDeckSearch;
-  return search?.swaps.length
-    ? { wholeDeckSearchSwaps: search.swaps, wholeDeckSearchNote: search.note }
-    : {};
+  if (!search?.swaps.length) return {};
+  if (!state.categories)
+    return { wholeDeckSearchSwaps: search.swaps, wholeDeckSearchNote: search.note };
+  const inDeck = new Set(
+    Object.values(state.categories)
+      .flat()
+      .flatMap((c) => [c.name, c.name.split(' // ')[0]])
+  );
+  const swaps = search.swaps.map((s) =>
+    inDeck.has(s.added) ? s : { ...s, reason: `${s.reason} ${s.added} was cut later.` }
+  );
+  const gone = search.swaps.filter((s) => !inDeck.has(s.added)).map((s) => s.added);
+  const note =
+    search.note && gone.length > 0
+      ? `${search.note} ${gone.join(', ')} ${gone.length === 1 ? 'was' : 'were'} cut later.`
+      : search.note;
+  return { wholeDeckSearchSwaps: swaps, wholeDeckSearchNote: note };
 }

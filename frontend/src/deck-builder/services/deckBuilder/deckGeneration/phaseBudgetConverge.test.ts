@@ -5,13 +5,16 @@ import type { ScryfallCard, EDHRECCard, DetectedCombo } from '@/deck-builder/typ
 // pure-logic tests; individual tests override getCardRole per-case.
 vi.mock('@/deck-builder/services/tagger/client', async (importOriginal) => {
   const real = await importOriginal<typeof import('@/deck-builder/services/tagger/client')>();
+  const getCardRole = vi.fn((_name: string): string | null => null);
   return {
     // Oracle-text predicates (who a wipe hits, what it destroys) are the real ones.
     isOneSidedWipe: real.isOneSidedWipe,
     getWipeScope: real.getWipeScope,
     getCardDrawSubtype: () => null,
-    getCardRole: vi.fn(() => null),
-    validateCardRole: vi.fn(() => null),
+    getCardRole,
+    isUtilityLand: vi.fn(() => false),
+    // The report's role (countedRoleOf) follows whatever a test says a card's role is.
+    validateCardRole: vi.fn((c: { name: string }) => getCardRole(c.name)),
     // E87-new Slice A: softProtectionLabel also checks readsAsProtection —
     // default false, overridden per-test where protection behavior is under test.
     readsAsProtection: vi.fn(() => false),
@@ -33,7 +36,7 @@ vi.mock('../categorize', async (importOriginal) => {
 // pure functions elsewhere — stub them here so this file only tests
 // phaseBudgetConverge's own swap/protection/budget logic.
 vi.mock('@/deck-builder/services/synergy/deckSynergy', () => ({
-  analyzeDeckSynergy: vi.fn(() => ({ invested: [] })),
+  analyzeDeckSynergy: vi.fn(() => ({ invested: [], axes: [] })),
   isLoadBearing: vi.fn(() => false),
 }));
 vi.mock('@/deck-builder/services/winConditions/detect', () => ({
@@ -594,8 +597,9 @@ Overload {6}{U}`
   it('declines a swap when the best candidate does not clear the minimum-savings threshold', async () => {
     const state = makeState();
     const map = new Map<string, ScryfallCard>();
-    // Saves $0.10 on a $30 cut — below MIN_SAVINGS (max($0.50, 1% of $40) = $0.50).
-    map.set('Barely Cheaper', scryfallCard('Barely Cheaper', '29.90'));
+    // Saves $0.05 on a $30 cut: below MIN_SAVINGS (max($0.50, 1% of $40) = $0.50)
+    // and below the value cut's fifth of it ($0.10, E1044).
+    map.set('Barely Cheaper', scryfallCard('Barely Cheaper', '29.95'));
     state.edhrecData = {
       cardlists: { allNonLand: [edhrecCard('Barely Cheaper', 80)] },
     } as unknown as GenerationState['edhrecData'];
@@ -994,5 +998,366 @@ Overload {6}{U}`
     expect(result.residualReason).toBeDefined();
     expect(result.residualReason).toContain('Mystery Card');
     expect(result.residualReason).toContain('no price data and');
+  });
+});
+
+// E1044: when no cheaper same-role card is left, the value cut trades the card
+// with the least play per dollar for a cheaper one played at least as often.
+describe('applyBudgetConvergence value cut (E1044)', () => {
+  const roles: Record<string, 'ramp' | 'removal'> = {
+    'Pricey Card': 'ramp',
+    'Cheap Removal': 'removal',
+  };
+  const withRemoval = (inclusion: number, alts: boolean) => {
+    const map = poolScryfallMap();
+    map.set('Cheap Removal', scryfallCard('Cheap Removal', '1'));
+    return {
+      pool: [...(alts ? POOL : []), edhrecCard('Cheap Removal', inclusion)],
+      map,
+    };
+  };
+  // Pricey Card is the deck's one ramp card, and roles are counted from the
+  // deck: a ramp target of 0 leaves it spare, a target of 1 does not.
+  const run = async (opts: {
+    rampTarget: number;
+    removalInclusion: number;
+    pricyInclusion?: number;
+  }) => {
+    vi.mocked(getCardRole).mockImplementation((name: string) => roles[name] ?? null);
+    // With a play rate on the cut card, the role-free alternatives (60-80%) leave
+    // the pool so the only candidate is the removal spell.
+    const { pool, map } = withRemoval(opts.removalInclusion, opts.pricyInclusion === undefined);
+    if (opts.pricyInclusion !== undefined)
+      pool.push(edhrecCard('Pricey Card', opts.pricyInclusion));
+    const state = makeState({
+      edhrecData: { cardlists: { allNonLand: pool } } as unknown as GenerationState['edhrecData'],
+    });
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({
+        lastResort: true,
+        deckBudget: 40,
+        scryfallCardMap: map,
+        // Only Pricey Card can leave, and the pool holds no cheaper ramp card.
+        mustIncludeNames: new Set(['mid card', 'cheap card']),
+        roleTargets: { ramp: opts.rampTarget, removal: 2, boardwipe: 1, cardDraw: 3 },
+      })
+    );
+    vi.mocked(getCardRole).mockReturnValue(null);
+    return { state, result };
+  };
+
+  it('cuts a card from a role over its target for a cheaper card in a role the deck is short of', async () => {
+    const { state, result } = await run({ rampTarget: 0, removalInclusion: 50 });
+    expect(state.usedNames.has('Pricey Card')).toBe(false);
+    expect(state.usedNames.has('Cheap Removal')).toBe(true);
+    expect(result.repairs).toEqual([
+      { cut: 'Pricey Card', added: 'Cheap Removal', reason: 'Saves $29.00: similar card type' },
+    ]);
+    expect(result.residualReason).toBeUndefined();
+  });
+
+  it('leaves a role card in place when its role is not over target', async () => {
+    const { state, result } = await run({ rampTarget: 1, removalInclusion: 50 });
+    expect(state.usedNames.has('Pricey Card')).toBe(true);
+    expect(result.applied).toBe(0);
+  });
+
+  it('never trades for a card played less often', async () => {
+    const { state, result } = await run({
+      rampTarget: 0,
+      removalInclusion: 10,
+      pricyInclusion: 30,
+    });
+    expect(state.usedNames.has('Pricey Card')).toBe(true);
+    expect(result.applied).toBe(0);
+  });
+
+  it('cuts the least play per dollar first, not the priciest card', async () => {
+    // Played Card ($20, 30%) and Unplayed Card ($10, 0%): the $10 card goes
+    // first. The pool holds no ramp card, so no same-role swap exists and
+    // only the value cut runs.
+    vi.mocked(getCardRole).mockImplementation((name: string) =>
+      name === 'Cheap Removal' ? 'removal' : name.endsWith('Played Card') ? 'ramp' : null
+    );
+    const map = new Map<string, ScryfallCard>([
+      ['Cheap Removal', scryfallCard('Cheap Removal', '1')],
+    ]);
+    const state = makeState({
+      usedNames: new Set(['Played Card', 'Unplayed Card']),
+      categories: {
+        ...makeState().categories,
+        synergy: [scryfallCard('Played Card', '20'), scryfallCard('Unplayed Card', '10')],
+      },
+      edhrecData: {
+        cardlists: {
+          allNonLand: [edhrecCard('Played Card', 30), edhrecCard('Cheap Removal', 35)],
+        },
+      } as unknown as GenerationState['edhrecData'],
+    });
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({
+        lastResort: true,
+        deckBudget: 25,
+        scryfallCardMap: map,
+        roleTargets: { ramp: 0, removal: 2, boardwipe: 1, cardDraw: 3 },
+      })
+    );
+    vi.mocked(getCardRole).mockReturnValue(null);
+    expect(result.repairs.map((r) => r.cut)).toEqual(['Unplayed Card']);
+    expect(state.usedNames.has('Played Card')).toBe(true);
+  });
+
+  it('takes a saving under the same-role floor only as a value cut', async () => {
+    // A $0.70 0%-play card for a $0.45 card: saves $0.25, under the $0.50
+    // MIN_SAVINGS stages 1-3 hold, over the value cut's $0.10.
+    const state = makeState({
+      categories: {
+        ...makeState().categories,
+        synergy: [
+          scryfallCard('Pricey Card', '0.70'),
+          scryfallCard('Mid Card', '15'),
+          scryfallCard('Cheap Card', '2'),
+        ],
+      },
+      edhrecData: {
+        cardlists: { allNonLand: [edhrecCard('Budget Pick', 5)] },
+      } as unknown as GenerationState['edhrecData'],
+    });
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({
+        lastResort: true,
+        deckBudget: 17.6,
+        scryfallCardMap: new Map([['Budget Pick', scryfallCard('Budget Pick', '0.45')]]),
+        mustIncludeNames: new Set(['mid card', 'cheap card']),
+        roleTargets: { ramp: 3, removal: 2, boardwipe: 1, cardDraw: 3 },
+      })
+    );
+    expect(result.repairs.map((r) => [r.cut, r.added])).toEqual([['Pricey Card', 'Budget Pick']]);
+    expect(result.residualReason).toBeUndefined();
+  });
+
+  it('stops cutting a role once it reaches its target, within one round', async () => {
+    // Two ramp cards against a target of 1: one may leave, not both.
+    vi.mocked(getCardRole).mockImplementation((name: string) =>
+      name.startsWith('Rock') ? 'ramp' : null
+    );
+    const state = makeState({
+      usedNames: new Set(['Rock A', 'Rock B']),
+      categories: {
+        ...makeState().categories,
+        synergy: [scryfallCard('Rock A', '10'), scryfallCard('Rock B', '9')],
+      },
+    });
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({
+        lastResort: true,
+        deckBudget: 5,
+        roleTargets: { ramp: 1, removal: 2, boardwipe: 1, cardDraw: 3 },
+      })
+    );
+    vi.mocked(getCardRole).mockReturnValue(null);
+    expect(result.repairs.map((r) => r.cut)).toHaveLength(1);
+    expect(state.categories.synergy.filter((c) => c.name.startsWith('Rock'))).toHaveLength(1);
+  });
+
+  it('never seats a second copy of a card usedNames lost track of', async () => {
+    // After the whole-deck search usedNames can miss a seated card; the deck
+    // is the truth (Tatyova pdh seated a second Studious First-Year).
+    const state = makeState({
+      usedNames: new Set(['Pricey Card']),
+      categories: {
+        ...makeState().categories,
+        synergy: [
+          scryfallCard('Pricey Card', '30'),
+          scryfallCard('Mid Card', '15'),
+          scryfallCard('Cheap Alt A', '2'),
+        ],
+      },
+    });
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({
+        lastResort: true,
+        deckBudget: 40,
+        mustIncludeNames: new Set(['mid card']),
+        roleTargets: { ramp: 3, removal: 2, boardwipe: 1, cardDraw: 3 },
+      })
+    );
+    const names = Object.values(state.categories)
+      .flat()
+      .map((c) => c.name);
+    expect(names.filter((n) => n === 'Cheap Alt A')).toHaveLength(1);
+    expect(result.repairs.map((r) => r.added)).not.toContain('Cheap Alt A');
+  });
+
+  it('never value-cuts a protection piece', async () => {
+    vi.mocked(readsAsProtection).mockImplementation(
+      (c) => (c as ScryfallCard).name === 'Pricey Card'
+    );
+    const { state, result } = await run({ rampTarget: 0, removalInclusion: 50 });
+    vi.mocked(readsAsProtection).mockReturnValue(false);
+    expect(state.usedNames.has('Pricey Card')).toBe(true);
+    expect(result.applied).toBe(0);
+  });
+});
+
+// E1044 stage 5: still over once every spell swap is spent, a land that only
+// fixes mana leaves for a basic, priciest first.
+describe('applyBudgetConvergence land stage (E1044)', () => {
+  const land = (name: string, price: string, produced: string[], oracle: string) =>
+    scryfallCard(name, price, {
+      type_line: 'Land',
+      cmc: 0,
+      produced_mana: produced,
+      oracle_text: oracle,
+      color_identity: produced,
+    });
+  const basic = (name: string, color: string) =>
+    scryfallCard(name, '0.05', {
+      type_line: `Basic Land — ${name}`,
+      cmc: 0,
+      produced_mana: [color],
+      oracle_text: `({T}: Add {${color}}.)`,
+    });
+  const run = async (
+    lands: ScryfallCard[],
+    deckBudget: number,
+    {
+      withBasics = true,
+      spellText = '',
+      colors = ['B', 'G'],
+      landInclusion,
+    }: {
+      withBasics?: boolean;
+      spellText?: string;
+      colors?: string[];
+      landInclusion?: number;
+    } = {}
+  ) => {
+    const state = makeState({
+      context: {
+        ...makeState().context,
+        colorIdentity: colors,
+      },
+      categories: {
+        ...makeState().categories,
+        lands,
+        // Every spell is pinned, so no spell swap can help.
+        synergy: [
+          scryfallCard('Pricey Card', '30', { mana_cost: '{G}{G}{B}', oracle_text: spellText }),
+          scryfallCard('Mid Card', '15', { mana_cost: '{G}', oracle_text: spellText }),
+          scryfallCard('Cheap Card', '2', { mana_cost: '{G}', oracle_text: spellText }),
+          scryfallCard('Free Card', '0', { mana_cost: '{B}', oracle_text: spellText }),
+        ],
+      },
+      edhrecData: {
+        cardlists: {
+          allNonLand: POOL,
+          lands: lands.map((l) => edhrecCard(l.name, landInclusion ?? 10)),
+        },
+      } as unknown as GenerationState['edhrecData'],
+    });
+    const basics = new Map([
+      ['Forest', basic('Forest', 'G')],
+      ['Swamp', basic('Swamp', 'B')],
+    ]);
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({
+        lastResort: true,
+        deckBudget,
+        mustIncludeNames: new Set(['pricey card', 'mid card', 'cheap card', 'free card']),
+        getBasicLand: withBasics ? async (n: string) => basics.get(n) ?? null : undefined,
+      })
+    );
+    return { state, result };
+  };
+  const dual = (name: string, price: string) =>
+    land(name, price, ['B', 'G'], 'This land enters tapped.\n{T}: Add {B} or {G}.');
+
+  it('swaps the priciest fixing land for the basic the spells need most, and stops once under', async () => {
+    const lands = [dual('Woodland Cemetery', '0.61'), dual('Twilight Mire', '0.40')];
+    // Spells $47 + lands $1.01 = $48.01; $47.50 needs one land swap.
+    const { state, result } = await run(lands, 47.5);
+    expect(result.repairs).toEqual([
+      {
+        cut: 'Woodland Cemetery',
+        added: 'Forest',
+        reason: 'Saves $0.56: a basic for a land that only fixes mana, to fit your budget.',
+      },
+    ]);
+    expect(state.categories.lands.map((l) => l.name)).toEqual(['Forest', 'Twilight Mire']);
+    expect(result.residualReason).toBeUndefined();
+  });
+
+  it('keeps a utility land and a land doing the deck plan', async () => {
+    const lands = [
+      land('Reliquary Tower', '0.80', ['C'], 'You have no maximum hand size.\n{T}: Add {C}.'),
+      land(
+        'Strip Mine',
+        '0.90',
+        ['C'],
+        '{T}: Add {C}.\n{T}, Sacrifice this land: Destroy target land.'
+      ),
+    ];
+    // Four spells that destroy lands make land removal the deck's plan.
+    const { state, result } = await run(lands, 47.5, { spellText: 'Destroy target land.' });
+    expect(state.categories.lands.map((l) => l.name)).toEqual(['Reliquary Tower', 'Strip Mine']);
+    expect(result.repairs).toEqual([]);
+    expect(result.residualReason).toBeDefined();
+  });
+
+  it('keeps the lands that reach three colors in a three-color deck', async () => {
+    const lands = [
+      land(
+        'Command Tower',
+        '0.60',
+        ['B', 'G', 'U'],
+        "{T}: Add one mana of any color in your commander's color identity."
+      ),
+      land(
+        'Evolving Wilds',
+        '0.55',
+        [],
+        '{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.'
+      ),
+      dual('Twilight Mire', '0.40'),
+    ];
+    const { state, result } = await run(lands, 47.5, { colors: ['B', 'G', 'U'] });
+    expect(result.repairs.map((r) => r.cut)).toEqual(['Twilight Mire']);
+    expect(state.categories.lands.map((l) => l.name)).toContain('Command Tower');
+    expect(state.categories.lands.map((l) => l.name)).toContain('Evolving Wilds');
+  });
+
+  it('never takes a cycling land, a staple land, or a nonbasic in a one-color deck', async () => {
+    const cycler = land(
+      'Forgotten Grove',
+      '0.70',
+      ['B', 'G'],
+      '{T}: Add {B} or {G}.\nCycling {G} ({G}, Discard this card: Draw a card.)'
+    );
+    const staple = dual('Woodland Cemetery', '0.61');
+    const lands = [cycler, staple, dual('Twilight Mire', '0.40')];
+    const { state } = await run(lands, 47.5);
+    // The staple's inclusion comes from the commander's EDHREC land list.
+    expect(state.categories.lands.map((l) => l.name)).toContain('Forgotten Grove');
+    const withStaple = await run([staple], 47.5, { landInclusion: 54 });
+    expect(withStaple.state.categories.lands.map((l) => l.name)).toEqual(['Woodland Cemetery']);
+    const mono = await run([land('Castle Embereth', '0.60', ['G'], '{T}: Add {G}.')], 47.5, {
+      colors: ['G'],
+    });
+    expect(mono.result.repairs).toEqual([]);
+  });
+
+  it('does not run without a basic-land resolver', async () => {
+    const { state, result } = await run([dual('Woodland Cemetery', '0.61')], 47.5, {
+      withBasics: false,
+    });
+    expect(state.categories.lands.map((l) => l.name)).toEqual(['Woodland Cemetery']);
+    expect(result.residualReason).toBeDefined();
   });
 });

@@ -89,3 +89,26 @@ describe('discovery picks are labeled with the link that earned them (E515)', ()
     expect(reportFields(state).wholeDeckSearchSwaps?.[1].discovery).toMatch(/Viscera Seer/);
   });
 });
+
+describe('a search pick a later pass cut is said so (E1044)', () => {
+  it('annotates the swap and the note, and leaves a standing pick alone', () => {
+    const state = {
+      wholeDeckSearch: {
+        swaps: [
+          { cut: 'Expedite', added: 'Cathartic Reunion', reason: 'Draws two.' },
+          { cut: 'Shock', added: 'Lightning Bolt', reason: 'Three damage.' },
+        ],
+        note: 'A whole-deck check made 2 swaps: Cathartic Reunion for Expedite; Lightning Bolt for Shock.',
+      },
+      categories: { synergy: [{ name: 'Lightning Bolt' }] },
+    } as unknown as GenerationState;
+    const fields = reportFields(state);
+    expect(fields.wholeDeckSearchSwaps?.map((s) => s.reason)).toEqual([
+      'Draws two. Cathartic Reunion was cut later.',
+      'Three damage.',
+    ]);
+    expect(fields.wholeDeckSearchNote).toBe(
+      'A whole-deck check made 2 swaps: Cathartic Reunion for Expedite; Lightning Bolt for Shock. Cathartic Reunion was cut later.'
+    );
+  });
+});

@@ -188,7 +188,11 @@ import {
   reconvergeUntilStable,
 } from './deckGeneration/phaseBracketConverge';
 import { applyCoherenceRepair } from './deckGeneration/phaseCoherenceRepair';
-import { applyBudgetConvergence } from './deckGeneration/phaseBudgetConverge';
+import {
+  applyBudgetConvergence,
+  type BudgetConvergeContext,
+} from './deckGeneration/phaseBudgetConverge';
+import { runBudgetLastResort, standingBudgetSwaps } from './deckGeneration/budgetLastResort';
 import { applyRoleSurplusRebalance } from './deckGeneration/phaseRoleSurplusRebalance';
 import { buildRoleDeficitNotes } from './deckGeneration/roleDeficitNotes';
 import { applyLandSqueezeReconcile } from './deckGeneration/phaseLandSqueezeReconcile';
@@ -4351,10 +4355,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   let budgetRepairs: CoherenceRepair[] = [];
   let budgetConvergedSwaps = 0;
   let budgetResidualReason: string | undefined;
+  let budgetConvergeCtx: BudgetConvergeContext | null = null;
   if (deckBudget !== null) {
     const budgetMustInclude = protectedMustIncludeNames(state);
     const budgetLiftIndex = getLiftIndex(state);
-    const budgetResult = await applyBudgetConvergence(state, {
+    budgetConvergeCtx = {
       scryfallCardMap,
       detectedCombos,
       mustIncludeNames: budgetMustInclude,
@@ -4373,6 +4378,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedRarity,
       roleTargets,
       deckBudget,
+      getBasicLand: async (name) =>
+        getCachedCard(name, arenaOnly) ?? (await getCardByName(name, arenaOnly).catch(() => null)),
       // E79 round 4: the standard pool's leftover tail skews expensive (it's
       // what generation already picked FROM), so merge in the commander's
       // real EDHREC budget-deck pool for cheaper same-role alternatives.
@@ -4394,7 +4401,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           return null;
         }
       },
-    });
+    };
+    const budgetResult = await applyBudgetConvergence(state, budgetConvergeCtx);
     budgetRepairs = budgetResult.repairs;
     budgetConvergedSwaps = budgetResult.applied;
     budgetResidualReason = budgetResult.residualReason;
@@ -4521,6 +4529,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     resolveOwned,
   });
   detectedCombos = await guaranteeStaples(state, budgetTracker, detectedCombos, coherenceRepairs);
+  // E1044: the budget last resort, once every pass that can move the total has run.
+  const budgetTally = await runBudgetLastResort(state, budgetConvergeCtx, {
+    ...{ detectedCombos, budgetRepairs, budgetConvergedSwaps, budgetResidualReason },
+    lastResortSwaps: 0,
+  });
+  ({ detectedCombos, budgetRepairs, budgetConvergedSwaps, budgetResidualReason } = budgetTally);
   // Composed after the last pass that changes combo membership, so it
   // reconciles to the final deck by construction.
   const comboCompletionNotes = newlyCompletedComboNotes(state, detectedCombos);
@@ -4699,7 +4713,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         deckBudget,
         currency,
         comboBudgetSkipCount,
-        convergedSwapCount: wholeDeckSearch.standing(state, budgetRepairs, budgetConvergedSwaps),
+        convergedSwapCount: standingBudgetSwaps(state, budgetTally),
         residualReason: budgetResidualReason,
       }) ?? budgetNote;
   }
