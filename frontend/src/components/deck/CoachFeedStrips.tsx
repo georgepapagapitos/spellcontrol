@@ -71,7 +71,9 @@ export function CutsLaneStatus({
             ? 'No replacements for these cuts right now.'
             : lane.note === 'combos-slow'
               ? "Combos were still loading, so these cuts aren't paired with replacements yet."
-              : "Couldn't pair these cuts with replacements."}
+              : lane.note === 'cards-slow'
+                ? "Replacement cards were still loading, so these cuts aren't paired yet."
+                : "Couldn't pair these cuts with replacements."}
         </span>
         {lane.note !== 'fallback' && (
           <Button variant="link" onClick={onRetry}>

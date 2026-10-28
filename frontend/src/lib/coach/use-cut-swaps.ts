@@ -179,9 +179,26 @@ export function useCutSwaps(
             : undefined,
           excluded,
         });
-        const cards = await resolveCards(names);
+        // The fetch waits behind the Scryfall limiter (2-3 s cold, a minute under a
+        // 429, E1039): at the budget the lane keeps today's rows, like slow combos,
+        // and the fetch goes on filling the card cache so a Retry pairs at once.
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const cards = await Promise.race([
+          resolveCards(names),
+          new Promise<null>((done) => {
+            timer = setTimeout(
+              () => done(null),
+              Math.max(0, CUT_PAIRING_BUDGET_MS - (Date.now() - t0))
+            );
+          }),
+        ]).finally(() => clearTimeout(timer));
         const tPair = Date.now();
         if (cancelled) return;
+        if (!cards) {
+          started.current.gaveUp = true;
+          settle({ status: 'fallback', reason: 'cards-slow' });
+          return;
+        }
         const inDeckNow = new Set(mainboard.map((c) => c.name.toLowerCase()));
         const plan = stablePlan(shown.current, allCuts, (n) => inDeckNow.has(n.toLowerCase()));
         const toPair = plan.toPair;

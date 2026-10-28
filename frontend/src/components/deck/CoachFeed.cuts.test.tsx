@@ -245,6 +245,16 @@ describe('a deck the pairing cannot serve', () => {
     expect(retry).toHaveBeenCalledTimes(1);
   });
 
+  it('says the replacement cards were slow, and offers a retry (E1039)', () => {
+    pairing = { status: 'fallback', reason: 'cards-slow' };
+    const { container } = renderCuts();
+    expect(rowNames(container)).toHaveLength(3);
+    expect(screen.getByText(/Replacement cards were still loading/)).toBeTruthy();
+    expect(screen.queryByText(/No replacements for these cuts/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(retry).toHaveBeenCalledTimes(1);
+  });
+
   it("on an error shows today's rows and a retry", () => {
     pairing = { status: 'error' };
     const { container } = renderCuts();

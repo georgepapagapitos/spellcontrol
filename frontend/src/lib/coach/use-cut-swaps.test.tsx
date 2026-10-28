@@ -52,7 +52,8 @@ const env: CutSwapEnv = { resolveOwnership: () => undefined };
 beforeEach(() => {
   loadCoachObjective.mockReset();
   pairCuts.mockReset();
-  getCardsByNames.mockClear();
+  getCardsByNames.mockReset();
+  getCardsByNames.mockImplementation(async () => new Map<string, unknown>());
 });
 
 describe('useCutSwaps', () => {
@@ -124,6 +125,42 @@ describe('useCutSwaps', () => {
       pairCuts.mockResolvedValue(verdicts);
       act(() => result.current.retry());
       expect(result.current.state).toEqual({ status: 'loading' });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50);
+      });
+      expect(result.current.state).toEqual({ status: 'ready', outcomes: verdicts });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // E1039: on a cold load the candidate fetch waited behind the Scryfall limiter
+  // (a minute under a 429) and the lane showed its skeleton the whole time.
+  it('keeps today’s rows when the candidate cards miss the budget, and pairs on retry', async () => {
+    vi.useFakeTimers();
+    try {
+      loadCoachObjective.mockResolvedValue({
+        ok: true,
+        ctx: { edhrec: new Map() },
+        deck: { commanders: [], cards: [] },
+        pageRows: 300,
+      });
+      const verdicts = new Map<string, CutOutcome>([
+        ['upgrade:cut:A', { status: 'none', reason: 'x' }],
+      ]);
+      pairCuts.mockResolvedValue(verdicts);
+      getCardsByNames.mockImplementationOnce(
+        () => new Promise((done) => setTimeout(() => done(new Map()), 60_000))
+      );
+      const src = sources(['A']);
+      src.deck.gapAnalysis = [{ name: 'Grave Pact' }] as unknown as typeof src.deck.gapAnalysis;
+      const { result } = renderHook(() => useCutSwaps([cut('A')], src, env));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4001);
+      });
+      expect(result.current.state).toEqual({ status: 'fallback', reason: 'cards-slow' });
+      expect(pairCuts).not.toHaveBeenCalled();
+      act(() => result.current.retry());
       await act(async () => {
         await vi.advanceTimersByTimeAsync(50);
       });
