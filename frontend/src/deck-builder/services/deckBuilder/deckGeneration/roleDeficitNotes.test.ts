@@ -50,6 +50,29 @@ describe('buildRoleDeficitNotes', () => {
     ROLE_OF.clear();
   });
 
+  // E1047, atraxa-budget-10-bracket4: budget repairs walked Cyclonic Rift down a
+  // chain of cheaper wipes, the search then traded the last for a Talisman,
+  // and the note said Rift lost out to stronger picks.
+  it('names the late passes that cut a role, not stronger picks (E1047)', () => {
+    for (const n of ['Cyclonic Rift', 'Farewell', 'Merciless Eviction', 'Phyresis Outbreak'])
+      ROLE_OF.set(n, 'boardwipe');
+    ROLE_OF.set('Talisman of Curiosity', 'ramp');
+    ROLE_OF.set("Black Sun's Zenith", 'boardwipe');
+    const swap = (cut: string, added: string) => ({ cut, added, reason: '' });
+    const notes = buildRoleDeficitNotes(
+      [scryfallCard("Black Sun's Zenith"), scryfallCard('Talisman of Curiosity')],
+      { ...ZERO_TARGETS, boardwipe: 2 },
+      [edhrecCard('Cyclonic Rift', 56), edhrecCard('Phyresis Outbreak', 34)],
+      {
+        budgetRepairs: [swap('Cyclonic Rift', 'Farewell'), swap('Farewell', 'Merciless Eviction')],
+        searchSwaps: [swap('Merciless Eviction', 'Talisman of Curiosity')],
+      }
+    );
+    expect(notes).toEqual([
+      'Board wipe shipped 1 of its 2-card target. The whole-deck check traded Merciless Eviction for Talisman of Curiosity. Cyclonic Rift (56% of decks) went to keep the deck in budget. Phyresis Outbreak (34%) lost out to stronger picks.',
+    ]);
+  });
+
   it('does not say a card the keeper turned away lost to a stronger pick (E563)', () => {
     ROLE_OF.set('Beast Within', 'removal');
     ROLE_OF.set('Ruthless Winnower', 'removal');

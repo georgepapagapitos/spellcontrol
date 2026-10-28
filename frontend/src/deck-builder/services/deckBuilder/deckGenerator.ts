@@ -4781,6 +4781,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // Role-cap escape-hatch disclosure (E77 iter-4 round 2) — aggregated across
   // every gated path over the whole generation; undefined when the cap was
   // never actually breached.
+  const searchSwaps = wholeDeckSearch.reportFields(state).wholeDeckSearchSwaps;
   const roleCapOverflowNote = withoutDanglingPointer(
     buildFinalRoleCapOverflowNote(
       roleTargets ?? undefined,
@@ -4788,7 +4789,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       (name) => cardInclusionMap?.[name] ?? 0,
       new Set(
         (detectedCombos ?? []).flatMap((c) => c.cards.map((n) => frontFaceName(n).toLowerCase()))
-      )
+      ),
+      [...budgetRepairs, ...(searchSwaps ?? [])]
     ),
     roleTargets ?? undefined,
     finalRoleCounts
@@ -4804,7 +4806,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     Object.values(categories).flat(),
     roleTargets,
     state.edhrecData?.cardlists.allNonLand,
-    { bannedCards, isSaltBlocked, keeperBlocked: state.keeperBlocked }
+    { bannedCards, isSaltBlocked, keeperBlocked: state.keeperBlocked, budgetRepairs, searchSwaps }
   );
 
   // Price-sanity disclosure (E80, honesty fix E126) — composed from the

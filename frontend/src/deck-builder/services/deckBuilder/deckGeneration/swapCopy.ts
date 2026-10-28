@@ -185,12 +185,9 @@ export function swapSentences(s: {
 /** The disclosure behind a repair that left the usual limits, without the objective's own terms. */
 export function plainDisclosure(why: string): string {
   return why
+    .replace(/^no owned card/, 'no card you own')
     .replace(
-      /^no owned card keeps the class floor/,
-      'no card you own keeps enough of that kind of card'
-    )
-    .replace(
-      /^no owned card fits inside the role limits/,
-      'no card you own fits inside the role limits'
+      /^(no card(?: you own)?) keeps the class floor/,
+      '$1 keeps enough of that kind of card'
     );
 }

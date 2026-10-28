@@ -1,6 +1,6 @@
 // Role-cap overflow disclosure, moved out of deckGenerator.ts (E532) to keep
 // that file under its size ceiling. deckGenerator.ts re-exports it.
-import type { RoleKey } from '@/deck-builder/services/tagger/client';
+import { getCardRole, type RoleKey } from '@/deck-builder/services/tagger/client';
 import { STAPLE_INCLUSION_BAR } from '../cardPicking';
 import { isRoleExcess } from '../deckAnalyzer';
 import { countedRoleOf } from '../commanderDeckAnalysis';
@@ -36,7 +36,8 @@ export function buildRoleCapOverflowNote(
   counts: Partial<Record<RoleKey, number>>,
   stapleCounts: Partial<Record<RoleKey, number>> = {},
   comboCounts: Partial<Record<RoleKey, number>> = {},
-  requiredCounts: Partial<Record<RoleKey, number>> = {}
+  requiredCounts: Partial<Record<RoleKey, number>> = {},
+  lateCounts: Partial<Record<RoleKey, number>> = {}
 ): string | undefined {
   const sum = (c: Partial<Record<RoleKey, number>>) =>
     Object.values(c).reduce((s: number, n) => s + (n ?? 0), 0);
@@ -45,12 +46,15 @@ export function buildRoleCapOverflowNote(
   const staples = sum(stapleCounts);
   const combos = sum(comboCounts);
   const required = sum(requiredCounts);
-  const total = thin + staples + combos + required;
+  const late = sum(lateCounts);
+  const total = thin + staples + combos + required + late;
   if (total === 0) return undefined;
   const [dominantRole] = entries.sort((a, b) => b[1] - a[1]);
   const thinClause = thin > 0 ? ` The ${ROLE_DISPLAY[dominantRole[0]]} pool was thin.` : '';
   const subject = (n: number) =>
     n === total ? (total === 1 ? "It's" : "They're") : `${n} ${n === 1 ? 'is' : 'are'}`;
+  const lateClause =
+    late > 0 ? ` ${subject(late)} seated by a swap a build rule you set needed.` : '';
   const stapleClause =
     staples > 0
       ? ` ${subject(staples)} in ${STAPLE_INCLUSION_BAR}% or more of this commander's decks.`
@@ -61,7 +65,7 @@ export function buildRoleCapOverflowNote(
     required > 0
       ? ` ${subject(required)} ${required === 1 ? 'a card' : 'cards'} you required.`
       : '';
-  return `${total} card${total === 1 ? '' : 's'} went past a role cap.${thinClause}${stapleClause}${comboClause}${requiredClause} See Overbuilt roles for the total.`;
+  return `${total} card${total === 1 ? '' : 's'} went past a role cap.${thinClause}${lateClause}${stapleClause}${comboClause}${requiredClause} See Overbuilt roles for the total.`;
 }
 
 const POINTER = / See Overbuilt roles for the total\.$/;
@@ -92,17 +96,26 @@ export function withoutDanglingPointer(
  * and the role came from the picker's tag rather than countedRoleOf. This
  * counts what shipped, per role, with the one role source the report's
  * roleCounts reads (countedRoleOf) against the one cap the picker reads
- * (roleCapLimit). Each role's cards past the cap are explained combo piece
- * first, then staple, then a card the user required; the rest are the thin
- * pool. Report only: the pick-time tallies still gate the picker.
+ * (roleCapLimit). Each role's cards past the cap are explained by a late swap
+ * first (E1047: the picker never seats past a cap, so a budget repair or a
+ * forced search repair that did is the cause, not a combo piece already
+ * there), then combo piece, staple, a card the user required; the rest are
+ * the thin pool. Report only: the pick-time tallies still gate the picker.
  */
 export function buildFinalRoleCapOverflowNote(
   roleTargets: Readonly<Record<string, number>> | undefined,
   cards: readonly ScryfallCard[],
   inclusionOf: (name: string) => number,
-  comboCardNames: ReadonlySet<string>
+  comboCardNames: ReadonlySet<string>,
+  /** Budget repairs' and the whole-deck search's swaps. */
+  lateSwaps: readonly { cut: string; added: string }[] = []
 ): string | undefined {
   if (!roleTargets) return undefined;
+  // Only a swap into another role can push this one past its cap.
+  const lateAdded = new Set(
+    lateSwaps.filter((s) => getCardRole(s.cut) !== getCardRole(s.added)).map((s) => s.added)
+  );
+  const late: Partial<Record<RoleKey, number>> = {};
   const thin: Partial<Record<RoleKey, number>> = {};
   const staple: Partial<Record<RoleKey, number>> = {};
   const combo: Partial<Record<RoleKey, number>> = {};
@@ -119,12 +132,17 @@ export function buildFinalRoleCapOverflowNote(
       return used;
     };
     const rest = seated.filter((c) => !c.isMustInclude);
-    const isCombo = (c: ScryfallCard) => comboCardNames.has(frontFaceName(c.name).toLowerCase());
+    const isLate = (c: ScryfallCard) => lateAdded.has(c.name);
+    const isCombo = (c: ScryfallCard) =>
+      !isLate(c) && comboCardNames.has(frontFaceName(c.name).toLowerCase());
+    const lateN = take(rest.filter(isLate).length);
     const comboN = take(rest.filter(isCombo).length);
     const stapleN = take(
-      rest.filter((c) => !isCombo(c) && passesRoleCap(inclusionOf(c.name), false)).length
+      rest.filter((c) => !isLate(c) && !isCombo(c) && passesRoleCap(inclusionOf(c.name), false))
+        .length
     );
     const requiredN = take(seated.length - rest.length);
+    if (lateN) late[role] = lateN;
     if (comboN) combo[role] = comboN;
     if (stapleN) staple[role] = stapleN;
     if (requiredN) required[role] = requiredN;
@@ -132,5 +150,5 @@ export function buildFinalRoleCapOverflowNote(
   }
   // This is the full count, so the "see Overbuilt roles for the total" pointer
   // (which exists because the pick-time tally is not) would only mislead.
-  return buildRoleCapOverflowNote(thin, staple, combo, required)?.replace(POINTER, '');
+  return buildRoleCapOverflowNote(thin, staple, combo, required, late)?.replace(POINTER, '');
 }

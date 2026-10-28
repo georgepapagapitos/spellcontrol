@@ -232,11 +232,12 @@ const REPAIR_CHOICES = 8;
  */
 const FORCED_KEPT = 1000;
 type ForcedTier = 1 | 2 | 3;
-/** What a forced repair that left the trust region says, so the reason owns up to it. */
-function forcedDisclosure(tier: ForcedTier, why: string): string {
+/** What a forced repair that left the trust region says; only an owned-only build blames ownership (E1047). */
+function forcedDisclosure(tier: ForcedTier, why: string, ownedOnly: boolean): string {
+  const card = ownedOnly ? 'no owned card' : 'no card';
   return tier === 2
-    ? `no owned card keeps the class floor (${why})`
-    : `no owned card fits inside the role limits (${why})`;
+    ? `${card} keeps the class floor (${why})`
+    : `${card} fits inside the role limits (${why})`;
 }
 /** Constraint checks allowed per shortlist slot before a step gives up. */
 const CHECKS_PER_SLOT = 25;
@@ -814,7 +815,8 @@ export function* optimizeSteps(
         move: bestRepair.move,
         score: bestRepair.score,
         kind: 'repair',
-        disclosure: forcedRepair && out.why ? forcedDisclosure(out.tier, out.why) : undefined,
+        disclosure:
+          forcedRepair && out.why ? forcedDisclosure(out.tier, out.why, ownedOnly) : undefined,
       };
     }
     if (!taken && escapesLeft > 0 && bestTried) {

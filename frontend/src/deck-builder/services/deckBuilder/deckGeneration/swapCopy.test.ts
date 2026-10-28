@@ -200,4 +200,16 @@ describe('plainDisclosure', () => {
       'no card you own keeps enough of that kind of card (it is a land)'
     );
   });
+
+  it('names ownership only when the objective did (E1047)', () => {
+    expect(plainDisclosure('no owned card fits inside the role limits (x)')).toBe(
+      'no card you own fits inside the role limits (x)'
+    );
+    expect(plainDisclosure('no card fits inside the role limits (x)')).toBe(
+      'no card fits inside the role limits (x)'
+    );
+    expect(plainDisclosure('no card keeps the class floor (x)')).toBe(
+      'no card keeps enough of that kind of card (x)'
+    );
+  });
 });

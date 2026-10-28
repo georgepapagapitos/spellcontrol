@@ -1,4 +1,4 @@
-import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
+import type { CoherenceRepair, EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 import { getCardRole, type RoleKey } from '@/deck-builder/services/tagger/client';
 import { computeRoleCounts } from '../commanderDeckAnalysis';
 import { frontFaceName } from '@/lib/cards/card-text';
@@ -66,6 +66,13 @@ export function buildRoleDeficitNotes(
     isSaltBlocked?: (name: string) => boolean;
     /** E563: candidates a swap tried to seat and evictionKeeper turned away. */
     keeperBlocked?: ReadonlySet<string>;
+    /**
+     * E1047: the late passes' swaps. A candidate a budget repair cut left for the
+     * budget, and a card the whole-deck search traded for another role's is
+     * named as the cause; neither lost out to a stronger pick.
+     */
+    budgetRepairs?: readonly CoherenceRepair[];
+    searchSwaps?: readonly CoherenceRepair[];
   } = {}
 ): string[] | undefined {
   if (!roleTargets || !pool || pool.length === 0) return undefined;
@@ -92,10 +99,16 @@ export function buildRoleDeficitNotes(
     const roleLabel = ROLE_LABEL[role];
     const headline = `${capitalize(roleLabel)} shipped ${have} of its ${target}-card target`;
 
+    const traded = (opts.searchSwaps ?? []).filter(
+      (s) =>
+        getCardRole(s.cut) === role && getCardRole(s.added) !== role && !shippedNames.has(s.cut)
+    );
+    const tradedNames = new Set(traded.map((s) => s.cut));
     const candidates = pool
       .filter(
         (c) =>
           getCardRole(c.name) === role &&
+          !tradedNames.has(c.name) &&
           !shippedNames.has(c.name) &&
           !shippedNames.has(frontFaceName(c.name)) &&
           !opts.bannedCards?.has(c.name) &&
@@ -104,14 +117,24 @@ export function buildRoleDeficitNotes(
       .sort((a, b) => b.inclusion - a.inclusion)
       .slice(0, MAX_DEFICIT_EXAMPLES);
 
+    const tradeSentence =
+      traded.length > 0
+        ? `The whole-deck check traded ${traded.map((s) => `${s.cut} for ${s.added}`).join(' and ')}.`
+        : '';
     if (candidates.length === 0) {
-      notes.push(`${headline}. EDHREC had no more ${roleLabel}.`);
+      notes.push(
+        tradeSentence
+          ? `${headline}. ${tradeSentence}`
+          : `${headline}. EDHREC had no more ${roleLabel}.`
+      );
       continue;
     }
-    const describe = (c: EDHRECCard, i: number) =>
-      i === 0
+    const first = candidates[0];
+    const describe = (c: EDHRECCard) =>
+      c === first
         ? `${c.name} (${Math.round(c.inclusion)}% of decks)`
         : `${c.name} (${Math.round(c.inclusion)}%)`;
+    const budgetCut = new Set((opts.budgetRepairs ?? []).map((r) => r.cut));
     // A card the keeper turned away did not lose to a stronger pick: every card
     // it could have replaced was one the deck keeps.
     // The backfill also records a role it found no donor for: every card the deck
@@ -119,9 +142,12 @@ export function buildRoleDeficitNotes(
     // to a stronger pick.
     const roleBlocked = opts.keeperBlocked?.has(`role:${role}`);
     const isBlocked = (c: EDHRECCard) => roleBlocked || opts.keeperBlocked?.has(c.name);
-    const blocked = candidates.filter(isBlocked);
-    const outcompeted = candidates.filter((c) => !isBlocked(c));
-    const sentences: string[] = [];
+    const forBudget = candidates.filter((c) => budgetCut.has(c.name));
+    const blocked = candidates.filter((c) => !budgetCut.has(c.name) && isBlocked(c));
+    const outcompeted = candidates.filter((c) => !budgetCut.has(c.name) && !isBlocked(c));
+    const sentences: string[] = tradeSentence ? [tradeSentence] : [];
+    if (forBudget.length > 0)
+      sentences.push(`${forBudget.map(describe).join(' and ')} went to keep the deck in budget.`);
     if (outcompeted.length > 0)
       sentences.push(`${outcompeted.map(describe).join(' and ')} lost out to stronger picks.`);
     if (blocked.length > 0)
