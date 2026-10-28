@@ -30,6 +30,7 @@ import {
   isOwnedRarityExempt,
   fitsColorIdentity,
   exceedsBudget,
+  budgetStep,
 } from '../deckFilters';
 import { calculateCardPriority } from '../cardPicking';
 import { parsePrice } from '../costAnalyzer';
@@ -328,7 +329,7 @@ export async function applyBudgetConvergence(
   // card's function for nothing (E79 round 3: Big Score → Mind Stone saved
   // $0.06). Scales with the ask so a $500 budget doesn't get nickel-and-dimed
   // by $0.50 swaps either.
-  const MIN_SAVINGS = Math.max(0.5, ctx.deckBudget * 0.01);
+  const MIN_SAVINGS = budgetStep(ctx.deckBudget);
 
   const { commander, partnerCommander } = state.context;
   const commanders = [commander, partnerCommander].filter((c): c is ScryfallCard => c != null);

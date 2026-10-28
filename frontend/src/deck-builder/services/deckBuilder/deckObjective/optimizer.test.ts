@@ -106,6 +106,41 @@ describe('optimizeDeck', { timeout: 60_000 }, () => {
     for (const n of r.swaps[0].out) expect(['Vampiric Tutor', 'Worldly Tutor']).not.toContain(n);
   });
 
+  // E1046: while a deck breaks a constraint only repairs are taken, and every
+  // cheaper-for-dearer swap counted as one: on the budget panel the search traded
+  // Dig Through Time (59% of budget decks) for Opt to save $0.01. A saving under
+  // budgetStep now repairs only when the replacement keeps the card's tier.
+  it('does not trade a staple for cents as a budget repair, but does for a full step', () => {
+    const weak = result.swaps[0].out[0];
+    const price = (c: ReturnType<typeof card>) => parseFloat(c.prices?.usd ?? '0') || 0;
+    // The played card is the deck's dearest, so a twin priced under it undercuts
+    // it alone: every other swap would raise spend, which a broken budget forbids.
+    const deck = {
+      ...BASELINE,
+      cards: BASELINE.cards.map((c) =>
+        c.name === weak ? { ...c, prices: { usd: '999.00', eur: null } } : c
+      ),
+    };
+    const budget = Math.floor(deck.cards.reduce((s, c) => s + price(c), 0) - 20);
+    const over = merenCtx({
+      customization: { deckFormat: 99, currency: 'USD', deckBudget: budget },
+    });
+    expect(checkConstraints(deck, over).map((v) => v.check)).toContain('budget');
+    // An off-page card few decks play: well under half the staple's tier.
+    const twin = (name: string, saving: number) => ({
+      ...card(weak),
+      name,
+      edhrec_rank: 20000,
+      prices: { usd: (999 - saving).toFixed(2), eur: null },
+    });
+    const penny = optimizeDeck(deck, [twin('Penny Twin', 0.01)], over, SMALL);
+    expect(penny.swaps.flatMap((s) => s.in)).not.toContain('Penny Twin');
+    // budgetStep is max($0.50, 1% of the budget).
+    const stepSaving = Math.max(0.5, budget * 0.01) + 1;
+    const step = optimizeDeck(deck, [twin('Step Twin', stepSaving)], over, SMALL);
+    expect(step.swaps.flatMap((s) => s.in)).toContain('Step Twin');
+  });
+
   it('never adds a card it cannot price under a budget', () => {
     const budget = merenCtx({
       customization: { deckFormat: 99, currency: 'USD', deckBudget: 100 },

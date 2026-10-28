@@ -54,6 +54,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { normalizeCardName } from '../cardIdentity';
+import { REPAIR_TIER, budgetRepairRule } from './budgetRepair';
 import { classCounts } from './classFloors';
 import {
   bracketFloorOf,
@@ -223,8 +224,6 @@ export const STAPLE_ROCKS: readonly string[] = ['Sol Ring', 'Arcane Signet'];
 const FAST_GATE = 0.5;
 /** Repairs of a broken constraint compared before the least damaging one is taken. */
 const REPAIR_CHOICES = 8;
-/** A repair's card comes in at least this share as played as the card it replaces, when one can. */
-const REPAIR_TIER = 0.5;
 /**
  * Repairs kept aside, per tier, because they leave the trust region, judged
  * only when none stays inside it. As many as the checks reach (a step checks
@@ -518,6 +517,15 @@ export function* optimizeSteps(
     }
     const curInfeasible = infeasibility(currentScore);
     const curRepairable = repairable(currentScore.violations);
+    // E1046: when a cheaper-for-dearer swap repairs a broken budget (budgetRepair.ts).
+    const budgetRule = budgetRepairRule(
+      ctx,
+      current,
+      roleOf,
+      currentScore.violations,
+      leave.has('budget')
+    );
+    const curOver = budgetRule.overBy(currentScore.violations);
     // Constraints come first, as in compareScores: while the deck breaks one,
     // moves that take out a card a violation names (an unowned card in an
     // owned-only build, a Game Changer over the bracket's ceiling, a combo
@@ -540,7 +548,8 @@ export function* optimizeSteps(
           const currency = cz.currency ?? 'USD';
           const cost = (cards: ScryfallCard[]) =>
             cards.reduce((s, c) => s + (parseFloat(getCardPrice(c, currency) ?? '') || 0), 0);
-          if (cost(m.in) < cost(outs)) return true;
+          const saving = cost(outs) - cost(m.in);
+          if (saving > 0 && budgetRule.counts(saving, m)) return true;
         }
       }
       return false;
@@ -665,7 +674,11 @@ export function* optimizeSteps(
       const violations = checkConstraints(next, ctx);
       const nextInfeasible = violations.reduce((s, v) => s + v.magnitude, 0);
       if (nextInfeasible > curInfeasible) continue;
-      const isRepair = repairable(violations) < curRepairable;
+      const nextOver = budgetRule.overBy(violations);
+      const otherFixed = repairable(violations) - nextOver < curRepairable - curOver;
+      const isRepair =
+        repairable(violations) < curRepairable &&
+        (otherFixed || budgetRule.counts(curOver - nextOver, move));
       if (!isRepair && opts.landUpgrades) {
         if (landMove(move) !== landPhase) continue;
         if (landPhase && !landsLeft) continue;
