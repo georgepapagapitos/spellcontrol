@@ -11,6 +11,7 @@ vi.mock('@/deck-builder/services/tagger/client', async (importOriginal) => {
     getWipeScope: real.getWipeScope,
     getCardDrawSubtype: () => null,
     getCardRole: vi.fn(() => null),
+    isUtilityLand: vi.fn(() => false),
     validateCardRole: vi.fn(() => null),
     // E87-new Slice A: softProtectionLabel also checks readsAsProtection —
     // default false, overridden per-test where protection behavior is under test.
@@ -1031,6 +1032,7 @@ describe('applyBudgetConvergence value cut (E1044)', () => {
     const result = await applyBudgetConvergence(
       state,
       baseCtx({
+        lastResort: true,
         deckBudget: 40,
         scryfallCardMap: map,
         // Only Pricey Card can leave, and the pool holds no cheaper ramp card.
@@ -1094,6 +1096,7 @@ describe('applyBudgetConvergence value cut (E1044)', () => {
     const result = await applyBudgetConvergence(
       state,
       baseCtx({
+        lastResort: true,
         deckBudget: 25,
         scryfallCardMap: map,
         roleTargets: { ramp: 3, removal: 2, boardwipe: 1, cardDraw: 3 },
@@ -1123,6 +1126,7 @@ describe('applyBudgetConvergence value cut (E1044)', () => {
     const result = await applyBudgetConvergence(
       state,
       baseCtx({
+        lastResort: true,
         deckBudget: 17.6,
         scryfallCardMap: new Map([['Budget Pick', scryfallCard('Budget Pick', '0.45')]]),
         mustIncludeNames: new Set(['mid card', 'cheap card']),
@@ -1131,6 +1135,32 @@ describe('applyBudgetConvergence value cut (E1044)', () => {
     );
     expect(result.repairs.map((r) => [r.cut, r.added])).toEqual([['Pricey Card', 'Budget Pick']]);
     expect(result.residualReason).toBeUndefined();
+  });
+
+  it('stops cutting a role once it reaches its target, within one round', async () => {
+    // Ramp 4 against a target of 3: one ramp card may leave, not both.
+    vi.mocked(getCardRole).mockImplementation((name: string) =>
+      name.startsWith('Rock') ? 'ramp' : null
+    );
+    const state = makeState({
+      usedNames: new Set(['Rock A', 'Rock B']),
+      categories: {
+        ...makeState().categories,
+        synergy: [scryfallCard('Rock A', '10'), scryfallCard('Rock B', '9')],
+      },
+      currentRoleCounts: { ramp: 4, removal: 0, boardwipe: 0, cardDraw: 0 },
+    });
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({
+        lastResort: true,
+        deckBudget: 5,
+        roleTargets: { ramp: 3, removal: 2, boardwipe: 1, cardDraw: 3 },
+      })
+    );
+    vi.mocked(getCardRole).mockReturnValue(null);
+    expect(result.repairs.map((r) => r.cut)).toHaveLength(1);
+    expect(state.currentRoleCounts.ramp).toBe(3);
   });
 
   it('never value-cuts a protection piece', async () => {
@@ -1169,7 +1199,13 @@ describe('applyBudgetConvergence land stage (E1044)', () => {
       withBasics = true,
       spellText = '',
       colors = ['B', 'G'],
-    }: { withBasics?: boolean; spellText?: string; colors?: string[] } = {}
+      landInclusion,
+    }: {
+      withBasics?: boolean;
+      spellText?: string;
+      colors?: string[];
+      landInclusion?: number;
+    } = {}
   ) => {
     const state = makeState({
       context: {
@@ -1187,6 +1223,12 @@ describe('applyBudgetConvergence land stage (E1044)', () => {
           scryfallCard('Free Card', '0', { mana_cost: '{B}', oracle_text: spellText }),
         ],
       },
+      edhrecData: {
+        cardlists: {
+          allNonLand: POOL,
+          lands: lands.map((l) => edhrecCard(l.name, landInclusion ?? 10)),
+        },
+      } as unknown as GenerationState['edhrecData'],
     });
     const basics = new Map([
       ['Forest', basic('Forest', 'G')],
@@ -1195,6 +1237,7 @@ describe('applyBudgetConvergence land stage (E1044)', () => {
     const result = await applyBudgetConvergence(
       state,
       baseCtx({
+        lastResort: true,
         deckBudget,
         mustIncludeNames: new Set(['pricey card', 'mid card', 'cheap card', 'free card']),
         getBasicLand: withBasics ? async (n: string) => basics.get(n) ?? null : undefined,
@@ -1257,6 +1300,26 @@ describe('applyBudgetConvergence land stage (E1044)', () => {
     expect(result.repairs.map((r) => r.cut)).toEqual(['Twilight Mire']);
     expect(state.categories.lands.map((l) => l.name)).toContain('Command Tower');
     expect(state.categories.lands.map((l) => l.name)).toContain('Evolving Wilds');
+  });
+
+  it('never takes a cycling land, a staple land, or a nonbasic in a one-color deck', async () => {
+    const cycler = land(
+      'Forgotten Grove',
+      '0.70',
+      ['B', 'G'],
+      '{T}: Add {B} or {G}.\nCycling {G} ({G}, Discard this card: Draw a card.)'
+    );
+    const staple = dual('Woodland Cemetery', '0.61');
+    const lands = [cycler, staple, dual('Twilight Mire', '0.40')];
+    const { state } = await run(lands, 47.5);
+    // The staple's inclusion comes from the commander's EDHREC land list.
+    expect(state.categories.lands.map((l) => l.name)).toContain('Forgotten Grove');
+    const withStaple = await run([staple], 47.5, { landInclusion: 54 });
+    expect(withStaple.state.categories.lands.map((l) => l.name)).toEqual(['Woodland Cemetery']);
+    const mono = await run([land('Castle Embereth', '0.60', ['G'], '{T}: Add {G}.')], 47.5, {
+      colors: ['G'],
+    });
+    expect(mono.result.repairs).toEqual([]);
   });
 
   it('does not run without a basic-land resolver', async () => {

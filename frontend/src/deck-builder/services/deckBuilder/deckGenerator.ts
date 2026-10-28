@@ -188,7 +188,10 @@ import {
   reconvergeUntilStable,
 } from './deckGeneration/phaseBracketConverge';
 import { applyCoherenceRepair } from './deckGeneration/phaseCoherenceRepair';
-import { applyBudgetConvergence } from './deckGeneration/phaseBudgetConverge';
+import {
+  applyBudgetConvergence,
+  type BudgetConvergeContext,
+} from './deckGeneration/phaseBudgetConverge';
 import { applyRoleSurplusRebalance } from './deckGeneration/phaseRoleSurplusRebalance';
 import { buildRoleDeficitNotes } from './deckGeneration/roleDeficitNotes';
 import { applyLandSqueezeReconcile } from './deckGeneration/phaseLandSqueezeReconcile';
@@ -4351,10 +4354,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   let budgetRepairs: CoherenceRepair[] = [];
   let budgetConvergedSwaps = 0;
   let budgetResidualReason: string | undefined;
+  let budgetConvergeCtx: BudgetConvergeContext | null = null;
   if (deckBudget !== null) {
     const budgetMustInclude = protectedMustIncludeNames(state);
     const budgetLiftIndex = getLiftIndex(state);
-    const budgetResult = await applyBudgetConvergence(state, {
+    budgetConvergeCtx = {
       scryfallCardMap,
       detectedCombos,
       mustIncludeNames: budgetMustInclude,
@@ -4396,7 +4400,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           return null;
         }
       },
-    });
+    };
+    const budgetResult = await applyBudgetConvergence(state, budgetConvergeCtx);
     budgetRepairs = budgetResult.repairs;
     budgetConvergedSwaps = budgetResult.applied;
     budgetResidualReason = budgetResult.residualReason;
@@ -4523,6 +4528,24 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     resolveOwned,
   });
   detectedCombos = await guaranteeStaples(state, budgetTracker, detectedCombos, coherenceRepairs);
+  // E1044: the last resort runs once every pass that can move the total has
+  // run, so it touches only a deck that is still over budget.
+  if (budgetConvergeCtx) {
+    const lastResort = await applyBudgetConvergence(state, {
+      ...budgetConvergeCtx,
+      detectedCombos,
+      lastResort: true,
+    });
+    // A deck still over says why as of now, not as of the first call.
+    if (lastResort.applied > 0 || lastResort.residualReason) {
+      budgetResidualReason = lastResort.residualReason;
+    }
+    if (lastResort.applied > 0) {
+      budgetRepairs = [...budgetRepairs, ...lastResort.repairs];
+      budgetConvergedSwaps += lastResort.applied;
+      detectedCombos = refreshComboCompleteness(detectedCombos, state);
+    }
+  }
   // Composed after the last pass that changes combo membership, so it
   // reconciles to the final deck by construction.
   const comboCompletionNotes = newlyCompletedComboNotes(state, detectedCombos);

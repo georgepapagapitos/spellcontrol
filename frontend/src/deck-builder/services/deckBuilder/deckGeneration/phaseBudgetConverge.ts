@@ -12,6 +12,7 @@ import type { GenerationState } from './state';
 import { frontFaceName } from '@/lib/cards/card-text';
 import {
   getCardRole,
+  isUtilityLand as isTaggedUtilityLand,
   readsAsProtection,
   isFreeInteraction,
   isOneSidedWipe,
@@ -38,6 +39,7 @@ import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scry
 import { primaryTypeOf } from '@/lib/coach/card-matching';
 import type { BudgetTracker } from '../budgetTracker';
 import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
+import { STAPLE_INCLUSION_BAR } from '../roleCapAllowance';
 import type { BracketGuard } from '../bracketGuard';
 import { analyzeDeckSynergy, isLoadBearing } from '@/deck-builder/services/synergy/deckSynergy';
 import { isAltWinCard } from '@/deck-builder/services/winConditions/detect';
@@ -219,6 +221,10 @@ export interface BudgetConvergeContext {
   /** The user's total-deck budget — always a number when this phase runs
    *  (the caller only invokes it when `cfg.deckBudget !== null`). */
   deckBudget: number;
+  /** E1044: run only the last-resort stages (value cut, then lands). The
+   *  generator calls this once more after the whole-deck search, on a deck
+   *  still over budget; the first call runs the same-role stages only. */
+  lastResort?: boolean;
   /** Fetches the commander's EDHREC "budget" pool + resolves it to
    *  ScryfallCards the same way generation resolves its own pool — injected
    *  so this phase stays pure/testable and agnostic to EDHREC/Scryfall
@@ -706,6 +712,10 @@ export async function applyBudgetConvergence(
         // The card may already have been swapped out earlier this round via a
         // different candidate's replacement path — re-verify it's still seated.
         if (!findInDeck(card.name)) continue;
+        // A value cut earlier this round can take a role down to its target,
+        // so the value cut reads its predicate again for each card. The
+        // same-role stages keep their round-start snapshot.
+        if (valueCut && !isCuttable(card)) continue;
 
         const replacement = findReplacement(card, price, valueCut);
         if (!replacement) continue;
@@ -738,17 +748,17 @@ export async function applyBudgetConvergence(
   };
 
   // Stage 1: fully-unprotected candidates only (neither hard nor soft).
-  runRounds((c) => !isHardProtected(c) && softProtectionLabel(c) === null);
+  if (!ctx.lastResort) runRounds((c) => !isHardProtected(c) && softProtectionLabel(c) === null);
   // Stage 2: only reached if stage 1 didn't converge — soft protections now
   // yield too (still never hard-protected ones).
   // E561: the cards the eviction keeper holds (a 40%+ staple, a tutor, the last
   // answer of its kind) yield last of all, so a soft label that only says
   // "synergy engine piece" can't take Flux Channeler (40.6%) over a card the
   // deck plays less.
-  if (exceedsBudget(total, ctx.deckBudget)) {
+  if (!ctx.lastResort && exceedsBudget(total, ctx.deckBudget)) {
     runRounds((c) => !isHardProtected(c) && !keeps(c));
   }
-  if (exceedsBudget(total, ctx.deckBudget)) {
+  if (!ctx.lastResort && exceedsBudget(total, ctx.deckBudget)) {
     runRounds((c) => !isHardProtected(c));
   }
   // Stage 4 (E1044): no cheaper same-role card is left. At $25 (about 27 cents
@@ -761,7 +771,11 @@ export async function applyBudgetConvergence(
   // Its savings floor is a fifth of the other stages' (VALUE_CUT_MIN_SAVINGS):
   // E1044's first try lowered the floor for every stage and lost Farseek in
   // four decks to same-role trades with no play-rate guard; this stage has one.
-  if (exceedsBudget(total, ctx.deckBudget)) {
+  // Stages 4 and 5 run only in the last-resort call, after the whole-deck
+  // search: run before it, they churned decks the search brings under budget
+  // anyway, and the search then traded Ponder, Lightning Greaves and Kenrith's
+  // Transformation out along the new path (E1044's first gate).
+  if (ctx.lastResort && exceedsBudget(total, ctx.deckBudget)) {
     runRounds(
       (c) => {
         if (isHardProtected(c) || keeps(c)) return false;
@@ -780,9 +794,11 @@ export async function applyBudgetConvergence(
   // over while carrying $2-5 of them. As a last resort a land that only fixes
   // mana leaves for a basic of the color the deck's spells need most per
   // source, priciest first. A land doing the deck's plan (Strip Mine in
-  // Zo-Zu), a utility land, a wide fixer in a 3+ color deck and an owned land
-  // the budget ignores stay.
-  if (exceedsBudget(total, ctx.deckBudget) && ctx.getBasicLand) {
+  // Zo-Zu), a utility land, a staple land (40%+, Command Tower, the typed
+  // duals), a wide fixer in a 3+ color deck and an owned land the budget
+  // ignores stay. In one color no nonbasic fixes anything, so only a fetch
+  // for a basic goes there.
+  if (ctx.lastResort && exceedsBudget(total, ctx.deckBudget) && ctx.getBasicLand) {
     const identity = new Set(colorIdentity);
     const plan = readDeckLandPlan(nonLands(), commanders);
     const pipsOf = (color: string) =>
@@ -812,12 +828,27 @@ export async function applyBudgetConvergence(
       identity.size >= 3 &&
       (producedManaColors(l, identity).filter((c) => identity.has(c)).length >= 3 ||
         /\bsearch your library for\b/i.test(l.oracle_text ?? ''));
+    const landInclusion = new Map(
+      (state.edhrecData?.cardlists.lands ?? []).map((c) => [c.name, c.inclusion])
+    );
+    // A land that only makes the deck's colors (two or more of them), or a
+    // fetch for a basic. Anything else it does (cycling, a Scion, a card, the
+    // monarch) makes it a utility land: the first gate found Spawning Bed,
+    // Cryptic Caves and Forgotten Cave swapped under an "only fixes mana" label.
+    const onlyFixes = (l: ScryfallCard): boolean => {
+      if (isTaggedUtilityLand(l.name) || isUtilityLand(l)) return false;
+      const text = (l.oracle_text ?? '').toLowerCase();
+      if (/\bsearch your library for a basic land\b/.test(text)) return true;
+      if (/\bcycling\b|\bsacrifice\b|\bdraw\b|\bcreate\b/.test(text)) return false;
+      return producedManaColors(l, identity).filter((c) => identity.has(c)).length >= 2;
+    };
     const cuttableLands = state.categories.lands
       .filter(
         (l) =>
+          onlyFixes(l) &&
+          (landInclusion.get(l.name) ?? 0) < STAPLE_INCLUSION_BAR &&
           !isWideFixer(l) &&
           !isBasicLandName(l.name) &&
-          !isUtilityLand(l) &&
           !planJobServed(l, plan) &&
           !isBudgetExempt(l) &&
           !l.isMustInclude &&
