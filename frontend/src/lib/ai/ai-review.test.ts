@@ -1,5 +1,9 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
+  planLandNames,
   buildDeckReviewCards,
   deckContentKey,
   fetchAiStatus,
@@ -549,4 +553,35 @@ describe('stripEmphasis', () => {
     const tokens = tokenizeCardNames(stripEmphasis('Add **Sol Ring**.'), ['Sol Ring']);
     expect(tokens.filter((t) => t.card).map((t) => t.card)).toEqual(['Sol Ring']);
   });
+});
+
+// E1031: refine proposed cutting plan lands (Evolving Wilds in a landfall deck);
+// the server refuses a cut of any land named here. Real Scryfall oracle text.
+describe('planLandNames', () => {
+  const fixture = JSON.parse(
+    readFileSync(
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        '../../deck-builder/services/deckBuilder/__fixtures__/land-synergy.fixture.json'
+      ),
+      'utf8'
+    )
+  ) as {
+    decks: Record<
+      string,
+      { commander: string; spells: string[]; planLands: string[]; genericLands: string[] }
+    >;
+    cards: ScryfallCard[];
+  };
+  const card = (name: string) => fixture.cards.find((c) => c.name === name)!;
+
+  for (const [label, deck] of Object.entries(fixture.decks)) {
+    it(`names the ${label} deck's plan lands and none of its generic ones`, () => {
+      const names = planLandNames(
+        [card(deck.commander)],
+        [...deck.spells, ...deck.planLands, ...deck.genericLands].map(card)
+      );
+      expect(names).toEqual([...deck.planLands].sort());
+    });
+  }
 });

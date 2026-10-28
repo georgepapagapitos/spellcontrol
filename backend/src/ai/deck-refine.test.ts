@@ -73,6 +73,26 @@ describe('parseRefineOutput — the model curates, it never invents', () => {
     expect(out.rejected).toEqual(['Mana Vault']);
   });
 
+  it('refuses to cut a land doing the deck plan, and keeps it out of the prompt (E1031)', () => {
+    // Refine proposed cutting Evolving Wilds from a landfall deck; the Coach's
+    // cut lanes already protect plan lands (landPlan.ts), refine did not.
+    const req = {
+      ...REQ,
+      cards: [card('Evolving Wilds'), card('Lightning Greaves')],
+      analysis: { planLands: ['Evolving Wilds', 42] },
+    };
+    const out = parseRefineOutput(
+      reply('Prose.', [
+        { add: 'Boros Signet', cut: 'evolving wilds', why: 'Enters tapped.' },
+        { add: 'Burnished Hart', cut: 'Lightning Greaves', why: 'Ramp over haste.' },
+      ]),
+      req
+    );
+    expect(out.tweaks.map((t) => t.cut)).toEqual(['Lightning Greaves']);
+    expect(out.protectedCuts).toEqual(['Evolving Wilds']);
+    expect(buildRefineMessage(req, [])).not.toMatch(/planLands|plan land/i);
+  });
+
   it('refuses to cut a source or payoff of an invested engine (T112 residual)', () => {
     // The live failure: refine cut Celebr-8000, a Mr. House deck's best free
     // roll source, while the review's own engine line listed it. The engine

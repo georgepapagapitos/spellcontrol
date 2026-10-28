@@ -4,6 +4,8 @@ import type { AiPriceCurrency, AiScope } from './ai-scope';
 import type { DeckAnalysisResult } from '@/lib/deck-analysis/deck-analysis';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
+import { planJobServed, readDeckLandPlan } from '@/deck-builder/services/deckBuilder/landPlan';
+import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import type { CardLike } from '@/deck-builder/services/synergy/text';
 
 /**
@@ -73,6 +75,13 @@ export interface AiAnalysisPayload {
    * (and the cache key it hashes into) is stable across re-renders.
    */
   engines?: { label: string; sources: string[]; payoffs: string[] }[];
+  /**
+   * Refine only: the lands doing the deck's own job (landPlan.ts), which the
+   * server refuses to cut, as the Coach's cut lanes do (E1031). The prompt
+   * never reads it, so it is sent only when non-empty and other decks' cache
+   * keys stay put.
+   */
+  planLands?: string[];
 }
 
 const ENGINE_MAX_AXES = 6;
@@ -97,6 +106,21 @@ export function buildEngineInventory(cards: CardLike[]): AiAnalysisPayload['engi
     .filter((a) => invested.has(a.axis))
     .slice(0, ENGINE_MAX_AXES)
     .map((a) => ({ label: a.label, sources: names(a.producers), payoffs: names(a.payoffs) }));
+}
+
+/** The deck's lands that serve its plan (Evolving Wilds in a landfall deck), sorted. */
+export function planLandNames(
+  commanders: readonly ScryfallCard[],
+  mainboard: readonly ScryfallCard[]
+): string[] {
+  const isLand = (c: ScryfallCard) => getFrontFaceTypeLine(c).includes('Land');
+  const plan = readDeckLandPlan(
+    mainboard.filter((c) => !isLand(c)),
+    commanders
+  );
+  return [
+    ...new Set(mainboard.filter((c) => isLand(c) && planJobServed(c, plan)).map((c) => c.name)),
+  ].sort();
 }
 
 /** Project a full `DeckAnalysisResult` down to what the AI prompt reads. */
