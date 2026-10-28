@@ -777,6 +777,32 @@ function swapInclusion(
   return out;
 }
 
+/**
+ * The price (in the build's currency) of every card a late pass cut or added, so
+ * staple-loss.py can tell a careless trade (a staple given up to save cents) from
+ * a cut the budget forces. A cut card has left the deck, so its price isn't in
+ * the decklist; this reads the same card cache the generation used.
+ */
+async function swapPrices(
+  report: Record<string, unknown>,
+  currency: 'USD' | 'EUR'
+): Promise<Record<string, number>> {
+  const out: Record<string, number> = {};
+  for (const key of SWAP_LISTS) {
+    const rows = report[key];
+    if (!Array.isArray(rows)) continue;
+    for (const row of rows as { cut?: string; added?: string }[]) {
+      for (const name of [row.cut, row.added]) {
+        if (!name || name in out) continue;
+        const card = await getCardByName(name).catch(() => null);
+        const price = card ? parseFloat(getCardPrice(card, currency) ?? '') : NaN;
+        if (Number.isFinite(price)) out[name] = price;
+      }
+    }
+  }
+  return out;
+}
+
 interface SummaryEntry {
   slug: string;
   commander: string;
@@ -1058,6 +1084,12 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
             ? swapInclusion(
                 buildReport as unknown as Record<string, unknown>,
                 await pageInclusion(commander, partnerCommander, 'budget')
+              )
+            : undefined,
+          swapPrices: custom.deckBudget
+            ? await swapPrices(
+                buildReport as unknown as Record<string, unknown>,
+                custom.currency ?? 'USD'
               )
             : undefined,
           invariants: {
