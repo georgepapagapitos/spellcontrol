@@ -17,8 +17,9 @@ export interface RecheckLandsSheetProps {
   env: Omit<RecheckEnv, 'onProgress'>;
   ownershipFor: (name: string) => ChangeOwnership;
   onClose: () => void;
-  /** Apply the checked swaps (one undo entry is the caller's job). */
-  onApply: (swaps: LandRecheck['swaps']) => Promise<void>;
+  /** Apply the checked swaps (one undo entry is the caller's job); the
+   *  unchecked ones are declined, for the caller to remember. */
+  onApply: (swaps: LandRecheck['swaps'], declined: LandRecheck['swaps']) => Promise<void>;
 }
 
 type Phase =
@@ -56,6 +57,7 @@ export function RecheckLandsSheet({
   });
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
   const [applying, setApplying] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
   // A run can't be canceled mid-flight; closing just drops its answer.
   // Re-armed on every mount (StrictMode runs the cleanup once after mount).
   const alive = useRef(true);
@@ -78,6 +80,7 @@ export function RecheckLandsSheet({
   const run = useCallback(async () => {
     setPhase({ kind: 'building', message: 'Reading your collection', percent: 2 });
     setSkipped(new Set());
+    setShowHidden(false);
     try {
       const result = await recheckLands(input.current.deck, {
         ...input.current.env,
@@ -99,8 +102,16 @@ export function RecheckLandsSheet({
     void run();
   }, [run]);
 
-  const swaps = phase.kind === 'review' ? phase.result.swaps : [];
+  const offered = phase.kind === 'review' ? phase.result.swaps : [];
+  const hidden = phase.kind === 'review' ? phase.result.hidden : [];
+  // Swaps declined last time come back unchecked, only when asked for.
+  const swaps = showHidden ? [...offered, ...hidden] : offered;
   const chosen = swaps.filter((_, i) => !skipped.has(i));
+  const declined = swaps.filter((_, i) => skipped.has(i));
+  const reveal = () => {
+    setSkipped((prev) => new Set([...prev, ...hidden.map((_, i) => offered.length + i)]));
+    setShowHidden(true);
+  };
   const toggle = (i: number) =>
     setSkipped((prev) => {
       const next = new Set(prev);
@@ -112,7 +123,7 @@ export function RecheckLandsSheet({
   const apply = async () => {
     setApplying(true);
     try {
-      await onApply(chosen);
+      await onApply(chosen, declined);
       beginClose();
     } finally {
       if (alive.current) setApplying(false);
@@ -171,8 +182,9 @@ export function RecheckLandsSheet({
             <>
               {swaps.length === 0 ? (
                 <p className="review-sheet-lead">
-                  No changes. These are still the lands this deck&apos;s settings pick from your
-                  collection.
+                  {hidden.length > 0
+                    ? 'No new swaps.'
+                    : "No changes. These are still the lands this deck's settings pick from your collection."}
                 </p>
               ) : (
                 <ul className="list-stack list-stack--tight recheck-lands-list" role="list">
@@ -208,6 +220,16 @@ export function RecheckLandsSheet({
                     );
                   })}
                 </ul>
+              )}
+              {hidden.length > 0 && !showHidden && (
+                <p className="review-sheet-note">
+                  {hidden.length === 1
+                    ? '1 swap you turned down before is hidden.'
+                    : `${hidden.length} swaps you turned down before are hidden.`}{' '}
+                  <Button variant="link" onClick={reveal}>
+                    {hidden.length === 1 ? 'Show it' : 'Show them'}
+                  </Button>
+                </p>
               )}
               {phase.result.kept.length > 0 && (
                 <p className="review-sheet-note">
