@@ -27,6 +27,13 @@ export interface LandRecheck {
   /** Lands the player added by hand since the build: they stay, and the
    *  re-check builds around them. */
   kept: string[];
+  /** Swaps the player declined on an earlier re-check, left out of `swaps`. */
+  hidden: LandSwap[];
+}
+
+/** One swap's identity across re-checks: the land out and the land in. */
+export function landSwapKey(s: { out: { name: string }; in: { name: string } }): string {
+  return `${s.out.name}>${s.in.name}`;
 }
 
 const isLand = (c: ScryfallCard) => getFrontFaceTypeLine(c).includes('Land');
@@ -105,14 +112,25 @@ export function landSwapSteps(swaps: LandSwap[]): PlanStep[] {
  * The deck's generated-list snapshot after the swaps, so a later Regenerate or
  * re-check reads them as the build's own picks, not as the player's edits (an
  * edit is kept fixed, and its cut land banned, which would freeze the deck at
- * this re-check forever).
+ * this re-check forever). The swaps left unchecked are remembered as declined,
+ * so the next re-check doesn't offer them again (E1034).
  */
 export function generatedListAfter(
   deck: Pick<Deck, 'generationContext'>,
-  applied: PlanStep[]
+  applied: PlanStep[],
+  declined: LandSwap[] = []
 ): Deck['generationContext'] {
   const gc = deck.generationContext;
-  if (!gc?.generatedList) return gc;
+  if (!gc) return gc;
+  const taken = new Set(applied.map((s) => `${s.cutName}>${s.addName}`));
+  const declinedLandSwaps = [
+    ...new Set([...(gc.declinedLandSwaps ?? []), ...declined.map(landSwapKey)]),
+  ].filter((k) => !taken.has(k));
+  const withDeclines = {
+    ...gc,
+    declinedLandSwaps: declinedLandSwaps.length > 0 ? declinedLandSwaps : undefined,
+  };
+  if (!gc.generatedList) return withDeclines;
   const cards = [...gc.generatedList.cards];
   for (const step of applied) {
     if (step.cutName) {
@@ -121,7 +139,7 @@ export function generatedListAfter(
     }
     if (!BASIC_NAMES.has(step.addName) && !cards.includes(step.addName)) cards.push(step.addName);
   }
-  return { ...gc, generatedList: { ...gc.generatedList, cards } };
+  return { ...withDeclines, generatedList: { ...gc.generatedList, cards } };
 }
 
 const BASIC_NAMES = new Set([
@@ -231,9 +249,12 @@ export async function recheckLands(deck: Deck, env: RecheckEnv): Promise<LandRec
   const next = Object.values(generated.categories)
     .flat()
     .filter((c) => isLand(c) && !keptNames.has(c.name));
+  const declined = new Set(deck.generationContext?.declinedLandSwaps ?? []);
+  const all = pairLandSwaps(open, next);
   return {
-    swaps: pairLandSwaps(open, next),
+    swaps: all.filter((s) => !declined.has(landSwapKey(s))),
     inclusion: generated.cardInclusionMap ?? {},
     kept: [...keptNames],
+    hidden: all.filter((s) => declined.has(landSwapKey(s))),
   };
 }

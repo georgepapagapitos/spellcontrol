@@ -14,6 +14,7 @@ vi.mock('@/deck-builder/services/scryfall/client', () => ({
 import {
   canRecheckLands,
   generatedListAfter,
+  landSwapKey,
   landSwapSteps,
   pairLandSwaps,
   recheckLands,
@@ -151,6 +152,39 @@ describe('generatedListAfter', () => {
       { cutName: 'Island', addName: 'Swamp' },
     ]);
     expect(gc?.generatedList?.cards).toEqual(['Mystic Sanctuary']);
+  });
+});
+
+// E1034: seen live, Otawara -> Mana Confluence came back on every re-check
+// after the player unchecked it and applied the rest.
+describe('declined swaps', () => {
+  it('remembers the unchecked swaps on apply, and forgets one the player later takes', () => {
+    const d = deck([land('Otawara, Soaring City'), land('Halimar Depths')]);
+    const gc = generatedListAfter(
+      d,
+      [{ cutName: 'Halimar Depths', addName: 'Mystic Sanctuary' }],
+      [{ out: land('Otawara, Soaring City'), in: land('Mana Confluence') }]
+    );
+    expect(gc?.declinedLandSwaps).toEqual(['Otawara, Soaring City>Mana Confluence']);
+    const later = generatedListAfter({ generationContext: gc }, [
+      { cutName: 'Otawara, Soaring City', addName: 'Mana Confluence' },
+    ]);
+    expect(later?.declinedLandSwaps).toBeUndefined();
+  });
+
+  it('hides a declined swap from the next re-check and returns it as hidden', async () => {
+    const d = deck([spell('Ponder'), land('Otawara, Soaring City'), land('Halimar Depths')]);
+    d.generationContext!.declinedLandSwaps = ['Otawara, Soaring City>Mana Confluence'];
+    built([land('Mana Confluence'), land('Mystic Sanctuary')]);
+    const result = await recheckLands(d, {
+      collection: owned('Mana Confluence', 'Mystic Sanctuary'),
+      decks: [d],
+      cubes: [],
+    });
+    expect(result.swaps.map((s) => [s.out.name, s.in.name])).toEqual([
+      ['Halimar Depths', 'Mystic Sanctuary'],
+    ]);
+    expect(result.hidden.map(landSwapKey)).toEqual(['Otawara, Soaring City>Mana Confluence']);
   });
 });
 

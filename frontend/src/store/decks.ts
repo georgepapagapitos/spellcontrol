@@ -185,6 +185,9 @@ export interface Deck {
      *  since. Absent on decks generated before it was recorded (no edits are
      *  guessed for those). */
     generatedList?: GeneratedList;
+    /** Re-check lands swaps the player left unchecked when applying the rest,
+     *  as `landSwapKey` pairs, so the next re-check hides them (E1034). */
+    declinedLandSwaps?: string[];
   } | null;
   /**
    * Optional generator-derived stats. Only present on freshly generated decks

@@ -259,10 +259,12 @@ export function DeckEditorOverlays({
           }}
           ownershipFor={ownershipFor}
           onClose={() => setRecheckLandsOpen(false)}
-          onApply={async (swaps) => {
+          onApply={async (swaps, declined) => {
             const n = await applyUpgradePlan(deck.id, landSwapSteps(swaps), {
               label: (count) => `re-check lands (${count} ${count === 1 ? 'swap' : 'swaps'})`,
-              patch: (d, applied) => ({ generationContext: generatedListAfter(d, applied) }),
+              patch: (d, applied) => ({
+                generationContext: generatedListAfter(d, applied, declined),
+              }),
             });
             if (n === 0) {
               pushToast({ message: "Couldn't find those lands. Nothing changed.", tone: 'error' });
