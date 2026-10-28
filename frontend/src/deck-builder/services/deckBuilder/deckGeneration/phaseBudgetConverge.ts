@@ -47,6 +47,7 @@ import { isBasicLandName } from '@/lib/collection/allocations';
 import { producedManaColors } from '@/lib/deck-analysis/mana-sources';
 import { isUtilityLand } from '../landUpgrades';
 import { planJobServed, readDeckLandPlan } from '../landPlan';
+import { countedRoleOf } from '../commanderDeckAnalysis';
 
 // ── Budget Convergence (E79) ──
 // BudgetTracker's per-pick `getEffectiveCap` is a soft greedy heuristic — it
@@ -465,17 +466,29 @@ export async function applyBudgetConvergence(
     }
   };
 
-  const poolInclusion = new Map(pool.map((c) => [c.name, c.inclusion]));
+  // The standard page only: the merged budget page counts budget decks, so a
+  // card's figure there is not comparable with another card's standard one
+  // (Haunted Cloak read 20.6 against Reality Smasher's 18.7 in the first gate,
+  // and is in 0% of Kozilek's decks).
+  const poolInclusion = new Map(standardPool.map((c) => [c.name, c.inclusion]));
   const inclusionOf = (name: string): number => poolInclusion.get(name) ?? 0;
+
+  // Counted from the deck as it stands, the way the report and the deck page
+  // count (countedRoleOf): after the whole-deck search the running counters
+  // no longer match the deck, and the tagger's role reads more cards as ramp
+  // or removal than the report does. Either one let the value cut take
+  // Krenko's ramp to 11 of 12 and Yuriko's removal to 6 of 8 in the gates.
+  const liveRoleCount = (role: RoleKey): number =>
+    nonLands().filter((c) => countedRoleOf(c) === role).length;
 
   /** The role sits under its target (a value cut may fill it). */
   const isRoleShort = (role: RoleKey): boolean =>
-    !!ctx.roleTargets && (state.currentRoleCounts[role] ?? 0) < (ctx.roleTargets[role] ?? 0);
+    !!ctx.roleTargets && liveRoleCount(role) < (ctx.roleTargets[role] ?? 0);
 
   /** The role holds more than its target, so one card of it can leave the role.
    *  With no targets nothing is known to be spare. */
   const isRoleSurplus = (role: RoleKey): boolean =>
-    !!ctx.roleTargets && (state.currentRoleCounts[role] ?? 0) > (ctx.roleTargets[role] ?? 0);
+    !!ctx.roleTargets && liveRoleCount(role) > (ctx.roleTargets[role] ?? 0);
 
   // Only meaningful for a role-CROSSING replacement (its role differs from
   // the card being cut) — see the callsite in gateOk for why a same-role
@@ -623,15 +636,16 @@ export async function applyBudgetConvergence(
     // played as often") and fills a role the deck is short of, or none.
     if (valueCut) {
       const floor = inclusionOf(cutCard.name);
+      const leaving = countedRoleOf(cutCard);
       const fits = eligiblePairs.filter((p) => {
-        if (p.ec.inclusion < floor) return false;
-        const role = getCardRole(p.sc.name);
-        return !role || role === cutRole || isRoleShort(role);
+        if (inclusionOf(p.sc.name) < floor) return false;
+        const role = countedRoleOf(p.sc);
+        return !role || role === leaving || isRoleShort(role);
       });
       if (fits.length === 0) return null;
       const short = fits.filter((p) => {
-        const role = getCardRole(p.sc.name);
-        return role && role !== cutRole && isRoleShort(role);
+        const role = countedRoleOf(p.sc);
+        return role && role !== leaving && isRoleShort(role);
       });
       const pick = pickBestSavings(short.length > 0 ? short : fits);
       return meetsMinSavings(pick) ? pick : null;
@@ -781,7 +795,7 @@ export async function applyBudgetConvergence(
         if (isHardProtected(c) || keeps(c)) return false;
         if (readsAsProtection(c) || isFreeInteraction(c) || state.comboCardNames.has(c.name))
           return false;
-        const role = getCardRole(c.name);
+        const role = countedRoleOf(c);
         return !role || isRoleSurplus(role);
       },
       true,
@@ -839,7 +853,7 @@ export async function applyBudgetConvergence(
       if (isTaggedUtilityLand(l.name) || isUtilityLand(l)) return false;
       const text = (l.oracle_text ?? '').toLowerCase();
       if (/\bsearch your library for a basic land\b/.test(text)) return true;
-      if (/\bcycling\b|\bsacrifice\b|\bdraw\b|\bcreate\b/.test(text)) return false;
+      if (/cycling|\bsacrifice\b|\bdraw\b|\bcreate\b/.test(text)) return false;
       return producedManaColors(l, identity).filter((c) => identity.has(c)).length >= 2;
     };
     const cuttableLands = state.categories.lands

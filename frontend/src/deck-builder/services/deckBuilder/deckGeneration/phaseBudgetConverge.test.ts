@@ -5,14 +5,16 @@ import type { ScryfallCard, EDHRECCard, DetectedCombo } from '@/deck-builder/typ
 // pure-logic tests; individual tests override getCardRole per-case.
 vi.mock('@/deck-builder/services/tagger/client', async (importOriginal) => {
   const real = await importOriginal<typeof import('@/deck-builder/services/tagger/client')>();
+  const getCardRole = vi.fn((_name: string): string | null => null);
   return {
     // Oracle-text predicates (who a wipe hits, what it destroys) are the real ones.
     isOneSidedWipe: real.isOneSidedWipe,
     getWipeScope: real.getWipeScope,
     getCardDrawSubtype: () => null,
-    getCardRole: vi.fn(() => null),
+    getCardRole,
     isUtilityLand: vi.fn(() => false),
-    validateCardRole: vi.fn(() => null),
+    // The report's role (countedRoleOf) follows whatever a test says a card's role is.
+    validateCardRole: vi.fn((c: { name: string }) => getCardRole(c.name)),
     // E87-new Slice A: softProtectionLabel also checks readsAsProtection —
     // default false, overridden per-test where protection behavior is under test.
     readsAsProtection: vi.fn(() => false),
@@ -1014,8 +1016,10 @@ describe('applyBudgetConvergence value cut (E1044)', () => {
       map,
     };
   };
+  // Pricey Card is the deck's one ramp card, and roles are counted from the
+  // deck: a ramp target of 0 leaves it spare, a target of 1 does not.
   const run = async (opts: {
-    rampCount: number;
+    rampTarget: number;
     removalInclusion: number;
     pricyInclusion?: number;
   }) => {
@@ -1026,7 +1030,6 @@ describe('applyBudgetConvergence value cut (E1044)', () => {
     if (opts.pricyInclusion !== undefined)
       pool.push(edhrecCard('Pricey Card', opts.pricyInclusion));
     const state = makeState({
-      currentRoleCounts: { ramp: opts.rampCount, removal: 0, boardwipe: 0, cardDraw: 0 },
       edhrecData: { cardlists: { allNonLand: pool } } as unknown as GenerationState['edhrecData'],
     });
     const result = await applyBudgetConvergence(
@@ -1037,7 +1040,7 @@ describe('applyBudgetConvergence value cut (E1044)', () => {
         scryfallCardMap: map,
         // Only Pricey Card can leave, and the pool holds no cheaper ramp card.
         mustIncludeNames: new Set(['mid card', 'cheap card']),
-        roleTargets: { ramp: 3, removal: 2, boardwipe: 1, cardDraw: 3 },
+        roleTargets: { ramp: opts.rampTarget, removal: 2, boardwipe: 1, cardDraw: 3 },
       })
     );
     vi.mocked(getCardRole).mockReturnValue(null);
@@ -1045,7 +1048,7 @@ describe('applyBudgetConvergence value cut (E1044)', () => {
   };
 
   it('cuts a card from a role over its target for a cheaper card in a role the deck is short of', async () => {
-    const { state, result } = await run({ rampCount: 5, removalInclusion: 50 });
+    const { state, result } = await run({ rampTarget: 0, removalInclusion: 50 });
     expect(state.usedNames.has('Pricey Card')).toBe(false);
     expect(state.usedNames.has('Cheap Removal')).toBe(true);
     expect(result.repairs).toEqual([
@@ -1055,14 +1058,14 @@ describe('applyBudgetConvergence value cut (E1044)', () => {
   });
 
   it('leaves a role card in place when its role is not over target', async () => {
-    const { state, result } = await run({ rampCount: 3, removalInclusion: 50 });
+    const { state, result } = await run({ rampTarget: 1, removalInclusion: 50 });
     expect(state.usedNames.has('Pricey Card')).toBe(true);
     expect(result.applied).toBe(0);
   });
 
   it('never trades for a card played less often', async () => {
     const { state, result } = await run({
-      rampCount: 5,
+      rampTarget: 0,
       removalInclusion: 10,
       pricyInclusion: 30,
     });
@@ -1086,7 +1089,6 @@ describe('applyBudgetConvergence value cut (E1044)', () => {
         ...makeState().categories,
         synergy: [scryfallCard('Played Card', '20'), scryfallCard('Unplayed Card', '10')],
       },
-      currentRoleCounts: { ramp: 5, removal: 0, boardwipe: 0, cardDraw: 0 },
       edhrecData: {
         cardlists: {
           allNonLand: [edhrecCard('Played Card', 30), edhrecCard('Cheap Removal', 35)],
@@ -1099,7 +1101,7 @@ describe('applyBudgetConvergence value cut (E1044)', () => {
         lastResort: true,
         deckBudget: 25,
         scryfallCardMap: map,
-        roleTargets: { ramp: 3, removal: 2, boardwipe: 1, cardDraw: 3 },
+        roleTargets: { ramp: 0, removal: 2, boardwipe: 1, cardDraw: 3 },
       })
     );
     vi.mocked(getCardRole).mockReturnValue(null);
@@ -1138,7 +1140,7 @@ describe('applyBudgetConvergence value cut (E1044)', () => {
   });
 
   it('stops cutting a role once it reaches its target, within one round', async () => {
-    // Ramp 4 against a target of 3: one ramp card may leave, not both.
+    // Two ramp cards against a target of 1: one may leave, not both.
     vi.mocked(getCardRole).mockImplementation((name: string) =>
       name.startsWith('Rock') ? 'ramp' : null
     );
@@ -1148,26 +1150,25 @@ describe('applyBudgetConvergence value cut (E1044)', () => {
         ...makeState().categories,
         synergy: [scryfallCard('Rock A', '10'), scryfallCard('Rock B', '9')],
       },
-      currentRoleCounts: { ramp: 4, removal: 0, boardwipe: 0, cardDraw: 0 },
     });
     const result = await applyBudgetConvergence(
       state,
       baseCtx({
         lastResort: true,
         deckBudget: 5,
-        roleTargets: { ramp: 3, removal: 2, boardwipe: 1, cardDraw: 3 },
+        roleTargets: { ramp: 1, removal: 2, boardwipe: 1, cardDraw: 3 },
       })
     );
     vi.mocked(getCardRole).mockReturnValue(null);
     expect(result.repairs.map((r) => r.cut)).toHaveLength(1);
-    expect(state.currentRoleCounts.ramp).toBe(3);
+    expect(state.categories.synergy.filter((c) => c.name.startsWith('Rock'))).toHaveLength(1);
   });
 
   it('never value-cuts a protection piece', async () => {
     vi.mocked(readsAsProtection).mockImplementation(
       (c) => (c as ScryfallCard).name === 'Pricey Card'
     );
-    const { state, result } = await run({ rampCount: 5, removalInclusion: 50 });
+    const { state, result } = await run({ rampTarget: 0, removalInclusion: 50 });
     vi.mocked(readsAsProtection).mockReturnValue(false);
     expect(state.usedNames.has('Pricey Card')).toBe(true);
     expect(result.applied).toBe(0);

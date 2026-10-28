@@ -4355,6 +4355,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   let budgetConvergedSwaps = 0;
   let budgetResidualReason: string | undefined;
   let budgetConvergeCtx: BudgetConvergeContext | null = null;
+  let lastResortSwaps = 0;
   if (deckBudget !== null) {
     const budgetMustInclude = protectedMustIncludeNames(state);
     const budgetLiftIndex = getLiftIndex(state);
@@ -4543,6 +4544,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     if (lastResort.applied > 0) {
       budgetRepairs = [...budgetRepairs, ...lastResort.repairs];
       budgetConvergedSwaps += lastResort.applied;
+      lastResortSwaps = lastResort.applied;
       detectedCombos = refreshComboCompleteness(detectedCombos, state);
     }
   }
@@ -4724,7 +4726,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         deckBudget,
         currency,
         comboBudgetSkipCount,
-        convergedSwapCount: wholeDeckSearch.standing(state, budgetRepairs, budgetConvergedSwaps),
+        // The last resort runs after the search, so the search can't have
+        // reversed its swaps: only the first call's are checked against it.
+        convergedSwapCount:
+          wholeDeckSearch.standing(
+            state,
+            budgetRepairs.slice(0, budgetRepairs.length - lastResortSwaps),
+            budgetConvergedSwaps - lastResortSwaps
+          ) + lastResortSwaps,
         residualReason: budgetResidualReason,
       }) ?? budgetNote;
   }
