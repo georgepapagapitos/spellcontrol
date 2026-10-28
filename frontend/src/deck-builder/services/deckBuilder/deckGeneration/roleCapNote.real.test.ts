@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { loadTaggerData } from '@/deck-builder/services/tagger/client';
-import { computeRoleCounts } from '../commanderDeckAnalysis';
+import { computeRoleCounts, countedRoleOf } from '../commanderDeckAnalysis';
 import { roleCapLimit } from '../roleCapAllowance';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { BASELINE, FIX, TREATMENT } from '../deckObjective/__fixtures__/objectiveFixture';
@@ -59,6 +59,24 @@ describe('buildFinalRoleCapOverflowNote on real Meren decks', () => {
       else expect(note).toMatch(new RegExp(`^${excess} cards? went past a role cap[.]`));
     });
   }
+
+  // E1047: the search's forced repair seated a Talisman past ramp's cap and the
+  // note blamed the combo piece already there.
+  it('blames the late swap that went past the cap before a combo piece', () => {
+    const ramp = BASELINE.cards.filter((c) => countedRoleOf(c) === 'ramp');
+    const target = [...Array(40).keys()].find((t) => roleCapLimit(t) === ramp.length - 1)!;
+    const other = BASELINE.cards.find((c) => countedRoleOf(c) && countedRoleOf(c) !== 'ramp')!;
+    const note = buildFinalRoleCapOverflowNote(
+      { ramp: target },
+      BASELINE.cards,
+      () => 0,
+      new Set(ramp.map((c) => frontFaceName(c.name).toLowerCase())),
+      [{ cut: other.name, added: ramp[0].name }]
+    );
+    expect(note).toBe(
+      "1 card went past a role cap. It's seated by a swap a build rule you set needed."
+    );
+  });
 
   it('says nothing when every role is inside its cap', () => {
     const roomy = Object.fromEntries(Object.keys(targets).map((r) => [r, 99]));

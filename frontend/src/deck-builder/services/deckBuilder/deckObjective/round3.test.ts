@@ -55,6 +55,28 @@ describe('a forced repair keeps the cap (Krenko owned-only: Swiftfoot Boots went
     expect(repair.disclosure).toMatch(/role limits.*ramp would rise/);
   });
 
+  // E1047: a budget build with no ownership rule read "no card you own fits".
+  it('blames ownership only in an owned-only build', () => {
+    const price = (c: ReturnType<typeof card>) => parseFloat(c.prices?.usd ?? '0') || 0;
+    const deck = {
+      ...BASELINE,
+      // Swiftfoot Boots is the only saving: cutting it is the repair.
+      cards: BASELINE.cards.map((c) => ({
+        ...c,
+        prices: { usd: c.name === 'Swiftfoot Boots' ? '999.00' : '0.10', eur: null },
+      })),
+    };
+    const budget = Math.floor(deck.cards.reduce((t, c) => t + price(c), 0) - 900);
+    const ctx = bootsRow([], {
+      customization: { deckFormat: 99, currency: 'USD', deckBudget: budget },
+      ownedNames: undefined,
+    });
+    const r = optimizeDeck(deck, cards('Vexing Puzzlebox'), ctx, SMALL);
+    const repair = r.swaps.find((s) => s.kind === 'repair')!;
+    expect(repair.in).toEqual(['Vexing Puzzlebox']);
+    expect(repair.disclosure).toMatch(/^no card fits inside the role limits.*ramp would rise/);
+  });
+
   it('takes the cheaper of two owned protection pieces (Soul of New Phyrexia took Lightning Greaves)', () => {
     const ctx = bootsRow(['Soul of New Phyrexia', 'Heroic Intervention']);
     const r = optimizeDeck(
