@@ -52,6 +52,14 @@ export function exceedsBudget(total: number, budget: number): boolean {
   return Math.round(total * 100) > Math.round(budget * 100);
 }
 
+/** The smallest saving that counts as fixing an over-budget deck: below it a
+ *  swap trades a card for cents (E79 round 3: Big Score for Mind Stone saved
+ *  $0.06). Scales with the ask. Budget convergence and the whole-deck search
+ *  both use it, so the two can't disagree on what a budget repair is. */
+export function budgetStep(budget: number): number {
+  return Math.max(0.5, budget * 0.01);
+}
+
 // Check if a card exceeds the max price limit
 // Cards with no price are treated as exceeding the limit when a budget is active
 export function exceedsMaxPrice(

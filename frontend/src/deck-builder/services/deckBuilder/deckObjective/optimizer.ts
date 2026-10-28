@@ -50,6 +50,7 @@
  * wall-clock cap is a safety net; hitting it is reported (`stoppedBy: 'time'`)
  * because it makes the result depend on the machine.
  */
+import { budgetStep } from '../deckFilters';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
@@ -518,6 +519,25 @@ export function* optimizeSteps(
     }
     const curInfeasible = infeasibility(currentScore);
     const curRepairable = repairable(currentScore.violations);
+    // E1046: a budget-only saving below budgetStep isn't a repair unless it brings
+    // the deck within budget. While a deck breaks a constraint only repairs are
+    // taken, so every cent-saving swap counted: on the 39-row budget panel the
+    // search traded 34 staples for cents (Dig Through Time 59% of budget decks
+    // for Opt, $0.01; Everflowing Chalice 82% for Sisay's Ring, $0.03).
+    const overBy = (vs: readonly ConstraintViolation[]) =>
+      leave.has('budget') ? 0 : (vs.find((v) => v.check === 'budget')?.magnitude ?? 0);
+    const curOver = overBy(currentScore.violations);
+    const minBudgetSaving = cz.deckBudget ? budgetStep(cz.deckBudget) : 0;
+    // A smaller saving still repairs when it keeps the card's tier (the
+    // replacement at least REPAIR_TIER as played): trading filler for filler for
+    // cents took $18 off the panel's overage; trading a staple for cents is the
+    // defect.
+    const keepsTier = (m: Move) =>
+      m.in.every(
+        (c, j) => ctx.qualityOf(c).q >= REPAIR_TIER * ctx.qualityOf(current.cards[m.out[j]]).q
+      );
+    const budgetRepairCounts = (saving: number, m: Move) =>
+      saving >= Math.min(minBudgetSaving, curOver) || keepsTier(m);
     // Constraints come first, as in compareScores: while the deck breaks one,
     // moves that take out a card a violation names (an unowned card in an
     // owned-only build, a Game Changer over the bracket's ceiling, a combo
@@ -540,7 +560,8 @@ export function* optimizeSteps(
           const currency = cz.currency ?? 'USD';
           const cost = (cards: ScryfallCard[]) =>
             cards.reduce((s, c) => s + (parseFloat(getCardPrice(c, currency) ?? '') || 0), 0);
-          if (cost(m.in) < cost(outs)) return true;
+          const saving = cost(outs) - cost(m.in);
+          if (saving > 0 && budgetRepairCounts(saving, m)) return true;
         }
       }
       return false;
@@ -665,7 +686,11 @@ export function* optimizeSteps(
       const violations = checkConstraints(next, ctx);
       const nextInfeasible = violations.reduce((s, v) => s + v.magnitude, 0);
       if (nextInfeasible > curInfeasible) continue;
-      const isRepair = repairable(violations) < curRepairable;
+      const nextOver = overBy(violations);
+      const otherFixed = repairable(violations) - nextOver < curRepairable - curOver;
+      const isRepair =
+        repairable(violations) < curRepairable &&
+        (otherFixed || budgetRepairCounts(curOver - nextOver, move));
       if (!isRepair && opts.landUpgrades) {
         if (landMove(move) !== landPhase) continue;
         if (landPhase && !landsLeft) continue;
