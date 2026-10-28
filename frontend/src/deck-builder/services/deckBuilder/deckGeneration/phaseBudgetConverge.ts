@@ -41,6 +41,10 @@ import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
 import type { BracketGuard } from '../bracketGuard';
 import { analyzeDeckSynergy, isLoadBearing } from '@/deck-builder/services/synergy/deckSynergy';
 import { isAltWinCard } from '@/deck-builder/services/winConditions/detect';
+import { isBasicLandName } from '@/lib/collection/allocations';
+import { producedManaColors } from '@/lib/deck-analysis/mana-sources';
+import { isUtilityLand } from '../landUpgrades';
+import { planJobServed, readDeckLandPlan } from '../landPlan';
 
 // ── Budget Convergence (E79) ──
 // BudgetTracker's per-pick `getEffectiveCap` is a soft greedy heuristic — it
@@ -167,6 +171,20 @@ import { isAltWinCard } from '@/deck-builder/services/winConditions/detect';
 //    existing can't reintroduce a function-degrading cross-role trade.
 
 export const MAX_BUDGET_SWAPS = 20;
+/** The value cut's own allowance on top (E1044): at $25 a card averages about
+ *  33 cents, so closing a few dollars takes many small trades. */
+export const MAX_VALUE_CUTS = 20;
+/** At most this many nonbasics leave for basics (E1044): the last resort is
+ *  a few lands, never the whole manabase. */
+export const MAX_LAND_CUTS = 8;
+
+const BASIC_BY_COLOR: Record<string, string> = {
+  W: 'Plains',
+  U: 'Island',
+  B: 'Swamp',
+  R: 'Mountain',
+  G: 'Forest',
+};
 const MAX_BUDGET_ROUNDS = 5;
 /** Round-3 tuning constants — see the header comment above for rationale. */
 const PRIORITY_BAND = 0.8;
@@ -210,6 +228,9 @@ export interface BudgetConvergeContext {
    *  standard pool only. Omitted entirely (undefined) → merge never
    *  attempted (e.g. tests that don't care, or a null-deckBudget path where
    *  this phase never runs at all). */
+  /** Resolves a basic land by name for the land stage (E1044); mirrors
+   *  phaseCoherenceRepair's DI. Omitted, the land stage never runs. */
+  getBasicLand?: (name: string) => Promise<ScryfallCard | null>;
   fetchBudgetPool?: () => Promise<{
     pool: EDHRECCard[];
     scryfallMap: Map<string, ScryfallCard>;
@@ -330,6 +351,11 @@ export async function applyBudgetConvergence(
   // $0.06). Scales with the ask so a $500 budget doesn't get nickel-and-dimed
   // by $0.50 swaps either.
   const MIN_SAVINGS = budgetStep(ctx.deckBudget);
+  // E1044: the value cut never takes a card for one played less often, so a
+  // smaller saving is not the side-grade MIN_SAVINGS guards against: it trades
+  // a 0%-play pick for a cheaper card the commander's decks play at least as
+  // much. A fifth of the step: 10 cents at $25, $1 at $500.
+  const VALUE_CUT_MIN_SAVINGS = MIN_SAVINGS / 5;
 
   const { commander, partnerCommander } = state.context;
   const commanders = [commander, partnerCommander].filter((c): c is ScryfallCard => c != null);
@@ -433,6 +459,18 @@ export async function applyBudgetConvergence(
     }
   };
 
+  const poolInclusion = new Map(pool.map((c) => [c.name, c.inclusion]));
+  const inclusionOf = (name: string): number => poolInclusion.get(name) ?? 0;
+
+  /** The role sits under its target (a value cut may fill it). */
+  const isRoleShort = (role: RoleKey): boolean =>
+    !!ctx.roleTargets && (state.currentRoleCounts[role] ?? 0) < (ctx.roleTargets[role] ?? 0);
+
+  /** The role holds more than its target, so one card of it can leave the role.
+   *  With no targets nothing is known to be spare. */
+  const isRoleSurplus = (role: RoleKey): boolean =>
+    !!ctx.roleTargets && (state.currentRoleCounts[role] ?? 0) > (ctx.roleTargets[role] ?? 0);
+
   // Only meaningful for a role-CROSSING replacement (its role differs from
   // the card being cut) — see the callsite in gateOk for why a same-role
   // candidate is exempt.
@@ -488,7 +526,11 @@ export async function applyBudgetConvergence(
   // needs). Tier 1 (same role) never falls through to tier 2/3, even when its
   // own pick misses the savings bar — crossing roles for a smaller gain
   // elsewhere is exactly the degrading trade this pass must not make.
-  const findReplacement = (cutCard: ScryfallCard, cutPrice: number): ScryfallCard | null => {
+  const findReplacement = (
+    cutCard: ScryfallCard,
+    cutPrice: number,
+    valueCut = false
+  ): ScryfallCard | null => {
     const cutRole = getCardRole(cutCard.name);
     const cutType = primaryTypeOf(cutCard);
 
@@ -561,7 +603,7 @@ export async function applyBudgetConvergence(
 
     const meetsMinSavings = (sc: ScryfallCard): boolean => {
       const replPrice = parsePrice(getCardPrice(sc, ctx.currency)) ?? 0;
-      return cutPrice - replPrice >= MIN_SAVINGS;
+      return cutPrice - replPrice >= (valueCut ? VALUE_CUT_MIN_SAVINGS : MIN_SAVINGS);
     };
 
     // A role-BEARING cut card is same-role-only, full stop — no same-type/any
@@ -569,6 +611,25 @@ export async function applyBudgetConvergence(
     // candidates from the merged budget pool must not reopen the door to a
     // function-degrading cross-role trade). Only a role-NULL cut card (no
     // tracked role to preserve) considers same-type, then any, as fallbacks.
+    // E1044: the value cut leaves the role ladder. The cut card already showed
+    // it has no cheaper same-role swap, so any role is open, but the incoming
+    // card is played at least as often (the keeper's "leaves only for a card
+    // played as often") and fills a role the deck is short of, or none.
+    if (valueCut) {
+      const floor = inclusionOf(cutCard.name);
+      const fits = eligiblePairs.filter((p) => {
+        if (p.ec.inclusion < floor) return false;
+        const role = getCardRole(p.sc.name);
+        return !role || role === cutRole || isRoleShort(role);
+      });
+      if (fits.length === 0) return null;
+      const short = fits.filter((p) => {
+        const role = getCardRole(p.sc.name);
+        return role && role !== cutRole && isRoleShort(role);
+      });
+      const pick = pickBestSavings(short.length > 0 ? short : fits);
+      return meetsMinSavings(pick) ? pick : null;
+    }
     if (cutRole) {
       const sameRole = eligiblePairs.filter((p) => getCardRole(p.sc.name) === cutRole);
       if (sameRole.length === 0) return null;
@@ -614,7 +675,11 @@ export async function applyBudgetConvergence(
   // a stage the moment the deck converges, so calling this twice (stage 1
   // fully-unprotected, stage 2 soft-eligible too) is just "try the cheaper,
   // safer pool first."
-  const runRounds = (isCuttable: (card: ScryfallCard) => boolean): void => {
+  const runRounds = (
+    isCuttable: (card: ScryfallCard) => boolean,
+    valueCut = false,
+    maxSwaps = MAX_BUDGET_SWAPS
+  ): void => {
     for (
       let round = 0;
       round < MAX_BUDGET_ROUNDS && exceedsBudget(total, ctx.deckBudget);
@@ -628,16 +693,21 @@ export async function applyBudgetConvergence(
         .filter(isCuttable)
         .map((c) => ({ card: c, price: parsePrice(getCardPrice(c, ctx.currency)) }))
         .filter((c): c is { card: ScryfallCard; price: number } => c.price != null && c.price > 0)
-        .sort((a, b) => b.price - a.price);
+        .sort((a, b) =>
+          valueCut
+            ? inclusionOf(a.card.name) / a.price - inclusionOf(b.card.name) / b.price ||
+              b.price - a.price
+            : b.price - a.price
+        );
 
       let progressed = false;
       for (const { card, price } of cuttable) {
-        if (!exceedsBudget(total, ctx.deckBudget) || applied >= MAX_BUDGET_SWAPS) break;
+        if (!exceedsBudget(total, ctx.deckBudget) || applied >= maxSwaps) break;
         // The card may already have been swapped out earlier this round via a
         // different candidate's replacement path — re-verify it's still seated.
         if (!findInDeck(card.name)) continue;
 
-        const replacement = findReplacement(card, price);
+        const replacement = findReplacement(card, price, valueCut);
         if (!replacement) continue;
 
         const replPrice = parsePrice(getCardPrice(replacement, ctx.currency)) ?? 0;
@@ -680,6 +750,104 @@ export async function applyBudgetConvergence(
   }
   if (exceedsBudget(total, ctx.deckBudget)) {
     runRounds((c) => !isHardProtected(c));
+  }
+  // Stage 4 (E1044): no cheaper same-role card is left. At $25 (about 27 cents
+  // a card) eight of ten commanders ended over with 0%-play picks still seated
+  // (Dragonlord Ojutai $0.69, Fires of Yavimaya $0.65 in The Ur-Dragon). Cut
+  // the card with the least play per dollar for a cheaper one played at least
+  // as often, in a role the deck is short of or none. A kept card (staple,
+  // tutor, combo line, last answer), a protection piece and a combo-flavored
+  // pick never go, and a role card leaves only from a role over its target.
+  // Its savings floor is a fifth of the other stages' (VALUE_CUT_MIN_SAVINGS):
+  // E1044's first try lowered the floor for every stage and lost Farseek in
+  // four decks to same-role trades with no play-rate guard; this stage has one.
+  if (exceedsBudget(total, ctx.deckBudget)) {
+    runRounds(
+      (c) => {
+        if (isHardProtected(c) || keeps(c)) return false;
+        if (readsAsProtection(c) || isFreeInteraction(c) || state.comboCardNames.has(c.name))
+          return false;
+        const role = getCardRole(c.name);
+        return !role || isRoleSurplus(role);
+      },
+      true,
+      applied + MAX_VALUE_CUTS
+    );
+  }
+
+  // Stage 5 (E1044): still over once every spell swap is spent. E561 holds up
+  // to a fifth of the budget for nonbasic lands, so a $25 deck can end $1-2
+  // over while carrying $2-5 of them. As a last resort a land that only fixes
+  // mana leaves for a basic of the color the deck's spells need most per
+  // source, priciest first. A land doing the deck's plan (Strip Mine in
+  // Zo-Zu), a utility land, a wide fixer in a 3+ color deck and an owned land
+  // the budget ignores stay.
+  if (exceedsBudget(total, ctx.deckBudget) && ctx.getBasicLand) {
+    const identity = new Set(colorIdentity);
+    const plan = readDeckLandPlan(nonLands(), commanders);
+    const pipsOf = (color: string) =>
+      nonLands().reduce(
+        (n, c) => n + ((c.mana_cost ?? '').match(new RegExp(`\\{${color}\\}`, 'g'))?.length ?? 0),
+        0
+      );
+    const sourcesOf = (color: string) =>
+      state.categories.lands.filter((l) => producedManaColors(l, identity).includes(color)).length;
+    const basicFor = (land: ScryfallCard): string => {
+      if (identity.size === 0) return 'Wastes';
+      const made = producedManaColors(land, identity).filter((c) => identity.has(c));
+      const colors = made.length > 0 ? made : [...identity];
+      // The color whose spells have the fewest sources per pip.
+      return BASIC_BY_COLOR[
+        colors.reduce((best, c) =>
+          pipsOf(c) / Math.max(1, sourcesOf(c)) > pipsOf(best) / Math.max(1, sourcesOf(best))
+            ? c
+            : best
+        )
+      ];
+    };
+    // In three colors or more, the lands that reach most of them are the
+    // manabase: Atraxa 25 traded Command Tower, Exotic Orchard, Path of
+    // Ancestry and Evolving Wilds for basics in this stage's first run.
+    const isWideFixer = (l: ScryfallCard): boolean =>
+      identity.size >= 3 &&
+      (producedManaColors(l, identity).filter((c) => identity.has(c)).length >= 3 ||
+        /\bsearch your library for\b/i.test(l.oracle_text ?? ''));
+    const cuttableLands = state.categories.lands
+      .filter(
+        (l) =>
+          !isWideFixer(l) &&
+          !isBasicLandName(l.name) &&
+          !isUtilityLand(l) &&
+          !planJobServed(l, plan) &&
+          !isBudgetExempt(l) &&
+          !l.isMustInclude &&
+          !ctx.mustIncludeNames.has(l.name.toLowerCase())
+      )
+      .map((l) => ({ land: l, price: parsePrice(getCardPrice(l, ctx.currency)) ?? 0 }))
+      .sort((a, b) => b.price - a.price);
+    let landCuts = 0;
+    for (const { land, price } of cuttableLands) {
+      if (!exceedsBudget(total, ctx.deckBudget) || landCuts >= MAX_LAND_CUTS) break;
+      const basicName = basicFor(land);
+      const basic = await ctx.getBasicLand(basicName);
+      if (!basic) continue;
+      const savings = price - (parsePrice(getCardPrice(basic, ctx.currency)) ?? 0);
+      if (savings < VALUE_CUT_MIN_SAVINGS) break; // sorted: no later land saves more
+      const idx = state.categories.lands.indexOf(land);
+      state.categories.lands[idx] = { ...basic };
+      state.usedNames.delete(land.name);
+      state.usedNames.add(basic.name);
+      total -= savings;
+      if (ctx.budgetTracker) ctx.budgetTracker.remainingBudget += savings;
+      landCuts++;
+      applied++;
+      const sym = ctx.currency === 'EUR' ? '€' : '$';
+      repairs.push({
+        cut: land.name,
+        added: basicName,
+        reason: `Saves ${sym}${savings.toFixed(2)}: a basic for a land that only fixes mana, to fit your budget.`,
+      });
+    }
   }
 
   // Recompute fresh rather than trusting the incrementally-decremented `total`

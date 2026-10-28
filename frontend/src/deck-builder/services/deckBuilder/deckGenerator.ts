@@ -4373,6 +4373,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedRarity,
       roleTargets,
       deckBudget,
+      getBasicLand: async (name) =>
+        getCachedCard(name, arenaOnly) ?? (await getCardByName(name, arenaOnly).catch(() => null)),
       // E79 round 4: the standard pool's leftover tail skews expensive (it's
       // what generation already picked FROM), so merge in the commander's
       // real EDHREC budget-deck pool for cheaper same-role alternatives.
