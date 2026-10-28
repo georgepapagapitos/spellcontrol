@@ -362,7 +362,7 @@ export interface RefineOutput {
   tweaks: RefineTweak[];
   /** Names the model proposed that no pool/decklist entry backs. Audit only. */
   rejected: string[];
-  /** Cuts refused because the card is a source or payoff of a deck engine. Audit only. */
+  /** Cuts refused because the card is a source or payoff of a deck engine, or a plan land. Audit only. */
   protectedCuts: string[];
 }
 
@@ -375,6 +375,12 @@ export interface RefineOutput {
  */
 function engineCardNames(analysis: Record<string, unknown> | undefined): Set<string> {
   const names = new Set<string>();
+  // Lands doing the deck's own job (landfall, land recursion, land types…),
+  // read client-side by landPlan.ts: the Coach never cuts one, and refine
+  // proposed cutting them anyway (E1031). Never rendered into the prompt.
+  if (Array.isArray(analysis?.planLands)) {
+    for (const n of analysis.planLands) if (typeof n === 'string') names.add(n.toLowerCase());
+  }
   if (!Array.isArray(analysis?.engines)) return names;
   for (const e of analysis.engines as unknown[]) {
     if (typeof e !== 'object' || e === null) continue;
@@ -471,7 +477,7 @@ export function parseRefineOutput(
         rejected.push(cut.trim());
         continue;
       }
-      // Mirror of the add check: an engine piece is not a weak slot.
+      // Mirror of the add check: an engine piece (or a plan land) is not a weak slot.
       if (engineNames.has(lower)) {
         protectedCuts.push(cutName);
         continue;

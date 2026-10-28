@@ -9,6 +9,7 @@ import {
   buildDeckReviewCards,
   splitReviewSections,
   stripEmphasis,
+  planLandNames,
   toAiAnalysis,
   tokenizeCardNames,
 } from '@/lib/ai/ai-review';
@@ -212,6 +213,11 @@ export function DeckAiRefine({
       // usually the commander's.
       [commander, ...(partnerCommander ? [partnerCommander] : []), ...mainboard.map((m) => m.card)]
     );
+    const planLands = planLandNames(
+      [commander, ...(partnerCommander ? [partnerCommander] : [])],
+      mainboard.map((m) => m.card)
+    );
+    if (planLands.length > 0) analysis.planLands = planLands;
     requestDeckRefine(
       {
         deckId,
