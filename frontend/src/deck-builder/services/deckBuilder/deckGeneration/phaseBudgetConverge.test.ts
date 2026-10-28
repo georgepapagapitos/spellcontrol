@@ -1164,6 +1164,36 @@ describe('applyBudgetConvergence value cut (E1044)', () => {
     expect(state.categories.synergy.filter((c) => c.name.startsWith('Rock'))).toHaveLength(1);
   });
 
+  it('never seats a second copy of a card usedNames lost track of', async () => {
+    // After the whole-deck search usedNames can miss a seated card; the deck
+    // is the truth (Tatyova pdh seated a second Studious First-Year).
+    const state = makeState({
+      usedNames: new Set(['Pricey Card']),
+      categories: {
+        ...makeState().categories,
+        synergy: [
+          scryfallCard('Pricey Card', '30'),
+          scryfallCard('Mid Card', '15'),
+          scryfallCard('Cheap Alt A', '2'),
+        ],
+      },
+    });
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({
+        lastResort: true,
+        deckBudget: 40,
+        mustIncludeNames: new Set(['mid card']),
+        roleTargets: { ramp: 3, removal: 2, boardwipe: 1, cardDraw: 3 },
+      })
+    );
+    const names = Object.values(state.categories)
+      .flat()
+      .map((c) => c.name);
+    expect(names.filter((n) => n === 'Cheap Alt A')).toHaveLength(1);
+    expect(result.repairs.map((r) => r.added)).not.toContain('Cheap Alt A');
+  });
+
   it('never value-cuts a protection piece', async () => {
     vi.mocked(readsAsProtection).mockImplementation(
       (c) => (c as ScryfallCard).name === 'Pricey Card'

@@ -553,11 +553,21 @@ export async function applyBudgetConvergence(
     const cutRole = getCardRole(cutCard.name);
     const cutType = primaryTypeOf(cutCard);
 
+    // The deck itself, not only usedNames: the whole-deck search doesn't keep
+    // usedNames in step, and the last resort runs after it (E1044's third gate
+    // seated a second Studious First-Year // Rampant Growth in Tatyova).
+    const seated = new Set(
+      Object.values(state.categories)
+        .flat()
+        .flatMap((c) => [c.name, frontFaceName(c.name)])
+    );
     const ranked = [...pool]
       .filter(
         (c) =>
           c.name !== cutCard.name &&
           !state.usedNames.has(c.name) &&
+          !seated.has(c.name) &&
+          !seated.has(frontFaceName(c.name)) &&
           !state.bannedCards.has(c.name) &&
           scryfallCardMap.has(c.name) &&
           !state.comboCardNames.has(c.name) &&
