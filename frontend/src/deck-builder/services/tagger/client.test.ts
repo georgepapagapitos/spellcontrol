@@ -1939,6 +1939,20 @@ describe('isOneSidedWipe', () => {
       'Goblin Chainwhirler',
       'First strike\nWhen this creature enters, it deals 1 damage to each opponent and each creature and planeswalker they control.',
     ],
+    // E1046 gate-found fix: shrink-based one-sided wipes.
+    [
+      'Silumgar, the Drifting Death',
+      'Flying, hexproof\nWhenever a Dragon you control attacks, creatures defending player controls get -1/-1 until end of turn.',
+    ],
+    [
+      'Massacre Wurm',
+      'When this creature enters, creatures your opponents control get -2/-2 until end of turn.\nWhenever a creature an opponent controls dies, that player loses 2 life.',
+    ],
+    ['Cower in Fear', 'Creatures your opponents control get -1/-1 until end of turn.'],
+    [
+      'Balefire Dragon',
+      'Flying\nWhenever this creature deals combat damage to a player, it deals that much damage to each creature that player controls.',
+    ],
   ])('one-sided: %s', (name, oracle_text) => {
     expect(isOneSidedWipe({ name, oracle_text })).toBe(true);
   });
@@ -1986,6 +2000,11 @@ describe('isOneSidedWipe', () => {
     [
       'Damn',
       'Choose one —\n• Destroy target creature. It can\'t be regenerated.\n• Overload {2}{W}{W} (You may cast this spell for its overload cost. If you do, change its text by replacing all instances of "target" with "each.")',
+    ],
+    ['Shrivel', 'All creatures get -1/-1 until end of turn.'],
+    [
+      "Witch's Vengeance",
+      'Creatures of the creature type of your choice get -3/-3 until end of turn.',
     ],
   ])('symmetric: %s', (name, oracle_text) => {
     expect(isOneSidedWipe({ name, oracle_text })).toBe(false);

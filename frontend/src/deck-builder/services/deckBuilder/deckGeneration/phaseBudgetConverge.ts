@@ -1,5 +1,6 @@
 import { logger } from '@/lib/util/logger';
 import { evictionKeeper } from './evictionKeeper';
+import { budgetTrades, budgetTradeLoss, pickTrade, stapleTarget } from './budgetTradeLoss';
 import type {
   CoherenceRepair,
   DeckCategory,
@@ -191,6 +192,8 @@ const BASIC_BY_COLOR: Record<string, string> = {
 const MAX_BUDGET_ROUNDS = 5;
 /** Round-3 tuning constants — see the header comment above for rationale. */
 const PRIORITY_BAND = 0.8;
+/** Stages 1-2 take the band's cheapest card, stage 3 the least play lost (E1046). */
+type ReplaceMode = 'cheapest' | 'leastLoss' | 'value';
 
 export interface BudgetConvergeContext {
   /** name → ScryfallCard map built during generation (for swap-in lookups). */
@@ -328,10 +331,12 @@ export async function applyBudgetConvergence(
   // never be able to break generation.
   let pool = standardPool;
   let scryfallCardMap = ctx.scryfallCardMap;
+  const budgetInclusion = new Map<string, number>();
   if (ctx.fetchBudgetPool) {
     try {
       const budgetResult = await ctx.fetchBudgetPool();
       if (budgetResult && budgetResult.pool.length > 0) {
+        for (const c of budgetResult.pool) budgetInclusion.set(c.name, c.inclusion);
         const existingNames = new Set(pool.map((c) => c.name));
         const newCards = budgetResult.pool.filter((c) => !existingNames.has(c.name));
         if (newCards.length > 0) {
@@ -472,6 +477,12 @@ export async function applyBudgetConvergence(
   // and is in 0% of Kozilek's decks).
   const poolInclusion = new Map(standardPool.map((c) => [c.name, c.inclusion]));
   const inclusionOf = (name: string): number => poolInclusion.get(name) ?? 0;
+  // E1046: a card cut here never comes back as a replacement (Krenko $100 cut
+  // Conspicuous Snoop, brought it back, then cut it again).
+  const cutHere = new Set<string>();
+  const { leastLossPick, playLost } = budgetTradeLoss(poolInclusion, budgetInclusion, (sc) =>
+    parsePrice(getCardPrice(sc, ctx.currency))
+  );
 
   // Counted from the deck as it stands, the way the report and the deck page
   // count (countedRoleOf): after the whole-deck search the running counters
@@ -548,8 +559,9 @@ export async function applyBudgetConvergence(
   const findReplacement = (
     cutCard: ScryfallCard,
     cutPrice: number,
-    valueCut = false
+    mode: ReplaceMode = 'cheapest'
   ): ScryfallCard | null => {
+    const valueCut = mode === 'value';
     const cutRole = getCardRole(cutCard.name);
     const cutType = primaryTypeOf(cutCard);
 
@@ -565,6 +577,7 @@ export async function applyBudgetConvergence(
       .filter(
         (c) =>
           c.name !== cutCard.name &&
+          !cutHere.has(c.name) &&
           !state.usedNames.has(c.name) &&
           !seated.has(c.name) &&
           !seated.has(frontFaceName(c.name)) &&
@@ -660,19 +673,24 @@ export async function applyBudgetConvergence(
       const pick = pickBestSavings(short.length > 0 ? short : fits);
       return meetsMinSavings(pick) ? pick : null;
     }
+    // E1046: stage 3 cuts when the band's cheapest saves enough, as before, but
+    // takes the saver losing the least play (not Theorix Charm for Mistblade Shinobi).
+    const pickFrom = (pairs: { ec: EDHRECCard; sc: ScryfallCard }[]): ScryfallCard | null => {
+      const pick = pickBestSavings(pairs);
+      if (!meetsMinSavings(pick)) return null;
+      const savers = pairs.filter((p) => meetsMinSavings(p.sc));
+      return mode === 'leastLoss' ? leastLossPick(cutCard, cutPrice, savers).sc : pick;
+    };
     if (cutRole) {
       const sameRole = eligiblePairs.filter((p) => getCardRole(p.sc.name) === cutRole);
-      if (sameRole.length === 0) return null;
-      const pick = pickBestSavings(sameRole);
-      return meetsMinSavings(pick) ? pick : null;
+      return sameRole.length === 0 ? null : pickFrom(sameRole);
     }
     const sameType = eligiblePairs.filter((p) => primaryTypeOf(p.sc) === cutType);
     if (sameType.length > 0) {
-      const pick = pickBestSavings(sameType);
-      if (meetsMinSavings(pick)) return pick;
+      const pick = pickFrom(sameType);
+      if (pick) return pick;
     }
-    const anyPick = pickBestSavings(eligiblePairs);
-    return meetsMinSavings(anyPick) ? anyPick : null;
+    return pickFrom(eligiblePairs);
   };
 
   // `softLabel` is non-null only for a stage-2 (soft-protected) cut — appends
@@ -699,6 +717,27 @@ export async function applyBudgetConvergence(
 
   let applied = 0;
 
+  const swap = (card: ScryfallCard, price: number, replacement: ScryfallCard): void => {
+    const replPrice = parsePrice(getCardPrice(replacement, ctx.currency)) ?? 0;
+    const savings = price - replPrice;
+    const loc = findInDeck(card.name)!;
+    // Read at cut time, so the reason names the protection this card yielded.
+    const softLabel = softProtectionLabel(card);
+    removeCard(loc.card, loc.category);
+    cutHere.add(card.name);
+    commitAdd(replacement);
+    total -= savings;
+    applied++;
+    repairs.push({
+      cut: card.name,
+      added: replacement.name,
+      reason: reasonFor(card, replacement, savings, softLabel),
+    });
+    logger.debug(
+      `[DeckGen] Budget converge: cut ${card.name} ($${price.toFixed(2)}) → added ${replacement.name} ($${replPrice.toFixed(2)})${softLabel ? ` [soft: ${softLabel}]` : ''}`
+    );
+  };
+
   // Runs bounded rounds of priciest-cuttable-first swaps against whichever
   // `isCuttable` predicate the stage below passes in, sharing `applied`/
   // `total`/MAX bounds across stages. `exceedsBudget(total, ctx.deckBudget)` already stops
@@ -707,9 +746,10 @@ export async function applyBudgetConvergence(
   // safer pool first."
   const runRounds = (
     isCuttable: (card: ScryfallCard) => boolean,
-    valueCut = false,
+    mode: ReplaceMode = 'cheapest',
     maxSwaps = MAX_BUDGET_SWAPS
   ): void => {
+    const valueCut = mode === 'value';
     for (
       let round = 0;
       round < MAX_BUDGET_ROUNDS && exceedsBudget(total, ctx.deckBudget);
@@ -741,33 +781,33 @@ export async function applyBudgetConvergence(
         // same-role stages keep their round-start snapshot.
         if (valueCut && !isCuttable(card)) continue;
 
-        const replacement = findReplacement(card, price, valueCut);
+        const replacement = findReplacement(card, price, mode);
         if (!replacement) continue;
-
-        const replPrice = parsePrice(getCardPrice(replacement, ctx.currency)) ?? 0;
-        const savings = price - replPrice;
-        const loc = findInDeck(card.name)!;
-        // softProtectionLabel is re-checked at cut time (not just via the
-        // isCuttable filter above) so the reason string always names the
-        // REAL protection this specific card yielded, whether this is a
-        // stage-1 (always null) or stage-2 cut.
-        const softLabel = softProtectionLabel(card);
-        removeCard(loc.card, loc.category);
-        commitAdd(replacement);
-        total -= savings;
-        applied++;
+        swap(card, price, replacement);
         progressed = true;
-        repairs.push({
-          cut: card.name,
-          added: replacement.name,
-          reason: reasonFor(card, replacement, savings, softLabel),
-        });
-        logger.debug(
-          `[DeckGen] Budget converge: cut ${card.name} ($${price.toFixed(2)}) → added ${replacement.name} ($${replPrice.toFixed(2)})${softLabel ? ` [soft: ${softLabel}]` : ''}`
-        );
       }
 
       if (!progressed) break; // every remaining offender is protected/unreplaceable
+    }
+  };
+
+  // E1046: stage 3 picks the trades that close the gap for the least play
+  // (pickTrade), not the priciest card at a time; which cards may go is unchanged.
+  const runLeastLoss = (isCuttable: (card: ScryfallCard) => boolean): void => {
+    const priceOf = (c: ScryfallCard) => parsePrice(getCardPrice(c, ctx.currency));
+    const tradesNow = () =>
+      budgetTrades(nonLands().filter(isCuttable), priceOf, playLost, (card, price) =>
+        findReplacement(card, price, 'leastLoss')
+      );
+    let trades = tradesNow();
+    const target = stapleTarget(trades, total, ctx.deckBudget);
+    if (target > ctx.deckBudget) state.budgetKeepsStaples = true;
+    while (exceedsBudget(total, target) && applied < MAX_BUDGET_SWAPS) {
+      const pick = pickTrade(trades, total - target);
+      // Under budget, the step of headroom is taken only for free (Talrand $25 lost Archmage Emeritus).
+      if (!pick || (!exceedsBudget(total, ctx.deckBudget) && pick.lost > 0)) return;
+      swap(pick.card, pick.price, pick.replacement);
+      trades = tradesNow();
     }
   };
 
@@ -783,7 +823,7 @@ export async function applyBudgetConvergence(
     runRounds((c) => !isHardProtected(c) && !keeps(c));
   }
   if (!ctx.lastResort && exceedsBudget(total, ctx.deckBudget)) {
-    runRounds((c) => !isHardProtected(c));
+    runLeastLoss((c) => !isHardProtected(c));
   }
   // Stage 4 (E1044): no cheaper same-role card is left. At $25 (about 27 cents
   // a card) eight of ten commanders ended over with 0%-play picks still seated
@@ -808,7 +848,7 @@ export async function applyBudgetConvergence(
         const role = countedRoleOf(c);
         return !role || isRoleSurplus(role);
       },
-      true,
+      'value',
       applied + MAX_VALUE_CUTS
     );
   }

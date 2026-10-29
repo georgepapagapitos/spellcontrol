@@ -157,6 +157,7 @@ export interface OptimizeOptions {
    * the generator was. Moves still may not make them worse.
    */
   leave?: ReadonlySet<string>;
+  keepStaples?: boolean; // E1046: convergence kept the staples over budget; repairs keep them too
 }
 
 export interface OptimizeResult {
@@ -518,13 +519,13 @@ export function* optimizeSteps(
     }
     const curInfeasible = infeasibility(currentScore);
     const curRepairable = repairable(currentScore.violations);
-    // E1046: when a cheaper-for-dearer swap repairs a broken budget (budgetRepair.ts).
     const budgetRule = budgetRepairRule(
       ctx,
       current,
       roleOf,
       currentScore.violations,
-      leave.has('budget')
+      leave.has('budget'),
+      !!opts.keepStaples
     );
     const curOver = budgetRule.overBy(currentScore.violations);
     // Constraints come first, as in compareScores: while the deck breaks one,

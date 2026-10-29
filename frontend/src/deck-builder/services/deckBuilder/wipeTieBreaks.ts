@@ -144,6 +144,18 @@ export function isOptionalSweep(card: ScryfallCard): boolean {
   return /\bPlaneswalker\b/.test(card.card_faces?.[0]?.type_line ?? card.type_line ?? '');
 }
 
+// E1046: a modal sweep that lets its caster pick the side (Crux of Fate:
+// "Destroy all Dragon creatures." or "Destroy all non-Dragon creatures.") is
+// one-sided for the deck that plays it, by choice. Once Silumgar read as
+// one-sided, Crux (70.6% of The Ur-Dragon's decks) became that deck's only
+// "symmetric" wipe and the surplus pass converted it to Swiftfoot Boots.
+export function isChosenSideSweep(card: ScryfallCard): boolean {
+  const text =
+    card.oracle_text ?? card.card_faces?.map((f) => f.oracle_text ?? '').join('\n') ?? '';
+  const spared = /\bdestroy all non-(\w+) creatures\b/i.exec(text)?.[1];
+  return !!spared && new RegExp(`\\bdestroy all ${spared} creatures\\b`, 'i').test(text);
+}
+
 /** What the surplus pass knows about the deck when it prices a wipe to keep. */
 export interface WipeKeepContext {
   /** Inclusion (%) at which a card is a staple of the commander's page. */
@@ -158,7 +170,8 @@ export interface WipeKeepContext {
 
 /**
  * wipeQualityPenalty for a card whose standing on the page is known:
- *  - a staple planeswalker pays none (isOptionalSweep above);
+ *  - a staple planeswalker pays none (isOptionalSweep above), nor a staple sweep
+ *    whose caster picks the side (isChosenSideSweep);
  *  - a sweep of colored permanents only (All Is Dust, Ugin's -X) is one-sided in a
  *    colorless deck: Emrakul's Eldrazi are colorless, and the pass priced All Is
  *    Dust (94%) as the worst wipe to keep, collateral on artifacts included.
@@ -168,7 +181,12 @@ export function wipeKeepPenalty(
   inclusion: number | undefined,
   kc: WipeKeepContext
 ): number {
-  if (isOptionalSweep(card) && inclusion !== undefined && inclusion >= kc.stapleBar) return 0;
+  if (
+    (isOptionalSweep(card) || isChosenSideSweep(card)) &&
+    inclusion !== undefined &&
+    inclusion >= kc.stapleBar
+  )
+    return 0;
   if (kc.colorlessDeck && kc.isColoredOnlyWipe(card)) return 0;
   return wipeQualityPenalty(card, kc.isOneSidedWipe, kc.getWipeScope, kc.deckTypeTargets);
 }

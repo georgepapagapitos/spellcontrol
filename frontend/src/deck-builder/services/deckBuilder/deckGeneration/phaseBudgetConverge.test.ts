@@ -900,6 +900,175 @@ Overload {6}{U}`
     expect(result.applied).toBeGreaterThanOrEqual(1);
   });
 
+  // E1046: stage 3 cut the priciest kept card first. A better-played
+  // replacement saved a few cents less, the stage made one more cut, and it
+  // took a staple (Hobgoblin Bandit Lord in Krenko $50).
+  it('cuts the kept card whose trade gives up the least play, not the priciest', async () => {
+    const state = makeState();
+    state.categories.synergy = [scryfallCard('Staple A', '4'), scryfallCard('Staple B', '3')];
+    state.usedNames = new Set(['Staple A', 'Staple B']);
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Staple A', 70),
+          edhrecCard('Staple B', 45),
+          edhrecCard('Played Alt', 40),
+          edhrecCard('Unplayed Alt', 20),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({
+        deckBudget: 6.5, // $7 deck: one trade closes it
+        scryfallCardMap: new Map([
+          ['Played Alt', scryfallCard('Played Alt', '1')],
+          ['Unplayed Alt', scryfallCard('Unplayed Alt', '0.10')],
+        ]),
+      })
+    );
+    // Staple B -> Played Alt gives up 5 points for $2; any trade of Staple A, 30+ for $3.
+    expect(result.repairs).toEqual([
+      expect.objectContaining({ cut: 'Staple B', added: 'Played Alt' }),
+    ]);
+  });
+
+  // E1046 (user ruling 2026-10-28): Sythis $25 gave up six 47-76% enchantresses
+  // in stage 3 and still ended $3.95 over budget. A deck its trades can't bring
+  // under budget keeps its staples while it stays within 25% over.
+  const unreachable = (deckBudget: number) => {
+    const state = makeState();
+    state.categories.synergy = [scryfallCard('Staple A', '4')];
+    state.usedNames = new Set(['Staple A']);
+    state.edhrecData = {
+      cardlists: { allNonLand: [edhrecCard('Staple A', 70), edhrecCard('Played Alt', 40)] },
+    } as unknown as GenerationState['edhrecData'];
+    const ctx = baseCtx({
+      deckBudget,
+      scryfallCardMap: new Map([['Played Alt', scryfallCard('Played Alt', '3.40')]]),
+    });
+    return { state, run: () => applyBudgetConvergence(state, ctx) };
+  };
+
+  it('keeps a staple when its trade cannot reach the budget and the deck is within 25% over', async () => {
+    const { state, run } = unreachable(3.3); // $4 deck, the one trade saves $0.60
+    expect((await run()).repairs).toEqual([]);
+    expect(state.usedNames.has('Staple A')).toBe(true);
+    // The whole-deck search reads this and keeps it too.
+    expect(state.budgetKeepsStaples).toBe(true);
+  });
+
+  it('trades a staple down to 25% over when the deck is further over than that', async () => {
+    const { run } = unreachable(3); // $4 is a third over; $3.40 is within $3.75
+    expect((await run()).repairs).toEqual([
+      expect.objectContaining({ cut: 'Staple A', added: 'Played Alt' }),
+    ]);
+  });
+
+  // E1046: stage 3 leaves a budget step of headroom for later passes, but only
+  // for free; the margin cost Talrand $25 Archmage Emeritus (57%).
+  it('takes the headroom under budget only with trades that lose no play', async () => {
+    const state = makeState();
+    state.categories.synergy = [scryfallCard('Staple A', '4'), scryfallCard('Staple B', '3')];
+    state.usedNames = new Set(['Staple A', 'Staple B']);
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Staple A', 70),
+          edhrecCard('Staple B', 45),
+          edhrecCard('Played Alt', 40),
+          edhrecCard('Equal Alt', 45),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({
+        deckBudget: 6.7, // $7 deck; B -> Equal Alt ($6.40) fits, A -> Played Alt would add margin
+        scryfallCardMap: new Map([
+          ['Played Alt', scryfallCard('Played Alt', '3.40')],
+          ['Equal Alt', scryfallCard('Equal Alt', '2.40')],
+        ]),
+      })
+    );
+    expect(result.repairs).toEqual([
+      expect.objectContaining({ cut: 'Staple B', added: 'Equal Alt' }),
+    ]);
+    expect(state.usedNames.has('Staple A')).toBe(true);
+  });
+
+  // E1046: stage 3 took the cheapest card in the priority band: Mistblade
+  // Shinobi (62% of Yuriko budget decks) left for Theorix Charm (1.5%).
+  it('replaces a kept card with the candidate that loses the least play per dollar', async () => {
+    const state = makeState();
+    state.categories.synergy = [
+      scryfallCard("Enchantress's Presence", '3'),
+      scryfallCard('Mid Card', '0.20'),
+    ];
+    state.usedNames = new Set(["Enchantress's Presence", 'Mid Card']);
+    state.edhrecData = {
+      cardlists: { allNonLand: [edhrecCard("Enchantress's Presence", 87)] },
+    } as unknown as GenerationState['edhrecData'];
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({
+        deckBudget: 2.5, // $3.20 deck, $0.70 over: nothing undercuts Mid Card
+        scryfallCardMap: new Map(),
+        fetchBudgetPool: async () => ({
+          pool: [
+            edhrecCard("Enchantress's Presence", 76),
+            // Priority 75 against Played Swap's 60: inside the band, and cheapest.
+            { ...edhrecCard('Angelic Gift', 15), synergy: 0.6 },
+            edhrecCard('Played Swap', 60),
+          ],
+          scryfallMap: new Map([
+            ['Angelic Gift', scryfallCard('Angelic Gift', '0.30')],
+            ['Played Swap', scryfallCard('Played Swap', '1.00')],
+          ]),
+        }),
+      })
+    );
+    // Angelic Gift gives up 61 points for $2.70 (22.6 a dollar), Played Swap 16 for $2 (8).
+    expect(result.repairs).toEqual([
+      expect.objectContaining({ cut: "Enchantress's Presence", added: 'Played Swap' }),
+    ]);
+  });
+
+  // E1046: Krenko $100 cut Conspicuous Snoop, brought it back for Skullclamp,
+  // then cut it again: two swaps spent and the same staple lost twice.
+  it('never brings back a card it cut earlier in the same call', async () => {
+    const state = makeState();
+    state.categories.synergy = [scryfallCard('Cut First', '4'), scryfallCard('Soft Pick', '10')];
+    state.usedNames = new Set(['Cut First', 'Soft Pick']);
+    state.comboCardNames = new Set(['Soft Pick']); // soft: goes only in stage 2
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Cut First', 30), // in Soft Pick's band (28+)
+          edhrecCard('Soft Pick', 10),
+          edhrecCard('Other Alt', 35),
+          edhrecCard('Cheap Alt', 50),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({
+        deckBudget: 5,
+        scryfallCardMap: new Map([
+          ['Cut First', scryfallCard('Cut First', '4')],
+          ['Other Alt', scryfallCard('Other Alt', '6')],
+          ['Cheap Alt', scryfallCard('Cheap Alt', '0.50')],
+        ]),
+      })
+    );
+    // Without the rule, Soft Pick's cheapest in-band candidate is Cut First ($4).
+    expect(result.repairs.map((r) => [r.cut, r.added])).toEqual([
+      ['Cut First', 'Cheap Alt'],
+      ['Soft Pick', 'Other Alt'],
+    ]);
+  });
+
   it('soft-fails to the standard pool when ctx.fetchBudgetPool throws', async () => {
     const state = makeState();
     const result = await applyBudgetConvergence(

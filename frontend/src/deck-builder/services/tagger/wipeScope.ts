@@ -69,8 +69,21 @@
 // opponents control" / "you don't control"). Blasphemous Act ("deals 13
 // damage to each creature" — no opponent subject anywhere) correctly stays
 // symmetric.
+//
+// E1046 gate-found fix: SHRINK-based one-sided wipes read symmetric too, so
+// budget convergence traded Silumgar, the Drifting Death ("creatures
+// defending player controls get -1/-1") for Deathbringer Regent ("destroy all
+// other creatures") in a Dragon deck as an even wipe swap. Verified phrasings:
+// "creatures your opponents control get -2/-2" (Massacre Wurm, Cower in Fear,
+// Elesh Norn, Grand Cenobite) and "creatures defending player controls get
+// -1/-1" (Silumgar). Shrivel and Toxic Deluge ("All creatures get"), Crippling
+// Fear and Witch's Vengeance (a chosen type, every player) stay symmetric.
+// The same gate's standard Ur-Dragon then took Silumgar over Balefire Dragon,
+// whose combat-damage sweep ("deals that much damage to each creature that
+// player controls") hits only the player it damaged, so that reads one-sided
+// as well.
 const ONE_SIDED_WIPE_EVIDENCE =
-  /\b(?:destroy|exile)\b[^.]*?\ball\b[^.]*?you don'?t control|\b(?:destroy|exile)\b[^.]*?\ball\b[^.]*?your opponents? control|(?=[\s\S]*\boverload\b)(?=[\s\S]*\b(?:destroy|exile|return) target [^.]*?you don'?t control\b)|deals? [^.]*?damage to [^.]*?each opponent[^.]*?\b(?:creatures?|planeswalkers?|permanents?)\b[^.]*?they control|deals? [^.]*?damage to [^.]*?each (?:creature|permanent)s?\b[^.]*?(?:your opponents? control|you don'?t control)/i;
+  /\bcreatures (?:your opponents?|defending player) controls? get -|deals combat damage to a player,[^.]*?\beach creature that player controls|\b(?:destroy|exile)\b[^.]*?\ball\b[^.]*?you don'?t control|\b(?:destroy|exile)\b[^.]*?\ball\b[^.]*?your opponents? control|(?=[\s\S]*\boverload\b)(?=[\s\S]*\b(?:destroy|exile|return) target [^.]*?you don'?t control\b)|deals? [^.]*?damage to [^.]*?each opponent[^.]*?\b(?:creatures?|planeswalkers?|permanents?)\b[^.]*?they control|deals? [^.]*?damage to [^.]*?each (?:creature|permanent)s?\b[^.]*?(?:your opponents? control|you don'?t control)/i;
 
 export function isOneSidedWipe(card: {
   name: string;

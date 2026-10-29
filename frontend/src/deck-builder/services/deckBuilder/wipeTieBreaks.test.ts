@@ -6,6 +6,7 @@ import {
   isOneSidedWipe,
 } from '@/deck-builder/services/tagger/client';
 import {
+  isChosenSideSweep,
   isOptionalSweep,
   wipeKeepPenalty,
   wipeQualityPenalty,
@@ -42,6 +43,16 @@ const MASSACRE_WURM = card(
   'Massacre Wurm',
   'Creature — Phyrexian Wurm',
   'When this creature enters, creatures your opponents control get -2/-2 until end of turn.\nWhenever a creature an opponent controls dies, that player loses 2 life.'
+);
+const CRUX = card(
+  'Crux of Fate',
+  'Sorcery',
+  'Choose one —\n• Destroy all Dragon creatures.\n• Destroy all non-Dragon creatures.'
+);
+const VANQUISH = card(
+  'Vanquish the Horde',
+  'Sorcery',
+  'This spell costs {1} less to cast for each creature on the battlefield.\nDestroy all creatures.'
 );
 
 const targets = { artifact: 10, enchantment: 5 };
@@ -118,5 +129,16 @@ describe('wipeKeepPenalty', () => {
       enchantments: true,
       all: false,
     });
+  });
+
+  // E1046: Crux of Fate (70.6% of The Ur-Dragon's decks) lets its caster spare
+  // the Dragons, so a staple Crux is not the surplus pass's worst wipe to keep.
+  it('waives the penalty for a staple sweep whose caster picks the side', () => {
+    expect(isChosenSideSweep(CRUX)).toBe(true);
+    expect(isChosenSideSweep(VANQUISH)).toBe(false);
+    expect(isChosenSideSweep(DELUGE)).toBe(false);
+    expect(penalty(CRUX, 70.6)).toBe(0);
+    expect(penalty(CRUX, STAPLE_INCLUSION_BAR - 0.1)).toBeGreaterThanOrEqual(1000);
+    expect(penalty(VANQUISH, 70.6)).toBeGreaterThanOrEqual(1000);
   });
 });
