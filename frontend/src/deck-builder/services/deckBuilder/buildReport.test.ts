@@ -386,6 +386,37 @@ describe('assembleBuildReport', () => {
     );
   });
 
+  // E1048: the budget pass cut Rundvelt Hordemaster after the fixup added it,
+  // and the note still named it.
+  it('names only fixup adds the final deck still shows over a card still out', () => {
+    const mainboard = [
+      ...Array.from({ length: 9 }, (_, i) => makeCard(`Card ${i + 1}`)),
+      { ...makeCard('Beast Within'), prices: { usd: '0.62' } } as ScryfallCard,
+    ];
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        builtFromCollection: true,
+        categories: categories({ creatures: mainboard }),
+        partialOwnedEligibleCount: 10,
+        partialOwnedHeldCount: 7,
+        fixupRepairs: [
+          { cut: 'Goblin Bombardment', added: 'Rundvelt Hordemaster', reason: 'Swapped.' },
+          { cut: 'Card 2', added: 'Beast Within', reason: 'Swapped.' },
+        ],
+      }),
+      customization: makeCustomization({
+        collectionMode: true,
+        collectionStrategy: 'partial',
+        collectionOwnedPercent: 50,
+      }),
+      collectionNames: new Set(['Card 1', 'Card 2', 'Goblin Bombardment']),
+    });
+
+    expect(report.ownedPercentGapNote).not.toContain('Rundvelt Hordemaster');
+    expect(report.ownedPercentGapNote).not.toContain('Beast Within');
+    expect(report.ownedPercentGapNote).toContain("The rest didn't fit your limits or a role cap.");
+  });
+
   it('says nothing when partial mode meets its target', () => {
     const mainboard = Array.from({ length: 4 }, (_, i) => makeCard(`Card ${i + 1}`));
     const report = assembleBuildReport({
