@@ -195,6 +195,9 @@ export interface GenerationState {
   wholeDeckSearch?: WholeDeckSearchResult;
   /** The cards the role-surplus rebalance cut: the roles it trimmed stay trimmed for the search. */
   surplusCuts?: string[];
+  /** E1046: budget convergence could not bring the deck under budget without its
+   *  staples, so it kept them; the search keeps them too. */
+  budgetKeepsStaples?: boolean;
   /** E1032: staple rocks the price cap kept out, as fetched, so the report can name their price. */
   priceCappedStaples?: Map<string, ScryfallCard>;
   gapAnalysis: GapAnalysisCard[] | undefined;

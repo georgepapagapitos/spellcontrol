@@ -52,6 +52,7 @@ export async function run(
     maxSwaps: state.context.searchMaxSwaps,
     detectedCombos: combos,
     surplusCuts: state.surplusCuts,
+    keepStaples: state.budgetKeepsStaples,
   });
   return state.wholeDeckSearch.swaps.length
     ? refreshComboCompleteness(combos, state)

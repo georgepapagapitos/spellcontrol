@@ -12,6 +12,7 @@
 // any role traded atraxa-budget10's last wipe for a 14th ramp rock for $0.10.
 import type { ScryfallCard } from '@/deck-builder/types';
 import { budgetStep } from '../deckFilters';
+import { STAPLE_INCLUSION_BAR } from '../roleCapAllowance';
 import type { ConstraintViolation, ObjectiveContext } from './types';
 
 /** A repair's card comes in at least this share as played as the card it replaces, when one can. */
@@ -19,6 +20,9 @@ export const REPAIR_TIER = 0.5;
 
 /** A saving under budgetStep repairs only for a same-role card at least this share as played. */
 export const CENT_REPAIR_TIER = 0.8;
+
+/** E1046: a deck that can't fit its budget keeps its staples up to this share over it. */
+export const STAPLE_OVERAGE = 0.25;
 
 export interface BudgetRepairRule {
   /** How far a deck's violations put it over budget (0 when within it, or when budget is left as is). */
@@ -32,7 +36,8 @@ export function budgetRepairRule(
   current: { cards: readonly ScryfallCard[] },
   roleOf: (card: ScryfallCard) => string | null,
   currentViolations: readonly ConstraintViolation[],
-  leaveBudget: boolean
+  leaveBudget: boolean,
+  keepStaples = false
 ): BudgetRepairRule {
   const overBy = (vs: readonly ConstraintViolation[]) =>
     leaveBudget ? 0 : (vs.find((v) => v.check === 'budget')?.magnitude ?? 0);
@@ -46,8 +51,19 @@ export function budgetRepairRule(
         roleOf(c) === roleOf(out) && ctx.qualityOf(c).q >= CENT_REPAIR_TIER * ctx.qualityOf(out).q
       );
     });
+  // E1046: on a deck convergence left over budget to keep its staples, a staple
+  // leaving for a less-played card is no repair (Sythis $25's enchantresses)
+  // until the deck is more than STAPLE_OVERAGE over.
+  const tradesStaple = (move: { in: ScryfallCard[]; out: number[] }) =>
+    keepStaples &&
+    curOver <= (budget ?? 0) * STAPLE_OVERAGE &&
+    move.in.some((c, j) => {
+      const out = ctx.qualityOf(current.cards[move.out[j]]);
+      return (out.inclusionPct ?? 0) >= STAPLE_INCLUSION_BAR && ctx.qualityOf(c).q < out.q;
+    });
   return {
     overBy,
-    counts: (saving, move) => saving >= Math.min(minSaving, curOver) || keepsSlot(move),
+    counts: (saving, move) =>
+      !tradesStaple(move) && (saving >= Math.min(minSaving, curOver) || keepsSlot(move)),
   };
 }

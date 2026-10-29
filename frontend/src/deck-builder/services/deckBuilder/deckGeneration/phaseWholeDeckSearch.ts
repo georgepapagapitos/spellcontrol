@@ -80,6 +80,8 @@ export interface WholeDeckSearchInput {
   resolveOwned?: (names: string[]) => Promise<Map<string, ScryfallCard>>;
   /** The cards the generator's role-surplus rebalance cut: the roles it trimmed stay trimmed. */
   surplusCuts?: readonly string[];
+  /** E1046: budget convergence kept the deck's staples over its budget. */
+  keepStaples?: boolean;
   /** Overrides SEARCH_TIME_BUDGET_MS (tests). */
   timeBudgetMs?: number;
   /** Overrides the optimizer's swap cap (tests). */
@@ -216,6 +218,7 @@ export async function wholeDeckSearchPhase(
       leave,
       offPageOwned: new Set(offPage.keys()),
       landUpgrades: !!ctx.ownedNames,
+      keepStaples: input.keepStaples,
       trust: { roleCeilings },
       timeBudgetMs: input.timeBudgetMs ?? SEARCH_TIME_BUDGET_MS,
       ...(input.maxSwaps !== undefined ? { maxSwaps: input.maxSwaps } : {}),
