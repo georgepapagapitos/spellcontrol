@@ -336,16 +336,20 @@ export function assembleBuildReport(input: {
                 ownedGapReason(
                   generated.partialOwnedHeldCount,
                   nonland.length - ownedCount,
-                  (generated.fixupRepairs ?? [])
-                    .filter((r) => collectionNames.has(r.cut) && !collectionNames.has(r.added))
-                    .map((r) => {
-                      const card = nonland.find((c) => c.name === r.added);
-                      return {
+                  // Only swaps the final deck still shows: a later pass can cut the
+                  // add or put the owned card back (E1048).
+                  (generated.fixupRepairs ?? []).flatMap((r) => {
+                    const card = nonland.find((c) => c.name === r.added);
+                    if (!card || finalNames.has(r.cut)) return [];
+                    if (!collectionNames.has(r.cut) || collectionNames.has(r.added)) return [];
+                    return [
+                      {
                         name: r.added,
-                        price: card ? getCardPrice(card, customization.currency ?? 'USD') : null,
+                        price: getCardPrice(card, customization.currency ?? 'USD'),
                         surplus: r.overOwned === 'surplus',
-                      };
-                    }),
+                      },
+                    ];
+                  }),
                   customization.currency === 'EUR' ? '€' : '$'
                 );
         }
