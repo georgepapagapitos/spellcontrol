@@ -243,6 +243,29 @@ describe('buildDeckInputFromImport: In the box', () => {
     expect(new Set(input.extras.map((e) => e.allocatedCopyId))).toEqual(new Set(['a', 'b']));
   });
 
+  it('never gives an extra a copy of another printing', () => {
+    // Odds & Ends (live product data): Yennett #2121 commands, a display #1019
+    // rides in the box. A spare #2121 is not the display card.
+    const yennett = sc('Yennett, Cryptic Sovereign', '0ba9362f-eb35-4e72-8c51-7047c0a3f648');
+    const display = sc(yennett.name, 'c4e4bcb1-e9c8-4b45-a780-986f7a38d199');
+    const spare = (copyId: string) =>
+      ({
+        copyId,
+        name: yennett.name,
+        scryfallId: yennett.id,
+        finish: 'foil',
+        foil: true,
+      }) as unknown as EnrichedCard;
+    const ctx = { decks: [], cubes: [], collectionCards: [spare('cmd'), spare('spare')] };
+    const input = buildDeckInputFromImport(result([], yennett), yennett, 'Y', 'commander', ctx, {
+      extras: [{ card: display, finish: 'foil' }],
+      commanderFinish: 'foil',
+    });
+    expect(input.commanderAllocatedCopyId).not.toBeNull();
+    expect(input.extras[0].card.id).toBe(display.id);
+    expect(input.extras[0].allocatedCopyId).toBeNull();
+  });
+
   it('is empty when the import has no extras', () => {
     expect(buildDeckInputFromImport(result([]), null, 'D', 'commander', ctxEmpty).extras).toEqual(
       []

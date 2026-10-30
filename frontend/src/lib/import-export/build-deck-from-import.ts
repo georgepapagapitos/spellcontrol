@@ -72,6 +72,12 @@ const pendingClaim = (cardName: string): AllocationInfo =>
  * In the box slots for a product's physical extras, each claiming a free owned
  * copy of its own printing and finish and recording the claim in `claim`, so
  * two extras (or an extra and a deck slot) never take the same copy.
+ *
+ * The printing is a hard match, unlike a deck slot's preference: the box names
+ * the exact physical card. Odds & Ends ships Yennett as #2121 and a display
+ * #1019; falling back by name gave the #1019 slot a spare #2121, so the box
+ * looked like two copies of the commander. With no free copy of that printing
+ * the slot stays without one.
  */
 export function allocateBoxExtras(
   extras: ReadonlyArray<{ card: ScryfallCard; finish?: Finish }>,
@@ -79,7 +85,8 @@ export function allocateBoxExtras(
   claim: Map<string, AllocationInfo>
 ): DeckCard[] {
   return extras.map(({ card, finish }) => {
-    const pick = pickCollectionCopy(card.name, collectionCards, claim, card.id, finish);
+    const samePrinting = collectionCards.filter((c) => c.scryfallId === card.id);
+    const pick = pickCollectionCopy(card.name, samePrinting, claim, card.id, finish);
     if (pick) claim.set(pick.copyId, pendingClaim(card.name));
     return newDeckCard(card, pick?.copyId ?? null);
   });
