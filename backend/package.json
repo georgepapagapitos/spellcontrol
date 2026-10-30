@@ -23,7 +23,7 @@
     "format:check": "prettier --check \"src/**/*.{ts,json}\""
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.135.0",
+    "@anthropic-ai/sdk": "^1.3.0",
     "@spellcontrol/binder-routing": "file:../packages/binder-routing",
     "@spellcontrol/deck-metrics": "file:../packages/deck-metrics",
     "@spellcontrol/game-core": "file:../packages/game-core",
