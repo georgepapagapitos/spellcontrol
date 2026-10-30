@@ -126,7 +126,11 @@ export function useTableLayout({
   resetKey,
 }: LayoutArgs) {
   const listContainerRef = useRef<HTMLDivElement>(null);
-  const gridContainerRef = useRef<HTMLDivElement>(null);
+  // A callback ref held in state, not a ref object: the grid mounts late
+  // whenever the table first rendered an empty state (a filter that matched
+  // nothing, then a query that brought in the Add-cards hand-off), and the
+  // width observer below must attach to it then, not only when `view` changes.
+  const [gridEl, gridContainerRef] = useState<HTMLDivElement | null>(null);
   const controlsRowRef = useRef<HTMLDivElement>(null);
   const toolbarRowRef = useRef<HTMLDivElement>(null);
 
@@ -183,14 +187,14 @@ export function useTableLayout({
   // with the 10px this grid actually renders with — `zoomCols` owns it now.
   const [gridWidth, setGridWidth] = useState(0);
   useEffect(() => {
-    const el = gridContainerRef.current;
+    const el = gridEl;
     if (!el || view !== 'grid') return;
     const measure = () => setGridWidth(el.clientWidth);
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [view]);
+  }, [view, gridEl]);
   const gridCols = gridWidth > 0 ? zoomCols(effectiveZoom, zoomTier(gridWidth), gridWidth) : 4;
 
   // Heterogeneous grid row list: full-width section headers interleaved with
@@ -225,9 +229,8 @@ export function useTableLayout({
   const estimateGridRowHeight = useCallback(
     (index: number) => {
       if (gridLayout[index]?.kind === 'header') return GRID_SECTION_HEADER_H;
-      if (!gridContainerRef.current) return 250;
-      const w = gridContainerRef.current.clientWidth;
-      const colWidth = (w - GRID_GAP_PX * (gridCols - 1)) / gridCols;
+      if (!gridWidth) return 250;
+      const colWidth = (gridWidth - GRID_GAP_PX * (gridCols - 1)) / gridCols;
       return (
         colWidth * (680 / 488) +
         (GRID_CAPTION_H * gridCaptionLines + (gridCaptionLines > 0 ? GRID_CAPTION_PLATE_PAD : 0)) *
@@ -235,13 +238,13 @@ export function useTableLayout({
         GRID_GAP_PX
       );
     },
-    [gridCols, gridLayout, gridCaptionLines, rem]
+    [gridWidth, gridCols, gridLayout, gridCaptionLines, rem]
   );
 
   useLayoutEffect(() => {
     if (!scrollEl) return;
     const measure = () => {
-      const el = view === 'grid' ? gridContainerRef.current : listContainerRef.current;
+      const el = view === 'grid' ? gridEl : listContainerRef.current;
       if (!el) return;
       const scrollRect = scrollEl.getBoundingClientRect();
       const top = el.getBoundingClientRect().top - scrollRect.top + scrollEl.scrollTop;
@@ -286,7 +289,7 @@ export function useTableLayout({
       ro.disconnect();
       window.removeEventListener('resize', measure);
     };
-  }, [scrollEl, view, gridCols, sortedCount, chromeBottom]);
+  }, [scrollEl, view, gridEl, gridCols, sortedCount, chromeBottom]);
 
   // Header rows are short; card rows fall back to the per-view estimate. Exact
   // heights still come from measureElement, so the estimate only seeds layout.
@@ -314,13 +317,16 @@ export function useTableLayout({
     scrollMargin,
   });
 
-  // The grid is measureElement-free (the estimate is the truth), so cached row
-  // heights must be dropped when the caption toggles or they'd drift by
-  // GRID_CAPTION_H per row.
+  // The grid is measureElement-free (the estimate is the truth), and the
+  // virtualizer only re-reads estimates when its count or margin changes, so
+  // cached row heights must be dropped whenever the estimate itself moves: a
+  // caption toggle (they'd drift by GRID_CAPTION_H per row) or a new width.
+  // The width case is the late-mounting grid: its rows were seeded at the
+  // 250px no-width fallback and a full-height tile overran the footer.
   useEffect(() => {
     gridVirtualizer.measure();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gridCaptionLines]);
+  }, [gridWidth, gridCols, gridCaptionLines]);
 
   // Fallback pin line (px) for the active-section trigger, used only until the
   // sticky controls' bottom has been measured. Roughly one header's height.
