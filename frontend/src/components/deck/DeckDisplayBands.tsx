@@ -264,6 +264,27 @@ export function DeckRoleBar({
   );
 }
 
+// The role bar's place while the tagger corpus loads. Without it the bar
+// arrived a beat after the list and pushed every row down (CLS 0.02 to 0.03 on
+// /d/:id, E1049). Real chip boxes with the text hidden, so the height matches
+// the loaded bar on every pointer.
+
+export function DeckRoleBarPending() {
+  return (
+    <div className="deck-role-bar" aria-hidden="true">
+      {(Object.keys(ROLE_TITLES) as RoleKey[]).map((key) => (
+        <Chip
+          key={key}
+          className="filter-chip deck-role-bar-chip deck-role-bar-chip--pending"
+          trailing={<span className="deck-role-bar-count">0</span>}
+        >
+          {ROLE_TITLES[key]}
+        </Chip>
+      ))}
+    </div>
+  );
+}
+
 // E182: a brand-new deck (no commander, no cards) previously
 // rendered a fully interactive toolbar over a blank
 // .deck-card-list — this is the manual builder's first

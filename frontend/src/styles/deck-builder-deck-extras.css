@@ -94,6 +94,32 @@
   margin: calc(var(--space-1) * -1);
 }
 
+/* DeckRoleBarPending: a real chip box with its text hidden, shimmering
+   until the tagger corpus lands, so the row is held at the loaded height. */
+.filter-chip.deck-role-bar-chip--pending {
+  color: transparent;
+  pointer-events: none;
+  background: linear-gradient(
+    110deg,
+    var(--surface-raised) 35%,
+    var(--surface) 50%,
+    var(--surface-raised) 65%
+  );
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-shimmer var(--motion-shimmer) ease-in-out infinite;
+}
+
+.deck-role-bar-chip--pending .deck-role-bar-count {
+  color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filter-chip.deck-role-bar-chip--pending {
+    animation: none;
+  }
+}
+
 .deck-role-bar::-webkit-scrollbar {
   display: none;
 }

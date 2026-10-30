@@ -353,6 +353,14 @@
   min-height: 60vh;
 }
 
+/* Loading holds the whole viewport, like .page-loader: at 60vh the footer
+   painted mid-screen on desktop and was shoved off when the deck landed
+   (CLS 0.14 on /d/:id, 0.10 on /d/:id/playtest, E1049). Missing and error
+   stay at 60vh: nothing replaces them, so nothing moves. */
+.shared-view--loading {
+  min-height: 100dvh;
+}
+
 /* The page-level spinner size, matching `.page-loader .spinner`. */
 .shared-view--loading .spinner {
   width: 28px;
