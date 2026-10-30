@@ -504,10 +504,27 @@ export function sortCards(
   const active = sorts.filter((s) => s && s.field !== 'none');
   if (active.length === 0) return [...cards];
 
-  return [...cards].sort((a, b) => {
-    for (const { field, dir } of active) {
-      const va = cardSortValue(a, field, ctx);
-      const vb = cardSortValue(b, field, ctx);
+  // Each card's value for each field, computed at most once and only when a
+  // comparison reaches that field. The comparator runs ~2·n·log n times over a
+  // chain of up to eight fields (the user's plus the implicit tie-breakers),
+  // and a value like the color rank re-derives the card's palette and land-ness
+  // every time: recomputing it per comparison was most of the cost of opening
+  // a binder, the collection or a deck on a 10k-card collection.
+  type Value = ReturnType<typeof cardSortValue>;
+  const keys: Value[][] = active.map(() => new Array<Value>(cards.length));
+  const valueOf = (f: number, i: number): Value => {
+    const column = keys[f];
+    let v = column[i];
+    if (v === undefined) v = column[i] = cardSortValue(cards[i], active[f].field, ctx);
+    return v;
+  };
+
+  const order = cards.map((_, i) => i);
+  order.sort((ia, ib) => {
+    for (let f = 0; f < active.length; f++) {
+      const dir = active[f].dir;
+      const va = valueOf(f, ia);
+      const vb = valueOf(f, ib);
       // A card with NO value for this field trails, whichever way the field is
       // pointed — reversing the direction must not promote "we don't know" to
       // the top of the list. Two unknowns are equal, so the chain moves on to
@@ -524,8 +541,11 @@ export function sortCards(
     // this two copies of one printing swapped places between renders whenever
     // the collection array was rebuilt (IDB hydration vs a fresh pull), which
     // read as pages shuffling under the user.
-    return a.copyId < b.copyId ? -1 : a.copyId > b.copyId ? 1 : 0;
+    const a = cards[ia].copyId;
+    const b = cards[ib].copyId;
+    return a < b ? -1 : a > b ? 1 : 0;
   });
+  return order.map((i) => cards[i]);
 }
 
 /** Suggested defaults for newly-created binders. */
