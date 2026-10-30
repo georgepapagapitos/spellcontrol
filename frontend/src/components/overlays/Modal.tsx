@@ -4,6 +4,7 @@ import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
 import {
   captureOpener,
   focusInto,
+  hasOpenSurface,
   restoreFocus,
   trapTab,
   useOverlayLayer,
@@ -56,6 +57,13 @@ export function Modal({
   children,
 }: Props) {
   useLockBodyScroll();
+
+  // A modal opened from inside a sheet (a confirm raised by its footer, say)
+  // must paint above it. Sheets sit at --z-overlay and a plain modal at
+  // --z-modal, under them, so this used to be an opt-in class each caller had
+  // to remember; the import-history delete confirm forgot it and opened
+  // behind its own sheet. Decided once, on mount, from the layer stack.
+  const [overSurface] = useState(hasOpenSurface);
 
   const panelRef = useRef<HTMLDivElement>(null);
   const [isClosing, setIsClosing] = useState(false);
@@ -166,9 +174,9 @@ export function Modal({
   // top layer, so every Modal portals.
   const node = (
     <div
-      className={`modal-backdrop${backdropClassName ? ` ${backdropClassName}` : ''}${
-        isClosing ? ' is-closing' : ''
-      }`}
+      className={`modal-backdrop${overSurface ? ' modal-backdrop--over-sheet' : ''}${
+        backdropClassName ? ` ${backdropClassName}` : ''
+      }${isClosing ? ' is-closing' : ''}`}
       onClick={
         dismissable
           ? (e) => {
