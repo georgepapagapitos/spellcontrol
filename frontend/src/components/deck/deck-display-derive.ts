@@ -255,6 +255,10 @@ export function buildFlatIndex(
   const rows: Row[] = [];
   const zones: DeckZone[] = [];
   const indexByName = new Map<string, number>();
+  // A name can sit in more than one place (Odds & Ends' Yennett commands the
+  // deck and its display copy rides In the box), so a row with slots is also
+  // reachable by its own slot: see flatIndexOf.
+  const indexBySlot = new Map<string, number>();
   // Mainboard first, then sideboard, considering, In the box — so the carousel +
   // hover-peek resolve those cards too (same inspect path as the
   // mainboard). A name only in one zone maps to that zone's entry; a name
@@ -271,6 +275,7 @@ export function buildFlatIndex(
         if (pushedThisZone.has(row.name)) continue;
         pushedThisZone.add(row.name);
         if (!indexByName.has(row.name)) indexByName.set(row.name, enrichedCards.length);
+        for (const slotId of row.slotIds) indexBySlot.set(slotId, enrichedCards.length);
         rows.push(row);
         zones.push(zone);
         const enriched = scryfallToEnrichedCard(row.card, {
@@ -301,10 +306,25 @@ export function buildFlatIndex(
   pushGroups(visibleSideboardGroups, 'sideboard');
   pushGroups(visibleConsideringGroups, 'considering');
   pushGroups(visibleExtrasGroups, 'extras');
-  return { cards: enrichedCards, labels, rows, zones, indexByName };
+  return { cards: enrichedCards, labels, rows, zones, indexByName, indexBySlot };
 }
 
 export type FlatIndex = ReturnType<typeof buildFlatIndex>;
+
+/** A row's first slot, the key its markup carries as `data-peek-slot`. */
+export function peekSlotOf(row: { slotIds: string[] }): string | undefined {
+  return row.slotIds[0];
+}
+
+/** A row's entry: by its slot when it has one, else by name (a commander row
+ *  has no slot, and is the first entry of its name). */
+export function flatIndexOf(
+  flat: Pick<FlatIndex, 'indexByName' | 'indexBySlot'>,
+  name: string,
+  slotId?: string
+): number | undefined {
+  return (slotId ? flat.indexBySlot.get(slotId) : undefined) ?? flat.indexByName.get(name);
+}
 
 /** Binder(s) a row's allocated copies are filed in, deduped by binder id. */
 export function bindersForRow(
@@ -348,8 +368,8 @@ export function allocationsForRow(
 
 export function buildInspectorCard(args: {
   inspectorActive: boolean;
-  pinnedName: string | null;
-  hoverKey: { name: string; img?: string } | null | undefined;
+  pinned: { name: string; slotId?: string } | null;
+  hoverKey: { name: string; img?: string; slotId?: string } | null | undefined;
   commander: ScryfallCard | null;
   flat: FlatIndex;
   binderByCopyId: Map<string, BinderInfo[]> | undefined;
@@ -359,7 +379,7 @@ export function buildInspectorCard(args: {
 }): DeckCardInspectorCard | null {
   const {
     inspectorActive,
-    pinnedName,
+    pinned,
     hoverKey,
     commander,
     flat,
@@ -369,9 +389,10 @@ export function buildInspectorCard(args: {
     cardInclusionMap,
   } = args;
   if (!inspectorActive) return null;
-  const name = pinnedName ?? hoverKey?.name ?? commander?.name;
+  const key = pinned ?? hoverKey;
+  const name = key?.name ?? commander?.name;
   if (!name) return null;
-  const i = flat.indexByName.get(name);
+  const i = flatIndexOf(flat, name, key?.slotId);
   if (i === undefined) return null;
   const row = flat.rows[i];
   const enriched = flat.cards[i];
@@ -382,8 +403,7 @@ export function buildInspectorCard(args: {
     row,
     // A printing sub-row carries its own art; honor it while following the
     // pointer, but a pinned card resolves by name like the carousel does.
-    imageUrl:
-      (pinnedName ? undefined : hoverKey?.img) || enriched?.imageLarge || enriched?.imageNormal,
+    imageUrl: (pinned ? undefined : hoverKey?.img) || enriched?.imageLarge || enriched?.imageNormal,
     binders,
     synergyReasons: synergyByName.get(name),
     combos: row.card.oracle_id ? combosByOracle?.get(row.card.oracle_id) : undefined,
