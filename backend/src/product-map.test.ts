@@ -4,6 +4,7 @@ import {
   productToDeckSections,
   productToExtraRows,
   productToPhysicalRows,
+  withBonusCards,
   type MtgjsonDeckFile,
 } from './product-map';
 
@@ -184,5 +185,45 @@ describe('countPhysicalCards', () => {
   it('counts every zone including extras and multi-copy lands', () => {
     // 1 commander + (1 Sol Ring + 10 Plains) + 3 display + 1 token = 16
     expect(countPhysicalCards(fixture)).toBe(16);
+  });
+});
+
+// Odds and Ends (MTGJSON decks/OddsAndEnds_SLD.json) ships a foil Perplexing
+// Chimera #7039 that its deck file omits; the SLD drops snapshot carries it.
+describe('withBonusCards', () => {
+  const chimera = { name: 'Perplexing Chimera', number: '7039', foil: true };
+  const oddsAndEnds: MtgjsonDeckFile = {
+    name: 'Odds and Ends',
+    code: 'SLD',
+    type: 'Commander Deck',
+    commander: [
+      { name: 'Yennett, Cryptic Sovereign', setCode: 'SLD', number: '2121', isFoil: true },
+    ],
+    displayCommander: [
+      { name: 'Yennett, Cryptic Sovereign', setCode: 'SLD', number: '1019', isFoil: true },
+    ],
+    mainBoard: [{ name: 'Sol Ring', setCode: 'SLD', number: '1512', count: 1 }],
+  };
+  const lookup = (deck: string) => (deck === 'Odds and Ends' ? [chimera] : []);
+
+  it('adds the bonus card as a zone every extra-zone reader picks up', () => {
+    const deck = withBonusCards(oddsAndEnds, lookup);
+    expect(productToPhysicalRows(deck).find((r) => r.collectorNumber === '7039')).toMatchObject({
+      name: 'Perplexing Chimera',
+      setCode: 'SLD',
+      finish: 'foil',
+      sourceCategory: 'bonus',
+    });
+    expect(countPhysicalCards(deck)).toBe(countPhysicalCards(oddsAndEnds) + 1);
+    expect(productToDeckSections(deck).deckRows).toHaveLength(1);
+  });
+
+  it('leaves a deck without a bonus, a non-SLD deck, and a number already listed alone', () => {
+    const other = { ...oddsAndEnds, name: 'Other' };
+    expect(withBonusCards(other, lookup)).toBe(other);
+    const precon = { ...oddsAndEnds, code: 'C21' };
+    expect(withBonusCards(precon, lookup)).toBe(precon);
+    const listed = { ...oddsAndEnds, sideBoard: [{ name: 'Perplexing Chimera', number: '7039' }] };
+    expect(withBonusCards(listed, lookup)).toBe(listed);
   });
 });

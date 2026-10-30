@@ -11,13 +11,13 @@ import { useDecksStore, type Deck } from '@/store/decks';
 import { useToastsStore } from '@/store/toasts';
 
 /**
- * The Edit menu's "Add the rest of the box" for a deck built from a product
- * before In the box existed: fetches the product and adds its physical extras
- * (display commanders and the like, not tokens) to In the box, each claiming
- * a free copy of its own printing and finish, as one undoable edit.
+ * The Edit menu's "Add the rest of the box": fetches the product and adds the
+ * physical extras (display commanders, a Secret Lair's bonus card, not tokens)
+ * that In the box doesn't hold yet, each claiming a free copy of its own
+ * printing and finish, as one undoable edit. It tops up rather than fills, so
+ * a deck built before a bonus card was known still gets it.
  *
- * Undefined, so the action is absent, unless the deck came from a product and
- * its In the box is still empty.
+ * Undefined, so the action is absent, unless the deck came from a product.
  */
 export function useAddBoxExtras(deck: Deck): (() => void) | undefined {
   const bulkAddCards = useDecksStore((s) => s.bulkAddCards);
@@ -27,15 +27,23 @@ export function useAddBoxExtras(deck: Deck): (() => void) | undefined {
   const [busy, setBusy] = useState(false);
 
   const product = deck.sourceProduct;
-  if (!product || (deck.extras?.length ?? 0) > 0) return undefined;
+  if (!product) return undefined;
 
   const add = async () => {
     setBusy(true);
     try {
       const resp = await fetchProduct(product.fileName);
-      const extras = productBoxExtras(resp.physicalCards);
-      if (extras.length === 0) {
+      const all = productBoxExtras(resp.physicalCards);
+      if (all.length === 0) {
         pushToast({ message: `${product.name} has no other cards in the box.`, tone: 'info' });
+        return;
+      }
+      const extras = missingFromBox(all, deck.extras ?? []);
+      if (extras.length === 0) {
+        pushToast({
+          message: `The box already holds everything from ${product.name}.`,
+          tone: 'info',
+        });
         return;
       }
       // Fresh at call time: the fetch can outlast an import or another edit.
@@ -83,4 +91,19 @@ export function useAddBoxExtras(deck: Deck): (() => void) | undefined {
   return () => {
     if (!busy) void add();
   };
+}
+
+/** The product's extras minus what the box already holds, matched by printing
+ *  and counted, so a box with one of two display copies gets the other. */
+function missingFromBox<T extends { card: { id: string } }>(
+  extras: T[],
+  box: ReadonlyArray<{ card: { id: string } }>
+): T[] {
+  const held = new Map<string, number>();
+  for (const slot of box) held.set(slot.card.id, (held.get(slot.card.id) ?? 0) + 1);
+  return extras.filter((e) => {
+    const n = held.get(e.card.id) ?? 0;
+    if (n > 0) held.set(e.card.id, n - 1);
+    return n === 0;
+  });
 }
