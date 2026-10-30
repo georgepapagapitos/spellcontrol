@@ -1,6 +1,61 @@
 {
-  "generatedAt": "2026-10-09T19:50:10.781Z",
+  "generatedAt": "2026-10-30T23:40:24.075Z",
   "drops": [
+    {
+      "name": "Artist Series Véronique Meignaud",
+      "releasedAt": "2026-12-14",
+      "numbers": ["1440", "1441", "1442", "1443"]
+    },
+    {
+      "name": "Jim Hensons Labyrinth Fear Me, Love Me",
+      "releasedAt": "2026-12-14",
+      "numbers": ["2833", "2834", "2835", "2836", "2837", "2838"]
+    },
+    {
+      "name": "Jim Hensons Labyrinth Should You Need Us",
+      "releasedAt": "2026-12-14",
+      "numbers": ["2839", "2840", "2841", "2842", "2843", "2844"]
+    },
+    {
+      "name": "Jim Hensons Labyrinth Through the Labyrinth",
+      "releasedAt": "2026-12-14",
+      "numbers": ["2845", "2846", "2847", "2848", "2849", "2850", "2851"]
+    },
+    {
+      "name": "KPop Demon Hunters How Its Done",
+      "releasedAt": "2026-12-14",
+      "numbers": ["2826", "2827", "2828", "2829", "2830", "2831", "2832"]
+    },
+    {
+      "name": "Manufactured Grounds by See Machine",
+      "releasedAt": "2026-12-14",
+      "numbers": ["2883", "2884", "2885", "2886", "2887"]
+    },
+    {
+      "name": "Marvel Zombies",
+      "releasedAt": "2026-12-14",
+      "numbers": ["2589", "2590", "2591", "2592", "2593", "2594"]
+    },
+    {
+      "name": "Peace, Love, & Treefolk",
+      "releasedAt": "2026-12-14",
+      "numbers": ["2763", "2764", "2765", "2766", "2767"]
+    },
+    {
+      "name": "Duality Distorted",
+      "releasedAt": "2026-11-18",
+      "numbers": ["2705", "2706", "2707", "2708"]
+    },
+    {
+      "name": "Strange School",
+      "releasedAt": "2026-11-18",
+      "numbers": ["2709", "2710", "2711", "2712", "2713"]
+    },
+    {
+      "name": "Secret Gallery Atlanta",
+      "releasedAt": "2026-10-19",
+      "numbers": ["2888", "2889", "2890", "2891"]
+    },
     {
       "name": "Masters of the Universe Allies and Enemies of Eternia",
       "releasedAt": "2026-09-29",
@@ -50,6 +105,32 @@
       "name": "The Oddlands Swamps",
       "releasedAt": "2026-09-29",
       "numbers": ["2116", "2117", "2118", "2119", "2120"]
+    },
+    {
+      "name": "Odds and Ends",
+      "releasedAt": "2026-09-28",
+      "numbers": [
+        "2116",
+        "2117",
+        "2118",
+        "2121",
+        "2122",
+        "2123",
+        "2124",
+        "2125",
+        "2126",
+        "2127",
+        "2128",
+        "2129",
+        "2130",
+        "2131",
+        "2132"
+      ]
+    },
+    {
+      "name": "Secret Lair Promo x Masters of the Universe Swan Song",
+      "releasedAt": "2026-09-14",
+      "numbers": ["922"]
     },
     {
       "name": "Artist Series Ian Miller",
@@ -160,6 +241,11 @@
       "numbers": ["2801", "2802", "2803", "2804", "2805", "2806", "2807", "7188"]
     },
     {
+      "name": "Secret Lair Promo x Stardew Valley Puca's Mischief as Lucky Purple Memento",
+      "releasedAt": "2026-07-27",
+      "numbers": ["923"]
+    },
+    {
       "name": "Their Magic is Limitless",
       "releasedAt": "2026-07-22",
       "numbers": [
@@ -240,6 +326,11 @@
       "name": "Witchs Familiar",
       "releasedAt": "2026-06-16",
       "numbers": ["2653", "2654", "2655", "2656", "2657"]
+    },
+    {
+      "name": "Secret Lair Promo x Garfield Lasagna Food Token",
+      "releasedAt": "2026-06-15",
+      "numbers": ["918"]
     },
     {
       "name": "Back in My Day!",
@@ -505,6 +596,11 @@
       "name": "Avatar The Last Airbender The Ember Island Players",
       "releasedAt": "2025-11-18",
       "numbers": ["2306", "2307", "2308", "2309", "2310"]
+    },
+    {
+      "name": "Secret Lair Promo x Avatar The Last Air Bender Path of Ancestry",
+      "releasedAt": "2025-11-17",
+      "numbers": ["914"]
     },
     {
       "name": "Ghost of Tsushima",
@@ -794,6 +890,11 @@
       "numbers": ["909"]
     },
     {
+      "name": "Secret Lair Promo x FINAL FANTASY Gilded Lotus Japanese",
+      "releasedAt": "2025-05-15",
+      "numbers": ["909"]
+    },
+    {
       "name": "Everyones Invited!",
       "releasedAt": "2025-05-13",
       "numbers": [
@@ -1039,6 +1140,11 @@
       "name": "Secret Lair x Marvels Wolverine",
       "releasedAt": "2024-11-05",
       "numbers": ["865", "1737", "1738", "1739", "1740", "1741"]
+    },
+    {
+      "name": "Secret Lair Promo x Marvel Arcane Signet",
+      "releasedAt": "2024-11-04",
+      "numbers": ["908"]
     },
     {
       "name": "Extra Life 2024 Pixel Perfect",
@@ -2521,27 +2627,43 @@
       "releasedAt": "2019-12-04",
       "numbers": ["1", "2", "3", "4", "5", "504", "505"]
     },
-    { "name": "Bitterblossom Dreams", "releasedAt": "2019-12-03", "numbers": ["12", "530"] },
+    { "name": "Bitterblossom Dreams", "releasedAt": "2019-12-03", "numbers": ["12", "530"] }
+  ],
+  "deckBonus": [
     {
-      "name": "Secret Lair Promo x Avatar The Last Air Bender Path of Ancestry",
-      "releasedAt": "",
-      "numbers": ["914"]
+      "deck": "20 Ways to Win",
+      "cards": [{ "name": "Enduring Ideal", "number": "887", "foil": true }]
     },
     {
-      "name": "Secret Lair Promo x Garfield Lasagna Food Token",
-      "releasedAt": "",
-      "numbers": ["918"]
-    },
-    { "name": "Secret Lair Promo x Marvel Arcane Signet", "releasedAt": "", "numbers": ["908"] },
-    {
-      "name": "Secret Lair Promo x Masters of the Universe Swan Song",
-      "releasedAt": "",
-      "numbers": ["922"]
+      "deck": "Angels: They're Just Like Us but Cooler and with Wings",
+      "cards": [{ "name": "Sigarda's Aid", "number": "731", "foil": true }]
     },
     {
-      "name": "Secret Lair Promo x Stardew Valley Puca's Mischief as Lucky Purple Memento",
-      "releasedAt": "",
-      "numbers": ["923"]
+      "deck": "Everyone's Invited!",
+      "cards": [{ "name": "Changeling Outcast", "number": "894", "foil": true }]
+    },
+    {
+      "deck": "From Cute to Brute",
+      "cards": [{ "name": "Delver of Secrets", "number": "722", "foil": true }]
+    },
+    {
+      "deck": "Goblin Storm",
+      "cards": [{ "name": "Moggcatcher", "number": "7081", "foil": true }]
+    },
+    {
+      "deck": "Hatsune Miku",
+      "cards": [{ "name": "Tigereye Cameo", "number": "7093", "foil": true }]
+    },
+    {
+      "deck": "Odds and Ends",
+      "cards": [{ "name": "Perplexing Chimera", "number": "7039", "foil": true }]
+    },
+    {
+      "deck": "Raining Cats and Dogs",
+      "cards": [
+        { "name": "Nine Lives", "number": "793", "foil": true },
+        { "name": "Yoshimaru, Ever Faithful", "number": "794", "foil": true }
+      ]
     }
   ]
 }

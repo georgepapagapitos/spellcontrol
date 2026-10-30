@@ -56,6 +56,8 @@ const ZONE_LABELS: Record<string, string> = {
   commander: 'Commander',
   mainBoard: 'Deck',
   displayCommander: 'Display commander',
+  // A Secret Lair deck's bonus card, which the backend adds (product-map.ts withBonusCards).
+  bonus: 'Bonus card',
   sideBoard: 'Sideboard',
   tokens: 'Tokens',
   planes: 'Planes',
@@ -67,6 +69,7 @@ const ZONE_ORDER = [
   'commander',
   'mainBoard',
   'displayCommander',
+  'bonus',
   'sideBoard',
   'tokens',
   'planes',

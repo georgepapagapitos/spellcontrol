@@ -17,7 +17,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pickClosestDrop, type EnrichedCard } from '@spellcontrol/binder-routing';
 
-const SNAPSHOT_PATH =
+/** The snapshot file; also read by `sld-deck-bonus.ts` for its `deckBonus`. */
+export const sldDropsSnapshotPath = (): string =>
   process.env.SLD_DROPS_SNAPSHOT_PATH ??
   path.join(__dirname, '..', '..', 'public', 'sld-drops.json');
 
@@ -32,7 +33,7 @@ function ensureLoaded(): Map<string, Drop[]> {
   if (byNumber) return byNumber;
   byNumber = new Map();
   try {
-    const data = JSON.parse(readFileSync(SNAPSHOT_PATH, 'utf8')) as {
+    const data = JSON.parse(readFileSync(sldDropsSnapshotPath(), 'utf8')) as {
       drops?: { name?: unknown; releasedAt?: unknown; numbers?: unknown }[];
     };
     for (const d of data.drops ?? []) {

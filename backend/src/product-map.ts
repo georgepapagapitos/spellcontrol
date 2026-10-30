@@ -41,6 +41,39 @@ export interface MtgjsonDeckFile {
   tokens?: MtgjsonDeckCard[];
   planes?: MtgjsonDeckCard[];
   schemes?: MtgjsonDeckCard[];
+  /** Bonus cards MTGJSON's deck file omits, added by {@link withBonusCards}. */
+  bonus?: MtgjsonDeckCard[];
+}
+
+/** One bonus card from the SLD drops snapshot's `deckBonus` list. */
+export interface BonusCard {
+  name: string;
+  number: string;
+  foil: boolean;
+}
+
+/**
+ * The deck file with its Secret Lair bonus cards as a `bonus` zone, which every
+ * extra-zone reader below picks up (collection add, physical count, In the box).
+ * Only SLD decks carry them; a number MTGJSON already lists anywhere in the deck
+ * is skipped, so the day upstream adds the card it is not counted twice.
+ */
+export function withBonusCards(
+  deck: MtgjsonDeckFile,
+  bonusFor: (deckName: string) => BonusCard[]
+): MtgjsonDeckFile {
+  if (deck.code?.toUpperCase() !== 'SLD') return deck;
+  const listed = new Set(
+    Object.values(deck as unknown as Record<string, unknown>)
+      .filter(Array.isArray)
+      .flat()
+      .filter(isCardEntry)
+      .map((c) => c.number)
+  );
+  const bonus = bonusFor(deck.name)
+    .filter((c) => !listed.has(c.number))
+    .map((c) => ({ name: c.name, setCode: 'SLD', number: c.number, isFoil: c.foil, count: 1 }));
+  return bonus.length > 0 ? { ...deck, bonus } : deck;
 }
 
 export interface ProductDeckSections {

@@ -12,7 +12,8 @@
  * `.json` URLs. Coverage tracks whatever MTGJSON has ingested; brand-new
  * products (esp. Secret Lair) can lag, and the daily refresh picks them up.
  */
-import type { MtgjsonDeckFile } from './product-map';
+import { withBonusCards, type MtgjsonDeckFile } from './product-map';
+import { sldDeckBonus } from './sld-deck-bonus';
 import { PENDING_PRODUCTS, type PendingProduct } from './pending-products';
 import { SCRYFALL_USER_AGENT } from './scryfall';
 
@@ -230,7 +231,9 @@ export async function getProductDeck(fileName: string): Promise<MtgjsonDeckFile 
   if (existing) return existing;
 
   const promise = fetchProductDeck(fileName)
-    .then((deck) => {
+    .then((fetched) => {
+      // A Secret Lair deck's bonus card rides in the box but not in MTGJSON's file.
+      const deck = fetched && withBonusCards(fetched, sldDeckBonus);
       if (deck) putDeck(fileName, deck);
       return deck;
     })

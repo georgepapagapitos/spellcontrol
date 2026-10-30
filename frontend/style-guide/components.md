@@ -171,7 +171,9 @@ where every section lives.
     nothing in the deck moves there, so an empty one would be a header every
     deck carries for the few that came with extras. Cards reach it from a
     product import, the add sheet's "In the box" zone, or the Edit menu's "Add
-    the rest of the box" on a deck built from a product. Its rows can be
+    the rest of the box" on a deck built from a product, which adds only what
+    the box doesn't hold yet (a Secret Lair's bonus card, which MTGJSON's deck
+    files omit, reaches an older deck this way). Its rows can be
     removed, re-counted and given or released a copy; they cannot be moved into
     the deck, tagged, proxied or seated as commander. The hero counts it as "+N
     in the box", and it feeds nothing the other two piles don't.

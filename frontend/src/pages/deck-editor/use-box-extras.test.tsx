@@ -73,11 +73,34 @@ describe('useAddBoxExtras', () => {
     expect(renderHook(() => useAddBoxExtras(current())).result.current).toBeUndefined();
   });
 
-  it('is absent once the box has cards', () => {
+  // Odds and Ends was built with its display Yennett in the box before the
+  // backend knew its bonus Perplexing Chimera; the action must still add it.
+  it('tops up a box that already holds some of the extras', async () => {
+    const chimera = { name: 'Perplexing Chimera', id: 'chimera' } as ScryfallCard;
     useDecksStore.setState({
       decks: [makeDeck({ extras: [{ slotId: 'x', card: display, allocatedCopyId: 'box' }] })],
     });
-    expect(renderHook(() => useAddBoxExtras(current())).result.current).toBeUndefined();
+    fetchProduct.mockResolvedValue(
+      product([
+        { card: display, quantity: 1, finish: 'nonfoil', zone: 'displayCommander' },
+        { card: chimera, quantity: 1, finish: 'foil', zone: 'bonus' },
+      ])
+    );
+    await run();
+    expect(current().extras?.map((e) => e.card.id)).toEqual(['zada-oversized', 'chimera']);
+    expect(current().extras?.[0].allocatedCopyId).toBe('box');
+  });
+
+  it('says so when the box already holds everything', async () => {
+    useDecksStore.setState({
+      decks: [makeDeck({ extras: [{ slotId: 'x', card: display, allocatedCopyId: 'box' }] })],
+    });
+    fetchProduct.mockResolvedValue(
+      product([{ card: display, quantity: 1, finish: 'nonfoil', zone: 'displayCommander' }])
+    );
+    await run();
+    expect(current().extras).toHaveLength(1);
+    expect(lastToast()).toBe('The box already holds everything from Odds & Ends.');
   });
 
   it("adds the box's extras, each claiming its free copy", async () => {

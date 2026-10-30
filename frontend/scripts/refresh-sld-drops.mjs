@@ -30,6 +30,7 @@ import { gunzipSync } from 'node:zlib';
 import { load as loadYaml } from 'js-yaml';
 import { pruneOutlierDrops } from './sld-drop-dates.mjs';
 import { assertNoShrink } from './sld-drop-merge.mjs';
+import { deckBonusCards } from './sld-deck-bonus.mjs';
 import { assignPackNumbers, packNumbers } from './sld-drop-packs.mjs';
 
 const JSON_URL = process.env.SLD_JSON_URL ?? 'https://mtgjson.com/api/v5/SLD.json.gz';
@@ -281,7 +282,12 @@ if (drops.length < 300 || mapped < 1500) {
   bail(`Suspiciously small result (${drops.length} drops, ${mapped} numbers)`);
 }
 
-const body = JSON.stringify({ generatedAt: new Date().toISOString(), drops });
+// Each commander deck's bonus cards, which MTGJSON's compiled deck files omit
+// (sld-deck-bonus.mjs); the backend's product import adds them as `bonus`.
+const deckBonus = deckBonusCards(contents?.products);
+console.log(`[sld] ${deckBonus.length} commander decks carry a bonus card`);
+
+const body = JSON.stringify({ generatedAt: new Date().toISOString(), drops, deckBonus });
 await mkdir(dirname(dest), { recursive: true });
 await writeFile(dest, body);
 console.log(
