@@ -1,12 +1,10 @@
-import { useCallback, useId, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useId, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, ChevronRight, Download, Hand, Package, Plus, Wand2 } from 'lucide-react';
 // New-deck-only stylesheets ship with this chunk, not the boot payload (E265).
 import '@/styles/deck-builder-deck-extras.css';
 import '@/styles/deck-builder-import-dialog.css';
 import './DeckNewPage.css';
-import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
-import { ProductSearchDialog } from '@/components/import/ProductSearchDialog';
 import { BackLink } from '@/components/app-shell/BackLink';
 import { useDecksStore } from '../store/decks';
 import { createEmptyDeck } from '@/lib/deck/create-empty-deck';
@@ -15,6 +13,19 @@ import type { DeckFormat } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { Button } from '@/components/shared/Button';
 import type { GenerateRouteState } from './DeckGeneratePage';
+
+// The two dialogs open only on a tap, and between them they pull in about fifty
+// modules (commander search, product search, the import parser). Imported
+// statically, the page could not paint until all of them had loaded, which put
+// a cold visit's LCP past 3 s on 4G (E1049). They load after first paint instead.
+const loadImportDialog = () => import('../components/deck/ImportDeckDialog');
+const loadProductDialog = () => import('@/components/import/ProductSearchDialog');
+const ImportDeckDialog = lazy(() =>
+  loadImportDialog().then((m) => ({ default: m.ImportDeckDialog }))
+);
+const ProductSearchDialog = lazy(() =>
+  loadProductDialog().then((m) => ({ default: m.ProductSearchDialog }))
+);
 
 type DoorProps = {
   icon: ReactNode;
@@ -110,6 +121,25 @@ export function DeckNewPage() {
     [setSearchParams]
   );
 
+  // Warm both dialog chunks once the page is idle, so a tap opens them at once.
+  useEffect(() => {
+    const preload = () => {
+      void loadImportDialog().catch(() => {});
+      void loadProductDialog().catch(() => {});
+    };
+    const ric = (window as unknown as { requestIdleCallback?: typeof requestIdleCallback })
+      .requestIdleCallback;
+    if (typeof ric === 'function') {
+      const handle = ric(preload);
+      return () =>
+        (
+          window as unknown as { cancelIdleCallback?: typeof cancelIdleCallback }
+        ).cancelIdleCallback?.(handle);
+    }
+    const t = window.setTimeout(preload, 0);
+    return () => window.clearTimeout(t);
+  }, []);
+
   const handleEmptyDeck = useCallback(() => {
     navigate(`/decks/${createEmptyDeck(format, createDeck)}`);
   }, [navigate, format, createDeck]);
@@ -131,8 +161,10 @@ export function DeckNewPage() {
         <p className="deck-builder-subtitle">You can change the format later.</p>
       </header>
 
-      {showImport && <ImportDeckDialog onClose={() => setShowImport(false)} format={format} />}
-      {showProduct && <ProductSearchDialog onClose={() => setShowProduct(false)} />}
+      <Suspense fallback={null}>
+        {showImport && <ImportDeckDialog onClose={() => setShowImport(false)} format={format} />}
+        {showProduct && <ProductSearchDialog onClose={() => setShowProduct(false)} />}
+      </Suspense>
 
       <section
         className={`deck-builder-section deck-new-format-section${

@@ -137,16 +137,17 @@ describe('DeckNewPage — doors', () => {
     );
   });
 
-  it('opens the import dialog in the picked format', () => {
+  // Both dialogs load lazily, so they arrive a tick after the tap.
+  it('opens the import dialog in the picked format', async () => {
     renderAt('/decks/new?format=pioneer');
     fireEvent.click(door('Import a list')!);
-    expect(screen.getByText('import dialog for pioneer')).toBeTruthy();
+    expect(await screen.findByText('import dialog for pioneer')).toBeTruthy();
   });
 
-  it('opens the product dialog', () => {
+  it('opens the product dialog', async () => {
     renderAt('/decks/new');
     fireEvent.click(door('Add a product')!);
-    expect(screen.getByText('product dialog')).toBeTruthy();
+    expect(await screen.findByText('product dialog')).toBeTruthy();
   });
 });
 
