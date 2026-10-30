@@ -54,7 +54,7 @@ import {
   type ShowPrefs,
 } from './deck-display-rows';
 import { allocationAriaLabel, allocationTitle, countedPrice } from './deck-row-allocation';
-import { qtyOwnershipClass } from './deck-display-derive';
+import { peekSlotOf, qtyOwnershipClass } from './deck-display-derive';
 import { SectionIcon, AllocationChip, ProxyTag, RowPrice } from './deck-display-icons';
 import { RoleBadge, LegalityBadge } from './deck-display-icons';
 import { CardName } from '@/components/shared/CardName';
@@ -120,7 +120,7 @@ export function CategorySection({
   empty?: string;
   currency: CurrencyCode;
   showPrefs: ShowPrefs;
-  onRowClick: (name: string) => void;
+  onRowClick: (name: string, slotId?: string) => void;
   onRemoveCard?: (slotId: string) => void;
   onSetQty?: (card: ScryfallCard, qty: number, opts?: { relative?: boolean }) => void;
   /** Format's singleton-ness — the ⋮ menu's "Add another copy" ceiling. */
@@ -239,7 +239,7 @@ export function CategorySection({
           row={entry.item}
           currency={currency}
           showPrefs={showPrefs}
-          onClick={() => onRowClick(entry.item.name)}
+          onClick={() => onRowClick(entry.item.name, peekSlotOf(entry.item))}
           onRemoveCard={entry.leaving ? undefined : onRemoveCard}
           onSetQty={entry.leaving ? undefined : onSetQty}
           isSingleton={isSingleton}
@@ -643,6 +643,7 @@ function DeckCardRow({
       <li
         className={rowClass}
         data-peek-name={row.name}
+        data-peek-slot={peekSlotOf(row)}
         onContextMenu={leaving || !onRowContextMenu ? undefined : (e) => onRowContextMenu(row, e)}
         aria-hidden={leaving ? true : undefined}
         ref={setLiRef}

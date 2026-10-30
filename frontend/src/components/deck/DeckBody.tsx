@@ -21,7 +21,7 @@ export interface DeckBodyCtx {
   binderByCopyId: DeckDisplayProps['binderByCopyId'];
   /** Hover + touch peek handlers for a list container. */
   listHandlers: HTMLAttributes<HTMLElement>;
-  openPreview: (rowName: string) => void;
+  openPreview: (rowName: string, slotId?: string) => void;
   openCardMenu: (zone: DeckZone) => (row: Row, e: React.MouseEvent) => void;
   openCardMenuAt: (zone: DeckZone) => (row: Row, trigger: HTMLElement) => void;
   cardMenuCtx: (row: Row, zone: DeckZone) => DeckCardActionCtx;

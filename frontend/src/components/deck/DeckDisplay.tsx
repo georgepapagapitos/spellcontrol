@@ -56,7 +56,7 @@ import { buttonClass } from '@/components/shared/Button';
 import type { DeckDisplayProps } from './deck-display-types';
 import { VIEW_HEADINGS } from '@/lib/deck-analysis/deck-view';
 import type { AnalysisTabId } from '@/lib/deck-analysis/deck-view';
-import { buildInspectorCard, bindQtyToZone } from './deck-display-derive';
+import { buildInspectorCard, bindQtyToZone, flatIndexOf } from './deck-display-derive';
 import { buildCardMenuCtx, buildBulkActions } from './deck-display-actions';
 import { useDeckFlatIndex, useDeckOutzone } from './use-deck-zone-views';
 import { useDeckCompleteMoment } from './use-deck-complete-moment';
@@ -395,10 +395,10 @@ export function DeckDisplay(props: DeckDisplayProps) {
   // all, and `computePeekPlacement` already clamps into whatever room
   // exists). See `useTouchPeek` for the full gesture-coexistence contract.
   const touchPeek = useTouchPeek();
-  const openPreview = (rowName: string) => {
+  const openPreview = (rowName: string, slotId?: string) => {
     hoverPeek.clear(); // the carousel supersedes the transient peek
     touchPeek.clear();
-    const i = flat.indexByName.get(rowName);
+    const i = flatIndexOf(flat, rowName, slotId);
     if (i !== undefined) setPreviewIndex(i);
   };
 
@@ -494,17 +494,17 @@ export function DeckDisplay(props: DeckDisplayProps) {
   // pointer" (`peek`) and the last non-null answer (`lastPeek`), so the panel
   // doesn't blink back to the commander in the gaps between rows.
   //
-  // `pinnedName` wins over the hover answer: reading a card's oracle text is a
+  // `pinned` wins over the hover answer: reading a card's oracle text is a
   // sustained act, and the pointer crossing another row must not interrupt it.
   // That is the whole reason a persistent panel beats a floating peek here.
   const inspectorActive = useMediaQuery(INSPECTOR_QUERY);
-  const [pinnedName, setPinnedName] = useState<string | null>(null);
+  const [pinned, setPinned] = useState<{ name: string; slotId?: string } | null>(null);
   const hoverKey = hoverPeek.lastPeek;
   const inspectorCard = useMemo<DeckCardInspectorCard | null>(
     () =>
       buildInspectorCard({
         inspectorActive,
-        pinnedName,
+        pinned,
         hoverKey,
         commander,
         flat,
@@ -515,7 +515,7 @@ export function DeckDisplay(props: DeckDisplayProps) {
       }),
     [
       inspectorActive,
-      pinnedName,
+      pinned,
       hoverKey,
       commander,
       flat,
@@ -801,9 +801,13 @@ export function DeckDisplay(props: DeckDisplayProps) {
                     <DeckCardInspector
                       card={inspectorCard}
                       currency={currency}
-                      pinned={pinnedName !== null}
+                      pinned={pinned !== null}
                       onTogglePin={() =>
-                        setPinnedName((prev) => (prev ? null : (inspectorCard?.row.name ?? null)))
+                        setPinned((prev) =>
+                          prev || !inspectorCard
+                            ? null
+                            : { name: inspectorCard.row.name, slotId: inspectorCard.row.slotIds[0] }
+                        )
                       }
                       onOpen={openPreview}
                       actions={{

@@ -2,7 +2,7 @@ import { createPortal } from 'react-dom';
 import { useEffect, useState } from 'react';
 import './DeckHoverPeek.css';
 import { ImageOff } from 'lucide-react';
-import type { buildFlatIndex } from './deck-display-derive';
+import { flatIndexOf, type buildFlatIndex } from './deck-display-derive';
 
 /** How long the touch variant waits with no `imageUrl` before treating it as
  *  a genuine miss (vs. still resolving) and swapping the shimmer for a "no
@@ -93,10 +93,10 @@ export function DeckTouchPeek({
   peek,
   flat,
 }: {
-  peek: { name: string; img?: string; left: number; top: number; width: number };
+  peek: { name: string; img?: string; slotId?: string; left: number; top: number; width: number };
   flat: ReturnType<typeof buildFlatIndex>;
 }) {
-  const i = flat.indexByName.get(peek.name);
+  const i = flatIndexOf(flat, peek.name, peek.slotId);
   const card = i !== undefined ? flat.cards[i] : undefined;
   return createPortal(
     <DeckHoverPeek

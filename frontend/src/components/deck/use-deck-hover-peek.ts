@@ -30,6 +30,9 @@ export interface HoverPeekState {
    *  when absent the consumer resolves art by name. Also the dedupe key, so two
    *  same-named printings don't collapse into one peek. */
   img?: string;
+  /** The hovered row's slot (`data-peek-slot`), so a name in two places
+   *  resolves to the row under the pointer. */
+  slotId?: string;
   left: number;
   top: number;
   /** Viewport-responsive px width; the component sets it inline so the CSS box
@@ -103,8 +106,10 @@ export function useDeckHoverPeek({ minViewport = 0, anchor = 'pointer' }: HoverP
       // An explicit per-element image (a printing sub-row) is also the dedupe
       // key, so moving between same-named printings still re-pins the peek.
       const img = el.dataset.peekImg;
-      const prevKey = peekRef.current ? (peekRef.current.img ?? peekRef.current.name) : undefined;
-      if ((img ?? name) === prevKey) return;
+      const slotId = el.dataset.peekSlot;
+      const prev = peekRef.current;
+      const prevKey = prev ? (prev.img ?? prev.slotId ?? prev.name) : undefined;
+      if ((img ?? slotId ?? name) === prevKey) return;
       const vw = window.innerWidth;
       const width = peekWidth(vw);
       const height = Math.round(width * CARD_ASPECT);
@@ -113,7 +118,7 @@ export function useDeckHoverPeek({ minViewport = 0, anchor = 'pointer' }: HoverP
         anchor === 'pointer' && pointer
           ? computePointerPlacement(pointer.x, pointer.y, viewport, width, height)
           : computePeekPlacement(el.getBoundingClientRect(), viewport, width, height);
-      const next = { name, img, left, top, width };
+      const next = { name, img, slotId, left, top, width };
       setPeek(next);
       setLastPeek(next);
     },

@@ -30,6 +30,7 @@ import {
   type Row,
   type TypedGroup,
 } from './deck-display-rows';
+import { peekSlotOf } from './deck-display-derive';
 import { allocationSummary, countedPrice, proxyMarkQty } from './deck-row-allocation';
 import { SectionIcon } from './deck-display-icons';
 import { FoilShimmer } from '../shared/FoilShimmer';
@@ -134,7 +135,7 @@ export function DeckCardGrid({
   rowHasMenu,
 }: {
   groups: TypedGroup[];
-  onRowClick: (name: string) => void;
+  onRowClick: (name: string, slotId?: string) => void;
   /** 'grid' (default) wraps tiles in an auto-fill grid per section; 'stacks'
    *  renders each section as one overlapped column of tiles. */
   layout?: 'grid' | 'stacks';
@@ -429,9 +430,10 @@ export function DeckCardGrid({
                         });
                         return;
                       }
-                      onRowClick(row.name);
+                      onRowClick(row.name, peekSlotOf(row));
                     }}
                     data-peek-name={row.name}
+                    data-peek-slot={peekSlotOf(row)}
                     aria-label={`${row.name} (${row.qty} in deck, ${allocationSummary(row)})`}
                   >
                     {row.imageNormal ? (

@@ -19,6 +19,8 @@ export interface TouchPeekState {
    *  when absent the consumer resolves art by name, same contract as the
    *  hover-peek hook. */
   img?: string;
+  /** The pressed row's slot (`data-peek-slot`), same contract as hover. */
+  slotId?: string;
   left: number;
   top: number;
   width: number;
@@ -71,7 +73,7 @@ export function useTouchPeek() {
     const viewport = { width: vw, height: window.innerHeight };
     const { left, top } = computePeekPlacement(el.getBoundingClientRect(), viewport, width, height);
     fired.current = true;
-    setPeek({ name, img: el.dataset.peekImg, left, top, width });
+    setPeek({ name, img: el.dataset.peekImg, slotId: el.dataset.peekSlot, left, top, width });
   }, []);
 
   const longPress = useLongPress({

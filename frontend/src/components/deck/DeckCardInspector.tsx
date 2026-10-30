@@ -82,7 +82,7 @@ export function DeckCardInspector({
   currency: CurrencyCode;
   pinned: boolean;
   onTogglePin: () => void;
-  onOpen?: (name: string) => void;
+  onOpen?: (name: string, slotId?: string) => void;
   actions?: DeckCardInspectorActions;
 }) {
   const roles = useMemo(
@@ -117,7 +117,7 @@ export function DeckCardInspector({
           type="button"
           className="deck-card-inspector-art"
           aria-label={`Open ${row.name}`}
-          onClick={() => onOpen?.(row.name)}
+          onClick={() => onOpen?.(row.name, row.slotIds[0])}
         >
           {card.imageUrl ? (
             <img src={card.imageUrl} alt="" draggable={false} />
