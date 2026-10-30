@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { memoByArgs } from '@/lib/util/memo-by-args';
 import { useDecksStore, newDeckCard, type Deck, type DeckCard } from '@/store/decks';
 import { allZoneSlots } from '@/store/deck-zones';
 import { useCollectionStore } from '@/store/collection';
@@ -30,8 +31,12 @@ export * from './allocations-core';
 export function useAllocations(): Map<string, AllocationInfo> {
   const decks = useDecksStore((s) => s.decks);
   const cubes = useCubeStore((s) => s.saved);
-  return useMemo(() => buildAllocationMap(decks, cubes), [decks, cubes]);
+  return useMemo(() => buildAllocationMapShared(decks, cubes), [decks, cubes]);
 }
+
+// One map per (decks, cubes) for every caller, so what is derived from it
+// (the allocated copy ids, the spare-copy decoration) shares identity too (E1049).
+const buildAllocationMapShared = memoByArgs(buildAllocationMap);
 
 // SURPLUS_KEEP_COPIES / computeSurplusByName moved to ./allocations-core (pure,
 // store-free) so lib/collection/collection-insights.ts can compute the same tradeable-

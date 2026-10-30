@@ -257,13 +257,15 @@ export interface SetSummary {
 export type SetMap = Record<string, SetSummary>;
 
 let setMapPromise: Promise<SetMap> | null = null;
+/** The loaded map, once there is one. */
+let setMapResolved: SetMap | undefined;
 
 /** Fetches the Scryfall set list (cached per page-load). Resolves to a map keyed by uppercase set code. */
 export function getSetMap(): Promise<SetMap> {
   if (!setMapPromise) {
     setMapPromise = fetchWithTimeout('/api/sets', { method: 'GET' })
       .then((r) => handleResponse<{ sets: SetMap }>(r))
-      .then((j) => j.sets)
+      .then((j) => (setMapResolved = j.sets))
       .catch((err) => {
         setMapPromise = null;
         throw err;
@@ -274,8 +276,12 @@ export function getSetMap(): Promise<SetMap> {
 
 /** React hook that resolves the set map once per mount (cached globally). */
 export function useSetMap(): SetMap | undefined {
-  const [map, setMap] = useState<SetMap | undefined>(undefined);
+  // Starts from the loaded map when there is one. Starting at undefined on every
+  // mount changed `setMap` a beat later, and each binder consumer materialized
+  // the whole collection a second time (E1049).
+  const [map, setMap] = useState<SetMap | undefined>(setMapResolved);
   useEffect(() => {
+    if (setMapResolved) return;
     let cancelled = false;
     getSetMap()
       .then((m) => {

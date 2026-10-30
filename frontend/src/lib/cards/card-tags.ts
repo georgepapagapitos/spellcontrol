@@ -20,6 +20,7 @@
  */
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { logger } from '@/lib/util/logger';
+import { memoByArgs } from '@/lib/util/memo-by-args';
 import { isExpressionEmpty } from '@spellcontrol/binder-routing';
 import type { BinderDef, BinderFilter, BinderFilterGroup, EnrichedCard } from '@/types/index';
 
@@ -277,7 +278,13 @@ export function useCardsWithTags(cards: EnrichedCard[], usesTags: boolean): Enri
   // every render would re-trigger downstream materialize unnecessarily. `ready`
   // flips once on load, which is the only time the module index changes.
   return useMemo(
-    () => (usesTags && ready ? decorateWithTags(cards) : cards),
+    () => (usesTags && ready ? decorateWithTagsShared(cards, tagsByName) : cards),
     [cards, usesTags, ready]
   );
 }
+
+// One decorated array per (cards, tag index) for every caller, so surfaces that
+// decorate the same collection agree on its identity (E1049).
+const decorateWithTagsShared = memoByArgs((cards: EnrichedCard[], _index: unknown) =>
+  decorateWithTags(cards)
+);

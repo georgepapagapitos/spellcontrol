@@ -79,8 +79,12 @@ function renderRail(enabled = true) {
 
 describe('TrendingRail', () => {
   // The remembered rail shape is written from an effect that can land after a
-  // test's last await, so it is cleared at the START of each test, not the end.
-  beforeEach(() => localStorage.removeItem('sc-trending-shape'));
+  // test's last await, so it is reset at the START of each test, not the end.
+  // Every test starts from a remembered full section, so the skeleton is up
+  // while the fetch runs and `loaded()` (the skeleton leaving) proves it
+  // settled. A first visit reserves nothing, so with no shape `loaded()`
+  // returned at once and the tile tests raced the fetch (E1049).
+  beforeEach(() => localStorage.setItem('sc-trending-shape', '10'));
   afterEach(() => {
     vi.unstubAllGlobals();
     mockUseCardThumb.mockClear();
@@ -114,7 +118,6 @@ describe('TrendingRail', () => {
       'fetch',
       vi.fn(() => pending(new Response('{}')))
     );
-    localStorage.setItem('sc-trending-shape', '10');
     renderRail();
     expect(screen.getByText('Loading trending decks')).toBeTruthy();
     expect(screen.queryByRole('status')).toBeTruthy();
@@ -129,6 +132,7 @@ describe('TrendingRail', () => {
       'fetch',
       vi.fn(() => pending(new Response('{}')))
     );
+    localStorage.removeItem('sc-trending-shape');
     const { container } = renderRail();
     expect(container.querySelector('.trending-rail')).toBeNull();
   });

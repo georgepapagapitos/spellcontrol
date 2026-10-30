@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { memoByArgs } from '@/lib/util/memo-by-args';
 import { decorateWithSpareCopies } from '@spellcontrol/binder-routing';
 import type { BinderDef, BinderFilterGroup, EnrichedCard } from '@/types/index';
 
@@ -28,7 +29,10 @@ export function useCardsWithSpareCopies(
   active: boolean
 ): EnrichedCard[] {
   return useMemo(
-    () => (active ? decorateWithSpareCopies(cards, allocatedCopyIds) : cards),
+    () => (active ? decorateWithSpareCopiesShared(cards, allocatedCopyIds) : cards),
     [cards, allocatedCopyIds, active]
   );
 }
+
+// Shared across callers by input identity (E1049).
+const decorateWithSpareCopiesShared = memoByArgs(decorateWithSpareCopies);

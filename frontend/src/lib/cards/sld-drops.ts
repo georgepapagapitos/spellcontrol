@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { pickClosestDrop, type SortEntry } from '@spellcontrol/binder-routing';
+import { memoByArgs } from '@/lib/util/memo-by-args';
 
 /**
  * Secret Lair drop identification (E140). Scryfall lumps every Secret Lair
@@ -106,6 +107,8 @@ export function decorateSldDrops<
 }
 
 let sldDropsPromise: Promise<SldDropsIndex | null> | null = null;
+/** The settled map, once the load has finished (undefined until then). */
+let sldDropsResolved: SldDropsIndex | null | undefined;
 
 /**
  * Loads the drop map once per page-load. Resolves to null when the snapshot
@@ -117,6 +120,7 @@ export function getSldDrops(): Promise<SldDropsIndex | null> {
     sldDropsPromise = fetch('/sld-drops.json')
       .then((r) => (r.ok ? r.json() : null))
       .then((json) => (json ? parseSldDrops(json) : null))
+      .then((index) => (sldDropsResolved = index))
       .catch(() => {
         sldDropsPromise = null;
         return null;
@@ -152,15 +156,26 @@ export function useCardsWithSldDrops<
 >(cards: T[], usesDrops: boolean): T[] {
   const index = useSldDrops();
   return useMemo(
-    () => (usesDrops ? decorateSldDrops(cards, index) : cards),
+    () => (usesDrops ? (decorateSldDropsShared(cards, index) as T[]) : cards),
     [cards, usesDrops, index]
   );
 }
 
+// Shared across callers by (cards, drop index) (E1049).
+const decorateSldDropsShared = memoByArgs(
+  (
+    cards: { setCode: string; collectorNumber: string; releasedAt?: string }[],
+    index: SldDropsIndex | null | undefined
+  ) => decorateSldDrops(cards, index)
+);
+
 /** React hook for the drop map: undefined while loading, null if unavailable. */
 export function useSldDrops(): SldDropsIndex | null | undefined {
-  const [index, setIndex] = useState<SldDropsIndex | null | undefined>(undefined);
+  // Starts from the loaded map when there is one: starting at undefined on every
+  // mount re-derived and re-materialized each consumer once more (E1049).
+  const [index, setIndex] = useState<SldDropsIndex | null | undefined>(sldDropsResolved);
   useEffect(() => {
+    if (sldDropsResolved !== undefined) return;
     let cancelled = false;
     getSldDrops().then((i) => {
       if (!cancelled) setIndex(i);
