@@ -11,6 +11,7 @@ import { useCardsWithReleaseDates, bindersUseReleaseDates } from '@/lib/cards/ca
 import { useCardsWithSpareCopies, bindersUseSpareCopies } from './spare-copies';
 import { useAllocations } from '@/lib/collection/allocations';
 import { useSetMap, type SetMap } from '@/lib/api';
+import { memoByArgs } from '@/lib/util/memo-by-args';
 import type { BinderDef, EnrichedCard } from '@/types/index';
 
 /**
@@ -40,6 +41,13 @@ export interface BinderLayoutInputs {
   settled: boolean;
 }
 
+// Every caller shares one Set per allocation map. A Set per hook instance gave
+// each surface its own `allocatedCopyIds`, so the materialize memo, keyed on
+// it, missed for every one of them (E1049).
+const allocatedIdsOf = memoByArgs(
+  (allocations: Map<string, unknown>): ReadonlySet<string> => new Set(allocations.keys())
+);
+
 /**
  * `rawCards` → tags → release dates → Secret Lair drops, plus the allocation
  * map and set map — exactly `pages/BinderPage.tsx`'s own chain, extracted so
@@ -50,7 +58,7 @@ export function useBinderLayoutInputs(): BinderLayoutInputs {
   const rawCards = useCollectionStore((s) => s.cards);
   const binders = useCollectionStore((s) => s.binders);
   const allocations = useAllocations();
-  const allocatedCopyIds = useMemo(() => new Set(allocations.keys()), [allocations]);
+  const allocatedCopyIds = useMemo(() => allocatedIdsOf(allocations), [allocations]);
 
   // No-op (returns its input by reference) unless a binder actually uses the
   // corresponding rule/sort — each decoration only costs what it's for.

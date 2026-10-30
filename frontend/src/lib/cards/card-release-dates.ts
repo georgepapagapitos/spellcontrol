@@ -31,6 +31,7 @@
  */
 
 import { useMemo } from 'react';
+import { memoByArgs } from '@/lib/util/memo-by-args';
 import type { EnrichedCard, SortEntry } from '@spellcontrol/binder-routing';
 
 const LS_KEY = 'spellcontrol:card-release-dates';
@@ -129,5 +130,13 @@ export function useCardsWithReleaseDates(
   cards: EnrichedCard[],
   usesDates: boolean
 ): EnrichedCard[] {
-  return useMemo(() => (usesDates ? decorateReleaseDates(cards) : cards), [cards, usesDates]);
+  return useMemo(
+    () => (usesDates ? decorateReleaseDatesShared(cards, cache.size) : cards),
+    [cards, usesDates]
+  );
 }
+
+// Shared across callers by (cards, how many dates have loaded) (E1049).
+const decorateReleaseDatesShared = memoByArgs(
+  <T extends { scryfallId?: string }>(cards: T[], _loaded: number) => decorateReleaseDates(cards)
+);
