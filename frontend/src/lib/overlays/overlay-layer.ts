@@ -217,6 +217,17 @@ function participantCount(): number {
   return layerStack.filter((entry) => entry.dismiss).length;
 }
 
+/**
+ * Whether a dismissable surface (a sheet, a modal, the scanner) is already
+ * open. Read during a Modal's first render, before its own layer registers,
+ * so `true` means the modal is opening ON TOP of something and has to clear
+ * that surface's z tier (see Modal.tsx). Menus and tooltips don't count: they
+ * pass no dismiss and close as the modal they launched opens.
+ */
+export function hasOpenSurface(): boolean {
+  return participantCount() > 0;
+}
+
 const overlayHistory = createOverlayHistoryController({
   participantCount,
   dismissTopmost: dismissTopmostParticipant,

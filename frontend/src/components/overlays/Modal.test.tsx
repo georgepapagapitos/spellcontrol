@@ -64,6 +64,34 @@ describe('Modal focus management', () => {
     expect(document.body.querySelector('.modal-backdrop--over-sheet')).not.toBeNull();
   });
 
+  it('lifts itself over a surface that is already open, and only then', () => {
+    const { unmount } = render(
+      <Modal onClose={() => {}} label="Alone">
+        <button type="button">x</button>
+      </Modal>
+    );
+    expect(document.body.querySelector('.modal-backdrop--over-sheet')).toBeNull();
+    unmount();
+
+    // The inner modal mounts after the outer one's layer registered: a
+    // confirm raised from inside a sheet. It must not need an opt-in class.
+    const nest = (inner: boolean) => (
+      <Modal onClose={() => {}} label="Outer">
+        {inner && (
+          <Modal onClose={() => {}} label="Inner">
+            <button type="button">y</button>
+          </Modal>
+        )}
+      </Modal>
+    );
+    const { rerender } = render(nest(false));
+    rerender(nest(true));
+    const inner = screen.getByRole('dialog', { name: 'Inner' });
+    const outer = screen.getByRole('dialog', { name: 'Outer' });
+    expect(inner.parentElement?.classList.contains('modal-backdrop--over-sheet')).toBe(true);
+    expect(outer.parentElement?.classList.contains('modal-backdrop--over-sheet')).toBe(false);
+  });
+
   it('wraps Tab from the last focusable to the first, and Shift+Tab from first to last', () => {
     render(
       <Modal onClose={() => {}} label="Test">

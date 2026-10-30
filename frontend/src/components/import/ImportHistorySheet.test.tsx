@@ -59,6 +59,9 @@ describe('ImportHistorySheet (T153 — moved off the add-cards flow)', () => {
 
     const heading = screen.getByRole('heading', { name: 'Delete 1 import?' });
     const dialog = heading.closest('[role="dialog"]') as HTMLElement;
+    // Opened from the sheet's footer, so it has to clear the sheet's
+    // --z-overlay tier; without the lift it rendered behind the sheet.
+    expect(dialog.parentElement?.classList.contains('modal-backdrop--over-sheet')).toBe(true);
     // Truthful about Undo — deleteImports() always follows with a toast
     // offering one, so the old "This can't be undone" contradicted it.
     expect(within(dialog).getByText(/You can undo from the toast/)).toBeTruthy();
