@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import {
   analyzeCastability,
+  analyzeCastabilitySliced,
   candidateShortfalls,
   costChangingCommander,
   wilsonUpper,
@@ -146,5 +147,31 @@ describe('candidateShortfalls', () => {
     expect(withProbe.mana).toEqual(plain.mana);
     expect(withProbe.probes).toHaveLength(1);
     expect(plain.probes).toEqual([]);
+  });
+});
+
+describe('analyzeCastabilitySliced', () => {
+  // As one task, 4,000 games blocked every tap on the deck page for over half
+  // a second on a mid-range phone. The sliced run must give the main thread
+  // back between slices and still produce the exact same report.
+  it('yields between slices and reports exactly what the one-shot run does', async () => {
+    const { commanders, library } = brago(BRAGO_TAPPED_DUALS);
+    const timeout = vi.spyOn(globalThis, 'setTimeout');
+    try {
+      const sliced = await analyzeCastabilitySliced(commanders, library, () => false);
+      const yields = timeout.mock.calls.filter(([, ms]) => !ms).length;
+      expect(yields).toBeGreaterThan(1);
+      expect(sliced).toEqual(analyzeCastability(commanders, library));
+    } finally {
+      timeout.mockRestore();
+    }
+  });
+
+  it('resolves null once cancelled', async () => {
+    let cancelled = false;
+    const { commanders, library } = brago(BRAGO_TAPPED_DUALS);
+    const run = analyzeCastabilitySliced(commanders, library, () => cancelled);
+    cancelled = true;
+    expect(await run).toBeNull();
   });
 });

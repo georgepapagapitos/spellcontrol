@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { analyzeCastability, type CastabilityReport } from '@/lib/deck-analysis/castability';
+import { analyzeCastabilitySliced, type CastabilityReport } from '@/lib/deck-analysis/castability';
 
 /**
  * The castability report for a deck, computed after the panel paints.
  *
- * 4,000 goldfish games take about 150 ms for a 100-card list, so they run off
- * the render: the stats show at once and this block joins them a moment
- * later. Until then, and for a deck with no spells to measure, it returns
+ * 4,000 goldfish games take about 150 ms for a 100-card list (over half a
+ * second on a mid-range phone), so they run off the render and in slices that
+ * yield the main thread: the stats show at once, taps stay responsive, and
+ * this block joins them a moment later. Until then, and for a deck with no spells to measure, it returns
  * null. A result is tagged with the list it was computed for, so an answer
  * for the previous list is never shown for the next one.
  *
@@ -26,13 +27,24 @@ export function useCastability(
 
   useEffect(() => {
     if (library.length === 0) return;
-    const run = () => setResult({ key, report: analyzeCastability(commanders, library) });
+    let cancelled = false;
+    const run = () => {
+      void analyzeCastabilitySliced(commanders, library, () => cancelled).then((report) => {
+        if (report) setResult({ key, report });
+      });
+    };
     if (typeof window.requestIdleCallback === 'function') {
       const id = window.requestIdleCallback(run, { timeout: 1500 });
-      return () => window.cancelIdleCallback(id);
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback(id);
+      };
     }
     const id = window.setTimeout(run, 0);
-    return () => window.clearTimeout(id);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(id);
+    };
   }, [key, commanders, library]);
 
   return result?.key === key && result.report.measured > 0 ? result.report : null;
