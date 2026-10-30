@@ -9,7 +9,9 @@ import {
   type ManaCost,
   type CardCastability,
   type ManaSymbol,
+  type ManaSimResult,
 } from '@/lib/mana-sim';
+import { simulateManaDeckSteps } from '@/lib/mana-sim/engine';
 
 /**
  * "Can I cast my spells?" per card, for the Color panel: which spells miss
@@ -148,7 +150,44 @@ export function analyzeCastability(
   library: readonly ScryfallCard[],
   games = CASTABILITY_GAMES
 ): CastabilityReport {
-  const result = evaluateManabase({ commanders, library }, { games });
+  return castabilityReport(evaluateManabase({ commanders, library }, { games }));
+}
+
+/** Milliseconds of simulation per slice, checked between turns. */
+const SLICE_MS = 6;
+
+const yieldToBrowser = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+
+/**
+ * {@link analyzeCastability} run in slices that hand the main thread back
+ * every few milliseconds. 4,000 games are ~150 ms at full speed and well over
+ * half a second on a mid-range phone, and as one task they blocked every tap
+ * on the deck page while they ran. The games are the same (each draws from
+ * its seed and index, and a yield changes no state), so the report is too.
+ * Resolves null once `isCancelled` turns true.
+ */
+export async function analyzeCastabilitySliced(
+  commanders: readonly ScryfallCard[],
+  library: readonly ScryfallCard[],
+  isCancelled: () => boolean,
+  games = CASTABILITY_GAMES
+): Promise<CastabilityReport | null> {
+  const slice = { until: 0 };
+  const steps = simulateManaDeckSteps(compileManaDeck({ commanders, library }), {
+    games,
+    budget: slice,
+  });
+  let step: IteratorResult<void, ManaSimResult>;
+  do {
+    if (isCancelled()) return null;
+    slice.until = performance.now() + SLICE_MS;
+    step = steps.next();
+    if (!step.done) await yieldToBrowser();
+  } while (!step.done);
+  return isCancelled() ? null : castabilityReport(step.value);
+}
+
+function castabilityReport(result: ManaSimResult): CastabilityReport {
   const measuredRows = [
     ...result.commanders.map((r) => ({ r, commander: true })),
     ...result.cards.map((r) => ({ r, commander: false })),
