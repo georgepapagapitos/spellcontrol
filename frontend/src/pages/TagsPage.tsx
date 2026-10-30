@@ -195,6 +195,14 @@ export function TagsPage() {
                 </button>
               </p>
             </div>
+          ) : !ready && !hasSelection ? (
+            // The full-page list is about to fill the screen: hold the viewport
+            // so the footer isn't painted mid-screen and then shoved away
+            // (CLS 0.55 on desktop, E1049). Inside the 40vh panel a line will do.
+            <div className="page-loader page-loader--message" role="status" aria-live="polite">
+              <span className="spinner" aria-hidden="true" />
+              <span className="page-loader-message">Loading tags…</span>
+            </div>
           ) : !ready ? (
             <p className="tags-page-status" role="status">
               Loading tags…

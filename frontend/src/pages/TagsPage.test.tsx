@@ -122,6 +122,22 @@ describe('TagsPage', () => {
     expect(screen.getByRole('status').textContent).toContain('Loading tags…');
   });
 
+  // The full-page list fills the screen once it lands. A one-line loader let
+  // the footer paint mid-screen and then get shoved away: CLS 0.55 on desktop
+  // (E1049). It must hold the viewport like the route loader does.
+  it('holds the viewport while the full-page list loads, and keeps a line in the panel', () => {
+    readyRef.value = false;
+    const { unmount } = renderPage();
+    expect(screen.getByRole('status').classList.contains('page-loader')).toBe(true);
+    unmount();
+
+    renderPage('/tags?t=removal');
+    fireEvent.click(screen.getByRole('button', { name: 'Add another tag' }));
+    const status = screen.getByRole('status');
+    expect(status.textContent).toContain('Loading tags…');
+    expect(status.classList.contains('page-loader')).toBe(false);
+  });
+
   it('shows an error with retry when the snapshot fetch failed', () => {
     readyRef.value = false;
     errorRef.value = true;
