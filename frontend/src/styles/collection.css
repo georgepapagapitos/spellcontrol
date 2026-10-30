@@ -1490,10 +1490,25 @@ i.ss.set-symbol--mythic {
 }
 
 /* Art not painted yet (a lazy <img> is blank until it loads): the placeholder
-   keeps the name and a card-shaped shimmer, behind the image. */
+   keeps the name and a card-shaped shimmer, behind the image.
+   Off screen it skips rendering, shimmer included (the shimmer is its
+   ::before, so it is part of what is skipped). Overscan tiles hold lazy art
+   that never loads until scrolled near, and their shimmer repainted every
+   frame out of sight: an idle collection grid kept the main thread busy 2.3 s
+   of every 3 s at 4x CPU (E1049). The <img> is a sibling, so lazy loading is
+   unaffected. */
 .collection-grid-placeholder.is-pending {
   position: absolute;
   inset: 0;
+  isolation: isolate;
+  content-visibility: auto;
+}
+
+.collection-grid-placeholder.is-pending::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
   background: linear-gradient(
     110deg,
     var(--surface-raised) 35%,
@@ -1506,7 +1521,7 @@ i.ss.set-symbol--mythic {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .collection-grid-placeholder.is-pending {
+  .collection-grid-placeholder.is-pending::before {
     animation: none;
   }
 }

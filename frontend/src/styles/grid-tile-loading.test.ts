@@ -24,12 +24,14 @@ describe('grid tile loading placeholder', () => {
     const body = rule('.collection-grid-placeholder.is-pending');
     expect(body).toContain('position: absolute');
     expect(body).toContain('inset: 0');
-    expect(body).toContain('animation: skeleton-shimmer');
+    expect(rule('.collection-grid-placeholder.is-pending::before')).toContain(
+      'animation: skeleton-shimmer'
+    );
   });
 
   it('is still under reduced motion', () => {
     const at = css.indexOf(
-      '@media (prefers-reduced-motion: reduce) {\n  .collection-grid-placeholder.is-pending'
+      '@media (prefers-reduced-motion: reduce) {\n  .collection-grid-placeholder.is-pending::before'
     );
     expect(at).toBeGreaterThan(-1);
     expect(css.slice(at, at + 160)).toContain('animation: none');
@@ -52,5 +54,19 @@ describe('grid tile loading placeholder', () => {
     expect(cell).toContain('printing && rarityOnArt && (');
     const tile = readFileSync(join(here, '../components/share/SharedCardTile.tsx'), 'utf8');
     expect(tile).toContain('rarityOnArt={false}');
+  });
+});
+
+// Overscan tiles below the fold hold lazy art that never loads until scrolled
+// near, so their shimmer ran out of sight forever and repainted every frame:
+// an idle collection grid kept the main thread busy 2.3 s of every 3 s at 4x
+// CPU (E1049). Off screen the placeholder, and the shimmer in its ::before,
+// skip rendering. Not the tile: that hid the lazy <img> from the loader too,
+// and art arrived later after a scroll.
+describe('a pending placeholder off screen', () => {
+  it('skips rendering, shimmer included', () => {
+    expect(rule('.collection-grid-placeholder.is-pending')).toContain('content-visibility: auto');
+    expect(rule('.collection-grid-placeholder.is-pending::before')).toContain('animation:');
+    expect(rule('.collection-grid-item')).not.toContain('content-visibility');
   });
 });
