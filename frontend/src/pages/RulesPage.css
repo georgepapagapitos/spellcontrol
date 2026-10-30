@@ -37,6 +37,12 @@
   align-self: flex-start;
 }
 
+/* While the rules bundle loads (RulesPage.tsx): hold the viewport, like
+   .page-loader, so nothing below the body paints in view and then moves. */
+.rules-page-body--loading {
+  min-height: 100dvh;
+}
+
 /* ── Section strip + the reference, page-shaped ── */
 .rules-page-tabs {
   margin: 0;

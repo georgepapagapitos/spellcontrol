@@ -94,6 +94,10 @@ export function RulesPage() {
         onTabChange={setTab}
         onQueryChange={setQuery}
         showTabs={false}
+        // Until the bundle lands the body holds the viewport, so the foot and
+        // the footer aren't painted mid-screen and then shoved away (CLS 0.17
+        // on desktop, E1049). Page-only: the in-game sheet keeps its line.
+        bodyClassName={bundle === null ? 'rules-page-body--loading' : undefined}
         // Search's keyword row opens its rule with the subrules showing,
         // the way a keyword in card text opens the sheet.
         initialExpanded={(location.state as { expand?: string } | null)?.expand}

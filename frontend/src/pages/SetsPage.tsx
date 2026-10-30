@@ -46,6 +46,7 @@ import { SearchPill } from '@/components/search/SearchPill';
 import { ViewModeToggle } from '@/components/shared/ViewModeToggle';
 import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import { useCollectionStore } from '../store/collection';
+import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
 import { useToastsStore } from '../store/toasts';
 import { CardPreview } from '@/components/card/CardPreview';
 import { RarityBadge } from '../components/shared/RarityBadge';
@@ -279,6 +280,13 @@ function CardMatchGroup({
 
 function SetsIndex() {
   const cards = useCollectionStore((s) => s.cards);
+  const hydrating = useCollectionStore((s) => s.hydrating);
+  const awaitingFirstPull = useAwaitingFirstPull();
+  // The collection is still arriving (local hydrate, or a fresh device's first
+  // pull): show the loader, not "No sets to track yet." The empty state used to
+  // flash for a frame on every visit, and the short page parked the footer
+  // mid-screen before the sets shoved it away (CLS 0.15 on desktop, E1049).
+  const loadingCollection = hydrating || (cards.length === 0 && awaitingFirstPull);
   const setMap = useSetMap();
   const sldIndex = useSldDrops();
   const [query, setQuery] = useState('');
@@ -341,7 +349,12 @@ function SetsIndex() {
             (completeCount > 0 ? ` · ${completeCount} complete` : '')
       }
     >
-      {progress.length === 0 ? (
+      {loadingCollection ? (
+        <div className="page-loader page-loader--message" role="status" aria-live="polite">
+          <span className="spinner" aria-hidden="true" />
+          <span className="page-loader-message">Loading your collection…</span>
+        </div>
+      ) : progress.length === 0 ? (
         <EmptyState
           tagline="No sets to track yet."
           hint="Add or import cards and your set completion shows up here."

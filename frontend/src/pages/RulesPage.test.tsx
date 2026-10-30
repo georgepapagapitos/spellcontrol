@@ -5,6 +5,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { RulesPage } from './RulesPage';
 
 vi.mock('@/lib/cards/comprehensive-rules', async (importOriginal) => {
@@ -224,5 +226,23 @@ describe('RulesPage — a keyword row says that it opens', () => {
     expect(head.querySelector('.rules-ref-keyword-chevron')!.getAttribute('data-open')).toBe(
       'true'
     );
+  });
+});
+
+// Until the bundle lands, the body holds the viewport so the foot and the
+// footer aren't painted mid-screen and then shoved away (CLS 0.17 on desktop,
+// E1049). The class is page-scoped: the in-game sheet keeps its plain line.
+describe('RulesPage while the bundle loads', () => {
+  it('reserves the viewport for the body, then lets it go', async () => {
+    renderPage();
+    const body = document.querySelector('.rules-ref-body')!;
+    expect(body.classList.contains('rules-page-body--loading')).toBe(true);
+    await screen.findAllByRole('button', { name: /Deathtouch/ });
+    expect(body.classList.contains('rules-page-body--loading')).toBe(false);
+  });
+
+  it('sizes the loading body to the viewport', () => {
+    const css = readFileSync(path.resolve(__dirname, 'RulesPage.css'), 'utf8');
+    expect(css).toMatch(/\.rules-page-body--loading\s*\{[^}]*min-height:\s*100dvh/);
   });
 });
