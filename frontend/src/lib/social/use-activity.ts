@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { useAuth } from '@/store/auth';
 import {
   getActivity,
@@ -12,9 +12,8 @@ import type { InboxShareRow } from './share-client';
 
 // Module-level fan-out for in-session count-increase announcements — same
 // shape as use-inbox.ts's own markInboxSeen() listener Set — so the one
-// mounted ActivityLiveRegion announces regardless of which useActivity()
-// instance (Header, MobileTabBar, or the live region itself) detected the
-// increase first.
+// mounted ActivityLiveRegion announces whichever component triggered the
+// fetch that saw the increase.
 const announceListeners = new Set<(count: number) => void>();
 
 function announce(count: number): void {
@@ -67,11 +66,100 @@ export function computeActivityCount(
   );
 }
 
+interface ActivitySnapshot {
+  actionRequired: ActionRequiredItem[];
+  recent: RecentActivityItem[];
+  following: FollowedDeckPublishedActivityItem[];
+  /** Whether a fetch has settled at least once since the first consumer mounted. */
+  hasFetched: boolean;
+}
+
+const EMPTY: ActivitySnapshot = {
+  actionRequired: [],
+  recent: [],
+  following: [],
+  hasFetched: false,
+};
+
+// One shared feed for every consumer. Header, MobileTabBar, ActivityLiveRegion
+// (and Home or the social hub when open) each used to run their own fetch and
+// focus listener, so every boot and every window focus sent three to five
+// identical GET /api/activity, and an increase was detected (and announced)
+// once per consumer.
+let snapshot: ActivitySnapshot = EMPTY;
+const storeListeners = new Set<() => void>();
+let consumers = 0;
+let inflight: Promise<void> | null = null;
+// Latest inbox last-seen mark any consumer rendered with, for the increase
+// check in the fetch callback (a mark change recomputes, never refetches).
+let inboxSeenAtForCount = 0;
+// null = no fetch has resolved since the first consumer mounted, so the
+// announce-on-increase comparison never fires on mount.
+let previousCount: number | null = null;
+
+function setSnapshot(next: ActivitySnapshot): void {
+  snapshot = next;
+  storeListeners.forEach((fn) => fn());
+}
+
+function subscribe(fn: () => void): () => void {
+  storeListeners.add(fn);
+  return () => {
+    storeListeners.delete(fn);
+  };
+}
+
+const getSnapshot = (): ActivitySnapshot => snapshot;
+
+/** Fetch the feed, sharing a request that is already in flight. */
+function refetch(): Promise<void> {
+  if (inflight) return inflight;
+  const run = getActivity()
+    .then((data) => {
+      if (inflight !== run) return; // every consumer left (sign-out) mid-fetch
+      const nextCount = computeActivityCount(data.actionRequired, data.recent, inboxSeenAtForCount);
+      if (previousCount !== null && nextCount > previousCount) announce(nextCount);
+      previousCount = nextCount;
+      setSnapshot({
+        actionRequired: data.actionRequired,
+        recent: data.recent,
+        following: data.following ?? [],
+        hasFetched: true,
+      });
+    })
+    .catch(() => {
+      /* silently ignore — the badge stays at its last known count */
+      if (inflight === run && !snapshot.hasFetched) setSnapshot({ ...snapshot, hasFetched: true });
+    })
+    .finally(() => {
+      if (inflight === run) inflight = null;
+    });
+  inflight = run;
+  return run;
+}
+
+const onFocus = () => void refetch();
+
+/** An authed consumer mounted: fetch (shared), and listen for focus while any is mounted. */
+function acquire(): () => void {
+  if (consumers++ === 0) window.addEventListener('focus', onFocus);
+  void refetch();
+  return () => {
+    if (--consumers > 0) return;
+    // The last consumer left (sign-out, or a test unmounting): drop the feed
+    // so the next account never sees this one's badge.
+    window.removeEventListener('focus', onFocus);
+    inflight = null;
+    previousCount = null;
+    setSnapshot(EMPTY);
+  };
+}
+
 /**
  * The one badge source of truth (social program W2) — replaces
  * Header.tsx/MobileTabBar.tsx's separate useFriendRequests() + useInbox()
- * calls with a single fetch of GET /api/activity. Fetches on mount + window
- * focus, only when authed (identical cadence to useInbox/useFriendRequests).
+ * calls with a single GET /api/activity, shared by every consumer. Fetches
+ * when a consumer mounts and on window focus, only when authed.
  * Also the hook W3's Home consumes for the actual feed, not just the count.
  */
 export function useActivity(): {
@@ -89,66 +177,20 @@ export function useActivity(): {
 } {
   const status = useAuth((s) => s.status);
   const inboxSeenAt = useInboxSeenAt();
-  // The effect below only depends on [status] (a lastSeen change must not
-  // trigger a refetch, just a recompute) — so its async .then() reads the
-  // freshest lastSeen via this ref rather than closing over a stale one.
-  // Written in an effect, never during render (refs aren't render state).
-  const inboxSeenAtRef = useRef(inboxSeenAt);
+  const authed = status === 'authed';
   useEffect(() => {
-    inboxSeenAtRef.current = inboxSeenAt;
+    inboxSeenAtForCount = inboxSeenAt;
   }, [inboxSeenAt]);
-  const [actionRequired, setActionRequired] = useState<ActionRequiredItem[]>([]);
-  const [recent, setRecent] = useState<RecentActivityItem[]>([]);
-  const [following, setFollowing] = useState<FollowedDeckPublishedActivityItem[]>([]);
-  // Whether the (authed-only) fetch has settled at least once this session —
-  // set only inside the promise's .finally(), never synchronously in the
-  // effect body, so react-hooks/set-state-in-effect has nothing to flag
-  // (same shape as DiscoverDecksPage's own mount-fetch effect). `loading`
-  // itself is derived below, not stored: a guest is never "loading" no
-  // matter what this flag holds.
-  const [hasFetched, setHasFetched] = useState(false);
-  // null = no fetch has resolved yet this session — the announce-on-increase
-  // comparison never fires against it, so mount never announces.
-  const previousCountRef = useRef<number | null>(null);
+  useEffect(() => (authed ? acquire() : undefined), [authed]);
 
-  useEffect(() => {
-    if (status !== 'authed') return;
-    let cancelled = false;
-
-    const refetch = () => {
-      getActivity()
-        .then((data) => {
-          if (cancelled) return;
-          setActionRequired(data.actionRequired);
-          setRecent(data.recent);
-          setFollowing(data.following ?? []);
-          const nextCount = computeActivityCount(
-            data.actionRequired,
-            data.recent,
-            inboxSeenAtRef.current
-          );
-          if (previousCountRef.current !== null && nextCount > previousCountRef.current) {
-            announce(nextCount);
-          }
-          previousCountRef.current = nextCount;
-        })
-        .catch(() => {
-          /* silently ignore — badge stays at last known count, same
-             convention as useInbox/useFriendRequests */
-        })
-        .finally(() => {
-          if (!cancelled) setHasFetched(true);
-        });
-    };
-
-    refetch();
-    window.addEventListener('focus', refetch);
-    return () => {
-      cancelled = true;
-      window.removeEventListener('focus', refetch);
-    };
-  }, [status]);
-
-  const count = computeActivityCount(actionRequired, recent, inboxSeenAt);
-  return { count, actionRequired, recent, following, loading: status === 'authed' && !hasFetched };
+  const shared = useSyncExternalStore(subscribe, getSnapshot);
+  const feed = authed ? shared : EMPTY;
+  const count = computeActivityCount(feed.actionRequired, feed.recent, inboxSeenAt);
+  return {
+    count,
+    actionRequired: feed.actionRequired,
+    recent: feed.recent,
+    following: feed.following,
+    loading: authed && !feed.hasFetched,
+  };
 }

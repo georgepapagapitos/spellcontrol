@@ -238,4 +238,61 @@ describe('useActivity', () => {
 
     unsubscribe();
   });
+
+  // Header, MobileTabBar and ActivityLiveRegion are all mounted at once on
+  // every signed-in page. Each used to fetch on mount and on focus, and each
+  // detected (and announced) an increase on its own.
+  describe('shared across consumers', () => {
+    function mountThree() {
+      return [0, 1, 2].map(() => renderHook(() => useActivity()));
+    }
+
+    it('sends one request for every consumer on mount and on focus', async () => {
+      getActivityMock.mockImplementation(() =>
+        Promise.resolve({ actionRequired: [friendRequest('r1')], recent: [] })
+      );
+      const hooks = mountThree();
+      await waitFor(() => hooks.forEach((h) => expect(h.result.current.count).toBe(1)));
+      expect(getActivityMock).toHaveBeenCalledTimes(1);
+
+      await fireFocus();
+      await waitFor(() => expect(getActivityMock).toHaveBeenCalledTimes(2));
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(getActivityMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('announces an increase once, not once per consumer', async () => {
+      const announced: number[] = [];
+      const unsubscribe = subscribeToActivityAnnouncements((n) => announced.push(n));
+      getActivityMock.mockResolvedValueOnce({ actionRequired: [friendRequest('r1')], recent: [] });
+      const hooks = mountThree();
+      await waitFor(() => expect(hooks[0].result.current.count).toBe(1));
+
+      getActivityMock.mockResolvedValueOnce({
+        actionRequired: [friendRequest('r1'), friendRequest('r2')],
+        recent: [],
+      });
+      await fireFocus();
+      await waitFor(() => hooks.forEach((h) => expect(h.result.current.count).toBe(2)));
+      expect(announced).toEqual([2]);
+      unsubscribe();
+    });
+
+    it('drops the feed when the last consumer unmounts', async () => {
+      getActivityMock.mockResolvedValue({ actionRequired: [friendRequest('r1')], recent: [] });
+      const first = renderHook(() => useActivity());
+      await waitFor(() => expect(first.result.current.count).toBe(1));
+      first.unmount();
+
+      let settle: (v: ActivityResponse) => void = () => {};
+      getActivityMock.mockReturnValue(new Promise((resolve) => (settle = resolve)));
+      const next = renderHook(() => useActivity());
+      expect(next.result.current.count).toBe(0);
+      expect(next.result.current.loading).toBe(true);
+      await act(async () => settle({ actionRequired: [], recent: [] }));
+      next.unmount();
+    });
+  });
 });
