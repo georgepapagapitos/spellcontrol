@@ -44,6 +44,16 @@ describe('deck row room', () => {
     expect(name).not.toMatch(/white-space:\s*nowrap/);
   });
 
+  // "Vandalblast" beside a proxy tag rendered "Vandalblas" / "t" (2026-10-30):
+  // `anywhere` lets a squeezed name split mid-word. A word breaks only when it
+  // alone is wider than the cell, and a proxied name gets a line for its tag.
+  it('never splits a word that fits the cell', () => {
+    const name = rule('.deck-row-name-text');
+    expect(name).toMatch(/overflow-wrap:\s*break-word/);
+    expect(name).not.toMatch(/anywhere|break-all/);
+    expect(rule('.deck-row-name-text:has(> .deck-row-proxy-tag)')).toMatch(/line-clamp:\s*3/);
+  });
+
   it("keeps qty, mana and price on the name's first line", () => {
     expect(rule('.deck-row')).toMatch(/align-items:\s*first baseline/);
     expect(rule('.deck-row-name')).toMatch(/align-items:\s*first baseline/);

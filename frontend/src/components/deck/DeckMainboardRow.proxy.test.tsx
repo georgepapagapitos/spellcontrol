@@ -56,6 +56,8 @@ describe('a proxy row in the deck list', () => {
     renderDeck([{ slotId: 's1', card: dryad, allocatedCopyId: null, proxy: true }]);
     expect(tag()?.textContent).toBe('proxy');
     expect(tag()?.closest('.deck-row-hovermeta')).toBeNull();
+    // Inside the name text, so it wraps as a word instead of squeezing the name.
+    expect(tag()?.parentElement?.classList.contains('deck-row-name-text')).toBe(true);
     expect(tag()?.getAttribute('title')).toBe('Played as a proxy');
     expect(document.querySelector('.deck-row-qty-missing')).toBeNull();
   });
