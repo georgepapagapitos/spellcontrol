@@ -100,3 +100,31 @@ describe('release and take back a sideboard copy', () => {
     );
   });
 });
+
+describe('Use my copy on an In the box card', () => {
+  // Odds & Ends: the box holds display Yennett #1019; a free #2121 is another card.
+  const display = { name: 'Yennett, Cryptic Sovereign', id: 'sf-1019' } as ScryfallCard;
+  const copyOf = (copyId: string, scryfallId: string) =>
+    ({ copyId, name: display.name, scryfallId }) as EnrichedCard;
+  const boxDeck = () =>
+    makeDeck({ extras: [{ slotId: 'box', card: display, allocatedCopyId: null }] });
+  const boxHook = (collectionCards: EnrichedCard[]) =>
+    renderHook(() => useDeckReallocation({ deck: current(), collectionCards })).result;
+
+  it('takes only a copy of its own printing', () => {
+    useDecksStore.setState({ decks: [boxDeck()] });
+    const result = boxHook([copyOf('c2121', 'sf-2121')]);
+    act(() => result.current.handleUseOwnCopy(display));
+    expect(current().extras![0].allocatedCopyId).toBeNull();
+    expect(useToastsStore.getState().toasts.at(-1)?.message).toBe(
+      'No free copy of Yennett, Cryptic Sovereign in this printing to use.'
+    );
+  });
+
+  it('binds the copy of its printing when one is free', () => {
+    useDecksStore.setState({ decks: [boxDeck()] });
+    const result = boxHook([copyOf('c2121', 'sf-2121'), copyOf('c1019', 'sf-1019')]);
+    act(() => result.current.handleUseOwnCopy(display));
+    expect(current().extras![0].allocatedCopyId).toBe('c1019');
+  });
+});
