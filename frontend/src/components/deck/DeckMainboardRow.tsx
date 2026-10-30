@@ -635,6 +635,10 @@ function DeckCardRow({
           and the set beside it. The stored card can be a printing you never
           chose (an import once picked a renamed crossover printing). */}
       <CardName card={row} oracleFirst />
+      {/* Inside the text, not beside it: it wraps like a word, so a name
+          never gives up its width to the tag and split mid-word
+          ("Vandalblas|t"). */}
+      <ProxyTag row={row} />
     </span>
   );
 
@@ -777,7 +781,6 @@ ${row.card.type_line}`}
             </Chip>
           )}
           {legalityIssue && <LegalityBadge issue={legalityIssue} className="deck-row-illegal" />}
-          <ProxyTag row={row} />
           {/* User tags (E171) — always visible when set (never hover-gated,
               unlike the system-derived hints below): a card's own tags are
               user-authored content, and staying visible is exactly what
