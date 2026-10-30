@@ -215,11 +215,6 @@ export async function ensureSchema(): Promise<void> {
       PRIMARY KEY (user_id, id)
     );
     CREATE INDEX IF NOT EXISTS user_decks_rev_idx ON user_decks(user_id, rev);
-    -- A copy of a public deck carries forkedFrom.slug. Those live copies are
-    -- the deck's copy count and a trending signal (publications/copies.ts).
-    CREATE INDEX IF NOT EXISTS user_decks_forked_from_idx
-      ON user_decks ((data->'forkedFrom'->>'slug'))
-      WHERE deleted_at IS NULL AND (data->'forkedFrom'->>'slug') IS NOT NULL;
     CREATE TABLE IF NOT EXISTS user_games (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       id TEXT NOT NULL,

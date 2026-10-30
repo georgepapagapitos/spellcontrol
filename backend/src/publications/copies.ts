@@ -14,7 +14,7 @@ import { getPool } from '../db';
  * `slugs` recounts just those decks (a sync push that added copies). With no
  * argument it recounts every deck, which is what a deleted copy needs (the
  * tombstone no longer says which deck it came from). Only rows whose count
- * actually changed are written. Uses user_decks_forked_from_idx.
+ * actually changed are written. Uses user_decks_forked_from_slug_idx.
  */
 export async function recountDeckCopies(slugs?: string[]): Promise<void> {
   await getPool().query(
@@ -24,7 +24,7 @@ export async function recountDeckCopies(slugs?: string[]): Promise<void> {
          SELECT p.slug, count(DISTINCT ud.user_id)::int AS n
            FROM deck_publications p
            LEFT JOIN user_decks ud
-             ON (ud.data->'forkedFrom'->>'slug') = p.slug
+             ON ud.forked_from_slug = p.slug
             AND ud.deleted_at IS NULL
             AND ud.user_id <> p.user_id
           WHERE $1::text[] IS NULL OR p.slug = ANY($1)

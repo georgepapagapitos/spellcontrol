@@ -141,11 +141,11 @@ export async function loadEngagementEvents(now: number): Promise<EngagementEvent
                      AND g.data->'players' @> jsonb_build_array(jsonb_build_object('deckId', copies.deck_id))
                 )
            FROM (
-             SELECT ud.data->'forkedFrom'->>'slug' AS slug, ud.user_id AS actor_id, ud.id AS deck_id,
+             SELECT ud.forked_from_slug AS slug, ud.user_id AS actor_id, ud.id AS deck_id,
                     CASE WHEN ud.data->>'createdAt' ~ '^[0-9]{1,15}$'
                          THEN (ud.data->>'createdAt')::bigint END AS at
                FROM user_decks ud
-              WHERE ud.deleted_at IS NULL AND (ud.data->'forkedFrom'->>'slug') IS NOT NULL
+              WHERE ud.deleted_at IS NULL AND ud.forked_from_slug IS NOT NULL
            ) copies
           WHERE copies.at > $1
        ) e ON e.slug = p.slug

@@ -1,8 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import type { Pool } from 'pg';
 import { createTestEnv } from '../test-helpers';
 import { forkedFromSlug, recountDeckCopies } from './copies';
 import { refreshDeckPublications } from './sync-hook';
+
+const SRC = path.resolve(__dirname, '..');
 
 let pool: Pool;
 let cleanup: () => Promise<void>;
@@ -113,6 +117,52 @@ describe('the sync hook recounts copies', () => {
       { kind: 'deck', id: 'hook-copy', rev: 2, deletedAt: 2 },
     ]);
     expect(await copyCount('hook-deck')).toBe(0);
+  });
+});
+
+describe('user_decks.forked_from_slug', () => {
+  async function storedSlug(userId: string, deckId: string): Promise<string | null> {
+    const { rows } = await pool.query<{ forked_from_slug: string | null }>(
+      `SELECT forked_from_slug FROM user_decks WHERE user_id = $1 AND id = $2`,
+      [userId, deckId]
+    );
+    return rows[0].forked_from_slug;
+  }
+
+  it('follows the data blob through insert, edit and delete', async () => {
+    await seedUser('gen-a');
+    await copyInto('gen-a', 'gen-1', 'gen-deck');
+    expect(await storedSlug('gen-a', 'gen-1')).toBe('gen-deck');
+
+    await pool.query(`UPDATE user_decks SET data = $1 WHERE user_id = 'gen-a' AND id = 'gen-1'`, [
+      JSON.stringify({ name: 'No longer a copy' }),
+    ]);
+    expect(await storedSlug('gen-a', 'gen-1')).toBeNull();
+
+    await pool.query(
+      `UPDATE user_decks SET data = NULL, deleted_at = 2 WHERE user_id = 'gen-a' AND id = 'gen-1'`
+    );
+    expect(await storedSlug('gen-a', 'gen-1')).toBeNull();
+  });
+
+  // The copy and trending scans read the generated column. Reading the slug
+  // out of the blob at query time detoasts every deck in the table, which the
+  // planner can't see (it costed that seq scan at ~8 against 150 ms real).
+  it('is the only way a query reads the fork slug', () => {
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (/\.ts$/.test(entry.name) && !/\.test\.ts$/.test(entry.name)) {
+          const src = readFileSync(full, 'utf8');
+          if (/data\s*->\s*'forkedFrom'/.test(src)) offenders.push(path.relative(SRC, full));
+        }
+      }
+    };
+    walk(SRC);
+    // The generated column's own definition is the one allowed reader.
+    expect(offenders).toEqual(['db/schema-deck-fork-slug.ts']);
   });
 });
 
