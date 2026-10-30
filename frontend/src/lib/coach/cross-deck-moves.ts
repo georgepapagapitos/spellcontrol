@@ -93,6 +93,20 @@ interface DeckProfile {
   names: Set<string>;
 }
 
+// Deck objects are replaced on every edit, never mutated, so a profile holds
+// for as long as its deck object lives. Without this, every edit re-analysed
+// the synergy of every sibling deck, not just the one that changed (E1049).
+const profileCache = new WeakMap<Deck, DeckProfile>();
+
+function profileOf(deck: Deck): DeckProfile {
+  let profile = profileCache.get(deck);
+  if (!profile) {
+    profile = buildProfile(deck);
+    profileCache.set(deck, profile);
+  }
+  return profile;
+}
+
 function buildProfile(deck: Deck): DeckProfile {
   const synergy: DeckSynergy = analyzeDeckSynergy(deck.cards.map((c) => c.card));
   return {
@@ -146,7 +160,7 @@ export function findCrossDeckMoves(
 ): CrossDeckMove[] {
   if (decks.length < 2) return [];
 
-  const profiles = decks.map(buildProfile);
+  const profiles = decks.map(profileOf);
 
   // Names with at least one FREE (unallocated) copy — if the moved card's own
   // name is in here, a sibling deck can just claim the spare copy directly;

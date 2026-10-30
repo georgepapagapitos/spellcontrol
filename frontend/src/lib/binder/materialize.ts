@@ -40,7 +40,14 @@ const OPTION_KEYS: (keyof MaterializeOptions)[] = [
 const recent: Entry[] = [];
 const LIMIT = 4;
 
-export function materializeBinders(cards: Args[0], defs: Args[1], opts: Args[2]): Result {
+export function materializeBinders(cards: Args[0], defs: Args[1], given: Args[2]): Result {
+  // Only a binder with `hideDeckAllocated === false` reads the allocated ids.
+  // Without one they change nothing, so they stay out of the key: every deck
+  // edit rebuilds the allocation map, and each one re-laid the whole
+  // collection out for an identical answer (E1049).
+  const opts = defs.some((d) => d.hideDeckAllocated === false)
+    ? given
+    : { ...given, allocatedCopyIds: undefined };
   const hit = recent.find(
     (e) => e.cards === cards && e.defs === defs && OPTION_KEYS.every((k) => e.opts[k] === opts[k])
   );

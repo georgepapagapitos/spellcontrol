@@ -53,10 +53,32 @@ describe('materializeBinders memo', () => {
     expect(materializeBinders([...cards], defs, { search: '' })).not.toBe(base);
     expect(materializeBinders(cards, [...defs], { search: '' })).not.toBe(base);
     expect(materializeBinders(cards, defs, { search: 'llan' })).not.toBe(base);
-    expect(materializeBinders(cards, defs, { search: '', allocatedCopyIds: new Set() })).not.toBe(
-      base
-    );
     // Bounded: the window never grows past its limit.
     expect(__testing.recent.length).toBeLessThanOrEqual(4);
+  });
+
+  // Every deck edit rebuilds the allocation map, so `allocatedCopyIds` is a new
+  // Set each time. Only a binder that swallows deck-allocated copies reads it;
+  // for any other binder a new Set re-laid the whole collection out for an
+  // identical answer, about 175 ms per edit at 4x CPU on 9.7k cards (E1049).
+  it('ignores the allocated ids when no binder reads them', () => {
+    const cards = [card('Llanowar Elves', 'c1')];
+    const defs = [def];
+    const base = materializeBinders(cards, defs, { search: '', allocatedCopyIds: new Set() });
+    expect(materializeBinders(cards, defs, { search: '', allocatedCopyIds: new Set(['c1']) })).toBe(
+      base
+    );
+  });
+
+  it('recomputes on new allocated ids when a binder swallows allocated copies', () => {
+    const cards = [card('Llanowar Elves', 'c1')];
+    const defs = [{ ...def, hideDeckAllocated: false }];
+    const base = materializeBinders(cards, defs, { search: '', allocatedCopyIds: new Set() });
+    const swallowed = materializeBinders(cards, defs, {
+      search: '',
+      allocatedCopyIds: new Set(['c1']),
+    });
+    expect(swallowed).not.toBe(base);
+    expect(swallowed.binders[0].totalCards).toBe(0);
   });
 });
