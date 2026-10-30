@@ -163,6 +163,18 @@ where every section lives.
     plus `margin-top: var(--space-5)`. No box, no divider, no extra title.
   - **Neither pile feeds stats, legality, mana or the role lens**, which
     never dims their rows.
+  - **In the box is a third pile, shown only when it has a card (2026-10-30).**
+    It holds a box's physical extras that are not played, such as a precon's
+    display commander or a Secret Lair's oversized one (`Deck.extras`, icon
+    `Package`). Its cards claim a copy like any slot, so the whole box is
+    accounted for. It is the exception to "an empty pile stays on the page":
+    nothing in the deck moves there, so an empty one would be a header every
+    deck carries for the few that came with extras. Cards reach it from a
+    product import, the add sheet's "In the box" zone, or the Edit menu's "Add
+    the rest of the box" on a deck built from a product. Its rows can be
+    removed, re-counted and given or released a copy; they cannot be moved into
+    the deck, tagged, proxied or seated as commander. The hero counts it as "+N
+    in the box", and it feeds nothing the other two piles don't.
 - **`BinderTabs.tsx` is a deliberate, permanent exception to "all tabbed
   surfaces go through `Tabs.tsx`" above (E164).** It hand-rolls plain
   `<button className="tab">` elements instead of the primitive because each

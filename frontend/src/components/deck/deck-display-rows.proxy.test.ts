@@ -84,8 +84,13 @@ describe('the proxy marks', () => {
 
   it('marks the preview card a proxy only when every copy in the row is one', () => {
     const previewOf = (cards: DeckDisplayCard[]) =>
-      buildFlatIndex([{ title: 'Creature', icon: '', rows: [rowFor(cards)] }], [], [], new Map())
-        .cards[0];
+      buildFlatIndex(
+        [{ title: 'Creature', icon: '', rows: [rowFor(cards)] }],
+        [],
+        [],
+        [],
+        new Map()
+      ).cards[0];
     expect(previewOf([proxy]).proxy).toBe(true);
     expect(previewOf([ownedSlot, proxy]).proxy).toBeFalsy();
     expect(previewOf([ownedSlot]).proxy).toBeFalsy();

@@ -1079,6 +1079,7 @@ describe('buildAllocationMap with physical cubes', () => {
         ],
         sideboard: [{ slotId: 's3', card: { name: 'Swords' } as never, allocatedCopyId: 'side' }],
         considering: [{ slotId: 's4', card: { name: 'Path' } as never, allocatedCopyId: 'maybe' }],
+        extras: [{ slotId: 's5', card: { name: 'Atraxa' } as never, allocatedCopyId: 'box' }],
       }),
       deck({ id: 'd2', commander: null, commanderAllocatedCopyId: 'stale' }),
     ];
@@ -1089,6 +1090,8 @@ describe('buildAllocationMap with physical cubes', () => {
     expect(collectAllocatedCopyIds(decks, cubes)).toEqual(
       new Set(buildAllocationMap(decks, cubes).keys())
     );
+    // Parity alone passes when both sides miss a zone; In the box must claim.
+    expect(buildAllocationMap(decks, cubes).has('box')).toBe(true);
   });
 
   it('ignores cube slots with no bound copy', () => {

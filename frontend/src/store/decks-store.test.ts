@@ -486,6 +486,48 @@ describe('useDecksStore — considering (E122)', () => {
   });
 });
 
+describe('useDecksStore — In the box (extras)', () => {
+  let id: string;
+  beforeEach(() => {
+    id = store().createDeck({ source: 'manual', commander: null });
+  });
+
+  it('a new deck has no In the box until a card goes there', () => {
+    expect(store().decks[0].extras).toBeUndefined();
+    store().addExtraCard(id, sfCard('Zada, Hedron Grinder'), 'copy-etched');
+    expect(store().decks[0].extras).toEqual([
+      expect.objectContaining({ allocatedCopyId: 'copy-etched' }),
+    ]);
+    expect(store().decks[0].cards).toEqual([]);
+  });
+
+  it('createDeck keeps the extras it is given', () => {
+    const withBox = store().createDeck({
+      source: 'manual',
+      commander: null,
+      extras: [deckCard('Zada, Hedron Grinder')],
+    });
+    expect(store().decks.find((d) => d.id === withBox)?.extras).toHaveLength(1);
+  });
+
+  it('a duplicate copies the box without its copy claims', () => {
+    store().addExtraCard(id, sfCard('Zada, Hedron Grinder'), 'copy-etched');
+    const copyId = store().duplicateDeck(id)!;
+    const original = store().decks.find((d) => d.id === id)!;
+    const copy = store().decks.find((d) => d.id === copyId)!;
+    expect(copy.extras).toHaveLength(1);
+    expect(copy.extras![0].allocatedCopyId).toBeNull();
+    expect(copy.extras![0].slotId).not.toBe(original.extras![0].slotId);
+    expect(original.extras![0].allocatedCopyId).toBe('copy-etched');
+  });
+
+  it('bulk remove takes a card out of the box', () => {
+    const slotId = store().addExtraCard(id, sfCard('Zada, Hedron Grinder'));
+    store().bulkRemoveCards(id, 'extras', [slotId]);
+    expect(store().decks[0].extras).toEqual([]);
+  });
+});
+
 describe('useDecksStore — commander setters', () => {
   let id: string;
   beforeEach(() => {

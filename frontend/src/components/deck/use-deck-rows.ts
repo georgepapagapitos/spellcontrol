@@ -26,6 +26,8 @@ interface Args {
   cards: DeckDisplayCard[];
   sideboard: DeckDisplayCard[];
   considering: DeckDisplayCard[];
+  /** In the box (`Deck.extras`): the box's physical extras. */
+  extras: DeckDisplayCard[];
   commander: ScryfallCard | null;
   partnerCommander: ScryfallCard | null | undefined;
   commanderAllocatedCopyId: string | null | undefined;
@@ -49,14 +51,15 @@ interface Args {
 
 /**
  * The deck's rows, grouped by the active lens and then filtered + sorted, for
- * the mainboard (with the commander rows leading), the sideboard and
- * Considering. Also the cross-deck context that tells "you don't own this"
+ * the mainboard (with the commander rows leading), the sideboard, Considering
+ * and In the box. Also the cross-deck context that tells "you don't own this"
  * from "you own it, but another deck has the copy claimed".
  */
 export function useDeckRows({
   cards,
   sideboard,
   considering,
+  extras,
   commander,
   partnerCommander,
   commanderAllocatedCopyId,
@@ -190,6 +193,14 @@ export function useDeckRows({
     ],
     [considering, rowsFor]
   );
+  // In the box shows only once it holds a card. Unlike the two piles above it
+  // is not a place a card moves to from the deck, so an empty one would be a
+  // header every deck carries for the few that came in a box with extras.
+  const extrasGroups = useMemo<TypedGroup[]>(
+    () =>
+      extras.length > 0 ? [{ title: 'In the box', icon: 'extras', rows: rowsFor(extras) }] : [],
+    [extras, rowsFor]
+  );
 
   const visibleGroups = useMemo(
     () => applyFilterSort(groups, search, sort, sortDir),
@@ -203,13 +214,19 @@ export function useDeckRows({
     () => applyFilterSort(consideringGroups, search, sort, sortDir),
     [consideringGroups, search, sort, sortDir]
   );
+  const visibleExtrasGroups = useMemo(
+    () => applyFilterSort(extrasGroups, search, sort, sortDir),
+    [extrasGroups, search, sort, sortDir]
+  );
 
-  // No card in the deck (main, sideboard, or considering) matches the current
-  // query — the cue to surface the "search Scryfall to add it" trigger.
-  const noDeckMatches =
-    !visibleGroups.some((g) => g.rows.length > 0) &&
-    !visibleSideboardGroups.some((g) => g.rows.length > 0) &&
-    !visibleConsideringGroups.some((g) => g.rows.length > 0);
+  // No card in the deck (any zone) matches the current query — the cue to
+  // surface the "search Scryfall to add it" trigger.
+  const noDeckMatches = [
+    visibleGroups,
+    visibleSideboardGroups,
+    visibleConsideringGroups,
+    visibleExtrasGroups,
+  ].every((groups) => !groups.some((g) => g.rows.length > 0));
 
   return {
     crossDeck,
@@ -217,6 +234,7 @@ export function useDeckRows({
     visibleGroups,
     visibleSideboardGroups,
     visibleConsideringGroups,
+    visibleExtrasGroups,
     noDeckMatches,
   };
 }

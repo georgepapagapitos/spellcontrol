@@ -4,6 +4,8 @@ import type { ProductPhysicalCard } from '@/types/index';
 import {
   groupPhysicalByZone,
   physicalCardsToUploadResponse,
+  productBoxExtras,
+  productCommanderFinish,
   zoneBreakdown,
   zoneLabel,
 } from './product-import';
@@ -79,5 +81,47 @@ describe('zoneLabel', () => {
   it('falls back to the raw zone name for unknown zones', () => {
     expect(zoneLabel('mainBoard')).toBe('Deck');
     expect(zoneLabel('bonusCards')).toBe('bonusCards');
+  });
+});
+
+describe('productBoxExtras', () => {
+  it('keeps the box cards outside the playable deck, without tokens, one per copy', () => {
+    const extras = productBoxExtras([
+      ...physical,
+      {
+        card: card('Sol Ring (alt art)', 'sol-alt'),
+        quantity: 2,
+        finish: 'foil',
+        zone: 'sideBoard',
+      },
+    ]);
+    expect(extras.map((e) => [e.card.name, e.finish])).toEqual([
+      ['Zada (etched)', 'etched'],
+      ['Sol Ring (alt art)', 'foil'],
+      ['Sol Ring (alt art)', 'foil'],
+    ]);
+  });
+
+  it('drops a token-layout card in any zone', () => {
+    const emblem = { ...card('Emblem', 'emb'), layout: 'emblem' } as ScryfallCard;
+    expect(
+      productBoxExtras([{ card: emblem, quantity: 1, finish: 'nonfoil', zone: 'sideBoard' }])
+    ).toEqual([]);
+  });
+
+  it('is empty for a box that is only the deck', () => {
+    expect(productBoxExtras(physical.filter((pc) => pc.zone !== 'displayCommander'))).toEqual([]);
+  });
+});
+
+describe('productCommanderFinish', () => {
+  it("reads the command-zone copy's finish, not a display copy's", () => {
+    const sameprinting: ProductPhysicalCard[] = [
+      { card: card('Zada', 'zada'), quantity: 1, finish: 'foil', zone: 'commander' },
+      { card: card('Zada', 'zada'), quantity: 1, finish: 'etched', zone: 'displayCommander' },
+    ];
+    expect(productCommanderFinish(sameprinting, 'zada')).toBe('foil');
+    expect(productCommanderFinish(sameprinting, 'missing')).toBeUndefined();
+    expect(productCommanderFinish(sameprinting, undefined)).toBeUndefined();
   });
 });

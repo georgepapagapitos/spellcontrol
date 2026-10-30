@@ -26,6 +26,8 @@ interface DeckEditorHeroProps {
     proxied: number;
     sideboard: number;
     considering: number;
+    /** In the box: the box's physical extras, like a display commander. */
+    extras: number;
   };
   bracketValue: number | undefined;
   heroBracket: ReturnType<typeof heroBracketReadout> | undefined;
@@ -157,6 +159,18 @@ export function DeckEditorHero({
                   aria-label={`${heroTotals.considering} being considered. Jump to the cards not in the deck.`}
                 >
                   {`+${heroTotals.considering}\u00A0considering`}
+                </a>
+              </>
+            )}
+            {heroTotals.extras > 0 && (
+              <>
+                {'\u00A0· '}
+                <a
+                  href="#deck-outzone"
+                  className="deck-hero-outzone-link"
+                  aria-label={`${heroTotals.extras} more in the box. Jump to the cards not in the deck.`}
+                >
+                  {`+${heroTotals.extras}\u00A0in\u00A0the\u00A0box`}
                 </a>
               </>
             )}

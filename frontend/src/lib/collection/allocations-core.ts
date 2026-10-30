@@ -11,6 +11,7 @@
 
 import { logger } from '@/lib/util/logger';
 import type { Deck, DeckCard } from '@/store/decks';
+import { DECK_SLOT_ZONES, allZoneSlots } from '@/store/deck-zones';
 import type { SavedCube } from '@/store/cube';
 import type { EnrichedCard, Finish } from '@/types/index';
 import { computeSpareCopyIds } from '@spellcontrol/binder-routing';
@@ -188,18 +189,12 @@ export function buildAllocationMap(
     if (deck.partnerCommander && deck.partnerCommanderAllocatedCopyId) {
       claim(deck.partnerCommanderAllocatedCopyId, deckClaim(deck, deck.partnerCommander.name));
     }
-    // `?? []`, as in dedupeDeckAllocations: the cube claim heal runs this on
-    // every decks write, including a partial or malformed synced row.
-    for (const c of deck.cards ?? []) {
-      if (c.allocatedCopyId) claim(c.allocatedCopyId, deckClaim(deck, c.card.name));
-    }
-    for (const c of deck.sideboard ?? []) {
-      if (c.allocatedCopyId) claim(c.allocatedCopyId, deckClaim(deck, c.card.name));
-    }
-    // Considering (E122) claims like every other zone: "checked out" so a card
-    // parked here can't be double-bound to a slot in another deck, and a donor
-    // for findStealableCopy.
-    for (const c of deck.considering ?? []) {
+    // Every zone claims, Considering (E122) and In the box included: "checked
+    // out" so a card parked there can't be double-bound to a slot in another
+    // deck, and a donor for findStealableCopy. `allZoneSlots` reads `?? []`,
+    // as dedupeDeckAllocations does: the cube claim heal runs this on every
+    // decks write, including a partial or malformed synced row.
+    for (const c of allZoneSlots(deck)) {
       if (c.allocatedCopyId) claim(c.allocatedCopyId, deckClaim(deck, c.card.name));
     }
   }
@@ -272,20 +267,19 @@ export function dedupeDeckAllocations(decks: Deck[]): { decks: Deck[]; changed: 
     // centralized subscriber), including sync-rehydrated rows whose shape a
     // test fixture or a stale/partial persisted blob might not fully match —
     // must not crash the app over a missing array field.
-    const cards = claimSlots(deck.cards ?? []);
-    const sideboard = claimSlots(deck.sideboard ?? []);
-    const considering = claimSlots(deck.considering ?? []);
-    const deckChanged =
-      cmd.changed || partner.changed || cards.changed || sideboard.changed || considering.changed;
-    if (!deckChanged) return deck;
+    let next: Deck | null = null;
+    for (const zone of DECK_SLOT_ZONES) {
+      const list = deck[zone];
+      if (!list) continue;
+      const claimedZone = claimSlots(list);
+      if (claimedZone.changed) (next ??= { ...deck })[zone] = claimedZone.slots;
+    }
+    if (!cmd.changed && !partner.changed && !next) return deck;
     anyChanged = true;
     return {
-      ...deck,
+      ...(next ?? deck),
       commanderAllocatedCopyId: cmd.copyId,
       partnerCommanderAllocatedCopyId: partner.copyId,
-      cards: cards.slots,
-      sideboard: sideboard.slots,
-      considering: considering.slots,
     };
   });
 

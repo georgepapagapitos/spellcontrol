@@ -82,6 +82,7 @@ export function DeckEditorLayout({
   coachApply,
   arrivals,
   renderers,
+  addBoxExtras,
   onCoachPreviewFit: handleCoachPreviewFit,
 }: {
   deck: Deck;
@@ -103,6 +104,8 @@ export function DeckEditorLayout({
   coachApply: ReturnType<typeof useDeckCoachApply>;
   arrivals: ReturnType<typeof useCoachArrivals>;
   renderers: ReturnType<typeof useDeckCardRenderers>;
+  /** The Edit menu's "Add the rest of the box" (`useAddBoxExtras`). */
+  addBoxExtras: (() => void) | undefined;
   onCoachPreviewFit: (change: Change) => Promise<void>;
 }) {
   const { safeView, viewTabs, isDesktop, cover } = chrome;
@@ -237,6 +240,7 @@ export function DeckEditorLayout({
             cards={deck.cards}
             sideboard={deck.sideboard}
             considering={deck.considering ?? []}
+            extras={deck.extras ?? []}
             onRemoveCard={handleRemoveCard}
             onRemoveSideboardCard={handleRemoveSideboardCard}
             onRemoveConsideringCard={handleRemoveConsideringCard}
@@ -366,6 +370,7 @@ export function DeckEditorLayout({
               resync: () => setResyncOpen(true),
               matchCopies: hasCopyMismatches ? () => void handleMatchMyCopies() : undefined,
               cheapestPrintings: hasMissingSlots ? () => void handleCheapestPrintings() : undefined,
+              boxExtras: addBoxExtras,
             })}
             suggestGroups={suggestGroups}
             onAddCards={handleToggleAddPanel}

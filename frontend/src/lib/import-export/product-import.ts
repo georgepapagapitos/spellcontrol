@@ -139,3 +139,42 @@ export function groupPhysicalByZone(physicalCards: ProductPhysicalCard[]): Produ
     };
   });
 }
+
+/** MTGJSON zones that make up the playable deck (backend `product-map.ts` DECK_ZONES). */
+const DECK_ZONES = new Set(['commander', 'mainBoard']);
+
+/** One physical copy, with the finish it ships in. */
+export interface ProductCopy {
+  card: ProductPhysicalCard['card'];
+  finish: ProductPhysicalCard['finish'];
+}
+
+/**
+ * The box's physical cards that are not part of the playable deck and not
+ * tokens (display commanders, the box's sideboard, planes, schemes), one entry
+ * per copy. A deck built from the product keeps these "In the box"
+ * (`Deck.extras`), so every card in the box claims its copy.
+ */
+export function productBoxExtras(physicalCards: ProductPhysicalCard[]): ProductCopy[] {
+  return physicalCards
+    .filter((pc) => !DECK_ZONES.has(pc.zone) && !isProductToken(pc))
+    .flatMap((pc) =>
+      Array.from({ length: Math.max(1, pc.quantity) }, () => ({
+        card: pc.card,
+        finish: pc.finish,
+      }))
+    );
+}
+
+/**
+ * The finish the box's command-zone copy of `cardId` ships in. A display
+ * commander is often the same printing in another finish, so the command zone
+ * claims its own finish and leaves the other copy for In the box.
+ */
+export function productCommanderFinish(
+  physicalCards: ProductPhysicalCard[],
+  cardId: string | undefined
+): ProductPhysicalCard['finish'] | undefined {
+  if (!cardId) return undefined;
+  return physicalCards.find((pc) => pc.zone === 'commander' && pc.card.id === cardId)?.finish;
+}

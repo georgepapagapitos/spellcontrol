@@ -25,7 +25,7 @@ export function useDeckHeroData({ deck, deckCards }: { deck: Deck; deckCards: Sc
   // is what they would add, so the hero can say what it left out.
   const proxyCopyIds = useProxyCopyIds();
   const heroTotals = useMemo(() => {
-    if (!deck) return { count: 0, value: 0, proxied: 0, sideboard: 0, considering: 0 };
+    if (!deck) return { count: 0, value: 0, proxied: 0, sideboard: 0, considering: 0, extras: 0 };
     const { value, proxied } = (void pricesVersion, ownDeckValue(deck, proxyCopyIds, currency));
     return {
       count: (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0) + deck.cards.length,
@@ -33,6 +33,7 @@ export function useDeckHeroData({ deck, deckCards }: { deck: Deck; deckCards: Sc
       proxied,
       sideboard: deck.sideboard.length,
       considering: (deck.considering ?? []).length,
+      extras: (deck.extras ?? []).length,
     };
   }, [deck, currency, pricesVersion, proxyCopyIds]);
 

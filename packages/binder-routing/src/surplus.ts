@@ -162,9 +162,10 @@ export function anyBinderUsesSpareCopies(binders: unknown): boolean {
 /**
  * Every copyId a deck or physical cube claims, from raw deck/cube JSON. The
  * same claim list as frontend `buildAllocationMap` (commander, partner,
- * mainboard, sideboard, considering; physical cubes' picks), without the
- * per-claim labels — the server has no store, so shared-binder projections
- * and the game-night trade board decide spare copies from this.
+ * mainboard, sideboard, considering, extras ("In the box"); physical cubes'
+ * picks), without the per-claim labels — the server has no store, so
+ * shared-binder projections and the game-night trade board decide spare
+ * copies from this.
  * `allocations.test.ts` pins it to `buildAllocationMap`'s key set.
  */
 export function collectAllocatedCopyIds(decks: unknown, cubes: unknown): Set<string> {
@@ -177,7 +178,7 @@ export function collectAllocatedCopyIds(decks: unknown, cubes: unknown): Set<str
     if (!deck) continue;
     if (deck.commander) add(deck.commanderAllocatedCopyId);
     if (deck.partnerCommander) add(deck.partnerCommanderAllocatedCopyId);
-    for (const zone of [deck.cards, deck.sideboard, deck.considering]) {
+    for (const zone of [deck.cards, deck.sideboard, deck.considering, deck.extras]) {
       for (const slot of asArray(zone)) add(asLoose(slot)?.allocatedCopyId);
     }
   }

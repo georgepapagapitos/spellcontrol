@@ -97,9 +97,20 @@ export function MainboardZoneSection({
   );
 }
 
+/** The pile a section's icon names. */
+const OUTZONE_OF_ICON: Record<string, DeckZone> = {
+  sideboard: 'sideboard',
+  considering: 'considering',
+  extras: 'extras',
+};
+
 /**
  * The same section as the deck's own, pointed at its pile's handlers. Roles
  * are not passed: the role lens counts the deck, so it never dims these.
+ *
+ * In the box holds the box's own cards, not swap or maybe cards: its rows can
+ * be removed, re-counted and given or released a copy, but not moved into the
+ * deck, tagged, proxied or seated as commander.
  */
 export function OutzoneZoneSection({
   group: g,
@@ -108,8 +119,12 @@ export function OutzoneZoneSection({
   collapsed,
   onToggleCollapsed,
 }: SectionProps) {
-  const zone: DeckZone = g.icon === 'sideboard' ? 'sideboard' : 'considering';
+  const zone: DeckZone = OUTZONE_OF_ICON[g.icon] ?? 'considering';
   const inSideboard = zone === 'sideboard';
+  const inBox = zone === 'extras';
+  const removeFromBox = host.onBulkRemove
+    ? (slotId: string) => host.onBulkRemove!('extras', [slotId])
+    : undefined;
   return (
     <CategorySection
       title={g.title}
@@ -120,35 +135,45 @@ export function OutzoneZoneSection({
       onToggleCollapsed={onToggleCollapsed}
       deckTags={ctx.deckTags}
       onSetRowTags={
-        host.onSetCardTags ? (slotIds, tags) => host.onSetCardTags!(zone, slotIds, tags) : undefined
+        host.onSetCardTags && !inBox
+          ? (slotIds, tags) => host.onSetCardTags!(zone, slotIds, tags)
+          : undefined
       }
       onRowContextMenu={ctx.openCardMenu(zone)}
       menuCtx={(row) => ctx.cardMenuCtx(row, zone)}
       currency={ctx.currency}
       showPrefs={ctx.showPrefs}
       onRowClick={ctx.openPreview}
-      onRemoveCard={inSideboard ? host.onRemoveSideboardCard : host.onRemoveConsideringCard}
+      onRemoveCard={
+        inSideboard
+          ? host.onRemoveSideboardCard
+          : inBox
+            ? removeFromBox
+            : host.onRemoveConsideringCard
+      }
       onSetQty={bindQtyToZone(host.onSetQty, zone)}
       selectMode={ctx.selectMode}
       isRowSelected={(row) => ctx.isRowSelected(zone, row)}
       onToggleRowSelected={(row) => ctx.toggleRowSelected(zone, row)}
       dragEnabled={ctx.dragEnabled}
       onReorder={bindReorderToZone(host.onReorder, zone)}
-      // Considering is copy-limit exempt (E122) regardless of format
-      // singleton rules — never the 1-copy cap `isSingleton ?? true` would
-      // otherwise fall back to.
+      // Considering (E122) and In the box are copy-limit exempt regardless of
+      // format singleton rules — never the 1-copy cap `isSingleton ?? true`
+      // would otherwise fall back to.
       isSingleton={inSideboard ? ctx.isSingleton : false}
       onEditCard={inSideboard ? host.onEditCard : undefined}
       legalityBySlot={ctx.legalityBySlot}
-      onMoveToMainboard={inSideboard ? host.onMoveToMainboard : host.onMoveFromConsidering}
+      onMoveToMainboard={
+        inSideboard ? host.onMoveToMainboard : inBox ? undefined : host.onMoveFromConsidering
+      }
       onMakeCommander={inSideboard ? host.onMakeCommander : undefined}
       canMakeCommander={host.canMakeCommander}
       onMakePartner={inSideboard ? host.onMakePartner : undefined}
       canMakePartner={host.canMakePartner}
       onMoveToAnotherDeck={inSideboard ? host.onMoveToAnotherDeck : undefined}
-      onReleaseCopy={inSideboard ? host.onReleaseCopy : undefined}
+      onReleaseCopy={inSideboard || inBox ? host.onReleaseCopy : undefined}
       onSetProxy={inSideboard ? host.onSetProxy : undefined}
-      onUseOwnCopy={inSideboard ? host.onUseOwnCopy : undefined}
+      onUseOwnCopy={inSideboard || inBox ? host.onUseOwnCopy : undefined}
       synergyByName={ctx.synergyByName}
       cardInclusionMap={host.cardInclusionMap}
       combosByOracle={host.combosByOracle}

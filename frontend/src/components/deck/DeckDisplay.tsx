@@ -16,7 +16,6 @@ import { useDeckMissing } from './use-deck-missing';
 import { DeckCardPreview } from './DeckCardPreview';
 import { DeckPrintList } from './DeckPrintList';
 import { createPortal } from 'react-dom';
-import type { ScryfallCard } from '@/deck-builder/types';
 import { DeckTagManager } from './DeckTagManager';
 import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
 import { scrollToHeading } from '@/lib/util/scroll-to-heading';
@@ -31,7 +30,6 @@ import { useDeckHoverPeek } from './use-deck-hover-peek';
 import { useTouchPeek } from '@/lib/overlays/use-touch-peek';
 import { useTaggerReady } from '@/lib/cards/use-tagger-ready';
 
-import { useRarityCorrections } from '@/lib/deck/use-rarity-corrections';
 import { NewArrivalsSheet } from './NewArrivalsSheet';
 import { ROLE_TITLES, type RoleKey } from '@/lib/deck-analysis/role-badges';
 import { useElementWidth } from '@/lib/util/use-element-width';
@@ -58,8 +56,9 @@ import { buttonClass } from '@/components/shared/Button';
 import type { DeckDisplayProps } from './deck-display-types';
 import { VIEW_HEADINGS } from '@/lib/deck-analysis/deck-view';
 import type { AnalysisTabId } from '@/lib/deck-analysis/deck-view';
-import { buildFlatIndex, buildInspectorCard, bindQtyToZone } from './deck-display-derive';
+import { buildInspectorCard, bindQtyToZone } from './deck-display-derive';
 import { buildCardMenuCtx, buildBulkActions } from './deck-display-actions';
+import { useDeckFlatIndex, useDeckOutzone } from './use-deck-zone-views';
 import { useDeckCompleteMoment } from './use-deck-complete-moment';
 import { DeckStatStrip, DeckBulkBar, DeckRoleBar, DeckEmptyState } from './DeckDisplayBands';
 
@@ -98,6 +97,7 @@ export function DeckDisplay(props: DeckDisplayProps) {
     cards,
     sideboard = [],
     considering = [],
+    extras = [],
     archetypeOverride,
     // deckGrade: removed from stat-strip (UX-315: one grading system; letter grades dropped)
     roleCounts,
@@ -241,11 +241,13 @@ export function DeckDisplay(props: DeckDisplayProps) {
     visibleGroups,
     visibleSideboardGroups,
     visibleConsideringGroups,
+    visibleExtrasGroups,
     noDeckMatches,
   } = useDeckRows({
     cards,
     sideboard,
     considering,
+    extras,
     commander,
     partnerCommander,
     commanderAllocatedCopyId,
@@ -370,31 +372,11 @@ export function DeckDisplay(props: DeckDisplayProps) {
   };
 
   // ── Card preview wiring ──────────────────────────────────────────────
-  // Re-resolve rarity for cards whose stored snapshot defaulted to 'common'
-  // (decks generated against the pre-#329 offline oracle). See the hook doc.
-  // All three zones, not just the mainboard: `flat` below applies these
-  // corrections to cards/sideboard/considering alike, so feeding only
-  // `visibleGroups` left a card that lives ONLY in the sideboard or in
-  // Considering stuck on its stale 'common' snapshot forever. The hook dedupes
-  // by oracle id internally, so the tag-grouped view's repeated rows cost
-  // nothing here.
-  const previewCards = useMemo<ScryfallCard[]>(
-    () =>
-      [...visibleGroups, ...visibleSideboardGroups, ...visibleConsideringGroups].flatMap((g) =>
-        g.rows.map((r) => r.card)
-      ),
-    [visibleGroups, visibleSideboardGroups, visibleConsideringGroups]
-  );
-  const rarityCorrections = useRarityCorrections(previewCards);
-  const flat = useMemo(
-    () =>
-      buildFlatIndex(
-        visibleGroups,
-        visibleSideboardGroups,
-        visibleConsideringGroups,
-        rarityCorrections
-      ),
-    [visibleGroups, visibleSideboardGroups, visibleConsideringGroups, rarityCorrections]
+  const flat = useDeckFlatIndex(
+    visibleGroups,
+    visibleSideboardGroups,
+    visibleConsideringGroups,
+    visibleExtrasGroups
   );
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -462,18 +444,14 @@ export function DeckDisplay(props: DeckDisplayProps) {
   const selectionTitle = selection
     ? `${selection.keys.size} ${selection.keys.size === 1 ? 'card' : 'cards'} selected`
     : '';
-  const outzoneGroups = useMemo(
-    () =>
-      hasSideboard
-        ? [...visibleSideboardGroups, ...visibleConsideringGroups]
-        : visibleConsideringGroups,
-    [hasSideboard, visibleSideboardGroups, visibleConsideringGroups]
-  );
-  // A tile's menu needs its pile. The grid reports only the row, and a name
-  // can sit in both piles, so the row's own slot id decides.
-  const sideboardSlotIds = useMemo(() => new Set(sideboard.map((c) => c.slotId)), [sideboard]);
-  const outzoneOf = (row: Row): DeckZone =>
-    row.slotIds.some((id) => sideboardSlotIds.has(id)) ? 'sideboard' : 'considering';
+  const { outzoneGroups, outzoneOf } = useDeckOutzone({
+    hasSideboard,
+    sideboard,
+    extras,
+    visibleSideboardGroups,
+    visibleConsideringGroups,
+    visibleExtrasGroups,
+  });
 
   const ctxValue = useMemo(
     () => ({
@@ -568,6 +546,7 @@ export function DeckDisplay(props: DeckDisplayProps) {
         onChangeCommander,
         cover,
         onSetCardTags,
+        onBulkRemove,
       },
     });
 

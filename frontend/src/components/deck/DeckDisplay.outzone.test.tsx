@@ -38,9 +38,13 @@ function slots(names: string[], cmc?: number): DeckDisplayCard[] {
 function renderDeck(opts: {
   sideboard?: string[];
   considering?: string[];
+  extras?: string[];
   view?: 'list' | 'grid' | 'stacks';
   onMoveToMainboard?: (slotIds: string[]) => void;
   onMoveFromConsidering?: (slotIds: string[]) => void;
+  onBulkRemove?: (zone: string, slotIds: string[]) => void;
+  onReleaseCopy?: (card: ScryfallCard) => void;
+  onSetProxy?: (slotIds: string[], proxy: boolean) => void;
 }) {
   localStorage.setItem('mtg-decks-view-mode', opts.view ?? 'grid');
   return render(
@@ -52,8 +56,12 @@ function renderDeck(opts: {
         cards={slots(['Mainboard Card'])}
         sideboard={slots(opts.sideboard ?? [])}
         considering={slots(opts.considering ?? [], 5)}
+        extras={slots(opts.extras ?? [], 7)}
         onMoveToMainboard={opts.onMoveToMainboard}
         onMoveFromConsidering={opts.onMoveFromConsidering}
+        onBulkRemove={opts.onBulkRemove}
+        onReleaseCopy={opts.onReleaseCopy}
+        onSetProxy={opts.onSetProxy}
       />
     </MemoryRouter>
   );
@@ -202,5 +210,57 @@ describe('DeckDisplay "Not in the deck" zone (E176)', () => {
       el.textContent?.includes('avg mana value')
     );
     expect(avg?.querySelector('.deck-stat-value')?.textContent).toBe('1.00');
+  });
+
+  // In the box holds what the box came with (a display commander), so it is
+  // its own pile, shown only when it has a card, and never reaches the stats.
+  describe('In the box', () => {
+    it.each(['grid', 'stacks', 'list'] as const)('is absent while empty (%s)', (view) => {
+      const { container } = renderDeck({ view });
+      expect(pileTitles(container.querySelector('.deck-outzone')!)).toEqual([
+        'Sideboard (0)',
+        'Considering (0)',
+      ]);
+    });
+
+    it.each(['grid', 'stacks', 'list'] as const)(
+      'follows Considering once it has a card (%s)',
+      (view) => {
+        const { container } = renderDeck({ extras: ['Display Commander'], view });
+        const outzone = container.querySelector('.deck-outzone')!;
+        expect(pileTitles(outzone)).toEqual(['Sideboard (0)', 'Considering (0)', 'In the box (1)']);
+        expect(outzone.textContent).toContain('Display Commander');
+      }
+    );
+
+    it("a box card's menu removes it from the box and offers no move or proxy", () => {
+      const onBulkRemove = vi.fn();
+      const onMoveToMainboard = vi.fn();
+      const onMoveFromConsidering = vi.fn();
+      const { getByRole, queryByRole } = renderDeck({
+        extras: ['Display Commander'],
+        view: 'grid',
+        onBulkRemove,
+        onMoveToMainboard,
+        onMoveFromConsidering,
+        onSetProxy: vi.fn(),
+      });
+      fireEvent.click(getByRole('button', { name: 'Actions for Display Commander' }));
+      expect(queryByRole('menuitem', { name: 'Move to mainboard' })).toBeNull();
+      expect(queryByRole('menuitem', { name: /proxy/i })).toBeNull();
+      expect(queryByRole('menuitem', { name: /tag/i })).toBeNull();
+      fireEvent.click(getByRole('menuitem', { name: 'Remove from deck' }));
+      expect(onBulkRemove).toHaveBeenCalledWith('extras', ['slot-Display Commander-0']);
+      expect(onMoveToMainboard).not.toHaveBeenCalled();
+      expect(onMoveFromConsidering).not.toHaveBeenCalled();
+    });
+
+    it('never reaches the mainboard stats', () => {
+      const { container } = renderDeck({ extras: ['Display Commander'] });
+      const avg = [...container.querySelectorAll('.deck-stat')].find((el) =>
+        el.textContent?.includes('avg mana value')
+      );
+      expect(avg?.querySelector('.deck-stat-value')?.textContent).toBe('1.00');
+    });
   });
 });

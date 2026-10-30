@@ -22,6 +22,7 @@ import { parseScryfallCardRefs } from '@/lib/cards/scryfall-card-link';
 import { userMessage } from '@/lib/util/user-error';
 import { printedName } from '@spellcontrol/binder-routing';
 import { ROLE_LABEL } from './deck-editor-helpers';
+import { ADD_ZONE_LABELS, type AddZone } from './add-zone';
 import type { Dispatch, SetStateAction } from 'react';
 import type { BuildTimeNudge } from '@/lib/coach/use-build-time-nudge';
 import type { DeckFormatConfig } from '@/deck-builder/types';
@@ -47,7 +48,7 @@ export function useDeckAddFlow({
   executeReallocation,
 }: {
   deckIsFull: boolean;
-  addZone: 'considering' | 'main' | 'side';
+  addZone: AddZone;
   setShowAddPanel: Dispatch<SetStateAction<boolean>>;
   buildTimeNudge: {
     nudge: BuildTimeNudge | null;
@@ -77,6 +78,7 @@ export function useDeckAddFlow({
   const removeCard = useDecksStore((s) => s.removeCard);
   const addSideboardCard = useDecksStore((s) => s.addSideboardCard);
   const addConsideringCard = useDecksStore((s) => s.addConsideringCard);
+  const addExtraCard = useDecksStore((s) => s.addExtraCard);
   const swapCard = useDecksStore((s) => s.swapCard);
   const setCardTags = useDecksStore((s) => s.setCardTags);
   const pushToast = useToastsStore((s) => s.push);
@@ -149,12 +151,13 @@ export function useDeckAddFlow({
     full: boolean = deckIsFull,
     group: string | null = null
   ): 'added' | 'full' => {
-    if (addZone === 'side' || addZone === 'considering') {
+    if (addZone !== 'main') {
       // allocateAndAdd resolves the copy itself (free / auto-move /
       // proxy) — the panel's own pick only ever sees free copies, so
       // routing through it is what makes "add an owned card whose copy
       // is in another deck" Just Work instead of silently proxying.
-      allocateAndAdd(card, addZone === 'side' ? 'sideboard' : 'considering', notify, group);
+      const zone = addZone === 'side' ? 'sideboard' : addZone === 'box' ? 'extras' : 'considering';
+      allocateAndAdd(card, zone, notify, group);
       return 'added';
     }
     // A full Commander deck would overfill — open the intelligent
@@ -180,8 +183,7 @@ export function useDeckAddFlow({
   // A card link dropped on the editor (a card image dragged off scryfall.com)
   // adds that exact printing through addChosenCard, with the same copy-limit
   // refusal and off-color note the search panel gives its +.
-  const addZoneLabel =
-    addZone === 'side' ? 'Sideboard' : addZone === 'considering' ? 'Considering' : 'Mainboard';
+  const addZoneLabel = ADD_ZONE_LABELS[addZone];
   const handleScryfallDrop = async (text: string) => {
     const refs = parseScryfallCardRefs(text);
     if (refs.length === 0) {
@@ -199,7 +201,8 @@ export function useDeckAddFlow({
       });
       return;
     }
-    const zoneCards = addZone === 'side' ? deck.sideboard : deck.cards;
+    const zoneCards =
+      addZone === 'side' ? deck.sideboard : addZone === 'box' ? (deck.extras ?? []) : deck.cards;
     const addedByName = new Map<string, number>();
     let mainCount = deck.cards.length;
     for (const card of cards) {
@@ -210,7 +213,11 @@ export function useDeckAddFlow({
         pushToast({ message: `${card.name} is already your commander.`, tone: 'info' });
         continue;
       }
-      if (addZone !== 'considering' && copies >= getMaxCopies(card, !!formatConfig?.isSingleton)) {
+      if (
+        addZone !== 'considering' &&
+        addZone !== 'box' &&
+        copies >= getMaxCopies(card, !!formatConfig?.isSingleton)
+      ) {
         pushToast({ message: `${card.name} is already at its copy limit.`, tone: 'info' });
         continue;
       }
@@ -264,7 +271,7 @@ export function useDeckAddFlow({
 
   const allocateAndAdd = (
     card: ScryfallCard,
-    zone: 'main' | 'sideboard' | 'considering',
+    zone: 'main' | 'sideboard' | 'considering' | 'extras',
     notify: boolean,
     group: string | null = null
   ): void => {
@@ -277,7 +284,10 @@ export function useDeckAddFlow({
       useCubeStore.getState().saved
     );
     const allocatedId = plan.kind === 'bind' ? plan.copyId : null;
-    const label = zone === 'main' ? `add ${card.name}` : `add ${card.name} to ${zone}`;
+    const label =
+      zone === 'main'
+        ? `add ${card.name}`
+        : `add ${card.name} to ${zone === 'extras' ? 'the box' : zone}`;
     const topBefore = useDeckHistoryStore.getState().topCommand(deck.id);
     recordEdit(deck.id, label, () => {
       const slotId =
@@ -285,18 +295,22 @@ export function useDeckAddFlow({
           ? addSideboardCard(deck.id, card, allocatedId)
           : zone === 'considering'
             ? addConsideringCard(deck.id, card, allocatedId)
-            : addCard(deck.id, card, allocatedId);
+            : zone === 'extras'
+              ? addExtraCard(deck.id, card, allocatedId)
+              : addCard(deck.id, card, allocatedId);
       // Same write the card menu's "file into group" makes, in the same edit
       // so one undo takes back both.
       if (group) {
-        const tagZone: DeckZone =
-          zone === 'sideboard' ? 'sideboard' : zone === 'considering' ? 'considering' : 'cards';
+        const tagZone: DeckZone = zone === 'main' ? 'cards' : zone;
         setCardTags(deck.id, tagZone, [slotId], [group]);
       }
     });
     if (notify)
       pushToast({
-        message: zone === 'main' ? `Added ${card.name}` : `Added ${card.name} to ${zone}`,
+        message:
+          zone === 'main'
+            ? `Added ${card.name}`
+            : `Added ${card.name} to ${zone === 'extras' ? 'the box' : zone}`,
         tone: 'success',
         ...addUndoAction(deck.id, topBefore),
       });
