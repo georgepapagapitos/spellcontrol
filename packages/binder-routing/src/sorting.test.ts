@@ -11,7 +11,7 @@ import {
   matchSortPreset,
   describeSortChain,
 } from './sorting.js';
-import type { EnrichedCard } from './types.js';
+import type { EnrichedCard, SetMap } from './types.js';
 
 function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
   return {
@@ -905,5 +905,43 @@ describe('describeSortChain (E491)', () => {
   it('returns an empty string for no active sorts', () => {
     expect(describeSortChain([])).toBe('');
     expect(describeSortChain([{ field: 'none', dir: 'asc' }])).toBe('');
+  });
+});
+
+describe('sortCards computes each card value once per field', () => {
+  // The comparator runs ~2·n·log n times; deriving a value per comparison was
+  // most of the cost of opening a binder or deck on a 10k-card collection.
+  // Counted through the set map, which `releaseDateOf` reads for a card with
+  // no printing date of its own.
+  it('reads the set date once per card, not once per comparison', () => {
+    const n = 2000;
+    const cards = Array.from({ length: n }, (_, i) =>
+      makeCard({ copyId: `c${String(i).padStart(5, '0')}`, setCode: `S${i % 97}` })
+    );
+    let reads = 0;
+    const setMap: SetMap = new Proxy(
+      {},
+      {
+        get(_t, code) {
+          reads++;
+          const day = String((Number(String(code).slice(1)) % 28) + 1).padStart(2, '0');
+          return {
+            code: String(code),
+            name: String(code),
+            iconSvgUri: '',
+            releasedAt: `2020-01-${day}`,
+          };
+        },
+      }
+    );
+    const sorted = sortCards(cards, [{ field: 'setReleaseDate', dir: 'desc' }], { setMap });
+    expect(sorted).toHaveLength(n);
+    expect(reads).toBeLessThanOrEqual(n);
+    // Still a correct sort: dates descend, copyId breaks ties.
+    for (let i = 1; i < n; i++) {
+      const a = releaseDateOf(sorted[i - 1], setMap)!;
+      const b = releaseDateOf(sorted[i], setMap)!;
+      expect(a > b || (a === b && sorted[i - 1].copyId < sorted[i].copyId)).toBe(true);
+    }
   });
 });
