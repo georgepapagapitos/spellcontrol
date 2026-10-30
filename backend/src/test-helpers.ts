@@ -223,13 +223,9 @@ export async function createTestEnv(): Promise<TestEnv> {
       rev BIGINT NOT NULL,
       deleted_at BIGINT,
       updated_at BIGINT NOT NULL,
-      forked_from_slug TEXT GENERATED ALWAYS AS (data->'forkedFrom'->>'slug') STORED,
       PRIMARY KEY (user_id, id)
     );
     CREATE INDEX user_decks_rev_idx ON user_decks(user_id, rev);
-    CREATE INDEX user_decks_forked_from_slug_idx
-      ON user_decks (forked_from_slug)
-      WHERE deleted_at IS NULL AND forked_from_slug IS NOT NULL;
     CREATE TABLE user_games (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       id TEXT NOT NULL,

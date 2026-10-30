@@ -215,20 +215,6 @@ export async function ensureSchema(): Promise<void> {
       PRIMARY KEY (user_id, id)
     );
     CREATE INDEX IF NOT EXISTS user_decks_rev_idx ON user_decks(user_id, rev);
-    -- A copy of a public deck carries forkedFrom.slug. Those live copies are
-    -- the deck's copy count and a trending signal (publications/copies.ts,
-    -- aggregates/trending-decks.ts). The slug is a STORED generated column, not
-    -- an expression read at query time: a deck's data blob lives in TOAST, the
-    -- planner doesn't cost decompressing it, and with the expression it chose a
-    -- seq scan that detoasted every deck on every /api/aggregates/trending
-    -- (150 ms over 50 MB locally, with an index on the expression sitting
-    -- unused). The column sits in the heap, so a scan of it never detoasts.
-    ALTER TABLE user_decks ADD COLUMN IF NOT EXISTS forked_from_slug TEXT
-      GENERATED ALWAYS AS (data->'forkedFrom'->>'slug') STORED;
-    DROP INDEX IF EXISTS user_decks_forked_from_idx;
-    CREATE INDEX IF NOT EXISTS user_decks_forked_from_slug_idx
-      ON user_decks (forked_from_slug)
-      WHERE deleted_at IS NULL AND forked_from_slug IS NOT NULL;
     CREATE TABLE IF NOT EXISTS user_games (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       id TEXT NOT NULL,

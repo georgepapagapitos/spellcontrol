@@ -162,7 +162,7 @@ describe('user_decks.forked_from_slug', () => {
     };
     walk(SRC);
     // The generated column's own definition is the one allowed reader.
-    expect(offenders.sort()).toEqual(['db/index.ts', 'db/schema.ts', 'test-helpers.ts']);
+    expect(offenders).toEqual(['db/schema-deck-fork-slug.ts']);
   });
 });
 

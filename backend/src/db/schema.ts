@@ -273,19 +273,10 @@ export const userBinders = pgTable('user_binders', { ...entityColumns }, (t) => 
   revIdx: index('user_binders_rev_idx').on(t.userId, t.rev),
 }));
 
-export const userDecks = pgTable(
-  'user_decks',
-  {
-    ...entityColumns,
-    // Generated from data.forkedFrom.slug so the copy-count and trending scans
-    // never detoast the deck blob (see the DDL in db/index.ts).
-    forkedFromSlug: text('forked_from_slug').generatedAlwaysAs(sql`(data->'forkedFrom'->>'slug')`),
-  },
-  (t) => ({
-    pk: primaryKey({ columns: [t.userId, t.id] }),
-    revIdx: index('user_decks_rev_idx').on(t.userId, t.rev),
-  })
-);
+export const userDecks = pgTable('user_decks', { ...entityColumns }, (t) => ({
+  pk: primaryKey({ columns: [t.userId, t.id] }),
+  revIdx: index('user_decks_rev_idx').on(t.userId, t.rev),
+}));
 
 export const userGames = pgTable('user_games', { ...entityColumns }, (t) => ({
   pk: primaryKey({ columns: [t.userId, t.id] }),
