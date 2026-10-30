@@ -223,13 +223,13 @@ interface Props {
    * Which zone the add lands in. The mainboard is the only zone the format's
    * deckbuilding rules govern, so it alone gets the commander exclusion above
    * and the colour-identity/legality filter on the Collection tab. The
-   * sideboard and Considering are swap piles and park lists: an off-colour
-   * card, a card illegal in the format, or a second printing of the commander
-   * are all legitimate there, and filtering them out of search just makes
-   * cards that are physically in the box unfindable. Defaults to the
-   * mainboard's stricter rules.
+   * sideboard and Considering are swap piles and park lists, and In the box
+   * holds what the box came with: an off-colour card, a card illegal in the
+   * format, or a second printing of the commander are all legitimate there,
+   * and filtering them out of search just makes cards that are physically in
+   * the box unfindable. Defaults to the mainboard's stricter rules.
    */
-  addZone?: 'main' | 'side' | 'considering';
+  addZone?: 'main' | 'side' | 'considering' | 'box';
   /**
    * The deck format's Scryfall legality key (`DECK_FORMAT_CONFIGS[f].legalityKey`)
    * the mainboard is judged against: 'paupercommander' for a PDH deck, 'brawl'

@@ -242,11 +242,12 @@ export function buildMissingTally(
 
 type VisibleGroups = TypedGroup[];
 
-/** The flat carousel / inspector index over the three zones' visible rows. */
+/** The flat carousel / inspector index over every zone's visible rows. */
 export function buildFlatIndex(
   visibleGroups: VisibleGroups,
   visibleSideboardGroups: VisibleGroups,
   visibleConsideringGroups: VisibleGroups,
+  visibleExtrasGroups: VisibleGroups,
   rarityCorrections: ReadonlyMap<string, string>
 ) {
   const enrichedCards: EnrichedCard[] = [];
@@ -254,7 +255,7 @@ export function buildFlatIndex(
   const rows: Row[] = [];
   const zones: DeckZone[] = [];
   const indexByName = new Map<string, number>();
-  // Mainboard first, then sideboard, then considering — so the carousel +
+  // Mainboard first, then sideboard, considering, In the box — so the carousel +
   // hover-peek resolve those cards too (same inspect path as the
   // mainboard). A name only in one zone maps to that zone's entry; a name
   // in more than one keeps the earliest zone's (first wins).
@@ -299,6 +300,7 @@ export function buildFlatIndex(
   pushGroups(visibleGroups, 'cards');
   pushGroups(visibleSideboardGroups, 'sideboard');
   pushGroups(visibleConsideringGroups, 'considering');
+  pushGroups(visibleExtrasGroups, 'extras');
   return { cards: enrichedCards, labels, rows, zones, indexByName };
 }
 

@@ -173,6 +173,7 @@ describe('collectAllocatedCopyIds', () => {
         cards: [{ allocatedCopyId: 'main' }, { allocatedCopyId: null }],
         sideboard: [{ allocatedCopyId: 'side' }],
         considering: [{ allocatedCopyId: 'maybe' }],
+        extras: [{ allocatedCopyId: 'box' }],
       },
       // A stale commander copy id with no commander set is not a claim.
       { commander: null, commanderAllocatedCopyId: 'stale', cards: [] },
@@ -182,7 +183,7 @@ describe('collectAllocatedCopyIds', () => {
       { isPhysical: false, picks: [{ allocatedCopyId: 'virtual' }] },
     ];
     expect(collectAllocatedCopyIds(decks, cubes)).toEqual(
-      new Set(['cmd', 'partner', 'main', 'side', 'maybe', 'cube'])
+      new Set(['cmd', 'partner', 'main', 'side', 'maybe', 'box', 'cube'])
     );
   });
 

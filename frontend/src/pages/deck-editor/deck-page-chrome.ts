@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { ClipboardPaste, Coins, FileText, Library, RefreshCw } from 'lucide-react';
+import { ClipboardPaste, Coins, FileText, Library, Package, RefreshCw } from 'lucide-react';
 import type { DeckView } from '@/lib/deck-analysis/deck-view';
 import type { ListAction } from '../../components/deck/DeckToolbar';
 import type { TabBadge } from '@/components/overlays/Tabs';
@@ -60,6 +60,8 @@ export function deckEditActions(handlers: {
   resync: () => void;
   matchCopies?: () => void;
   cheapestPrintings?: () => void;
+  /** A deck built from a product whose In the box is empty. */
+  boxExtras?: () => void;
 }): ListAction[] {
   return [
     ...action('Paste cards', ClipboardPaste, handlers.paste),
@@ -67,5 +69,6 @@ export function deckEditActions(handlers: {
     ...action('Resync from a list', RefreshCw, handlers.resync),
     ...action('Match my copies', Library, handlers.matchCopies),
     ...action('Cheapest printings for missing', Coins, handlers.cheapestPrintings),
+    ...action('Add the rest of the box', Package, handlers.boxExtras),
   ];
 }

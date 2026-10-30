@@ -9,6 +9,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { copyMismatches, missingSlots } from '@/lib/deck/deck-printing-actions';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { EnrichedCard } from '@spellcontrol/binder-routing';
+import type { AddZone } from './add-zone';
 
 export function useDeckDerived({
   deck,
@@ -16,7 +17,7 @@ export function useDeckDerived({
   collectionById,
 }: {
   deck: Deck;
-  addZone: 'considering' | 'main' | 'side';
+  addZone: AddZone;
   collectionById: Map<string, EnrichedCard> | undefined;
 }) {
   // Counts already in this deck — fed to the search panel so it can mark
@@ -50,12 +51,13 @@ export function useDeckDerived({
    * would happily put a 2nd Sol Ring in a Commander deck and the Stats tab
    * would then flag the Singleton failure the panel had just created.
    *
-   * Considering is a staging area with no ceiling, exactly as the quantity
-   * path already rules (see `maxCopies` in the qty handler below).
+   * Considering is a staging area and In the box holds what the box came
+   * with, so neither has a ceiling, exactly as the quantity path already rules
+   * (see `maxCopies` in the qty handler).
    */
   const atCopyLimit = useCallback(
     (name: string) => {
-      if (!deck || addZone === 'considering') return false;
+      if (!deck || addZone === 'considering' || addZone === 'box') return false;
       const zone = addZone === 'side' ? deck.sideboard : deck.cards;
       const copies = zone.filter((c) => c.card.name === name);
       if (copies.length === 0) return false;

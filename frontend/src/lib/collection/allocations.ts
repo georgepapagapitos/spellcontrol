@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useDecksStore, newDeckCard, type Deck, type DeckCard } from '@/store/decks';
+import { allZoneSlots } from '@/store/deck-zones';
 import { useCollectionStore } from '@/store/collection';
 import { useCubeStore, type SavedCube } from '@/store/cube';
 import type { EnrichedCard, Finish } from '@/types/index';
@@ -307,13 +308,7 @@ export function findSuboptimalPrintings(
         deck.partnerCommanderAllocatedCopyId
       );
     }
-    for (const c of deck.cards) {
-      consider(deck, c.card.name, c.card.id, c.allocatedCopyId);
-    }
-    for (const c of deck.sideboard ?? []) {
-      consider(deck, c.card.name, c.card.id, c.allocatedCopyId);
-    }
-    for (const c of deck.considering ?? []) {
+    for (const c of allZoneSlots(deck)) {
       consider(deck, c.card.name, c.card.id, c.allocatedCopyId);
     }
   }
@@ -338,7 +333,8 @@ export type DonorOutcome = 'leave-gap' | 'replace' | 'remove';
  * the donor deck; `cube` means a physical-cube pick (released by copyId, not a
  * slot — a cube's only donor outcome is leave-gap).
  */
-export type DonorZone = 'main' | 'sideboard' | 'considering' | 'commander' | 'partner' | 'cube';
+export type DonorZone =
+  'main' | 'sideboard' | 'considering' | 'extras' | 'commander' | 'partner' | 'cube';
 
 /**
  * A physical copy that can be pulled out of another deck OR a physical cube to
@@ -364,7 +360,7 @@ export interface StealableCopy {
   /** Donor accent color (the shared cube color for a cube donor). */
   donorDeckColor: string;
   donorZone: DonorZone;
-  /** Slot id for `main`/`sideboard`/`considering`; `null` for commander/partner and cube. */
+  /** Slot id for `main`/`sideboard`/`considering`/`extras`; `null` for commander/partner and cube. */
   donorSlotId: string | null;
   /**
    * The donor deck slot's card payload — for the replace-suggestion target and
@@ -393,6 +389,8 @@ function locateCopyInDeck(
   // copy parked there is a donor too: pulling it leaves the maybe-card listed.
   const maybe = (deck.considering ?? []).find((c) => c.allocatedCopyId === copyId);
   if (maybe) return { zone: 'considering', slotId: maybe.slotId, card: maybe.card };
+  const extra = (deck.extras ?? []).find((c) => c.allocatedCopyId === copyId);
+  if (extra) return { zone: 'extras', slotId: extra.slotId, card: extra.card };
   return null;
 }
 

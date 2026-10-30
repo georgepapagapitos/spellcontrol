@@ -1,8 +1,9 @@
 import type { Deck, DeckCard } from './decks';
+import { DECK_SLOT_ZONES } from './deck-zones';
 
 // How one deck's slots and commander seats claim, release and give up physical
 // copies. Pure deck-in, deck-out helpers behind the decks store's mutators;
-// every zone that claims a copy (cards, sideboard, considering) is covered.
+// every zone that claims a copy (DECK_SLOT_ZONES) is covered.
 
 /** Which copy claim "Release copy" lets go of: a list slot or a commander seat. */
 export type ReleaseTarget = { slotId: string } | 'commander' | 'partner';
@@ -18,14 +19,15 @@ export function bindCopy(c: DeckCard, copyId: string | null): DeckCard {
 
 /** The deck with `fn` applied to the one slot `slotId`, in whichever zone holds it. */
 function mapSlot(d: Deck, slotId: string, fn: (c: DeckCard) => DeckCard): Deck {
-  const apply = (list: DeckCard[] | undefined) =>
-    (list ?? []).map((c) => (c.slotId === slotId ? fn(c) : c));
-  return {
-    ...d,
-    cards: apply(d.cards),
-    sideboard: apply(d.sideboard),
-    considering: apply(d.considering),
-  };
+  const next = { ...d };
+  for (const zone of DECK_SLOT_ZONES) {
+    const list: DeckCard[] | undefined = d[zone];
+    // A zone the row never had stays absent; cards/sideboard/considering are
+    // always present on a well-formed row.
+    if (!list && zone === 'extras') continue;
+    next[zone] = (list ?? []).map((c) => (c.slotId === slotId ? fn(c) : c));
+  }
+  return next;
 }
 
 /** Bind `copyId` to the slot. */

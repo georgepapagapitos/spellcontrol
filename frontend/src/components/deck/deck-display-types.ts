@@ -67,6 +67,12 @@ export interface DeckDisplayProps {
    * analysis by construction (nothing here reads it for those).
    */
   considering?: DeckDisplayCard[];
+  /**
+   * In the box (`Deck.extras`): physical cards that came with the deck but are
+   * not played, like a display commander. Its own section below Considering,
+   * shown only when it holds a card; never read for stats, legality or mana.
+   */
+  extras?: DeckDisplayCard[];
   /** Optional grade/bracket — if provided, renders in the stats and toolbar. */
   bracketEstimation?: BracketEstimation;
   /** User-pinned bracket (1–5); when set it overrides the auto estimate. */

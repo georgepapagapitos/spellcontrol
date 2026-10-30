@@ -183,3 +183,69 @@ describe('buildDeckInputFromImport', () => {
     expect(input.considering).toEqual([]);
   });
 });
+
+describe('buildDeckInputFromImport: In the box', () => {
+  const zada = sc('Zada, Hedron Grinder', 'zada');
+  const copy = (copyId: string, finish: 'nonfoil' | 'foil' | 'etched', scryfallId = 'zada') =>
+    ({
+      copyId,
+      name: zada.name,
+      scryfallId,
+      finish,
+      foil: finish !== 'nonfoil',
+    }) as unknown as EnrichedCard;
+
+  it('gives a display commander of the same printing the copy in its own finish', () => {
+    const ctx = {
+      decks: [],
+      cubes: [],
+      // Listed etched first, so a pick that ignored finish would seat it.
+      collectionCards: [copy('etched', 'etched'), copy('foil', 'foil')],
+    };
+    const input = buildDeckInputFromImport(result([], zada), zada, 'Zada', 'commander', ctx, {
+      extras: [{ card: zada, finish: 'etched' }],
+      commanderFinish: 'foil',
+    });
+    expect(input.commanderAllocatedCopyId).toBe('foil');
+    expect(input.extras.map((e) => e.allocatedCopyId)).toEqual(['etched']);
+  });
+
+  it('seats a single owned copy in the command zone, leaving the extra without one', () => {
+    const ctx = { decks: [], cubes: [], collectionCards: [copy('only', 'etched')] };
+    const input = buildDeckInputFromImport(result([], zada), zada, 'Zada', 'commander', ctx, {
+      extras: [{ card: zada, finish: 'etched' }],
+    });
+    expect(input.commanderAllocatedCopyId).toBe('only');
+    expect(input.extras).toHaveLength(1);
+    expect(input.extras[0].allocatedCopyId).toBeNull();
+  });
+
+  it('never gives two extras the same copy', () => {
+    const ctx = {
+      decks: [],
+      cubes: [],
+      collectionCards: [copy('a', 'etched', 'zada-e'), copy('b', 'etched', 'zada-e')],
+    };
+    const display = sc(zada.name, 'zada-e');
+    const input = buildDeckInputFromImport(
+      result([sc('Sol Ring', 'sol')]),
+      null,
+      'D',
+      'commander',
+      ctx,
+      {
+        extras: [
+          { card: display, finish: 'etched' },
+          { card: display, finish: 'etched' },
+        ],
+      }
+    );
+    expect(new Set(input.extras.map((e) => e.allocatedCopyId))).toEqual(new Set(['a', 'b']));
+  });
+
+  it('is empty when the import has no extras', () => {
+    expect(buildDeckInputFromImport(result([]), null, 'D', 'commander', ctxEmpty).extras).toEqual(
+      []
+    );
+  });
+});

@@ -39,6 +39,8 @@ import { DeckEditorHero } from './deck-editor/DeckEditorHero';
 import { DeckEditorOverflowMenu } from './deck-editor/DeckEditorOverflowMenu';
 import { deckViewTabs } from './deck-editor/deck-page-chrome';
 import { DeckScryfallDropOverlay } from './deck-editor/DeckScryfallDropOverlay';
+import type { AddZone } from './deck-editor/add-zone';
+import { useAddBoxExtras } from './deck-editor/use-box-extras';
 import { useSuggestionContext } from '@/lib/util/use-suggestion-context';
 import { useDeckArrivals } from './deck-editor/use-deck-arrivals';
 import { useDeckPrintingEdits } from './deck-editor/use-deck-printing-edits';
@@ -201,7 +203,7 @@ function DeckEditor({ deck }: { deck: Deck }) {
   const [comboSeedContext] = useState(
     () => (location.state as { comboContext?: ComboSeedContext } | null)?.comboContext ?? null
   );
-  const [addZone, setAddZone] = useState<'main' | 'side' | 'considering'>('main');
+  const [addZone, setAddZone] = useState<AddZone>('main');
   const deckView = useDeckView();
   const {
     combosRef,
@@ -224,6 +226,7 @@ function DeckEditor({ deck }: { deck: Deck }) {
     applyDonorOutcome,
   });
   const { setEditingSlot } = printingEdits;
+  const addBoxExtras = useAddBoxExtras(deck);
 
   // Load tagger role data on mount (deduped) so the in-context "Swap this card"
   // section can scope alternatives to a card's role even when the preview is
@@ -588,6 +591,7 @@ function DeckEditor({ deck }: { deck: Deck }) {
         coachApply={coachApply}
         arrivals={arrivals}
         renderers={renderers}
+        addBoxExtras={addBoxExtras}
         onCoachPreviewFit={handleCoachPreviewFit}
       />
 

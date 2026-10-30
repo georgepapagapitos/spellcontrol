@@ -9,6 +9,7 @@ import {
 } from '@/store/decks';
 import { useCubeStore } from '@/store/cube';
 import { useDeckHistoryStore } from '@/store/deck-history';
+import { allZoneSlots } from '@/store/deck-zones';
 import {
   buildAllocationMap,
   pickCollectionCopy,
@@ -116,6 +117,14 @@ export function useDeckReallocation({
         ?.considering?.find((c) => c.slotId === slotId);
       removeConsideringCard(donorDeckId, slotId);
       if (slot && outcome !== 'remove') addConsideringCard(donorDeckId, slot.card, null);
+      return;
+    }
+    if (zone === 'extras') {
+      // A box extra has no replacement either: remove it, or keep it listed as
+      // a card the box is now missing.
+      if (outcome === 'remove')
+        useDecksStore.getState().bulkRemoveCards(donorDeckId, 'extras', [slotId]);
+      else setCardAllocation(donorDeckId, slotId, null);
       return;
     }
     if (outcome === 'remove') {
@@ -380,5 +389,5 @@ export function useDeckReallocation({
 
 /** Every slot that claims a copy, mainboard first. */
 function listSlots(deck: Deck): DeckCard[] {
-  return [...deck.cards, ...deck.sideboard, ...(deck.considering ?? [])];
+  return allZoneSlots(deck);
 }

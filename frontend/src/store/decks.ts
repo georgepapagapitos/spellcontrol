@@ -38,6 +38,7 @@ import { withTagAdded, withTagRemoved } from '@/lib/deck/deck-tags';
 const decksIdbStorage = createIndexedDbStorage('spellcontrol-decks');
 import { pickRandomPresetColor } from '@/lib/util/preset-colors';
 import { migrateDecksState } from './decks-migrate';
+import { DECK_SLOT_ZONES, zoneSlots, type DeckZone } from './deck-zones';
 import { defaultDeckName, withCommander } from './deck-naming';
 import {
   bindCopy,
@@ -135,9 +136,9 @@ export interface DeckCard {
 export type { ReleaseTarget } from './deck-copy-claims';
 export { UNTITLED_DECK_NAME, commanderShortName, deckNameForCommander } from './deck-naming';
 
-/** The three zones a `DeckCard` slot can live in — tags (and any other
- *  per-slot user edit) are scoped to whichever zone the slot is in. */
-export type DeckZone = 'cards' | 'sideboard' | 'considering';
+// The zones a `DeckCard` slot can live in. Tags (and any other per-slot user
+// edit) are scoped to whichever zone the slot is in.
+export type { DeckZone } from './deck-zones';
 
 export interface Deck {
   id: string;
@@ -166,6 +167,15 @@ export interface Deck {
    * this field existed — mirrors `sideboard`'s own defensive-read convention.
    */
   considering: DeckCard[];
+  /**
+   * "In the box": physical cards that came with the deck but are not played,
+   * like a precon's display commander (MTGJSON `displayCommander`) or a
+   * Secret Lair's oversized commander. Each slot claims its copy so the whole
+   * box is accounted for, and like `considering` it feeds no stats, legality,
+   * mana, deck size or export. Optional because rows persisted before it
+   * existed lack it; read it as `extras ?? []`.
+   */
+  extras?: DeckCard[];
   /** For generated decks: snapshot enough context to regenerate. Null otherwise. */
   generationContext: {
     selectedThemes: ThemeResult[];
@@ -440,6 +450,7 @@ interface DecksState {
     cards?: DeckCard[];
     sideboard?: DeckCard[];
     considering?: DeckCard[];
+    extras?: DeckCard[];
     commanderAllocatedCopyId?: string | null;
     partnerCommanderAllocatedCopyId?: string | null;
     color?: string;
@@ -592,6 +603,8 @@ interface DecksState {
   /** Considering (E122) — same shape as sideboard's CRUD, a separate park-candidates zone. */
   addConsideringCard(deckId: string, card: ScryfallCard, allocatedCopyId?: string | null): string;
   removeConsideringCard(deckId: string, slotId: string): void;
+  /** "In the box" (`Deck.extras`): add a physical extra, such as a display commander. */
+  addExtraCard(deckId: string, card: ScryfallCard, allocatedCopyId?: string | null): string;
 
   /**
    * Bulk primitives for multi-select editing (E172) — each is ONE `set()`
@@ -726,6 +739,7 @@ export const useDecksStore = create<DecksState>()(
           cards: input.cards ?? [],
           sideboard: input.sideboard ?? [],
           considering: input.considering ?? [],
+          ...(input.extras?.length ? { extras: input.extras } : {}),
           generationContext: input.generationContext ?? null,
           roleCounts: input.roleCounts,
           rampSubtypeCounts: input.rampSubtypeCounts,
@@ -853,6 +867,15 @@ export const useDecksStore = create<DecksState>()(
             slotId: genId('slot'),
             allocatedCopyId: null,
           })),
+          ...(original.extras?.length
+            ? {
+                extras: original.extras.map((c) => ({
+                  ...c,
+                  slotId: genId('slot'),
+                  allocatedCopyId: null,
+                })),
+              }
+            : {}),
           createdAt: now,
           updatedAt: now,
         };
@@ -1085,6 +1108,24 @@ export const useDecksStore = create<DecksState>()(
           ),
         })),
 
+      addExtraCard: (deckId, card, allocatedCopyId = null) => {
+        const slotId = genId('slot');
+        set((s) => ({
+          decks: s.decks.map((d) =>
+            d.id === deckId
+              ? touch({
+                  ...d,
+                  extras: [
+                    ...(d.extras ?? []),
+                    { slotId, card, allocatedCopyId, addedAt: Date.now() },
+                  ],
+                })
+              : d
+          ),
+        }));
+        return slotId;
+      },
+
       bulkAddCards: (deckId, zone, entries) => {
         const newSlots: DeckCard[] = entries.map((e) => ({
           slotId: genId('slot'),
@@ -1249,9 +1290,7 @@ export const useDecksStore = create<DecksState>()(
             {
               commanderAllocatedCopyId: string | null;
               partnerCommanderAllocatedCopyId: string | null;
-              cards: { slotId: string; allocatedCopyId: string | null }[];
-              sideboard: { slotId: string; allocatedCopyId: string | null }[];
-              considering: { slotId: string; allocatedCopyId: string | null }[];
+              zones: Record<DeckZone, { slotId: string; allocatedCopyId: string | null }[]>;
             }
           >();
           for (const deck of s.decks) {
@@ -1262,21 +1301,18 @@ export const useDecksStore = create<DecksState>()(
               partnerCommanderAllocatedCopyId: deck.partnerCommanderReleased
                 ? null
                 : deck.partnerCommanderAllocatedCopyId,
-              // `?? []` guards a partial/malformed persisted deck row (this now
-              // also runs from sync.ts's rehydrate, which reads back whatever
-              // shape actually landed in IDB) — must not crash on a missing array.
-              cards: (deck.cards ?? []).map((c) => ({
-                slotId: c.slotId,
-                allocatedCopyId: c.proxy || c.released ? null : c.allocatedCopyId,
-              })),
-              sideboard: (deck.sideboard ?? []).map((c) => ({
-                slotId: c.slotId,
-                allocatedCopyId: c.proxy || c.released ? null : c.allocatedCopyId,
-              })),
-              considering: (deck.considering ?? []).map((c) => ({
-                slotId: c.slotId,
-                allocatedCopyId: c.proxy || c.released ? null : c.allocatedCopyId,
-              })),
+              // `zoneSlots` reads `?? []`, which guards a partial/malformed
+              // persisted deck row (this also runs from sync.ts's rehydrate,
+              // which reads back whatever shape actually landed in IDB).
+              zones: Object.fromEntries(
+                DECK_SLOT_ZONES.map((zone) => [
+                  zone,
+                  zoneSlots(deck, zone).map((c) => ({
+                    slotId: c.slotId,
+                    allocatedCopyId: c.proxy || c.released ? null : c.allocatedCopyId,
+                  })),
+                ])
+              ) as Record<DeckZone, { slotId: string; allocatedCopyId: string | null }[]>,
             });
           }
 
@@ -1310,58 +1346,27 @@ export const useDecksStore = create<DecksState>()(
             }
             // A proxy or released slot never enters the matching: the user plays
             // a stand-in there, or let its copy go, so handing it a copy is what
-            // used to pull a released copy straight back.
-            for (const c of deck.cards ?? []) {
-              if (c.proxy || c.released) continue;
-              const slotId = c.slotId;
-              slots.push({
-                deckId: deck.id,
-                deckName: deck.name,
-                deckColor: deck.color,
-                cardName: c.card.name,
-                scryfallId: c.card.id,
-                currentCopyId: c.allocatedCopyId,
-                apply: (copyId) => {
-                  const target = u.cards.find((x) => x.slotId === slotId);
-                  if (target) target.allocatedCopyId = copyId;
-                },
-              });
-            }
-            for (const c of deck.sideboard ?? []) {
-              if (c.proxy || c.released) continue;
-              const slotId = c.slotId;
-              slots.push({
-                deckId: deck.id,
-                deckName: deck.name,
-                deckColor: deck.color,
-                cardName: c.card.name,
-                scryfallId: c.card.id,
-                currentCopyId: c.allocatedCopyId,
-                apply: (copyId) => {
-                  const target = u.sideboard.find((x) => x.slotId === slotId);
-                  if (target) target.allocatedCopyId = copyId;
-                },
-              });
-            }
-            // Considering claims a physical copy too (mirrors sideboard) so a
-            // card parked here can't be double-bound by another deck's slot.
-            // It is also a donor zone (lib/collection/allocations.ts DonorZone),
-            // like every other claiming zone.
-            for (const c of deck.considering ?? []) {
-              if (c.proxy || c.released) continue;
-              const slotId = c.slotId;
-              slots.push({
-                deckId: deck.id,
-                deckName: deck.name,
-                deckColor: deck.color,
-                cardName: c.card.name,
-                scryfallId: c.card.id,
-                currentCopyId: c.allocatedCopyId,
-                apply: (copyId) => {
-                  const target = u.considering.find((x) => x.slotId === slotId);
-                  if (target) target.allocatedCopyId = copyId;
-                },
-              });
+            // used to pull a released copy straight back. Every zone claims a
+            // copy (Considering and In the box too), so a card parked there
+            // can't be double-bound by another deck's slot, and each is a donor
+            // zone (lib/collection/allocations.ts DonorZone).
+            for (const zone of DECK_SLOT_ZONES) {
+              for (const c of zoneSlots(deck, zone)) {
+                if (c.proxy || c.released) continue;
+                const slotId = c.slotId;
+                slots.push({
+                  deckId: deck.id,
+                  deckName: deck.name,
+                  deckColor: deck.color,
+                  cardName: c.card.name,
+                  scryfallId: c.card.id,
+                  currentCopyId: c.allocatedCopyId,
+                  apply: (copyId) => {
+                    const target = u.zones[zone].find((x) => x.slotId === slotId);
+                    if (target) target.allocatedCopyId = copyId;
+                  },
+                });
+              }
             }
           }
 
@@ -1506,36 +1511,29 @@ export const useDecksStore = create<DecksState>()(
 
           const remappedDecks = s.decks.map((deck) => {
             const u = updates.get(deck.id)!;
+            const zoneChanged = (zone: DeckZone) =>
+              zoneSlots(deck, zone).some(
+                (c, i) => u.zones[zone][i]?.allocatedCopyId !== c.allocatedCopyId
+              );
             const cardsChanged =
               u.commanderAllocatedCopyId !== deck.commanderAllocatedCopyId ||
               u.partnerCommanderAllocatedCopyId !== deck.partnerCommanderAllocatedCopyId ||
-              (deck.cards ?? []).some(
-                (c, i) => u.cards[i]?.allocatedCopyId !== c.allocatedCopyId
-              ) ||
-              (deck.sideboard ?? []).some(
-                (c, i) => u.sideboard[i]?.allocatedCopyId !== c.allocatedCopyId
-              ) ||
-              (deck.considering ?? []).some(
-                (c, i) => u.considering[i]?.allocatedCopyId !== c.allocatedCopyId
-              );
+              DECK_SLOT_ZONES.some(zoneChanged);
             if (!cardsChanged) return deck;
-            return touchNoToken({
+            const next: Deck = {
               ...deck,
               commanderAllocatedCopyId: u.commanderAllocatedCopyId,
               partnerCommanderAllocatedCopyId: u.partnerCommanderAllocatedCopyId,
-              cards: (deck.cards ?? []).map((c, i) => ({
+            };
+            for (const zone of DECK_SLOT_ZONES) {
+              // A zone the row never had stays absent rather than gaining `[]`.
+              if (!deck[zone]) continue;
+              next[zone] = zoneSlots(deck, zone).map((c, i) => ({
                 ...c,
-                allocatedCopyId: u.cards[i].allocatedCopyId,
-              })),
-              sideboard: (deck.sideboard ?? []).map((c, i) => ({
-                ...c,
-                allocatedCopyId: u.sideboard[i].allocatedCopyId,
-              })),
-              considering: (deck.considering ?? []).map((c, i) => ({
-                ...c,
-                allocatedCopyId: u.considering[i].allocatedCopyId,
-              })),
-            });
+                allocatedCopyId: u.zones[zone][i].allocatedCopyId,
+              }));
+            }
+            return touchNoToken(next);
           });
 
           // Belt-and-suspenders: the 4 passes above already enforce

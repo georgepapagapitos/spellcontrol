@@ -34,7 +34,7 @@ function renderHero(proxied: number) {
         deck={deck}
         art={undefined}
         formatConfig={null}
-        heroTotals={{ count: 100, value: 372, proxied, sideboard: 0, considering: 0 }}
+        heroTotals={{ count: 100, value: 372, proxied, sideboard: 0, considering: 0, extras: 0 }}
         bracketValue={undefined}
         heroBracket={undefined}
         commanderColorIdentity={[]}

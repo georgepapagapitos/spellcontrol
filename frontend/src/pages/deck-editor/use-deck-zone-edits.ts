@@ -148,6 +148,7 @@ export function useDeckZoneEdits({
     cards: 'mainboard',
     sideboard: 'sideboard',
     considering: 'considering',
+    extras: 'in the box',
   };
 
   const handleBulkMove = (slotIds: string[], from: DeckZone, to: DeckZone) => {
@@ -192,16 +193,18 @@ export function useDeckZoneEdits({
     qty: number,
     opts?: { relative?: boolean }
   ) => {
-    const current = deck[zone].filter((c) => c.card.name === card.name);
-    // Considering is a staging area, not a real deck zone — no copy-limit
-    // ceiling on it (mirrors why it's excluded from legality elsewhere).
+    const current = (deck[zone] ?? []).filter((c) => c.card.name === card.name);
+    // Considering is a staging area and In the box holds what the box came
+    // with, not real deck zones: no copy-limit ceiling on either (mirrors why
+    // they're excluded from legality elsewhere).
     const maxCopies =
-      zone === 'considering' ? undefined : getMaxCopies(card, !!formatConfig?.isSingleton);
+      zone === 'considering' || zone === 'extras'
+        ? undefined
+        : getMaxCopies(card, !!formatConfig?.isSingleton);
     const plan = planQtyChange(current, qty, opts, maxCopies);
     if (plan.addCount === 0 && plan.remove.length === 0) return;
 
-    const zoneSuffix =
-      zone === 'cards' ? '' : ` to ${zone === 'sideboard' ? 'sideboard' : 'considering'}`;
+    const zoneSuffix = zone === 'cards' ? '' : ` to ${ZONE_LABEL[zone]}`;
 
     if (plan.addCount > 0) {
       // Quantity increments bind free owned copies; any beyond what's free are

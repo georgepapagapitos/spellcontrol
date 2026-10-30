@@ -11,6 +11,7 @@ import * as substitutesV2 from '@/deck-builder/services/substitutes/surfaces';
 import { classifyCandidate } from '@/lib/deck-analysis/deck-analysis';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { AddZoneToggle } from './AddZoneToggle';
+import type { AddZone } from './add-zone';
 import type { Dispatch, SetStateAction, RefObject } from 'react';
 import type { DeckFormatConfig } from '@/deck-builder/types';
 import type { BuildTimeNudge } from '@/lib/coach/use-build-time-nudge';
@@ -57,8 +58,8 @@ export function useDeckCardRenderers({
   collectionCards,
   freeCountFor,
 }: {
-  addZone: 'considering' | 'main' | 'side';
-  setAddZone: Dispatch<SetStateAction<'considering' | 'main' | 'side'>>;
+  addZone: AddZone;
+  setAddZone: Dispatch<SetStateAction<AddZone>>;
   formatConfig: DeckFormatConfig | null;
   buildTimeNudge: {
     nudge: BuildTimeNudge | null;

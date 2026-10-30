@@ -98,6 +98,7 @@ export function DeckDisplay(props: DeckDisplayProps) {
     cards,
     sideboard = [],
     considering = [],
+    extras = [],
     archetypeOverride,
     // deckGrade: removed from stat-strip (UX-315: one grading system; letter grades dropped)
     roleCounts,
@@ -241,11 +242,13 @@ export function DeckDisplay(props: DeckDisplayProps) {
     visibleGroups,
     visibleSideboardGroups,
     visibleConsideringGroups,
+    visibleExtrasGroups,
     noDeckMatches,
   } = useDeckRows({
     cards,
     sideboard,
     considering,
+    extras,
     commander,
     partnerCommander,
     commanderAllocatedCopyId,
@@ -372,18 +375,21 @@ export function DeckDisplay(props: DeckDisplayProps) {
   // ── Card preview wiring ──────────────────────────────────────────────
   // Re-resolve rarity for cards whose stored snapshot defaulted to 'common'
   // (decks generated against the pre-#329 offline oracle). See the hook doc.
-  // All three zones, not just the mainboard: `flat` below applies these
-  // corrections to cards/sideboard/considering alike, so feeding only
+  // Every zone, not just the mainboard: `flat` below applies these
+  // corrections to every zone alike, so feeding only
   // `visibleGroups` left a card that lives ONLY in the sideboard or in
   // Considering stuck on its stale 'common' snapshot forever. The hook dedupes
   // by oracle id internally, so the tag-grouped view's repeated rows cost
   // nothing here.
   const previewCards = useMemo<ScryfallCard[]>(
     () =>
-      [...visibleGroups, ...visibleSideboardGroups, ...visibleConsideringGroups].flatMap((g) =>
-        g.rows.map((r) => r.card)
-      ),
-    [visibleGroups, visibleSideboardGroups, visibleConsideringGroups]
+      [
+        ...visibleGroups,
+        ...visibleSideboardGroups,
+        ...visibleConsideringGroups,
+        ...visibleExtrasGroups,
+      ].flatMap((g) => g.rows.map((r) => r.card)),
+    [visibleGroups, visibleSideboardGroups, visibleConsideringGroups, visibleExtrasGroups]
   );
   const rarityCorrections = useRarityCorrections(previewCards);
   const flat = useMemo(
@@ -392,9 +398,16 @@ export function DeckDisplay(props: DeckDisplayProps) {
         visibleGroups,
         visibleSideboardGroups,
         visibleConsideringGroups,
+        visibleExtrasGroups,
         rarityCorrections
       ),
-    [visibleGroups, visibleSideboardGroups, visibleConsideringGroups, rarityCorrections]
+    [
+      visibleGroups,
+      visibleSideboardGroups,
+      visibleConsideringGroups,
+      visibleExtrasGroups,
+      rarityCorrections,
+    ]
   );
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -463,17 +476,23 @@ export function DeckDisplay(props: DeckDisplayProps) {
     ? `${selection.keys.size} ${selection.keys.size === 1 ? 'card' : 'cards'} selected`
     : '';
   const outzoneGroups = useMemo(
-    () =>
-      hasSideboard
-        ? [...visibleSideboardGroups, ...visibleConsideringGroups]
-        : visibleConsideringGroups,
-    [hasSideboard, visibleSideboardGroups, visibleConsideringGroups]
+    () => [
+      ...(hasSideboard ? visibleSideboardGroups : []),
+      ...visibleConsideringGroups,
+      ...visibleExtrasGroups,
+    ],
+    [hasSideboard, visibleSideboardGroups, visibleConsideringGroups, visibleExtrasGroups]
   );
   // A tile's menu needs its pile. The grid reports only the row, and a name
-  // can sit in both piles, so the row's own slot id decides.
+  // can sit in more than one pile, so the row's own slot id decides.
   const sideboardSlotIds = useMemo(() => new Set(sideboard.map((c) => c.slotId)), [sideboard]);
+  const extrasSlotIds = useMemo(() => new Set(extras.map((c) => c.slotId)), [extras]);
   const outzoneOf = (row: Row): DeckZone =>
-    row.slotIds.some((id) => sideboardSlotIds.has(id)) ? 'sideboard' : 'considering';
+    row.slotIds.some((id) => sideboardSlotIds.has(id))
+      ? 'sideboard'
+      : row.slotIds.some((id) => extrasSlotIds.has(id))
+        ? 'extras'
+        : 'considering';
 
   const ctxValue = useMemo(
     () => ({
@@ -568,6 +587,7 @@ export function DeckDisplay(props: DeckDisplayProps) {
         onChangeCommander,
         cover,
         onSetCardTags,
+        onBulkRemove,
       },
     });
 

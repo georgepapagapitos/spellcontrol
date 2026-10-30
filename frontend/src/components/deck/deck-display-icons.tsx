@@ -10,6 +10,7 @@ import {
   Combine,
   Crosshair,
   Layers,
+  Package,
   Sprout,
   Tag as TagIcon,
   Wrench,
@@ -61,12 +62,14 @@ const CATEGORY_ICON_COMPONENTS: Partial<
 };
 
 // Section icons that are not a card type or a category: a tag lens section,
-// and the two piles outside the deck (the sideboard swaps in and out between
-// games; Considering holds cards kept for later).
+// and the piles outside the deck (the sideboard swaps in and out between
+// games; Considering holds cards kept for later; In the box holds what the
+// box came with, like a display commander).
 const SECTION_ICON_COMPONENTS: Record<string, typeof TagIcon> = {
   tag: TagIcon,
   sideboard: ArrowLeftRight,
   considering: Bookmark,
+  extras: Package,
 };
 
 // Section-header icon renderer shared by CategorySection and DeckCardGrid.

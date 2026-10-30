@@ -18,6 +18,8 @@ import {
   isProductToken,
   physicalCardsToUploadResponse,
   physicalCopyCount,
+  productBoxExtras,
+  productCommanderFinish,
 } from '@/lib/import-export/product-import';
 import { readLocalStorage } from '@/lib/util/local-storage';
 import { fetchErrorMessage } from '@/lib/import-export/import-review';
@@ -417,21 +419,33 @@ export function ProductSearchPanel({ onClose, context = 'collection' }: Props) {
     }
   };
 
-  /** Builds the deck from the resolved product's playable 100. Read fresh
-   *  collection state at call time (inside buildDeckFromResult), so calling
-   *  this AFTER a collection add allocates against the copies just added
-   *  rather than marking them all unowned. */
-  const buildDeck = (resp: ProductResolveResponse): string =>
-    buildDeckFromResult(resp.deck, resp.deck.commander, resp.product.name, deckFormatOf(resp), {
-      // A precon with two commanders (a partner pair, a Background) keeps
-      // both in the command zone.
-      partner: namedPartner(resp.deck.commander, resp.deck.partner),
-      sourceProduct: {
-        code: resp.product.code,
-        fileName: resp.product.fileName,
-        name: resp.product.name,
-      },
-    });
+  /** Builds the deck from the resolved product's playable 100, with the rest
+   *  of the box (display commanders and the like, not tokens) In the box.
+   *  Reads fresh collection state at call time (inside buildDeckFromResult),
+   *  so calling this AFTER a collection add allocates against the copies just
+   *  added rather than marking them all unowned. */
+  const buildDeck = (resp: ProductResolveResponse): string => {
+    // A precon with two commanders (a partner pair, a Background) keeps both
+    // in the command zone.
+    const partner = namedPartner(resp.deck.commander, resp.deck.partner);
+    return buildDeckFromResult(
+      resp.deck,
+      resp.deck.commander,
+      resp.product.name,
+      deckFormatOf(resp),
+      {
+        partner,
+        extras: productBoxExtras(resp.physicalCards),
+        commanderFinish: productCommanderFinish(resp.physicalCards, resp.deck.commander?.id),
+        partnerFinish: productCommanderFinish(resp.physicalCards, partner?.id),
+        sourceProduct: {
+          code: resp.product.code,
+          fileName: resp.product.fileName,
+          name: resp.product.name,
+        },
+      }
+    );
+  };
 
   /** Pure "Add as deck", no collection touched: builds and navigates straight
    *  there, closing the sheet. Nothing to review, so no summary to show. */

@@ -33,6 +33,7 @@ export type CardMenuHandlers = Pick<
   | 'onChangeCommander'
   | 'cover'
   | 'onSetCardTags'
+  | 'onBulkRemove'
 >;
 
 export function buildCardMenuCtx(args: {
@@ -44,6 +45,18 @@ export function buildCardMenuCtx(args: {
   handlers: CardMenuHandlers;
 }): DeckCardActionCtx {
   const { row, zone, isSingleton, hasSideboard, onSetQty, handlers: h } = args;
+  // In the box holds the box's own cards: remove, re-count and give or release
+  // a copy, nothing that moves, tags, proxies or seats it (DeckZoneSection).
+  if (zone === 'extras') {
+    return {
+      row,
+      isSingleton: false,
+      onSetQty,
+      onRemoveCard: h.onBulkRemove ? (slotId) => h.onBulkRemove!('extras', [slotId]) : undefined,
+      onUseOwnCopy: h.onUseOwnCopy,
+      onReleaseCopy: h.onReleaseCopy,
+    };
+  }
   return {
     row,
     isSingleton,
@@ -123,7 +136,7 @@ export function buildBulkActions(args: {
               },
             ]
           : []),
-        ...(onBulkMove && selection.zone !== 'cards'
+        ...(onBulkMove && selection.zone !== 'cards' && selection.zone !== 'extras'
           ? [
               {
                 key: 'mainboard',
