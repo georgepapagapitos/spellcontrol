@@ -276,15 +276,25 @@ export function useDeckReallocation({
     if (!deck) return;
     const slot = listSlots(deck).find((c) => c.slotId === slotId);
     if (!slot) return;
-    claimCopyInto(slot.card, (copyId) => setCardAllocation(deck.id, slotId, copyId));
+    // In the box names an exact physical card: only its own printing will do,
+    // the same rule remapAllocations holds it to on every load.
+    const inBox = (deck.extras ?? []).some((c) => c.slotId === slotId);
+    claimCopyInto(slot.card, (copyId) => setCardAllocation(deck.id, slotId, copyId), inBox);
   };
 
   // Bind a copy of `card` to one seat of this deck: steal it from the deck or
   // cube holding it (leave-gap, one atomic Undo), else take a free copy.
-  const claimCopyInto = (card: ScryfallCard, bind: (copyId: string) => void): void => {
+  const claimCopyInto = (
+    card: ScryfallCard,
+    bind: (copyId: string) => void,
+    exactPrinting = false
+  ): void => {
+    const pool = exactPrinting
+      ? collectionCards.filter((c) => c.scryfallId === card.id)
+      : collectionCards;
     const stealable = findStealableCopy(
       card.name,
-      collectionCards,
+      pool,
       useDecksStore.getState().decks,
       deck.id,
       card.id,
@@ -315,12 +325,13 @@ export function useDeckReallocation({
     // A free copy is available — bind it directly (no cross-deck move).
     const claim = pickCollectionCopy(
       card.name,
-      collectionCards,
+      pool,
       buildAllocationMap(useDecksStore.getState().decks, useCubeStore.getState().saved),
       card.id
     );
     if (!claim) {
-      pushToast({ message: `No free copy of ${card.name} to use.`, tone: 'info' });
+      const what = exactPrinting ? `${card.name} in this printing` : card.name;
+      pushToast({ message: `No free copy of ${what} to use.`, tone: 'info' });
       return;
     }
     recordEdit(deck.id, `use my ${card.name}`, () => bind(claim.copyId));

@@ -1280,6 +1280,9 @@ export const useDecksStore = create<DecksState>()(
             cardName: string;
             scryfallId: string | undefined;
             currentCopyId: string | null;
+            /** In the box names an exact physical card: only its own printing
+             *  binds, so passes 3 and 4 never hand it a same-name copy. */
+            exactPrinting?: boolean;
             apply: (copyId: string | null) => void;
           }
           const slots: SlotRef[] = [];
@@ -1361,6 +1364,7 @@ export const useDecksStore = create<DecksState>()(
                   cardName: c.card.name,
                   scryfallId: c.card.id,
                   currentCopyId: c.allocatedCopyId,
+                  exactPrinting: zone === 'extras',
                   apply: (copyId) => {
                     const target = u.zones[zone].find((x) => x.slotId === slotId);
                     if (target) target.allocatedCopyId = copyId;
@@ -1472,6 +1476,11 @@ export const useDecksStore = create<DecksState>()(
           // Keep it rather than churning to a different wrong-printing copy.
           const needsFreshPick: SlotRef[] = [];
           for (const slot of stillNeedsPick) {
+            // Pass 2 already offered its own printing; a box extra takes no other.
+            if (slot.exactPrinting) {
+              slot.apply(null);
+              continue;
+            }
             const current = slot.currentCopyId ? byCopyId.get(slot.currentCopyId) : undefined;
             if (
               slot.currentCopyId &&
