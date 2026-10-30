@@ -324,7 +324,11 @@ brand in the UI:
 - **Loading is never branded.** The boot screen (`App.tsx`'s `BootSplash`),
   the share-link `LoadingView` and the collection's "pulling from the server"
   state use the page spinner (`.page-loader` + `.spinner`), the same one
-  Layout shows while a hub's chunk loads. Pages with content load with
+  Layout shows while a hub's chunk loads. A page's whole loading state holds
+  the viewport (`min-height: 100dvh`, as `.page-loader` and
+  `.shared-view--loading` do), so the footer never paints mid-screen and
+  then jumps when the content lands (E1049, guarded by
+  `styles/page-loading-holds-viewport.test.ts`). Pages with content load with
   skeletons (STYLE_GUIDE § Verbs, "Loading, empty, error"). Never a logo loop:
   when a mark returns, it does not come back as a loader.
 - **Empty states are words and a door**, no decorative mark above them

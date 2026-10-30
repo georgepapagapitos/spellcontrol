@@ -36,6 +36,16 @@ body:has(.playtest-page, .horde-table-page) .modal-backdrop {
   z-index: calc(var(--z-overlay) + 50);
 }
 
+/* The board is fixed over the whole viewport, so the page under it is empty
+   and its footer rose to the top behind the board the moment the loader (a
+   full viewport tall) gave way: CLS 0.06 to 0.10 on desktop playtest routes
+   (E1049). Nothing can see or reach the footer here, so it leaves the
+   layout. It is below the fold while the loader shows, so nothing in view
+   moves when it goes. */
+body:has(.playtest-page, .horde-table-page) .footer {
+  display: none;
+}
+
 /* Single density driver for the battlefield card box (multiplayer prereq).
    Card size, the reducer's fraction→pixel position math, and any size-
    derived chrome all read `--pt-card-w`/`--pt-card-h` off this instead of a

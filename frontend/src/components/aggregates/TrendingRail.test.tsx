@@ -114,12 +114,23 @@ describe('TrendingRail', () => {
       'fetch',
       vi.fn(() => pending(new Response('{}')))
     );
+    localStorage.setItem('sc-trending-shape', '10');
     renderRail();
     expect(screen.getByText('Loading trending decks')).toBeTruthy();
     expect(screen.queryByRole('status')).toBeTruthy();
-    // A first visit reserves a full section (the common production shape),
-    // so the browse grid beneath does not shift when data lands.
     expect(document.querySelectorAll('.trending-tile-skeleton')).toHaveLength(10);
+  });
+
+  // Production's rail is empty, so a full-section reserve on a first visit
+  // collapsed when the data landed and pulled the grid up 225px (CLS 0.15,
+  // E1049). With nothing remembered, nothing is reserved.
+  it('reserves nothing on a first visit', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => pending(new Response('{}')))
+    );
+    const { container } = renderRail();
+    expect(container.querySelector('.trending-rail')).toBeNull();
   });
 
   it('reserves the shape the rail had last time: its tile count, or nothing when it was empty', async () => {

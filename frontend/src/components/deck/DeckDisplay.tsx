@@ -60,7 +60,13 @@ import { buildInspectorCard, bindQtyToZone } from './deck-display-derive';
 import { buildCardMenuCtx, buildBulkActions } from './deck-display-actions';
 import { useDeckFlatIndex, useDeckOutzone } from './use-deck-zone-views';
 import { useDeckCompleteMoment } from './use-deck-complete-moment';
-import { DeckStatStrip, DeckBulkBar, DeckRoleBar, DeckEmptyState } from './DeckDisplayBands';
+import {
+  DeckStatStrip,
+  DeckBulkBar,
+  DeckRoleBar,
+  DeckRoleBarPending,
+  DeckEmptyState,
+} from './DeckDisplayBands';
 
 // The card inspector (DeckCardInspector) is the desktop card preview: any
 // window ≥1024px with a fine pointer. It used to wait for 1440px, and between
@@ -725,13 +731,16 @@ export function DeckDisplay(props: DeckDisplayProps) {
               </div>
             )}
 
-            {roleFilterEntries.length > 0 && (
+            {roleFilterEntries.length > 0 ? (
               <DeckRoleBar
                 barRef={roleBarRef}
                 entries={roleFilterEntries}
                 active={activeRoleFilter}
                 setRoleFilter={setRoleFilter}
               />
+            ) : (
+              // Hold the bar's row until the tagger corpus lands (E1049).
+              !taggerReady && cards.length > 0 && <DeckRoleBarPending />
             )}
 
             <div className="deck-display-body">

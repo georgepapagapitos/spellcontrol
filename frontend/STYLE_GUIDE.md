@@ -838,7 +838,10 @@ to fill the space.
 empty.** Discover's Trending rail is the example: the browse grid below is the
 page, and a "Nothing trending yet" card above it only pushed the grid down. So
 an empty rail returns `null` with no heading and no empty-state card, and its
-loading skeleton reserves nothing when it was empty last time. The empty-state
+loading skeleton reserves the shape the rail had last time: nothing when it was
+empty, and nothing on a first visit (2026-10-30, E1049). A first-visit reserve
+is a guess about live data. The full-section guess went stale once production's
+rail emptied, and every first visit then collapsed 225px. The empty-state
 rules above are for a page or section whose content IS that list.
 
 **A social ranking counts people, never clicks.** A list the app curates by

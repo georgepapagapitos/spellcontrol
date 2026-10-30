@@ -170,15 +170,19 @@ export const TRENDING_SECTION_MAX = 10;
  * ~200px — a 0.07 layout shift measured on /decks/discover (2026-09-09);
  * a fixed ten-tile one would over-reserve wherever nothing is trending
  * yet and the grid would jump UP instead. The loaded shape is one number
- * (the longer section's tile count) kept per browser; a first visit
- * assumes a full section, the common shape in production.
+ * (the longer section's tile count) kept per browser. A first visit
+ * reserves nothing. It used to assume a full section, but production's rail
+ * has been empty (checked 2026-10-30), so every first visit reserved 225px
+ * that collapsed when the data landed: CLS 0.15 on desktop, and Discover
+ * passed on only 42% of visits (E1049). When the rail does have tiles, a
+ * first visit shifts once and every later visit reserves the right height.
  */
 const SHAPE_KEY = 'sc-trending-shape';
 
 export function readTrendingShape(): number {
   try {
     const raw = localStorage.getItem(SHAPE_KEY);
-    if (raw === null) return TRENDING_SECTION_MAX;
+    if (raw === null) return 0;
     const n = Number(raw);
     return Number.isInteger(n) && n >= 0 ? Math.min(n, TRENDING_SECTION_MAX) : TRENDING_SECTION_MAX;
   } catch {
