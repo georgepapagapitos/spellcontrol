@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import {
   fetchTagPageData,
   isPoolTooThin,
@@ -11,6 +11,7 @@ import {
   MIN_HEALTHY_POOL_CARDS,
   MAX_RETRIES,
 } from './client';
+import { resetEdhrecProxyState } from './request';
 import { frontFaceName } from '@/lib/cards/card-text';
 import type { EDHRECCard, EDHRECCommanderData } from '@/deck-builder/types';
 
@@ -585,5 +586,93 @@ describe('fetchCommanderCombosRaw: a missing page is no combos, not a failure', 
     const pending = fetchCommanderCombosRaw('Combo Server Down').catch((e: Error) => e.message);
     await vi.runAllTimersAsync();
     expect(await pending).toMatch(/EDHREC API error: 500/);
+  });
+});
+
+// E1056: pages are read through our backend (a last-known-good copy), and the
+// browser goes to EDHREC itself only when that backend cannot be reached.
+describe('EDHREC pages are read through our backend (E1056)', () => {
+  beforeEach(() => resetEdhrecProxyState());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  const reply = (status: number, body: unknown = {}, proxyHeader: string | null = 'miss') => ({
+    ok: status >= 200 && status < 300,
+    status,
+    statusText: String(status),
+    headers: { get: (h: string) => (h.toLowerCase() === 'x-edhrec-cache' ? proxyHeader : null) },
+    body: null,
+    json: async () => body,
+  });
+  const urls = (fn: ReturnType<typeof vi.fn>) => fn.mock.calls.map((c) => String(c[0]));
+  const comboList = { container: { json_dict: { cardlists: [] } } };
+
+  it('requests the page from /api/edhrec/page, once, and never touches EDHREC', async () => {
+    const fetchMock = vi.fn(async () => reply(200, comboList));
+    vi.stubGlobal('fetch', fetchMock);
+    await fetchCommanderCombosRaw('Atraxa, Praetors Voice');
+    expect(urls(fetchMock)).toEqual(['/api/edhrec/page/pages/combos/atraxa-praetors-voice.json']);
+  });
+
+  it('reads the backend 403/404 as "no combos" without asking EDHREC itself', async () => {
+    for (const status of [403, 404]) {
+      resetEdhrecProxyState();
+      const fetchMock = vi.fn(async () => reply(status, {}, 'absent'));
+      vi.stubGlobal('fetch', fetchMock);
+      await expect(fetchCommanderCombosRaw(`Brand New Commander ${status}`)).resolves.toEqual([]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it('falls back to EDHREC when the backend is unreachable, then skips the backend for a while', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.startsWith('/api/edhrec/page/')) throw new TypeError('Failed to fetch');
+      return reply(200, comboList);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await fetchCommanderCombosRaw('Fallback Probe One');
+    await fetchCommanderCombosRaw('Fallback Probe Two');
+    expect(urls(fetchMock)).toEqual([
+      '/api/edhrec/page/pages/combos/fallback-probe-one.json',
+      '/edhrec-api/pages/combos/fallback-probe-one.json',
+      '/edhrec-api/pages/combos/fallback-probe-two.json',
+    ]);
+    resetEdhrecProxyState();
+    await fetchCommanderCombosRaw('Fallback Probe Three');
+    // The backend is tried again (and, still down here, fails over once more).
+    expect(urls(fetchMock).slice(3)).toEqual([
+      '/api/edhrec/page/pages/combos/fallback-probe-three.json',
+      '/edhrec-api/pages/combos/fallback-probe-three.json',
+    ]);
+  });
+
+  it('treats a 502 with no route header (the host edge) as the backend being down', async () => {
+    const fetchMock = vi.fn(async (url: string) =>
+      url.startsWith('/api/edhrec/page/') ? reply(502, {}, null) : reply(200, comboList)
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await fetchCommanderCombosRaw('Edge 502 Probe');
+    expect(urls(fetchMock)[1]).toBe('/edhrec-api/pages/combos/edge-502-probe.json');
+  });
+
+  it('does not fall back on a 502 the route itself sent', async () => {
+    const fetchMock = vi.fn(async () => reply(502, {}, 'unavailable'));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(fetchCommanderCombosRaw('Route 502 Probe')).rejects.toThrow(/502/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  // Last on purpose: fake timers advance the client's rate limiter clock past real time.
+  it('retries a backend 503 against the backend only, not EDHREC', async () => {
+    const fetchMock = vi.fn(async () => reply(503, {}, 'unavailable'));
+    vi.stubGlobal('fetch', fetchMock);
+    vi.useFakeTimers();
+    const pending = fetchCardLiftPool('Backend 503 Probe');
+    await vi.runAllTimersAsync();
+    await expect(pending).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(MAX_RETRIES + 1);
+    expect(urls(fetchMock).every((u) => u.startsWith('/api/edhrec/page/'))).toBe(true);
   });
 });

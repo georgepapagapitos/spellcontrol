@@ -213,6 +213,9 @@ app.use(
         'connect-src': [
           "'self'",
           'https://api.scryfall.com',
+          // Pages are read through /api/edhrec/page; the browser reaches EDHREC
+          // itself only as the fallback when our backend is unreachable
+          // (frontend edhrec/client.ts edhrecRequest). Keep it for that.
           'https://json.edhrec.com',
           'https://*.scryfall.io',
           // Cube import reads a cube straight from CubeCobra's JSON API, and
