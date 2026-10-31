@@ -11,6 +11,8 @@ import { parseEdhrecPagePath } from '../edhrec/page-paths';
 let app: Server;
 let cleanup: () => Promise<void>;
 
+const S3_ABSENT =
+  '<?xml version="1.0" encoding="UTF-8"?><Error><Code>AccessDenied</Code><Message>Access Denied</Message></Error>';
 const CMDR = '/pages/commanders/atraxa-praetors-voice.json';
 
 /** A commander page shaped like EDHREC's: one cardlist of named, counted cards. */
@@ -50,9 +52,10 @@ function stubEdhrec(pages: Record<string, Reply>): {
     calls.push(url);
     const r = pages[url.replace('https://json.edhrec.com', '')];
     if (typeof r === 'function') return (r as () => Promise<Response>)();
-    if (r === undefined) return new Response('<Error>Access Denied</Error>', { status: 403 });
+    if (r === undefined) return new Response(S3_ABSENT, { status: 403 });
     if (r && typeof r === 'object' && 'status' in r && Object.keys(r).length === 1) {
-      return new Response('x', { status: (r as { status: number }).status });
+      const st = (r as { status: number }).status;
+      return new Response(st === 403 || st === 404 ? S3_ABSENT : 'x', { status: st });
     }
     return new Response(JSON.stringify(r), { headers: { 'Content-Type': 'application/json' } });
   });
@@ -77,6 +80,8 @@ beforeEach(async () => {
   tuning.backoffMs = 1;
   tuning.maxRetries = 2;
   tuning.maxTotalBytes = 96 * 1024 * 1024;
+  tuning.maxQueue = 40;
+  tuning.missesPerMinute = 1000;
   await getDb().execute(sql`TRUNCATE edhrec_pages`);
 });
 
@@ -235,7 +240,7 @@ describe('GET /api/edhrec/page', () => {
     expect(res.headers['retry-after']).toBe('5');
     expect(res.headers['x-edhrec-cache']).toBe('unavailable');
     const n = calls.length;
-    expect(n).toBe(tuning.maxRetries + 1);
+    expect(n).toBe(tuning.coldMaxRetries + 1); // cold: a user is waiting, so a short ladder
     const again = await get(CMDR);
     expect(again.status).toBe(503);
     expect(calls).toHaveLength(n);
@@ -374,5 +379,97 @@ describe('size bound', () => {
     const left = await getDb().select().from(edhrecPages);
     expect(left.map((r) => r.path)).toEqual(['/pages/commanders/a-one.json']);
     expect(await evictToBound()).toBe(0);
+  });
+});
+
+describe('blocked is not absent', () => {
+  const waf =
+    (status: number, type = 'text/html') =>
+    async () =>
+      new Response('<html><body>Request blocked. We can not connect to the server.</body></html>', {
+        status,
+        headers: { 'Content-Type': type },
+      });
+
+  it('treats a non-S3 403/404 as a failure: 503 with nothing stored, and never remembered as absent', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    for (const status of [403, 404]) {
+      resetPageMemory();
+      const { calls } = stubEdhrec({ '/pages/combos/some-commander.json': waf(status) });
+      const a = await get('/pages/combos/some-commander.json');
+      expect(a.status).toBe(503);
+      expect(a.headers['x-edhrec-cache']).toBe('unavailable');
+      // The failure window ends; the page is asked for again, not served as "absent".
+      resetPageMemory();
+      const n = calls.length;
+      const b = await get('/pages/combos/some-commander.json');
+      expect(b.status).toBe(503);
+      expect(calls.length).toBeGreaterThan(n);
+    }
+  });
+
+  it('serves the stored copy stale when EDHREC starts blocking us', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { set } = stubEdhrec({ [CMDR]: commanderPage() });
+    await get(CMDR);
+    await ageStored(CMDR, FRESH_MS + 1000);
+    set(CMDR, waf(403));
+    const res = await get(CMDR);
+    expect(res.status).toBe(200);
+    expect(res.headers['x-edhrec-cache']).toBe('stale');
+  });
+
+  it('accepts NoSuchKey as absent too', async () => {
+    stubEdhrec({
+      '/pages/cards/ghost.json': async () =>
+        new Response('<Error><Code>NoSuchKey</Code></Error>', { status: 404 }),
+    });
+    const res = await get('/pages/cards/ghost.json');
+    expect(res.status).toBe(404);
+    expect(res.headers['x-edhrec-cache']).toBe('absent');
+  });
+});
+
+describe('abuse bounds', () => {
+  it('refuses with 503 once too many upstream fetches are waiting', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    tuning.maxQueue = 2;
+    tuning.upstreamGapMs = 40;
+    const { calls } = stubEdhrec({});
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      calls.push(String(input));
+      return new Response(JSON.stringify(commanderPage()));
+    });
+    const replies = await Promise.all(
+      ['a-1', 'a-2', 'a-3', 'a-4', 'a-5', 'a-6'].map((n) => get(`/pages/commanders/${n}.json`))
+    );
+    const statuses = replies.map((r) => r.status);
+    expect(statuses.filter((s) => s === 503).length).toBeGreaterThan(0);
+    expect(statuses.filter((s) => s === 200).length).toBeGreaterThan(0);
+    expect(calls.length).toBeLessThan(6);
+  });
+
+  it('caps cache misses per client, but still serves cached pages', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    tuning.missesPerMinute = 2;
+    const { calls } = stubEdhrec({
+      '/pages/commanders/b-1.json': commanderPage(),
+      '/pages/commanders/b-2.json': commanderPage(),
+      '/pages/commanders/b-3.json': commanderPage(),
+    });
+    expect((await get('/pages/commanders/b-1.json')).status).toBe(200);
+    expect((await get('/pages/commanders/b-2.json')).status).toBe(200);
+    const over = await get('/pages/commanders/b-3.json');
+    expect(over.status).toBe(503);
+    expect(calls).toHaveLength(2);
+    // A hit costs no budget.
+    expect((await get('/pages/commanders/b-1.json')).headers['x-edhrec-cache']).toBe('hit');
+  });
+
+  it('a cold page waits for at most one retry', async () => {
+    const { calls } = stubEdhrec({ [CMDR]: { status: 500 } });
+    tuning.maxRetries = 3;
+    await get(CMDR);
+    expect(calls).toHaveLength(2);
   });
 });

@@ -60,6 +60,15 @@ export const tuning = {
   backoffMs: 1000,
   maxRetryAfterMs: 10_000,
   maxTotalBytes: DEFAULT_MAX_TOTAL_BYTES,
+  /** A page with no stored copy has a user waiting on it: one retry, short
+   *  waits, a short timeout. The browser then goes to EDHREC itself. */
+  coldMaxRetries: 1,
+  coldTimeoutMs: 5000,
+  coldMaxWaitMs: 2000,
+  /** More upstream requests than this waiting: refuse rather than queue. */
+  maxQueue: 40,
+  /** Upstream fetches (cache misses) one client may start per minute. */
+  missesPerMinute: 60,
 };
 
 export class PageUnavailableError extends Error {}
@@ -74,10 +83,35 @@ export type PageResult =
 
 let gate: Promise<void> = Promise.resolve();
 
+let waiting = 0;
+
 function takeTurn(): Promise<void> {
   const turn = gate;
+  waiting++;
   gate = turn.then(() => new Promise<void>((r) => setTimeout(r, tuning.upstreamGapMs)));
-  return turn;
+  return turn.finally(() => void waiting--);
+}
+
+/** Per-client cache-miss budget, so one IP can't spend the shared upstream
+ *  gate (and EDHREC's goodwill) on unique slugs. Fixed one-minute windows. */
+const missBudget = new Map<string, { count: number; resetAt: number }>();
+const MISS_CLIENTS_MAX = 5000;
+
+function allowMiss(client: string, now: number): boolean {
+  const e = missBudget.get(client);
+  if (!e || e.resetAt <= now) {
+    if (missBudget.size >= MISS_CLIENTS_MAX) missBudget.clear();
+    missBudget.set(client, { count: 1, resetAt: now + 60_000 });
+    return true;
+  }
+  e.count++;
+  return e.count <= tuning.missesPerMinute;
+}
+
+/** What EDHREC's S3 bucket answers for a page that doesn't exist. Any other
+ *  403/404 (a WAF or bot block, an HTML challenge) is a block, not "no page". */
+export function isS3Absent(text: string): boolean {
+  return /<Code>\s*(AccessDenied|NoSuchKey)\s*<\/Code>/.test(text);
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -87,39 +121,40 @@ interface Upstream {
   text: string;
 }
 
-async function fetchUpstream(path: string): Promise<Upstream> {
+async function fetchUpstream(path: string, cold: boolean): Promise<Upstream> {
   let lastError = 'no attempt';
-  for (let attempt = 0; attempt <= tuning.maxRetries; attempt++) {
+  const retries = cold ? Math.min(tuning.maxRetries, tuning.coldMaxRetries) : tuning.maxRetries;
+  const timeout = cold ? tuning.coldTimeoutMs : FETCH_TIMEOUT_MS;
+  const maxWait = cold ? tuning.coldMaxWaitMs : tuning.maxRetryAfterMs;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    if (waiting >= tuning.maxQueue) throw new Error('upstream queue is full');
     await takeTurn();
     let res: Response;
     try {
       res = await fetch(`${EDHREC_BASE}${path}`, {
         headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        signal: AbortSignal.timeout(timeout),
       });
     } catch (err) {
       lastError = errorMessage(err);
-      if (attempt < tuning.maxRetries) await sleep(tuning.backoffMs * 2 ** attempt);
+      if (attempt < retries) await sleep(Math.min(tuning.backoffMs * 2 ** attempt, maxWait));
       continue;
     }
     if (res.status === 429 || res.status >= 500) {
       lastError = `EDHREC answered ${res.status}`;
       await res.body?.cancel();
-      if (attempt < tuning.maxRetries) {
+      if (attempt < retries) {
         const retryAfter = Number(res.headers.get('Retry-After'));
         const wait =
           Number.isFinite(retryAfter) && retryAfter > 0
-            ? Math.min(retryAfter * 1000, tuning.maxRetryAfterMs)
-            : tuning.backoffMs * 2 ** attempt;
+            ? Math.min(retryAfter * 1000, maxWait)
+            : Math.min(tuning.backoffMs * 2 ** attempt, maxWait);
         await sleep(wait);
       }
       continue;
     }
-    if (!res.ok) {
-      await res.body?.cancel();
-      return { status: res.status, text: '' };
-    }
     const text = await res.text();
+    if (!res.ok) return { status: res.status, text: text.slice(0, 2000) };
     if (text.length > MAX_UPSTREAM_BYTES) throw new Error('EDHREC page is too large');
     return { status: res.status, text };
   }
@@ -131,6 +166,11 @@ async function fetchUpstream(path: string): Promise<Upstream> {
 const absent = new Map<string, { status: 403 | 404; until: number }>();
 const failed = new Map<string, number>();
 
+function rememberFailed(path: string, until: number): void {
+  if (failed.size >= NEGATIVE_MAX_ENTRIES) failed.clear();
+  failed.set(path, until);
+}
+
 function rememberAbsent(path: string, status: 403 | 404, now: number): void {
   if (absent.size >= NEGATIVE_MAX_ENTRIES) absent.clear();
   absent.set(path, { status, until: now + NEGATIVE_MS });
@@ -140,6 +180,8 @@ function rememberAbsent(path: string, status: 403 | 404, now: number): void {
 export function resetPageMemory(): void {
   absent.clear();
   failed.clear();
+  missBudget.clear();
+  waiting = 0;
   loading.clear();
   gate = Promise.resolve();
 }
@@ -204,15 +246,32 @@ function touch(path: string, row: PageRow, now: number): void {
 
 // -- the load --
 
-async function refresh(ref: EdhrecPageRef, row: PageRow | null, now: number): Promise<PageResult> {
+async function refresh(
+  ref: EdhrecPageRef,
+  row: PageRow | null,
+  now: number,
+  client: string
+): Promise<PageResult> {
   const { path } = ref;
+  if (!allowMiss(client, now)) {
+    return fallBack(ref, row, now, 'this client is over its cache-miss budget', false);
+  }
   let up: Upstream;
   try {
-    up = await fetchUpstream(path);
+    up = await fetchUpstream(path, row === null);
   } catch (err) {
-    return fallBack(ref, row, now, `fetch failed: ${errorMessage(err)}`);
+    return fallBack(ref, row, now, `fetch failed: ${errorMessage(err)}`, !isQueueFull(err));
   }
 
+  if ((up.status === 403 || up.status === 404) && !isS3Absent(up.text)) {
+    // Not EDHREC's own "no such page" answer: a block or a challenge page.
+    return fallBack(
+      ref,
+      row,
+      now,
+      `EDHREC answered ${up.status} with something other than its S3 error`
+    );
+  }
   if (up.status === 403 || up.status === 404) {
     // A stored page that EDHREC now says doesn't exist is still the last good
     // copy; serve it stale rather than turn a page into "no page".
@@ -246,7 +305,8 @@ async function fallBack(
   ref: EdhrecPageRef,
   row: PageRow | null,
   now: number,
-  why: string
+  why: string,
+  remember = true
 ): Promise<PageResult> {
   if (row) {
     logger.warn(
@@ -256,7 +316,7 @@ async function fallBack(
     return { kind: 'page', state: 'stale', gz: row.gz, fetchedAt: row.fetchedAt };
   }
   logger.warn(`[edhrec-pages] ${ref.path}: ${why}; no stored copy`);
-  failed.set(ref.path, now + FAILURE_MS);
+  if (remember) rememberFailed(ref.path, now + FAILURE_MS);
   throw new PageUnavailableError(`${ref.path}: ${why}`);
 }
 
@@ -264,10 +324,14 @@ async function fallBack(
  *  so concurrent requests for a cold or stale page share one upstream call. */
 const loading = new Map<string, Promise<PageResult>>();
 
-export function getPage(ref: EdhrecPageRef, now = Date.now()): Promise<PageResult> {
+export function getPage(
+  ref: EdhrecPageRef,
+  now = Date.now(),
+  client = 'unknown'
+): Promise<PageResult> {
   const running = loading.get(ref.path);
   if (running) return running;
-  const run = load(ref, now);
+  const run = load(ref, now, client);
   loading.set(ref.path, run);
   void run.then(
     () => loading.delete(ref.path),
@@ -276,7 +340,7 @@ export function getPage(ref: EdhrecPageRef, now = Date.now()): Promise<PageResul
   return run;
 }
 
-async function load(ref: EdhrecPageRef, now: number): Promise<PageResult> {
+async function load(ref: EdhrecPageRef, now: number, client: string): Promise<PageResult> {
   const { path } = ref;
   const no = absent.get(path);
   if (no && no.until > now) return { kind: 'absent', status: no.status };
@@ -295,7 +359,11 @@ async function load(ref: EdhrecPageRef, now: number): Promise<PageResult> {
   if (!row && cooling && cooling > now) {
     throw new PageUnavailableError(`${path}: a fetch failed moments ago`);
   }
-  return refresh(ref, row, now);
+  return refresh(ref, row, now, client);
+}
+
+function isQueueFull(err: unknown): boolean {
+  return errorMessage(err) === 'upstream queue is full';
 }
 
 export function gunzipPage(gz: Buffer): Buffer {

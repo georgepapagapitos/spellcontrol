@@ -32,9 +32,11 @@ export function resetEdhrecProxyState(): void {
 /**
  * One GET for an EDHREC path. Goes to our backend; falls back to EDHREC
  * directly ONLY when the backend is unreachable (the request throws, or its
- * edge answers 502/504). Any answer the route produced, including 403/404
- * ("no such page") and 503 (EDHREC down, nothing stored), is returned as is:
- * asking EDHREC again from the browser would only double the traffic. The one
+ * edge answers 502/504), or when it says it cannot reach EDHREC and holds no
+ * copy (503 'unavailable'): that request goes direct once and the rest of the
+ * session's pages do too for a minute, rather than each paying the server's
+ * retry. Any other answer the route produced, including 403/404 ("no such
+ * page"), is returned as is: asking EDHREC again would only double traffic. The one
  * deliberate cost of the fallback is that the browser then talks to EDHREC
  * itself, which is why the CSP keeps json.edhrec.com in connect-src.
  */
@@ -43,8 +45,13 @@ export async function edhrecRequest(endpoint: string): Promise<Response> {
   if (Date.now() >= proxyDownUntil) {
     try {
       const res = await fetch(apiUrl(`${PROXY_PATH}${endpoint}`), { headers });
-      const edge = (res.status === 502 || res.status === 504) && !res.headers.get(PROXY_HEADER);
-      if (!edge) return res;
+      const tag = res.headers.get(PROXY_HEADER);
+      // 502/504 with no route header: the host's edge, our backend is down.
+      // 503 'unavailable': the backend is up but cannot reach EDHREC and holds
+      // no copy, so the browser may do better from its own network.
+      const down = (res.status === 502 || res.status === 504) && !tag;
+      const cannotReach = res.status === 503 && tag === 'unavailable';
+      if (!down && !cannotReach) return res;
       await res.body?.cancel();
     } catch {
       // Unreachable (offline, DNS, no server): fall through to EDHREC.

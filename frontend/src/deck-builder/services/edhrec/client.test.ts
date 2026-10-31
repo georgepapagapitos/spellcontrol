@@ -665,8 +665,22 @@ describe('EDHREC pages are read through our backend (E1056)', () => {
   });
 
   // Last on purpose: fake timers advance the client's rate limiter clock past real time.
-  it('retries a backend 503 against the backend only, not EDHREC', async () => {
-    const fetchMock = vi.fn(async () => reply(503, {}, 'unavailable'));
+  it('goes to EDHREC for that request when the backend cannot reach it, then keeps going direct', async () => {
+    const fetchMock = vi.fn(async (url: string) =>
+      url.startsWith('/api/edhrec/page/') ? reply(503, {}, 'unavailable') : reply(200, comboList)
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await fetchCommanderCombosRaw('Unavailable Probe One');
+    await fetchCommanderCombosRaw('Unavailable Probe Two');
+    expect(urls(fetchMock)).toEqual([
+      '/api/edhrec/page/pages/combos/unavailable-probe-one.json',
+      '/edhrec-api/pages/combos/unavailable-probe-one.json',
+      '/edhrec-api/pages/combos/unavailable-probe-two.json',
+    ]);
+  });
+
+  it('retries a 503 that is not the route saying unavailable against the backend only', async () => {
+    const fetchMock = vi.fn(async () => reply(503, {}, null));
     vi.stubGlobal('fetch', fetchMock);
     vi.useFakeTimers();
     const pending = fetchCardLiftPool('Backend 503 Probe');

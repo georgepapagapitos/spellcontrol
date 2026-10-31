@@ -78,7 +78,7 @@ edhrecRouter.get('/page/*path', pageLimiter, async (req: Request, res: Response)
     return;
   }
   try {
-    const page = await getPage(ref);
+    const page = await getPage(ref, Date.now(), req.ip ?? 'unknown');
     if (page.kind === 'absent') {
       // EDHREC has no such page. Same status it gave, so the client's
       // 403/404 handling (no combos, no color page) reads it as before.
