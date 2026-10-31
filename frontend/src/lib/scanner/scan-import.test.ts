@@ -65,15 +65,23 @@ describe('entriesToImportCsv', () => {
     ]);
     const [header, row] = csv.split('\n');
     expect(header).toBe(
-      'Name,Scryfall ID,Set Code,Collector Number,Foil,Quantity,Condition,Language'
+      'Name,Scryfall ID,Set Code,Collector Number,Foil,Quantity,Condition,Language,Proxy'
     );
-    expect(row).toBe('Sol Ring,print-1,cmr,472,foil,2,lp,ja');
+    expect(row).toBe('Sol Ring,print-1,cmr,472,foil,2,lp,ja,');
   });
 
-  it('leaves condition and language cells blank for the unmarked defaults', () => {
+  it('leaves condition, language and proxy cells blank for the unmarked defaults', () => {
     const csv = entriesToImportCsv([makeEntry()]);
     const [, row] = csv.split('\n');
-    expect(row).toBe('Sol Ring,print-1,cmr,472,nonfoil,1,,');
+    expect(row).toBe('Sol Ring,print-1,cmr,472,nonfoil,1,,,');
+  });
+
+  // backend/src/parsers/csv.test.ts parses this exact header, so the flag
+  // reaches the collection row.
+  it('marks a proxy row in the Proxy column', () => {
+    const csv = entriesToImportCsv([makeEntry({ proxy: true })]);
+    const [, row] = csv.split('\n');
+    expect(row).toBe('Sol Ring,print-1,cmr,472,nonfoil,1,,,true');
   });
 
   it('quotes a name containing a comma', () => {

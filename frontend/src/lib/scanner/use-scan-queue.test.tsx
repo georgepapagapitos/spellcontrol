@@ -481,6 +481,36 @@ describe('useScanQueue', () => {
     });
   });
 
+  describe('changeProxy', () => {
+    it('leaves a fresh scan unmarked (real card)', () => {
+      const { result } = renderHook(() => useScanQueue());
+      act(() => {
+        result.current.addScan(makeCard());
+      });
+      expect(result.current.queue[0].proxy).toBeUndefined();
+    });
+
+    it('marks the row a proxy and back, valuing a proxy at $0 in the total', () => {
+      const { result } = renderHook(() => useScanQueue());
+      act(() => {
+        result.current.addScan(makeCard());
+      });
+      const realTotal = result.current.totalPrice;
+      expect(realTotal).toBeGreaterThan(0);
+      act(() => {
+        result.current.changeProxy(NONFOIL_1, true);
+      });
+      expect(result.current.queue[0].proxy).toBe(true);
+      expect(result.current.queue[0].id).toBe(NONFOIL_1);
+      expect(result.current.totalPrice).toBe(0);
+      act(() => {
+        result.current.changeProxy(NONFOIL_1, false);
+      });
+      expect(result.current.queue[0].proxy).toBeUndefined();
+      expect(result.current.totalPrice).toBe(realTotal);
+    });
+  });
+
   describe('changeLanguage', () => {
     it('leaves a fresh scan undefined (English default)', () => {
       const { result } = renderHook(() => useScanQueue());

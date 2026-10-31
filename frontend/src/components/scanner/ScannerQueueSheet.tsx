@@ -33,10 +33,11 @@ import { useSearchCards } from '@/lib/search/use-search-cards';
 import { useConfirm } from '@/components/overlays/use-confirm';
 import { formatMoney } from '@/lib/collection/format-money';
 import { formatRelativeTime } from '@/lib/util/format-time';
-import { CONDITIONS, FINISH_LABELS, finishUnitPrice } from '@/lib/scanner/scanner-feedback';
+import { CONDITIONS, FINISH_LABELS, entryUnitPrice } from '@/lib/scanner/scanner-feedback';
 import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import { bindersUseTags, useCardsWithTags } from '@/lib/cards/card-tags';
 import type { ScannedEntry } from '@/lib/scanner/use-scan-queue';
+import { PROXY_HINT } from '@/lib/util/shared-copy';
 
 /** Every scanner sheet sits over the full-screen camera, which is above the
  *  modal tier: `--over-sheet` lifts the backdrop past it. A bottom sheet on a
@@ -57,6 +58,7 @@ interface Props {
   onChangeFinish: (ids: string[], finish: Finish) => void;
   onChangeCondition: (ids: string[], condition: Condition) => void;
   onChangeLanguage: (ids: string[], language: string) => void;
+  onChangeProxy: (ids: string[], proxy: boolean) => void;
   /** Add a card found by name. Goes through the same list as a scan. */
   onAddCard: (card: ScryfallCard) => void;
   /** Add rows to the collection: the given ids, or every row when omitted. */
@@ -73,13 +75,13 @@ type Mode = 'list' | 'search' | 'select';
 type Sort = 'newest' | 'price';
 
 function unitPrice(e: ScannedEntry): number | null {
-  return finishUnitPrice(e.card.prices, e.finish);
+  return entryUnitPrice(e);
 }
 
 /**
  * The row as the binder engine would see it, for `nextBinderMatchCompiled`
- * prediction only — never stored. Carries the row's own finish, condition and
- * language (not the printing's defaults) since a binder rule can filter on
+ * prediction only — never stored. Carries the row's own finish, condition,
+ * language and proxy flag (not the printing's defaults) since a binder rule can filter on
  * them (a Foils binder on `finish`); a brand-new copy has no pins, exclusions
  * or deck allocation, which is exactly what `nextBinderMatch`'s semantics
  * assume for a fresh card.
@@ -89,6 +91,7 @@ function entryToEnrichedCard(entry: ScannedEntry) {
     ...scryfallToEnrichedCard(entry.card, { finish: entry.finish }),
     condition: entry.condition,
     language: entry.language,
+    proxy: entry.proxy,
   };
 }
 
@@ -114,6 +117,7 @@ export function ScannerQueueSheet({
   onChangeFinish,
   onChangeCondition,
   onChangeLanguage,
+  onChangeProxy,
   onAddCard,
   onConfirm,
   heading,
@@ -371,6 +375,7 @@ export function ScannerQueueSheet({
           onFinish={(f) => onChangeFinish(selectedIds, f)}
           onCondition={(c) => onChangeCondition(selectedIds, c)}
           onLanguage={(l) => onChangeLanguage(selectedIds, l)}
+          onProxy={(p) => onChangeProxy(selectedIds, p)}
           onClose={() => setBulkEditOpen(false)}
         />
       )}
@@ -431,6 +436,11 @@ function ScanRow({
           {entry.language && (
             <Chip className="scan-row-tag" title="Language">
               {entry.language.toUpperCase()}
+            </Chip>
+          )}
+          {entry.proxy && (
+            <Chip className="scan-row-tag" title="Proxy, priced at $0">
+              Proxy
             </Chip>
           )}
         </span>
@@ -602,14 +612,17 @@ function BulkEdit({
   onFinish,
   onCondition,
   onLanguage,
+  onProxy,
   onClose,
 }: {
   count: number;
   onFinish: (finish: Finish) => void;
   onCondition: (condition: Condition) => void;
   onLanguage: (language: string) => void;
+  onProxy: (proxy: boolean) => void;
   onClose: () => void;
 }) {
+  const [proxy, setProxy] = useState<'real' | 'proxy' | ''>('');
   const [finish, setFinish] = useState<Finish | ''>('');
   const [condition, setCondition] = useState<Condition | ''>('');
   const [language, setLanguage] = useState('');
@@ -674,6 +687,23 @@ function BulkEdit({
               onLanguage(l);
             }}
           />
+        </div>
+        <div className="scanner-edit-field">
+          <span className="form-field-label">Proxy</span>
+          <SegmentedControl<'real' | 'proxy' | ''>
+            ariaLabel="Real cards or proxies for the selected cards"
+            value={proxy}
+            options={[
+              { value: 'real', label: 'Real' },
+              { value: 'proxy', label: 'Proxy' },
+            ]}
+            onChange={(p) => {
+              if (!p) return;
+              setProxy(p);
+              onProxy(p === 'proxy');
+            }}
+          />
+          <p className="form-field-hint">{PROXY_HINT}</p>
         </div>
       </div>
       <div className="modal-footer scanner-sheet-foot">

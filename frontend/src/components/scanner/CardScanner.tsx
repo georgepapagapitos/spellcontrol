@@ -31,7 +31,7 @@ import {
   CONDITIONS,
   FINISH_LABELS,
   availableFinishes,
-  finishUnitPrice,
+  entryUnitPrice,
   playValueChime,
   priceTier,
   pulseValueHaptic,
@@ -49,35 +49,12 @@ import { ScannerQueueSheet } from './ScannerQueueSheet';
 import { ScannerEditSheet } from './ScannerEditSheet';
 import { ScannerSettingsSheet } from './ScannerSettingsSheet';
 import { rekeyedId, useScanQueue, useScanQueueStore } from '@/lib/scanner/use-scan-queue';
+import { computeDisplayRect } from '@/lib/scanner/display-rect';
 import { useCollectionStore } from '@/store/collection';
 import { entriesToImportCsv } from '@/lib/scanner/scan-import';
 import { useScannerSettings } from '@/lib/scanner/scanner-settings';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Condition, Finish } from '@/types/index';
-
-/**
- * Compute the on-screen rectangle of the `object-fit: contain` video: the
- * whole camera frame, letterboxed inside the container (black bars above and
- * below on a phone). Capture and detection map viewport rects through this so
- * the cropped pixels stay aligned with what the user actually sees.
- */
-function computeDisplayRect(
-  vW: number,
-  vH: number,
-  cW: number,
-  cH: number
-): { dispX: number; dispY: number; dispW: number; dispH: number } {
-  const videoAspect = vW / vH;
-  const containerAspect = cW / cH;
-  if (videoAspect > containerAspect) {
-    const dispW = cW;
-    const dispH = cW / videoAspect;
-    return { dispX: 0, dispY: (cH - dispH) / 2, dispW, dispH };
-  }
-  const dispH = cH;
-  const dispW = cH * videoAspect;
-  return { dispX: (cW - dispW) / 2, dispY: 0, dispW, dispH };
-}
 
 interface Props {
   onClose: () => void;
@@ -190,6 +167,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     changeFinish,
     changeCondition,
     changeLanguage,
+    changeProxy,
   } = useScanQueue();
   const binders = useCollectionStore((s) => s.binders);
 
@@ -1178,7 +1156,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
           const finish = panelEntry?.finish ?? 'nonfoil';
           const finishes = availableFinishes(card.finishes);
           const condition = panelEntry?.condition ?? 'nm';
-          const unit = finishUnitPrice(card.prices, finish);
+          const unit = entryUnitPrice({ card, finish, proxy: panelEntry?.proxy });
           return (
             <div key={lastScan.key} className={`scanner-card-panel tier-${lastScan.tier}`}>
               <button
@@ -1260,6 +1238,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
           onChangeFinish={handleBulkFinish}
           onChangeCondition={changeCondition}
           onChangeLanguage={changeLanguage}
+          onChangeProxy={changeProxy}
           onAddCard={handleAddManual}
           onConfirm={(ids) => void handleConfirm(ids)}
         />
@@ -1275,6 +1254,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
           }}
           onCondition={(c) => changeCondition(editing.id, c)}
           onLanguage={(l) => changeLanguage(editing.id, l)}
+          onProxy={(p) => changeProxy(editing.id, p)}
           onQty={(d) => changeQty(editing.id, d)}
           onPrinting={(card) => {
             changePrinting(editing.id, card);

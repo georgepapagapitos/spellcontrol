@@ -102,6 +102,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
     changeFinish: changeAddListFinish,
     changeCondition: changeAddListCondition,
     changeLanguage: changeAddListLanguage,
+    changeProxy: changeAddListProxy,
   } = useScanQueue();
   const [reviewOpen, setReviewOpen] = useState(false);
   const [addListEditingId, setAddListEditingId] = useState<string | null>(null);
@@ -522,6 +523,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
             onChangeFinish={changeAddListFinish}
             onChangeCondition={changeAddListCondition}
             onChangeLanguage={changeAddListLanguage}
+            onChangeProxy={changeAddListProxy}
             onAddCard={(card) => addToAddList(card, { source: 'searched' })}
             onConfirm={(ids) => void handleCommitAddList(ids)}
           />
@@ -539,6 +541,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
             }}
             onCondition={(c) => changeAddListCondition(addListEditing.id, c)}
             onLanguage={(l) => changeAddListLanguage(addListEditing.id, l)}
+            onProxy={(p) => changeAddListProxy(addListEditing.id, p)}
             onQty={(d) => changeAddListQty(addListEditing.id, d)}
             onPrinting={(card) => {
               changeAddListPrinting(addListEditing.id, card);
