@@ -8,7 +8,14 @@
  *   w(combo) = min(1, log10(1 + deckCount) / 4)   (10,000 decks → 1)
  *   value = COMBO_SCALE × Σ_i w_i × COMBO_DECAY^i  (complete combos, best first)
  *
- * The decay: a second win line is worth half the first, and so on. Combos
+ * The decay: a second win line is worth half the first, and so on. The ranking
+ * is by FAMILY first (E1059): a combo that shares all but one card with a line
+ * already counted is a variant of it (Top + Forge + Cloud Key, + Jhoira's
+ * Familiar, + Ugin) and tops up that family (a noisy-or: redundancy, never a
+ * second line); the decay runs over families. Kozilek holds ~20 complete lines
+ * that are mostly one Top loop, and with the decay over every line the term
+ * sat at 4 whatever it held (N equal lines sum to 4(1 - 0.5^N), so the Nth,
+ * and Karn + Mycosynth Lattice, a 'Lock', added ~0). The ceiling is unchanged. Combos
  * earn nothing under a target bracket of 3 or lower: a counted combo floors
  * the deck above it (@spellcontrol/deck-metrics), so there it is a liability
  * the bracket convergence exists to remove, not a payoff. Nor under a combo
@@ -27,6 +34,13 @@ import { round2, type TermFn } from './shared';
 
 export const COMBO_SCALE = 2;
 export const COMBO_DECAY = 0.5;
+
+/** Two card sets that differ by at most one card: the same line with a swapped-in piece. */
+function sameFamily(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  let shared = 0;
+  for (const n of a) if (b.has(n)) shared++;
+  return shared >= 1 && shared >= Math.max(a.size, b.size) - 1;
+}
 
 export function comboWeight(combo: Pick<DetectedCombo, 'deckCount'>): number {
   return Math.min(1, Math.log10(1 + Math.max(0, combo.deckCount)) / 4);
@@ -76,24 +90,45 @@ export const combosTerm: TermFn = (deck, ctx) => {
   complete.sort(
     (a, b) => b.w - a.w || a.combo.cards.join('+').localeCompare(b.combo.cards.join('+'))
   );
+  // Group into families (best weight first; the first of a family is its head).
+  const families: Array<{ set: Set<string>; members: typeof complete; f: number }> = [];
+  for (const entry of complete) {
+    const set = new Set(entry.combo.cards.map((n) => n.toLowerCase()));
+    const fam = families.find((x) => sameFamily(x.set, set));
+    if (fam) fam.members.push(entry);
+    else families.push({ set, members: [entry], f: entry.w });
+  }
+  // A family is worth its head's weight, topped up by its variants as a noisy-or
+  // (redundancy, never a second full line); the decay runs over families.
+  for (const fam of families) {
+    fam.f = 1 - fam.members.reduce((p, m, i) => (i === 0 ? 1 - m.w : p * (1 - m.w)), 1);
+  }
+  families.sort((a, b) => b.f - a.f);
   const notes: CardNote[] = [];
   let value = 0;
-  complete.forEach(({ combo, w }, i) => {
-    const v = COMBO_SCALE * w * COMBO_DECAY ** i;
-    value += v;
-    const label = combo.cards.join(' + ');
-    for (const name of combo.cards) {
-      notes.push({
-        name,
-        value: v / combo.cards.length,
-        note: `piece of ${label} (${combo.deckCount} decks${combo.results[0] ? `: ${combo.results[0]}` : ''})`,
-      });
-    }
+  families.forEach((fam, i) => {
+    const famValue = COMBO_SCALE * fam.f * COMBO_DECAY ** i;
+    value += famValue;
+    let before = 0;
+    fam.members.forEach(({ combo, w }, j) => {
+      // The head carries the family's head share; each variant its marginal top-up.
+      const after = 1 - (1 - before) * (1 - w);
+      const v = COMBO_SCALE * (after - before) * COMBO_DECAY ** i;
+      before = after;
+      const label = combo.cards.join(' + ');
+      for (const name of combo.cards) {
+        notes.push({
+          name,
+          value: v / combo.cards.length,
+          note: `piece of ${label} (${combo.deckCount} decks${combo.results[0] ? `: ${combo.results[0]}` : ''}${j ? `; a variant of ${fam.members[0].combo.cards.join(' + ')}` : ''})`,
+        });
+      }
+    });
   });
   return {
     value,
     summary: complete.length
-      ? `${complete.length} complete combos, best ${complete[0].combo.cards.join(' + ')} (w ${round2(complete[0].w)})`
+      ? `${complete.length} complete combos in ${families.length} families, best ${families[0].members[0].combo.cards.join(' + ')} (w ${round2(families[0].members[0].w)})`
       : 'no complete combo',
     cards: notes,
   };

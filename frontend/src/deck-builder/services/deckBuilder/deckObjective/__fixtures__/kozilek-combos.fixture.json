@@ -1,0 +1,145 @@
+{
+  "_source": "Kozilek, the Great Distortion's combo rows as the E1059 probe dumped them (2026-10-31): Commander Spellbook lines the matcher returned for the generated deck, results trimmed to three. Karn + Mycosynth Lattice is the 'Lock' line.",
+  "combos": [
+    {
+      "comboId": "4131-4547",
+      "cards": ["Basalt Monolith", "Forsaken Monument"],
+      "results": ["Infinite colorless mana"],
+      "deckCount": 65993
+    },
+    {
+      "comboId": "777-985-5078",
+      "cards": ["Sensei's Divining Top", "Foundry Inspector", "Mystic Forge"],
+      "results": ["Infinite card draw", "Near-infinite storm count", "Infinite draw triggers"],
+      "deckCount": 59050
+    },
+    {
+      "comboId": "4131-4235",
+      "cards": ["Rings of Brighthearth", "Basalt Monolith"],
+      "results": ["Infinite colorless mana"],
+      "deckCount": 53694
+    },
+    {
+      "comboId": "985-2146-5078",
+      "cards": ["Sensei's Divining Top", "Mystic Forge", "Cloud Key"],
+      "results": ["Infinite card draw", "Near-infinite storm count", "Infinite draw triggers"],
+      "deckCount": 37911
+    },
+    {
+      "comboId": "985-5078-5705",
+      "cards": ["Sensei's Divining Top", "Glaring Fleshraker", "Mystic Forge"],
+      "results": [
+        "Infinite creature ETB",
+        "Infinite creature LTB",
+        "Infinite creature sacrifice triggers"
+      ],
+      "deckCount": 26292
+    },
+    {
+      "comboId": "985-4985-5078",
+      "cards": ["Sensei's Divining Top", "Mystic Forge", "Jhoira's Familiar"],
+      "results": ["Infinite card draw", "Near-infinite storm count", "Infinite draw triggers"],
+      "deckCount": 25251
+    },
+    {
+      "comboId": "985-2604-5078",
+      "cards": ["Sensei's Divining Top", "Mystic Forge", "Ugin, the Ineffable"],
+      "results": ["Infinite card draw", "Infinite draw triggers", "Near-infinite storm count"],
+      "deckCount": 23247
+    },
+    {
+      "comboId": "5078-5642-5705",
+      "cards": ["Sensei's Divining Top", "Echoes of Eternity", "Glaring Fleshraker"],
+      "results": ["Infinite card draw", "Infinite creature ETB", "Infinite creature LTB"],
+      "deckCount": 16708
+    },
+    {
+      "comboId": "2604-5078-5642",
+      "cards": ["Sensei's Divining Top", "Echoes of Eternity", "Ugin, the Ineffable"],
+      "results": ["Infinite card draw", "Infinite draw triggers", "Near-infinite storm count"],
+      "deckCount": 15954
+    },
+    {
+      "comboId": "617-4235-4563",
+      "cards": ["Voltaic Key", "Rings of Brighthearth", "Everflowing Chalice"],
+      "results": [
+        "Infinite untap of artifacts you control",
+        "Infinite colorless mana",
+        "Infinite mana artifacts you control can produce"
+      ],
+      "deckCount": 11950
+    },
+    {
+      "comboId": "777-5078-5642",
+      "cards": ["Sensei's Divining Top", "Echoes of Eternity", "Foundry Inspector"],
+      "results": ["Infinite card draw", "Infinite draw triggers", "Near-infinite storm count"],
+      "deckCount": 10108
+    },
+    {
+      "comboId": "617-1766-4235-4547",
+      "cards": ["Voltaic Key", "Forsaken Monument", "Rings of Brighthearth", "Thran Dynamo"],
+      "results": [
+        "Infinite untap of artifacts you control",
+        "Infinite colorless mana",
+        "Infinite mana artifacts you control can produce"
+      ],
+      "deckCount": 9854
+    },
+    {
+      "comboId": "2146-5078-5642",
+      "cards": ["Sensei's Divining Top", "Echoes of Eternity", "Cloud Key"],
+      "results": ["Infinite card draw", "Infinite draw triggers", "Near-infinite storm count"],
+      "deckCount": 7574
+    },
+    {
+      "comboId": "4985-5078-5642",
+      "cards": ["Sensei's Divining Top", "Echoes of Eternity", "Jhoira's Familiar"],
+      "results": ["Infinite card draw", "Infinite draw triggers", "Near-infinite storm count"],
+      "deckCount": 6959
+    },
+    {
+      "comboId": "661-1651-2645-4131",
+      "cards": ["Staff of Domination", "Clock of Omens", "Sculpting Steel", "Basalt Monolith"],
+      "results": ["Infinite card draw", "Infinite colorless mana", "Infinite draw triggers"],
+      "deckCount": 5531
+    },
+    {
+      "comboId": "661-1651-1766-2645",
+      "cards": ["Staff of Domination", "Clock of Omens", "Sculpting Steel", "Thran Dynamo"],
+      "results": ["Infinite card draw", "Infinite colorless mana", "Infinite draw triggers"],
+      "deckCount": 4428
+    },
+    {
+      "comboId": "1651-2645-4131-4563",
+      "cards": ["Clock of Omens", "Staff of Domination", "Basalt Monolith", "Everflowing Chalice"],
+      "results": ["Infinite card draw", "Infinite colorless mana", "Infinite draw triggers"],
+      "deckCount": 3668
+    },
+    {
+      "comboId": "290-617-4235-4547",
+      "cards": ["Voltaic Key", "Forsaken Monument", "Rings of Brighthearth", "Dreamstone Hedron"],
+      "results": [
+        "Infinite untap of artifacts you control",
+        "Infinite colorless mana",
+        "Infinite mana artifacts you control can produce"
+      ],
+      "deckCount": 2632
+    },
+    {
+      "comboId": "290-661-1651-2645",
+      "cards": ["Staff of Domination", "Clock of Omens", "Dreamstone Hedron", "Sculpting Steel"],
+      "results": ["Infinite colorless mana", "Infinite lifegain triggers", "Infinite lifegain"],
+      "deckCount": 1153
+    },
+    {
+      "comboId": "3263-5089",
+      "cards": ["Karn, the Great Creator", "Mycosynth Lattice"],
+      "results": [
+        "Activated abilities of permanents your opponents control can't be activated",
+        "Activated abilities can't be activated",
+        "Lock"
+      ],
+      "deckCount": 22882
+    }
+  ]
+}
