@@ -349,8 +349,9 @@ describe('POST /api/ai/deck-review', () => {
     expect(first.status).toBe(200);
     expect(first.headers['content-type']).toContain('application/x-ndjson');
     const firstStream = parseStream(first.text);
-    // Prose arrives in chunks, and the terminator repeats it in full.
-    expect(firstStream.deltas).toEqual(['Your deck is ', 'a fine deck.']);
+    // Prose arrives in chunks, and the terminator repeats it in full. A chunk's
+    // trailing space waits for the next one, in case a dash follows it (E1051).
+    expect(firstStream.deltas).toEqual(['Your deck is', ' a fine deck.']);
     expect(firstStream.streamed).toBe(REVIEW_TEXT);
     expect(firstStream.done).toEqual({
       content: REVIEW_TEXT,
@@ -460,6 +461,52 @@ describe('POST /api/ai/deck-review', () => {
     await optIn(stranger);
     const cross = await request(app).get('/api/ai/history?deckId=deck-1').set('Cookie', stranger);
     expect(cross.body.readings).toEqual([]);
+  });
+
+  it("shows a reading without the model's em-dashes, live, cached and in history (E1051)", async () => {
+    const cookie = await makeUser('ai-review-dashes');
+    await optIn(cookie);
+    const written = 'The curve is heavy —';
+    mockState.generate.mockImplementation(
+      async (
+        _s: string,
+        _u: string,
+        onDelta?: (t: string) => void,
+        _sig?: AbortSignal,
+        options?
+      ) => {
+        if ((options as { tools?: unknown[] })?.tools?.length) {
+          return { content: '', inputTokens: 500, outputTokens: 100, fetched: [] };
+        }
+        onDelta?.(written);
+        onDelta?.(' six spells cost five.');
+        return {
+          content: `${written} six spells cost five.`,
+          inputTokens: 1000,
+          outputTokens: 200,
+          fetched: [],
+        };
+      }
+    );
+    const shown = 'The curve is heavy, six spells cost five.';
+    for (let i = 0; i < 2; i++) {
+      const res = await request(app)
+        .post('/api/ai/deck-review')
+        .set('Cookie', cookie)
+        .send(reviewBody());
+      const stream = parseStream(res.text);
+      expect(stream.streamed).toBe(shown);
+      expect(stream.done).toMatchObject({ content: shown, cached: i === 1 });
+    }
+    const history = await request(app).get('/api/ai/history?deckId=deck-1').set('Cookie', cookie);
+    expect(history.body.readings[0].content).toBe(shown);
+
+    const { getPool } = await import('../db');
+    const stored = await getPool().query<{ content: string }>(
+      `SELECT r.content FROM ai_reviews r JOIN users u ON u.id = r.user_id WHERE u.username = $1`,
+      ['ai-review-dashes']
+    );
+    expect(stored.rows[0].content).toBe(`${written} six spells cost five.`);
   });
 
   it('an edited deck misses the cache and spends quota again', async () => {
@@ -760,7 +807,8 @@ describe('POST /api/ai/deck-review', () => {
 
     expect(res.status).toBe(200);
     const stream = parseStream(res.text);
-    expect(stream.streamed).toBe('Your deck is ');
+    // The trailing space was still held for a possible dash when it failed.
+    expect(stream.streamed).toBe('Your deck is');
     expect(stream.error).toBe('The review could not be generated. Try again.');
     // No terminator — that absence is what tells the client it was truncated.
     expect(stream.done).toBeUndefined();
@@ -1544,6 +1592,30 @@ describe('POST /api/ai/deck-refine', () => {
       expect(rows.rows).toHaveLength(1);
       return rows.rows[0];
     }
+
+    it("shows the strategy and each reason without the model's em-dashes, and stores them as written (E1051)", async () => {
+      const cookie = await makeUser('ai-refine-dashes');
+      await optIn(cookie);
+      const dashed = { ...SECOND, why: 'A free sac outlet—the one this deck lacks.' };
+      mockState.generate.mockImplementation(async () => ({
+        content: refineReply('Your deck grinds value — mostly from the graveyard.', [dashed]),
+        inputTokens: 500,
+        outputTokens: 120,
+        fetched: [],
+      }));
+      const body = refineBody();
+      for (const res of [
+        await request(app).post('/api/ai/deck-refine').set('Cookie', cookie).send(body),
+        await request(app).post('/api/ai/deck-refine').set('Cookie', cookie).send(body),
+      ]) {
+        const stream = parseStream(res.text);
+        const done = stream.done as { content: string; tweaks: { why: string }[] };
+        expect(stream.streamed).toBe('Your deck grinds value, mostly from the graveyard.');
+        expect(done.content).toBe(stream.streamed);
+        expect(done.tweaks[0].why).toBe('A free sac outlet, the one this deck lacks.');
+      }
+      expect((await storedRow('ai-refine-dashes')).content).toContain('—');
+    });
 
     it('checks each change in its own call, with the text of the cards its reason names', async () => {
       const cookie = await makeUser('ai-check-message');
