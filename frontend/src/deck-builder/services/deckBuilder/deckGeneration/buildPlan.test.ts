@@ -64,7 +64,8 @@ function page(deck: FixtureDeck): EDHRECCommanderData {
 
 function planFor(
   name: keyof typeof fixture.decks,
-  settings?: Partial<FixtureDeck['generated']['settings']>
+  settings?: Partial<FixtureDeck['generated']['settings']>,
+  edhrecIsStandIn?: boolean
 ) {
   const deck = fixture.decks[name];
   const commander = real(name);
@@ -76,6 +77,7 @@ function planFor(
     archetypeFallback: deck.generated.archetype as Archetype,
     hasPartner: false,
     commanderWantsExtraCombat: wantsExtraCombat([commander], buildCommanderProfile(commander)),
+    edhrecIsStandIn,
   });
 }
 
@@ -108,6 +110,19 @@ describe('resolveBuildPlan', () => {
     expect(tuned.resolvedLandCount).toBeGreaterThanOrEqual(32);
     expect(tuned.resolvedLandCount).toBeLessThanOrEqual(40);
     expect(tuned.plannedRampCount).toBe(15);
+  });
+
+  it('keeps the asked-for land count when the EDHREC page is a Scryfall stand-in (E1057)', () => {
+    const defaults = { landCount: 37, nonBasicLandCount: 15 };
+    const standIn = planFor('Lathril, Blade of the Elves', defaults, true);
+    expect(standIn.landCountAutoTuned).toBe(false);
+    expect(standIn.resolvedLandCount).toBe(37);
+    expect(standIn.landCountSizingAnchor).toBe(37);
+    // The flag is the only difference: a real page with the same settings still tunes.
+    expect(planFor('Lathril, Blade of the Elves', defaults).landCountAutoTuned).toBe(true);
+    expect(planFor('Lathril, Blade of the Elves', defaults, false).resolvedLandCount).toBe(
+      planFor('Lathril, Blade of the Elves', defaults).resolvedLandCount
+    );
   });
 
   it('grades against the pacing the player picked when auto-detect is off', () => {

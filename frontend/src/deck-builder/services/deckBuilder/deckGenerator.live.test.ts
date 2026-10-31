@@ -84,6 +84,16 @@ const OUT_DIR = process.env.LIVE_GEN_OUTDIR ?? join(tmpdir(), 'spellcontrol-live
 // which the same-hour detached-main baseline only approximates. Unset (the
 // default) keeps every fetch live, exactly as before.
 const HTTP_CACHE_DIR = process.env.LIVE_GEN_HTTP_CACHE;
+
+// E1057: LIVE_GEN_EDHREC=network|503 makes every EDHREC request fail (a dead
+// network, or a 503 with no route header) so a panel measures what generation
+// does with no EDHREC data at all. Scryfall stays live. Unset = EDHREC as usual.
+const EDHREC_FAILURE = process.env.LIVE_GEN_EDHREC;
+function edhrecFailure(url: string): Response | null {
+  if (!EDHREC_FAILURE || !/json\.edhrec\.com|\/edhrec-api\/|\/api\/edhrec\//.test(url)) return null;
+  if (EDHREC_FAILURE === '503') return new Response('unavailable', { status: 503 });
+  throw new TypeError('fetch failed');
+}
 if (HTTP_CACHE_DIR) mkdirSync(HTTP_CACHE_DIR, { recursive: true });
 
 // E122: env-gated owned-collection knob so the panel can A/B
@@ -298,6 +308,8 @@ beforeAll(async () => {
     if (url.endsWith('/card-similar.json')) {
       return { ok: true, status: 200, json: async () => cardSimilarData } as Response;
     }
+    const failed = edhrecFailure(url);
+    if (failed) return failed;
     const headers = {
       ...(init?.headers as Record<string, string> | undefined),
       'User-Agent': 'SpellControl-DeckGen-EvalHarness/1.0',

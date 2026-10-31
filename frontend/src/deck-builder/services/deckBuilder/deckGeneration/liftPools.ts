@@ -24,7 +24,7 @@ export async function ensureLiftPools(
   state: GenerationState,
   seeds: string[]
 ): Promise<Map<string, LiftEntry[]>> {
-  if (!state.edhrecData) return state.liftSeedPools;
+  if (!state.edhrecData || state.noEdhrecReason) return state.liftSeedPools;
 
   for (const seed of seeds) {
     if (state.liftSeedsTried.has(seed)) continue;

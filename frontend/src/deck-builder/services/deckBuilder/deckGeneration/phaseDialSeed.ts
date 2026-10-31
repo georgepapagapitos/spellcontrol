@@ -78,6 +78,8 @@ export async function dialSeedPhase(
   const reasons = new Map<string, string>();
   const brew = state.cfg.brewLevel;
   if (brew > 0.25 && brew < 0.75) return { reasons };
+  // The Staples and Synergy dial reads EDHREC's average deck; a Scryfall stand-in pool (E1057) has none.
+  if (state.noEdhrecReason) return { reasons };
 
   const { commander, partnerCommander } = state.context;
   const label = partnerCommander
