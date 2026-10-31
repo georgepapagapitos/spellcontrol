@@ -732,7 +732,11 @@ meaning)`, no `(not X)`. A count qualifier `(4 of 10)` is fine. Placeholders
     filler, no exclamation marks. Banned adjectives: curated, tailored,
     intelligent, powerful, comprehensive, elevate, unlock, leverage, seamless,
     robust, effortless, supercharge, world-class, cutting-edge, AI-powered (the
-    proper noun "Comprehensive Rules" is exempt). A button never reads Submit,
+    proper noun "Comprehensive Rules" is exempt). The tells Wikipedia's "Signs of
+    AI writing" guide names are out too: pivotal, crucial, testament, underscore,
+    foster, vibrant and the rest of `AI_VOCAB` in `copy-guards.test.ts`; "serves
+    as" or "boasts" for is and has; the "not just X, but Y" frame; a sentence
+    opening on "Additionally," or "Notably,". A button never reads Submit,
     Continue, OK, Get started or Learn more: it names what happens (the first step
     of a two-step delete is `Delete all cards`, not "Continue"). Plurals
     are computed (`copies`), never `copy(ies)`. Sentence case applies to assembled
@@ -804,6 +808,7 @@ meaning)`, no `(not X)`. A count qualifier `(4 of 10)` is fine. Placeholders
 - Does it reassure or hedge ("may", "might", "consider", "this is expected")?
 - Do the heading, subtitle and hint say the same thing twice?
 - A marketing adjective, "please", "simply", an exclamation mark, `...`?
+- "Serves as", "not just … but", an "Additionally," opener, a word like "pivotal"?
 - Is there a sibling string (the other branch, the adjacent dialog) that should match?
 - Filled with a real name and count, does it still fit a phone row?
 - Would a `title=` survive on touch? If not, it's a caption or an InfoTip.

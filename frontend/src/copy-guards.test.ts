@@ -55,6 +55,15 @@
  *   CANCELED   — US spelling is "canceled"/"canceling" (the `cancelled` API
  *                 status value is data, not copy, and never reaches a string
  *                 that looks like prose).
+ *   AI_VOCAB   — the words Wikipedia's "Signs of AI writing" guide (read
+ *                 2026-10-30) lists as the densest tell of machine-written
+ *                 prose: pivotal, crucial, testament, underscore, foster…
+ *                 "Delve" and "Showcase" are on its list and left off this
+ *                 one: here they are a keyword and a card frame.
+ *   COPULA     — "serves as", "stands as", "boasts" in place of is/has.
+ *   NOT_JUST   — the "not just X, but Y" frame: say what it is.
+ *   TRANSITION — a sentence opening on "Additionally,", "Moreover,",
+ *                 "Notably,", "Ultimately," or a summary ("In summary,").
  *
  * The shared packages (each packages/<name>/src) render strings too and are scanned
  * beside src/. Card names and oracle text are data, not copy: fixtures and tests are
@@ -223,6 +232,32 @@ const RULES: Rule[] = [
     "use the contraction: don't, doesn't, didn't, isn't, aren't, can't",
   ],
   ['CANCELED', (s) => /\bcancel(led|ling)\b/i.test(s), 'US spelling: canceled, canceling'],
+  [
+    'AI_VOCAB',
+    (s) =>
+      /\b(tapestry|testament|pivotal|crucial|underscor(e|es|ed|ing)|vibrant|meticulous(ly)?|intricate|interplay|foster(s|ed|ing)?|garner(s|ed|ing)?|bolster(s|ed|ing)?|multifaceted)\b/i.test(
+        s
+      ),
+    'a word that reads as machine-written: say the plain thing ("pivotal" → "main", "crucial" → cut it)',
+  ],
+  [
+    'COPULA',
+    (s) => /\b(serves as|stands as|boasts)\b/i.test(s),
+    'write "is" or "has", not "serves as", "stands as" or "boasts"',
+  ],
+  [
+    'NOT_JUST',
+    (s) => /\bnot (just|only|merely)\b/i.test(s),
+    'the "not just X, but Y" frame: say what it is',
+  ],
+  [
+    'TRANSITION',
+    (s) =>
+      /(^|[.!?]\s+)(Additionally|Moreover|Furthermore|Notably|Ultimately|In summary|In conclusion),/.test(
+        s
+      ),
+    'no "Additionally,", "Moreover," or "Notably," opener: start on the point',
+  ],
 ];
 
 // Files whose CONTRACTION / CANCELED hits are not (or not yet) copy. Each names why.
