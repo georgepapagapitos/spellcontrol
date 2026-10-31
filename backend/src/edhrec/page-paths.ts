@@ -53,6 +53,21 @@ export function parseEdhrecPagePath(raw: string): EdhrecPageRef | null {
   return null;
 }
 
+/** The host every page is fetched from, with the slash after it. */
+const EDHREC_ORIGIN = 'https://json.edhrec.com/';
+
+/**
+ * The upstream URL for an allowlisted path. The constant prefix ends in the
+ * slash after the host, so nothing appended can change the host (a request
+ * value never sits next to the authority), which is also the shape CodeQL's
+ * js/request-forgery accepts. Throws on a path parseEdhrecPagePath didn't
+ * produce, so a future caller can't skip the allowlist.
+ */
+export function edhrecPageUrl(path: string): string {
+  if (parseEdhrecPagePath(path)?.path !== path) throw new Error('not an allowlisted EDHREC page');
+  return EDHREC_ORIGIN + path.slice(1);
+}
+
 const isObj = (v: unknown): v is Record<string, unknown> =>
   v !== null && typeof v === 'object' && !Array.isArray(v);
 const isNum = (v: unknown): boolean => typeof v === 'number' && Number.isFinite(v);
