@@ -52,23 +52,29 @@ export function isKnownCardlistTag(tag: string): boolean {
 
 /**
  * Drift reports share the beacon's per-load error budget (10) with real
- * crashes, so they stop after this many distinct signatures. A page that
- * drifts in many ways at once still says so, and leaves room for the errors
- * that matter more.
+ * crashes, so each kind gets a small quota of its own: at most 4 rows a load.
+ * Separate quotas keep a page full of new tags from crowding out a missing
+ * field, which is the report that means a feature has gone inert.
  */
-const MAX_DRIFT_REPORTS_PER_LOAD = 3;
+type DriftKind = 'unknown-tag' | 'missing-field';
+const MAX_REPORTS_PER_KIND: Record<DriftKind, number> = { 'unknown-tag': 1, 'missing-field': 3 };
 
 const reported = new Set<string>();
+const countByKind = new Map<DriftKind, number>();
 
 /** Tests only: forget what has been reported this session. */
 export function resetDriftReports(): void {
   reported.clear();
+  countByKind.clear();
 }
 
-function report(source: string, kind: string, detail: string, message: string): void {
+function report(source: string, kind: DriftKind, detail: string, message: string): void {
   const key = `${source}|${kind}|${detail}`;
-  if (reported.has(key) || reported.size >= MAX_DRIFT_REPORTS_PER_LOAD) return;
+  if (reported.has(key)) return;
+  const used = countByKind.get(kind) ?? 0;
+  if (used >= MAX_REPORTS_PER_KIND[kind]) return;
   reported.add(key);
+  countByKind.set(kind, used + 1);
   try {
     // A plain object: no stack, so the row's frame stays empty and one
     // signature is one row.
@@ -78,12 +84,14 @@ function report(source: string, kind: string, detail: string, message: string): 
   }
 }
 
-/** Upstream text goes into an analytics row only when it looks like a tag. */
+/** A tag-shaped name goes into the analytics row as is. Anything else is
+ *  percent-encoded and cut to 40 characters, so the row stays plain text and
+ *  two different odd tags stay two signatures. */
 const TAG_SHAPE = /^[a-z0-9_+-]{1,40}$/;
 
 export function reportUnknownTag(source: string, tag: string): void {
   const t = tag.toLowerCase();
-  const safe = TAG_SHAPE.test(t) ? t : 'unparseable';
+  const safe = TAG_SHAPE.test(t) ? t : encodeURIComponent(t).slice(0, 40);
   report(source, 'unknown-tag', safe, `unknown cardlist tag "${safe}"`);
 }
 
