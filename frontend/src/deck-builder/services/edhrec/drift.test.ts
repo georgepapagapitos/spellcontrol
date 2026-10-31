@@ -51,6 +51,36 @@ describe('EDHREC drift reports', () => {
     expect(messages()[0]).toContain('unknown cardlist tag "highsynergycardz"');
   });
 
+  it('treats builtin property names as unknown tags, with no implied type', () => {
+    const raw = live();
+    lists(raw).push({
+      tag: 'constructor',
+      cardviews: [{ name: 'Proto Card', num_decks: 9000, potential_decks: 10000 }],
+    });
+    const card = parseEdhrecResponse(raw, 'x').cardlists.allNonLand.find(
+      (c) => c.name === 'Proto Card'
+    );
+    expect(isKnownCardlistTag('constructor')).toBe(false);
+    expect(isKnownCardlistTag('__proto__')).toBe(false);
+    expect(card).toBeUndefined();
+    expect(messages()).toEqual(['EDHREC drift (cardlists): unknown cardlist tag "constructor"']);
+  });
+
+  it('never echoes upstream text that does not look like a tag', () => {
+    const raw = live();
+    lists(raw).push({ tag: 'evil"\n<script>', cardviews: lists(raw)[0].cardviews });
+    parseEdhrecResponse(raw, 'x');
+    expect(messages()).toEqual(['EDHREC drift (cardlists): unknown cardlist tag "unparseable"']);
+  });
+
+  it('stops after three drift reports per load so real errors keep their budget', () => {
+    const raw = live();
+    for (const tag of ['a1', 'a2', 'a3', 'a4', 'a5'])
+      lists(raw).push({ tag, cardviews: lists(raw)[0].cardviews });
+    parseEdhrecResponse(raw, 'x');
+    expect(reportError).toHaveBeenCalledTimes(3);
+  });
+
   it('reports when synergy and lift are gone from every cardview, once', () => {
     const raw = live();
     for (const l of lists(raw)) {

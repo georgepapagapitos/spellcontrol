@@ -27,7 +27,7 @@ export {
 import { sortWUBRG } from '@/deck-builder/lib/edhrecUtils';
 import { fetchEdhrecTop } from '@/lib/discover/edhrec-top';
 import {
-  TAG_TYPE_MAP,
+  tagType,
   checkCardPage,
   checkCardlistPage,
   checkSaltPage,
@@ -329,7 +329,7 @@ function parseCard(raw: RawEDHRECCard, tagHint?: string): EDHRECCard {
   // the branch never ran. Untyped tags now stay 'Unknown' and are resolved
   // by the knownTypes backfill in parseCardlists below.)
   const tagLower = tagHint?.toLowerCase() || '';
-  const primaryType = TAG_TYPE_MAP[tagLower] ?? 'Unknown';
+  const primaryType = tagType(tagLower) ?? 'Unknown';
 
   // Check if this card is from a high-priority synergy list
   const isThemeSynergyCard = THEME_SYNERGY_TAGS.has(tagLower);
@@ -516,7 +516,7 @@ function parseCardlists(response: RawEDHRECResponse): EDHRECCommanderData['cardl
     logger.debug(`[EDHREC] Processing list "${list.tag}" with ${list.cardviews.length} cards`);
 
     // Determine the type this tag implies (if any)
-    const impliedType = TAG_TYPE_MAP[tag];
+    const impliedType = tagType(tag);
 
     for (const rawCard of list.cardviews) {
       // Record known type from typed lists — even if the card gets deduped

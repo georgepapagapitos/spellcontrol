@@ -38,10 +38,25 @@ export const COMMANDER_LIST_TAGS: ReadonlySet<string> = new Set([
   'commanders',
 ]);
 
+/** The card type a cardlist tag implies. An own-property lookup, so a tag
+ *  named "constructor" or "__proto__" implies nothing rather than a builtin. */
+export function tagType(tag: string): string | undefined {
+  const t = tag.toLowerCase();
+  return Object.hasOwn(TAG_TYPE_MAP, t) ? TAG_TYPE_MAP[t] : undefined;
+}
+
 export function isKnownCardlistTag(tag: string): boolean {
   const t = tag.toLowerCase();
-  return t in TAG_TYPE_MAP || HIGHLIGHT_TAGS.has(t) || COMMANDER_LIST_TAGS.has(t);
+  return tagType(t) !== undefined || HIGHLIGHT_TAGS.has(t) || COMMANDER_LIST_TAGS.has(t);
 }
+
+/**
+ * Drift reports share the beacon's per-load error budget (10) with real
+ * crashes, so they stop after this many distinct signatures. A page that
+ * drifts in many ways at once still says so, and leaves room for the errors
+ * that matter more.
+ */
+const MAX_DRIFT_REPORTS_PER_LOAD = 3;
 
 const reported = new Set<string>();
 
@@ -52,7 +67,7 @@ export function resetDriftReports(): void {
 
 function report(source: string, kind: string, detail: string, message: string): void {
   const key = `${source}|${kind}|${detail}`;
-  if (reported.has(key)) return;
+  if (reported.has(key) || reported.size >= MAX_DRIFT_REPORTS_PER_LOAD) return;
   reported.add(key);
   try {
     // A plain object: no stack, so the row's frame stays empty and one
@@ -63,8 +78,13 @@ function report(source: string, kind: string, detail: string, message: string): 
   }
 }
 
+/** Upstream text goes into an analytics row only when it looks like a tag. */
+const TAG_SHAPE = /^[a-z0-9_+-]{1,40}$/;
+
 export function reportUnknownTag(source: string, tag: string): void {
-  report(source, 'unknown-tag', tag.toLowerCase(), `unknown cardlist tag "${tag.slice(0, 40)}"`);
+  const t = tag.toLowerCase();
+  const safe = TAG_SHAPE.test(t) ? t : 'unparseable';
+  report(source, 'unknown-tag', safe, `unknown cardlist tag "${safe}"`);
 }
 
 /** Pages smaller than this say nothing about a field being gone. */
@@ -123,7 +143,7 @@ export function checkCardlistPage(
   for (const l of lists) {
     const t = l.tag?.toLowerCase();
     if (!t || COMMANDER_LIST_TAGS.has(t)) continue;
-    if (t in TAG_TYPE_MAP || HIGHLIGHT_TAGS.has(t)) views.push(...(l.cardviews ?? []));
+    if (tagType(t) !== undefined || HIGHLIGHT_TAGS.has(t)) views.push(...(l.cardviews ?? []));
   }
   checkFields('cardlists', views, CARDLIST_CHECKS);
 }
