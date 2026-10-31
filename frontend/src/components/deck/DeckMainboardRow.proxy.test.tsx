@@ -58,6 +58,8 @@ describe('a proxy row in the deck list', () => {
     expect(tag()?.closest('.deck-row-hovermeta')).toBeNull();
     // Inside the name text, so it wraps as a word instead of squeezing the name.
     expect(tag()?.parentElement?.classList.contains('deck-row-name-text')).toBe(true);
+    // A real space before the tag, so a narrow cell wraps the tag, not the name.
+    expect(tag()?.previousSibling?.textContent).toMatch(/\s$/);
     expect(tag()?.getAttribute('title')).toBe('Played as a proxy');
     expect(document.querySelector('.deck-row-qty-missing')).toBeNull();
   });
