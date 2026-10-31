@@ -76,6 +76,8 @@ import {
 } from './landUpgrades';
 import { reasonProblem } from './reasonCheck';
 import { protectionValue } from './terms/interaction';
+import { isPremiumAnswer, singlesOutscore } from './comboVsPremium';
+import { keptUpTo, type Move } from './searchMoves';
 import {
   reasonsFor,
   rolesMovedBetween,
@@ -252,15 +254,6 @@ function slotClass(card: ScryfallCard): SlotClass {
 }
 const byName = (a: { name: string }, b: { name: string }) =>
   a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
-
-interface Move {
-  out: number[]; // indices into the current deck
-  in: ScryfallCard[];
-  kind: 'improve' | 'combo';
-  estimate: number;
-  /** A nonbasic land for a basic: the incoming land's quality credit, which its bar is raised by. */
-  landUp?: number;
-}
 
 /** What the search reports at each checkpoint. */
 export interface Beat {
@@ -632,6 +625,12 @@ export function* optimizeSteps(
         opts.minGain,
         { ...trust!, roleOf, classesNow, gameChangersNow, repair, ...relax }
       );
+    // E1058: the full score of a pair of singles (comboVsPremium.ts), or null when it can't be taken.
+    const scorePair = (pair: Move): number | null => {
+      if (trust && judgeOf(pair, false).bound) return null;
+      const alt = scoreDeck(applyMove(current, pair), ctx);
+      return infeasibility(alt) > curInfeasible ? null : alt.total;
+    };
     // The least a forced repair gives up: 1 keeps the role floors and caps and
     // the class floors (an owned protection piece for Swiftfoot Boots), 2
     // keeps the caps and the floors but not the class (no owned card holds
@@ -752,6 +751,14 @@ export function* optimizeSteps(
       )
         continue;
       if (score.total - currentScore.total >= required) {
+        // A combo seating that the two single swaps over its slots outscore
+        // is not taken: the singles are (E1058).
+        if (
+          move.kind === 'combo' &&
+          curRepairable === 0 &&
+          singlesOutscore(move, score.total, moves, (c) => isPremiumAnswer(c, ctx), scorePair)
+        )
+          continue;
         // A land is chosen from dozens by a noisy goldfish: the best of them
         // clears the bar by luck, so it has to clear it again on other games.
         if (move.landUp !== undefined) {
@@ -974,26 +981,4 @@ export function* optimizeSteps(
     stoppedBy,
     ms: Date.now() - t0,
   };
-}
-
-/** How many applied swaps lead to the returned (best) deck: a prefix of all swaps. */
-function keptUpTo(
-  applied: Array<{ out: ScryfallCard[]; in: ScryfallCard[] }>,
-  seed: ObjectiveDeck,
-  bestDeck: ObjectiveDeck
-): number {
-  const target = bestDeck.cards
-    .map((c) => c.name)
-    .sort()
-    .join('|');
-  let names = seed.cards.map((c) => c.name);
-  if (names.slice().sort().join('|') === target) return 0;
-  for (let i = 0; i < applied.length; i++) {
-    for (let j = 0; j < applied[i].out.length; j++) {
-      const at = names.indexOf(applied[i].out[j].name);
-      names = [...names.slice(0, at), applied[i].in[j].name, ...names.slice(at + 1)];
-    }
-    if (names.slice().sort().join('|') === target) return i + 1;
-  }
-  return applied.length;
 }
