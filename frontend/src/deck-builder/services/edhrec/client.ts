@@ -34,8 +34,7 @@ import {
   isKnownCardlistTag,
   reportUnknownTag,
 } from './drift';
-
-const BASE_URL = import.meta.env.DEV ? '/edhrec-api' : 'https://json.edhrec.com';
+import { edhrecRequest, rateLimiter } from './request';
 
 /**
  * Network short-circuit for EDHREC. Unlike Scryfall + combos (which mirror
@@ -88,28 +87,10 @@ function emptyCommanderData(): EDHRECCommanderData {
     similarCommanders: [],
   };
 }
-const MIN_REQUEST_DELAY = 100; // 100ms between requests
 // Cap 429/503 retries so a sustained throttle or outage throws instead of
 // recursing forever. Mirrors scryfall/client.ts's scryfallFetch discipline.
 export const MAX_RETRIES = 4;
 const BASE_BACKOFF_MS = 1000;
-
-class RateLimiter {
-  private lastRequestTime = 0;
-
-  async throttle(): Promise<void> {
-    const now = Date.now();
-    const timeSinceLastRequest = now - this.lastRequestTime;
-
-    if (timeSinceLastRequest < MIN_REQUEST_DELAY) {
-      await new Promise((resolve) => setTimeout(resolve, MIN_REQUEST_DELAY - timeSinceLastRequest));
-    }
-
-    this.lastRequestTime = Date.now();
-  }
-}
-
-const rateLimiter = new RateLimiter();
 
 // Cache for commander data
 const partnerPopularityCache = new Map<string, { data: Map<string, number>; timestamp: number }>();
@@ -226,11 +207,7 @@ function getTargetBracketSuffix(targetBracket?: TargetBracket): string {
 async function edhrecFetch<T>(endpoint: string, attempt = 0): Promise<T> {
   await rateLimiter.throttle();
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    headers: {
-      Accept: 'application/json',
-    },
-  });
+  const response = await edhrecRequest(endpoint);
 
   if (!response.ok) {
     if ((response.status === 429 || response.status === 503) && attempt < MAX_RETRIES) {
@@ -1089,7 +1066,7 @@ export async function fetchAllCommanderNames(): Promise<string[]> {
     return allCommanderNamesCache;
   }
   await rateLimiter.throttle();
-  const res = await fetch(`${BASE_URL}/static/typeahead/commanders`);
+  const res = await edhrecRequest('/static/typeahead/commanders');
   if (!res.ok) throw new Error(`EDHREC typeahead failed: ${res.status}`);
   const names: string[] = await res.json();
   allCommanderNamesCache = names;
@@ -1516,11 +1493,11 @@ export async function fetchAverageDeckMultiCopies(
 
     const formatted = formatCommanderNameForUrl(commanderName);
     const themePart = themeSlug ? `/${themeSlug}` : '';
-    const url = `${BASE_URL}/pages/average-decks/${formatted}${themePart}.json`;
+    const endpoint = `/pages/average-decks/${formatted}${themePart}.json`;
 
-    logger.debug(`[EDHREC] Fetching average deck from: ${url}`);
+    logger.debug(`[EDHREC] Fetching average deck from: ${endpoint}`);
 
-    const response = await fetch(url);
+    const response = await edhrecRequest(endpoint);
     if (!response.ok) {
       logger.warn(
         `[EDHREC] Average deck fetch failed (${response.status}) for ${formatted}${themePart}`
