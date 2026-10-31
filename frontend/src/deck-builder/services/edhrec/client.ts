@@ -270,6 +270,40 @@ async function edhrecFetch<T>(endpoint: string, attempt = 0): Promise<T> {
 // Tags that represent high-priority theme synergy cards
 const THEME_SYNERGY_TAGS = new Set(['highsynergycards', 'topcards', 'gamechangers']);
 
+/** How many cards EDHREC's old `highsynergycards` list carried. */
+const HIGH_SYNERGY_COUNT = 10;
+
+/**
+ * The page's "high synergy" names. EDHREC renamed `highsynergycards` to
+ * `highliftcards` (hidden gems: high lift, often low inclusion) and stopped
+ * shipping the old list, so rebuild it: the top cards by `synergy` across the
+ * page's nonland type lists. An actual `highsynergycards` list wins if one
+ * ever comes back. `highliftcards` is deliberately NOT a source: a lift lane
+ * must not outrank high-inclusion on-theme cards (closed #3044).
+ */
+function highSynergyNamesOf(rawLists: RawCardList[]): string[] {
+  const real = rawLists.find((l) => l.tag?.toLowerCase() === 'highsynergycards');
+  if (real?.cardviews?.length) return real.cardviews.map((c) => c.name);
+  const best = new Map<string, number>();
+  for (const list of rawLists) {
+    const type = list.tag ? tagType(list.tag) : undefined;
+    if (!type || type === 'Land') continue;
+    for (const c of list.cardviews ?? []) {
+      // Same fallback parseCard uses, so the list survives EDHREC dropping synergy.
+      const pct = c.potential_decks
+        ? ((c.inclusion ?? c.num_decks ?? 0) / c.potential_decks) * 100
+        : 0;
+      const synergy = c.synergy ?? synergyFromLift(pct, c.lift);
+      if (synergy === undefined || !(synergy > 0)) continue;
+      if (synergy > (best.get(c.name) ?? -Infinity)) best.set(c.name, synergy);
+    }
+  }
+  return [...best.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, HIGH_SYNERGY_COUNT)
+    .map(([name]) => name);
+}
+
 /**
  * Backfill color identities on commanders whose colorIdentity is empty by
  * fetching the missing names from Scryfall. Mutates the passed array in-place
@@ -1140,7 +1174,8 @@ export interface EDHRECTagPageData {
    */
   potentialDecks: number;
   /**
-   * Names off the page's `highsynergycards` list specifically — the cards that
+   * Names of the page's high-synergy cards (its `highsynergycards` list, else
+   * rebuilt from synergy since EDHREC dropped it) — the cards that
    * define this archetype, as opposed to `topcards`/`gamechangers`, which are
    * generic power in these colors. `parseCardlists` collapses all three under
    * `isThemeSynergyCard`, so the distinction has to be captured here or it's
@@ -1241,9 +1276,7 @@ export async function fetchTagPageData(
     commanders,
     cardlists: parseCardlists(response),
     potentialDecks,
-    highSynergyNames: (
-      rawLists.find((l) => l.tag?.toLowerCase() === 'highsynergycards')?.cardviews ?? []
-    ).map((c) => c.name),
+    highSynergyNames: highSynergyNamesOf(rawLists),
     colorSlug,
   };
   tagPageCache.set(cacheKey, { data, timestamp: Date.now() });

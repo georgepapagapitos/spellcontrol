@@ -1,0 +1,837 @@
+{
+  "_source": "json.edhrec.com/pages/tags/aristocrats.json, fetched 2026-10-31; no highsynergycards list (renamed to highliftcards); lists cut to the first 10, highliftcards to 4, cardviews trimmed to the fields the app reads",
+  "container": {
+    "json_dict": {
+      "cardlists": [
+        {
+          "tag": "topcommanders",
+          "header": "Top Commanders",
+          "cardviews": [
+            {
+              "name": "Teysa Karlov",
+              "sanitized": "teysa-karlov",
+              "num_decks": 3340,
+              "potential_decks": 69633
+            },
+            {
+              "name": "Sephiroth, Fabled SOLDIER",
+              "sanitized": "sephiroth-fabled-soldier",
+              "num_decks": 2642,
+              "potential_decks": 52437
+            }
+          ]
+        },
+        {
+          "tag": "topcards",
+          "header": "Top Cards",
+          "cardviews": [
+            {
+              "name": "Swords to Plowshares",
+              "sanitized": "swords-to-plowshares",
+              "num_decks": 17716,
+              "potential_decks": 28273,
+              "synergy": 0.016019632072085344,
+              "lift": 0.9943408468558845
+            },
+            {
+              "name": "Ignoble Hierarch",
+              "sanitized": "ignoble-hierarch",
+              "num_decks": 3290,
+              "potential_decks": 5701,
+              "synergy": 0.3284795272972571,
+              "lift": 1.12365774124315
+            },
+            {
+              "name": "Assassin's Trophy",
+              "sanitized": "assassins-trophy",
+              "num_decks": 10343,
+              "potential_decks": 20411,
+              "synergy": 0.1845174561413191,
+              "lift": 1.155534367434344
+            }
+          ]
+        },
+        {
+          "tag": "highliftcards",
+          "header": "High Lift Cards",
+          "cardviews": [
+            {
+              "name": "Poppet Stitcher",
+              "sanitized": "poppet-stitcher",
+              "num_decks": 629,
+              "potential_decks": 8436,
+              "synergy": 0.07009959819309924,
+              "lift": 7.617808231755626
+            },
+            {
+              "name": "Kitchen Finks",
+              "sanitized": "kitchen-finks",
+              "num_decks": 227,
+              "potential_decks": 4093,
+              "synergy": 0.0528390589549312,
+              "lift": 5.990537696968962
+            },
+            {
+              "name": "Grimgrin, Corpse-Born",
+              "sanitized": "grimgrin-corpse-born",
+              "num_decks": 559,
+              "potential_decks": 7763,
+              "synergy": 0.06330923566745439,
+              "lift": 5.490640756080554
+            },
+            {
+              "name": "Empty the Laboratory",
+              "sanitized": "empty-the-laboratory",
+              "num_decks": 586,
+              "potential_decks": 8436,
+              "synergy": 0.06496308466742574,
+              "lift": 5.338229524781515
+            }
+          ]
+        },
+        {
+          "tag": "creatures",
+          "header": "Creatures",
+          "cardviews": [
+            {
+              "name": "Pitiless Plunderer",
+              "sanitized": "pitiless-plunderer",
+              "num_decks": 28866,
+              "potential_decks": 66883,
+              "synergy": 0.3441120291512907,
+              "lift": 2.9812080020937404
+            },
+            {
+              "name": "Sakura-Tribe Elder",
+              "sanitized": "sakura-tribe-elder",
+              "num_decks": 9189,
+              "potential_decks": 21714,
+              "synergy": 0.2692680447341523,
+              "lift": 1.6687662409777753
+            },
+            {
+              "name": "Mayhem Devil",
+              "sanitized": "mayhem-devil",
+              "num_decks": 7641,
+              "potential_decks": 21322,
+              "synergy": 0.2584851932390165,
+              "lift": 2.1672850004999016
+            },
+            {
+              "name": "Birds of Paradise",
+              "sanitized": "birds-of-paradise",
+              "num_decks": 7175,
+              "potential_decks": 21714,
+              "synergy": 0.04542159507395521,
+              "lift": 1.2574493277096708
+            },
+            {
+              "name": "Eternal Witness",
+              "sanitized": "eternal-witness",
+              "num_decks": 6824,
+              "potential_decks": 21714,
+              "synergy": 0.163904846815816,
+              "lift": 1.5718923345123192
+            },
+            {
+              "name": "Warren Soultrader",
+              "sanitized": "warren-soultrader",
+              "num_decks": 20523,
+              "potential_decks": 66883,
+              "synergy": 0.2494016535867191,
+              "lift": 3.4476309114713857
+            },
+            {
+              "name": "Morbid Opportunist",
+              "sanitized": "morbid-opportunist",
+              "num_decks": 19916,
+              "potential_decks": 66883,
+              "synergy": 0.21521446913661105,
+              "lift": 2.107126750104249
+            },
+            {
+              "name": "Elenda, the Dusk Rose",
+              "sanitized": "elenda-the-dusk-rose",
+              "num_decks": 7630,
+              "potential_decks": 26910,
+              "synergy": 0.23324167000456475,
+              "lift": 2.2741849378791352
+            },
+            {
+              "name": "Korvold, Fae-Cursed King",
+              "sanitized": "korvold-fae-cursed-king",
+              "num_decks": 1560,
+              "potential_decks": 5701,
+              "synergy": 0.2059177157465527,
+              "lift": 1.3791336548722937
+            },
+            {
+              "name": "Bartolom\u00e9 del Presidio",
+              "sanitized": "bartolome-del-presidio",
+              "num_decks": 7315,
+              "potential_decks": 26910,
+              "synergy": 0.23366274977759705,
+              "lift": 2.8640433900496185
+            }
+          ]
+        },
+        {
+          "tag": "instants",
+          "header": "Instants",
+          "cardviews": [
+            {
+              "name": "Anguished Unmaking",
+              "sanitized": "anguished-unmaking",
+              "num_decks": 10881,
+              "potential_decks": 26910,
+              "synergy": 0.1539573978220663,
+              "lift": 1.0836308616088293
+            },
+            {
+              "name": "Counterspell",
+              "sanitized": "counterspell",
+              "num_decks": 3246,
+              "potential_decks": 8436,
+              "synergy": -0.03595255288427096,
+              "lift": 0.8675822796087032
+            },
+            {
+              "name": "Deadly Dispute",
+              "sanitized": "deadly-dispute",
+              "num_decks": 25083,
+              "potential_decks": 66883,
+              "synergy": 0.24748023957507104,
+              "lift": 1.858722856239359
+            },
+            {
+              "name": "Dark Ritual",
+              "sanitized": "dark-ritual",
+              "num_decks": 21823,
+              "potential_decks": 66883,
+              "synergy": 0.06623208206010484,
+              "lift": 1.0127250246737494
+            },
+            {
+              "name": "Village Rites",
+              "sanitized": "village-rites",
+              "num_decks": 21661,
+              "potential_decks": 66883,
+              "synergy": 0.23166640595958654,
+              "lift": 2.0148596787511357
+            },
+            {
+              "name": "Beast Within",
+              "sanitized": "beast-within",
+              "num_decks": 7001,
+              "potential_decks": 21714,
+              "synergy": -0.0034671705286093424,
+              "lift": 0.9876863328904821
+            },
+            {
+              "name": "An Offer You Can't Refuse",
+              "sanitized": "an-offer-you-cant-refuse",
+              "num_decks": 2424,
+              "potential_decks": 8436,
+              "synergy": 0.019714166914400533,
+              "lift": 0.9826686211764313
+            },
+            {
+              "name": "Heroic Intervention",
+              "sanitized": "heroic-intervention",
+              "num_decks": 5692,
+              "potential_decks": 21714,
+              "synergy": -0.05229591927982169,
+              "lift": 0.8706669509126006
+            },
+            {
+              "name": "Chaos Warp",
+              "sanitized": "chaos-warp",
+              "num_decks": 5998,
+              "potential_decks": 22986,
+              "synergy": -0.027339817174563408,
+              "lift": 0.9314803873122186
+            },
+            {
+              "name": "Void Rend",
+              "sanitized": "void-rend",
+              "num_decks": 554,
+              "potential_decks": 2484,
+              "synergy": 0.07505627127428366,
+              "lift": 0.9255539425757779
+            }
+          ]
+        },
+        {
+          "tag": "sorceries",
+          "header": "Sorceries",
+          "cardviews": [
+            {
+              "name": "Blasphemous Act",
+              "sanitized": "blasphemous-act",
+              "num_decks": 7940,
+              "potential_decks": 22986,
+              "synergy": 0.006388355187716743,
+              "lift": 0.9236462686533682
+            },
+            {
+              "name": "Ruinous Ultimatum",
+              "sanitized": "ruinous-ultimatum",
+              "num_decks": 2750,
+              "potential_decks": 8193,
+              "synergy": 0.15743160506529977,
+              "lift": 0.9496105174888682
+            },
+            {
+              "name": "Victimize",
+              "sanitized": "victimize",
+              "num_decks": 22046,
+              "potential_decks": 66883,
+              "synergy": 0.20139278431640645,
+              "lift": 1.8877290991340594
+            },
+            {
+              "name": "Cultivate",
+              "sanitized": "cultivate",
+              "num_decks": 6572,
+              "potential_decks": 21714,
+              "synergy": -0.11094765667296547,
+              "lift": 0.7667046563290694
+            },
+            {
+              "name": "Nature's Lore",
+              "sanitized": "natures-lore",
+              "num_decks": 6267,
+              "potential_decks": 21714,
+              "synergy": -0.031398643954849426,
+              "lift": 0.9586909306115738
+            },
+            {
+              "name": "Damn",
+              "sanitized": "damn",
+              "num_decks": 7417,
+              "potential_decks": 26910,
+              "synergy": 0.13142215654584508,
+              "lift": 1.1432661193708897
+            },
+            {
+              "name": "Reanimate",
+              "sanitized": "reanimate",
+              "num_decks": 18301,
+              "potential_decks": 66883,
+              "synergy": 0.07391925725922774,
+              "lift": 1.1684262990500118
+            },
+            {
+              "name": "Farseek",
+              "sanitized": "farseek",
+              "num_decks": 5918,
+              "potential_decks": 21714,
+              "synergy": -0.08628890376657783,
+              "lift": 0.8605330697168814
+            },
+            {
+              "name": "Toxic Deluge",
+              "sanitized": "toxic-deluge",
+              "num_decks": 17041,
+              "potential_decks": 66883,
+              "synergy": 0.07238214471997301,
+              "lift": 1.1928520657480128
+            },
+            {
+              "name": "Rampant Growth",
+              "sanitized": "rampant-growth",
+              "num_decks": 5007,
+              "potential_decks": 21714,
+              "synergy": -0.0844354465057878,
+              "lift": 0.7677286047585254
+            }
+          ]
+        },
+        {
+          "tag": "utilityartifacts",
+          "header": "Utility Artifacts",
+          "cardviews": [
+            {
+              "name": "Ashnod's Altar",
+              "sanitized": "ashnods-altar",
+              "num_decks": 28617,
+              "potential_decks": 69633,
+              "synergy": 0.34991380742587946,
+              "lift": 2.990525824324742
+            },
+            {
+              "name": "Cauldron of Essence",
+              "sanitized": "cauldron-of-essence",
+              "num_decks": 3250,
+              "potential_decks": 9369,
+              "synergy": 0.25496685544182873,
+              "lift": 2.0275650744430607
+            },
+            {
+              "name": "Phyrexian Altar",
+              "sanitized": "phyrexian-altar",
+              "num_decks": 18799,
+              "potential_decks": 69633,
+              "synergy": 0.23437727805359582,
+              "lift": 3.1316793657867166
+            },
+            {
+              "name": "Lightning Greaves",
+              "sanitized": "lightning-greaves",
+              "num_decks": 15043,
+              "potential_decks": 69633,
+              "synergy": -0.029706547281373313,
+              "lift": 0.8318169916621044
+            },
+            {
+              "name": "Swiftfoot Boots",
+              "sanitized": "swiftfoot-boots",
+              "num_decks": 13103,
+              "potential_decks": 69633,
+              "synergy": -0.07913638367576967,
+              "lift": 0.7075729585273478
+            },
+            {
+              "name": "Bolas's Citadel",
+              "sanitized": "bolass-citadel",
+              "num_decks": 10510,
+              "potential_decks": 66883,
+              "synergy": 0.08107501773655854,
+              "lift": 1.3545828327307987
+            },
+            {
+              "name": "Jet Medallion",
+              "sanitized": "jet-medallion",
+              "num_decks": 10752,
+              "potential_decks": 69633,
+              "synergy": 0.11565013939404259,
+              "lift": 1.07618750492512
+            },
+            {
+              "name": "Altar of Dementia",
+              "sanitized": "altar-of-dementia",
+              "num_decks": 7097,
+              "potential_decks": 69633,
+              "synergy": 0.08135580673476153,
+              "lift": 2.418745678108234
+            },
+            {
+              "name": "Bontu's Monument",
+              "sanitized": "bontus-monument",
+              "num_decks": 6282,
+              "potential_decks": 69633,
+              "synergy": 0.06995978033512693,
+              "lift": 1.2473528704475323
+            },
+            {
+              "name": "Birthing Pod",
+              "sanitized": "birthing-pod",
+              "num_decks": 1846,
+              "potential_decks": 21714,
+              "synergy": 0.06820757666747743,
+              "lift": 2.922039405158021
+            }
+          ]
+        },
+        {
+          "tag": "enchantments",
+          "header": "Enchantments",
+          "cardviews": [
+            {
+              "name": "Bastion of Remembrance",
+              "sanitized": "bastion-of-remembrance",
+              "num_decks": 24370,
+              "potential_decks": 66883,
+              "synergy": 0.2969896943937007,
+              "lift": 2.9972817400613234
+            },
+            {
+              "name": "Goblin Bombardment",
+              "sanitized": "goblin-bombardment",
+              "num_decks": 8105,
+              "potential_decks": 22986,
+              "synergy": 0.29816555067550765,
+              "lift": 4.033168429431846
+            },
+            {
+              "name": "Moldervine Reclamation",
+              "sanitized": "moldervine-reclamation",
+              "num_decks": 5985,
+              "potential_decks": 20411,
+              "synergy": 0.22289598824131807,
+              "lift": 1.9501370813521053
+            },
+            {
+              "name": "Impact Tremors",
+              "sanitized": "impact-tremors",
+              "num_decks": 5794,
+              "potential_decks": 22986,
+              "synergy": 0.15829649995610887,
+              "lift": 2.3423351228345
+            },
+            {
+              "name": "Smothering Tithe",
+              "sanitized": "smothering-tithe",
+              "num_decks": 6297,
+              "potential_decks": 28273,
+              "synergy": 0.026010690249286317,
+              "lift": 1.0683603086173863
+            },
+            {
+              "name": "Warleader's Call",
+              "sanitized": "warleaders-call",
+              "num_decks": 1949,
+              "potential_decks": 8921,
+              "synergy": 0.1498664713011415,
+              "lift": 2.0734358192480142
+            },
+            {
+              "name": "Grave Pact",
+              "sanitized": "grave-pact",
+              "num_decks": 14502,
+              "potential_decks": 66883,
+              "synergy": 0.17135474637234585,
+              "lift": 2.663449268560033
+            },
+            {
+              "name": "The Meathook Massacre",
+              "sanitized": "the-meathook-massacre",
+              "num_decks": 13497,
+              "potential_decks": 66883,
+              "synergy": 0.15220330765317752,
+              "lift": 2.4521080916372444
+            },
+            {
+              "name": "Rhystic Study",
+              "sanitized": "rhystic-study",
+              "num_decks": 1682,
+              "potential_decks": 8436,
+              "synergy": -0.02021479864103537,
+              "lift": 0.856238297573571
+            },
+            {
+              "name": "Black Market Connections",
+              "sanitized": "black-market-connections",
+              "num_decks": 13219,
+              "potential_decks": 66883,
+              "synergy": 0.06895659961692419,
+              "lift": 1.167204959794074
+            }
+          ]
+        },
+        {
+          "tag": "planeswalkers",
+          "header": "Planeswalkers",
+          "cardviews": [
+            {
+              "name": "Liliana, Dreadhorde General",
+              "sanitized": "liliana-dreadhorde-general",
+              "num_decks": 10001,
+              "potential_decks": 66883,
+              "synergy": 0.11365090084821952,
+              "lift": 2.677660135380123
+            },
+            {
+              "name": "Elspeth, Storm Slayer",
+              "sanitized": "elspeth-storm-slayer",
+              "num_decks": 2669,
+              "potential_decks": 23665,
+              "synergy": 0.06295164593312476,
+              "lift": 1.783408049875908
+            },
+            {
+              "name": "Grist, the Hunger Tide",
+              "sanitized": "grist-the-hunger-tide",
+              "num_decks": 1343,
+              "potential_decks": 20411,
+              "synergy": 0.032821272021792115,
+              "lift": 1.0419923474792032
+            },
+            {
+              "name": "Elspeth, Sun's Champion",
+              "sanitized": "elspeth-suns-champion",
+              "num_decks": 1760,
+              "potential_decks": 28273,
+              "synergy": 0.023414928961644703,
+              "lift": 1.6539820584047997
+            },
+            {
+              "name": "Professor Dellian Fel",
+              "sanitized": "professor-dellian-fel",
+              "num_decks": 539,
+              "potential_decks": 9612,
+              "synergy": 0.03093145349056412,
+              "lift": 1.221238194082779
+            },
+            {
+              "name": "Vraska, Golgari Queen",
+              "sanitized": "vraska-golgari-queen",
+              "num_decks": 1048,
+              "potential_decks": 20411,
+              "synergy": 0.03364272395587162,
+              "lift": 1.5106794062302276
+            }
+          ]
+        },
+        {
+          "tag": "utilitylands",
+          "header": "Utility Lands",
+          "cardviews": [
+            {
+              "name": "Bojuka Bog",
+              "sanitized": "bojuka-bog",
+              "num_decks": 30464,
+              "potential_decks": 66883,
+              "synergy": 0.15521950517347116,
+              "lift": 1.1595093345102885
+            },
+            {
+              "name": "Phyrexian Tower",
+              "sanitized": "phyrexian-tower",
+              "num_decks": 22859,
+              "potential_decks": 66883,
+              "synergy": 0.24869857015405494,
+              "lift": 2.2936025609003527
+            },
+            {
+              "name": "Vault of the Archangel",
+              "sanitized": "vault-of-the-archangel",
+              "num_decks": 7079,
+              "potential_decks": 26910,
+              "synergy": 0.144126393674174,
+              "lift": 1.0635544098997232
+            },
+            {
+              "name": "Urborg, Tomb of Yawgmoth",
+              "sanitized": "urborg-tomb-of-yawgmoth",
+              "num_decks": 16869,
+              "potential_decks": 69633,
+              "synergy": 0.15456880221721564,
+              "lift": 1.1411323143432779
+            },
+            {
+              "name": "Boseiju, Who Endures",
+              "sanitized": "boseiju-who-endures",
+              "num_decks": 4741,
+              "potential_decks": 21714,
+              "synergy": 0.029143838852613596,
+              "lift": 1.1700701757409224
+            },
+            {
+              "name": "High Market",
+              "sanitized": "high-market",
+              "num_decks": 15200,
+              "potential_decks": 69633,
+              "synergy": 0.18930535789159125,
+              "lift": 2.950958883960376
+            },
+            {
+              "name": "Reliquary Tower",
+              "sanitized": "reliquary-tower",
+              "num_decks": 14446,
+              "potential_decks": 69633,
+              "synergy": -0.08482775118127661,
+              "lift": 0.8882621025672862
+            },
+            {
+              "name": "Cabal Coffers",
+              "sanitized": "cabal-coffers",
+              "num_decks": 12276,
+              "potential_decks": 66883,
+              "synergy": 0.09142852408788174,
+              "lift": 1.1262438897045275
+            },
+            {
+              "name": "Otawara, Soaring City",
+              "sanitized": "otawara-soaring-city",
+              "num_decks": 1376,
+              "potential_decks": 8436,
+              "synergy": -0.00060957731097111,
+              "lift": 0.9500550214273454
+            },
+            {
+              "name": "Grim Backwoods",
+              "sanitized": "grim-backwoods",
+              "num_decks": 3229,
+              "potential_decks": 20411,
+              "synergy": 0.12271302646833547,
+              "lift": 1.9989451867795993
+            }
+          ]
+        },
+        {
+          "tag": "manaartifacts",
+          "header": "Mana Artifacts",
+          "cardviews": [
+            {
+              "name": "Sol Ring",
+              "sanitized": "sol-ring",
+              "num_decks": 58629,
+              "potential_decks": 69633,
+              "synergy": 0.009104347847313066,
+              "lift": 1.003849480319791
+            },
+            {
+              "name": "Arcane Signet",
+              "sanitized": "arcane-signet",
+              "num_decks": 50188,
+              "potential_decks": 69633,
+              "synergy": 0.0037901947175771333,
+              "lift": 0.9898550697701086
+            },
+            {
+              "name": "Talisman of Dominance",
+              "sanitized": "talisman-of-dominance",
+              "num_decks": 3727,
+              "potential_decks": 7763,
+              "synergy": 0.1559175087381947,
+              "lift": 1.087915668990806
+            },
+            {
+              "name": "Talisman of Hierarchy",
+              "sanitized": "talisman-of-hierarchy",
+              "num_decks": 12913,
+              "potential_decks": 26910,
+              "synergy": 0.2106668586749339,
+              "lift": 1.1049512650805402
+            },
+            {
+              "name": "Talisman of Conviction",
+              "sanitized": "talisman-of-conviction",
+              "num_decks": 3553,
+              "potential_decks": 8921,
+              "synergy": 0.15528435074572045,
+              "lift": 1.042275928811795
+            },
+            {
+              "name": "Orzhov Signet",
+              "sanitized": "orzhov-signet",
+              "num_decks": 9942,
+              "potential_decks": 26910,
+              "synergy": 0.1582127864700586,
+              "lift": 0.9605879608647223
+            },
+            {
+              "name": "Talisman of Indulgence",
+              "sanitized": "talisman-of-indulgence",
+              "num_decks": 7586,
+              "potential_decks": 21322,
+              "synergy": 0.07493962703768187,
+              "lift": 0.9944317442942335
+            },
+            {
+              "name": "Talisman of Creativity",
+              "sanitized": "talisman-of-creativity",
+              "num_decks": 1151,
+              "potential_decks": 3236,
+              "synergy": 0.07371377334885776,
+              "lift": 0.985358805711847
+            },
+            {
+              "name": "Talisman of Progress",
+              "sanitized": "talisman-of-progress",
+              "num_decks": 886,
+              "potential_decks": 2804,
+              "synergy": 0.05444971239808588,
+              "lift": 0.9270333829746673
+            },
+            {
+              "name": "Dimir Signet",
+              "sanitized": "dimir-signet",
+              "num_decks": 2410,
+              "potential_decks": 7763,
+              "synergy": 0.0854415763340989,
+              "lift": 0.9479228148628528
+            }
+          ]
+        },
+        {
+          "tag": "lands",
+          "header": "Lands",
+          "cardviews": [
+            {
+              "name": "Command Tower",
+              "sanitized": "command-tower",
+              "num_decks": 52289,
+              "potential_decks": 69633,
+              "synergy": 0.014421734345608894,
+              "lift": 1.0453107572168419
+            },
+            {
+              "name": "Isolated Chapel",
+              "sanitized": "isolated-chapel",
+              "num_decks": 17103,
+              "potential_decks": 26910,
+              "synergy": 0.27848554962348404,
+              "lift": 1.0797724953997088
+            },
+            {
+              "name": "Woodland Cemetery",
+              "sanitized": "woodland-cemetery",
+              "num_decks": 12055,
+              "potential_decks": 20411,
+              "synergy": 0.2520170051660528,
+              "lift": 1.112515763131043
+            },
+            {
+              "name": "Godless Shrine",
+              "sanitized": "godless-shrine",
+              "num_decks": 15772,
+              "potential_decks": 26910,
+              "synergy": 0.16217079019613306,
+              "lift": 1.1680368953976177
+            },
+            {
+              "name": "Caves of Koilos",
+              "sanitized": "caves-of-koilos",
+              "num_decks": 15401,
+              "potential_decks": 26910,
+              "synergy": 0.2753907257908883,
+              "lift": 1.210303209095223
+            },
+            {
+              "name": "Overgrown Tomb",
+              "sanitized": "overgrown-tomb",
+              "num_decks": 11503,
+              "potential_decks": 20411,
+              "synergy": 0.13927211125714395,
+              "lift": 1.171216135935602
+            },
+            {
+              "name": "Watery Grave",
+              "sanitized": "watery-grave",
+              "num_decks": 4230,
+              "potential_decks": 7763,
+              "synergy": 0.1192327853112628,
+              "lift": 1.145093740704181
+            },
+            {
+              "name": "Stomping Ground",
+              "sanitized": "stomping-ground",
+              "num_decks": 3484,
+              "potential_decks": 6402,
+              "synergy": 0.12125611971212186,
+              "lift": 1.1311320206982596
+            },
+            {
+              "name": "Temple Garden",
+              "sanitized": "temple-garden",
+              "num_decks": 2184,
+              "potential_decks": 4093,
+              "synergy": 0.12463336706971706,
+              "lift": 1.172092093901486
+            },
+            {
+              "name": "Llanowar Wastes",
+              "sanitized": "llanowar-wastes",
+              "num_decks": 10822,
+              "potential_decks": 20411,
+              "synergy": 0.2535259388389095,
+              "lift": 1.2601286335102433
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
