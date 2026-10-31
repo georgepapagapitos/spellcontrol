@@ -241,6 +241,7 @@ export function DeckEditorLayout({
             sideboard={deck.sideboard}
             considering={deck.considering ?? []}
             extras={deck.extras ?? []}
+            fromProduct={!!deck.sourceProduct}
             onRemoveCard={handleRemoveCard}
             onRemoveSideboardCard={handleRemoveSideboardCard}
             onRemoveConsideringCard={handleRemoveConsideringCard}

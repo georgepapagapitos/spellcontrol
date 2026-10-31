@@ -42,12 +42,15 @@ export function buildCardMenuCtx(args: {
   zone: DeckZone;
   isSingleton: boolean;
   hasSideboard: boolean;
+  /** The deck has an In the box: it came from a product, or holds box cards. */
+  hasBox?: boolean;
   onSetQty: DeckCardActionCtx['onSetQty'];
   handlers: CardMenuHandlers;
 }): DeckCardActionCtx {
-  const { row, zone, isSingleton, hasSideboard, onSetQty, handlers: h } = args;
+  const { row, zone, isSingleton, hasSideboard, hasBox, onSetQty, handlers: h } = args;
   // In the box holds the box's own cards: remove, re-count, give or release a
-  // copy, and move out to the sideboard or Considering. Not into the deck, and
+  // copy, and move out to the sideboard or Considering (and back in from
+  // either, below). Not into the deck, and
   // nothing that tags, proxies or seats it (DeckZoneSection).
   if (zone === 'extras') {
     const moveOut = (to: DeckZone) =>
@@ -89,6 +92,12 @@ export function buildCardMenuCtx(args: {
           ? h.onMoveToMainboard
           : h.onMoveFromConsidering,
     onMoveToConsidering: zone === 'cards' ? h.onMoveToConsidering : undefined,
+    // A pile card goes back into the box it came out of. Not a deck card: it
+    // reaches the box by way of the sideboard or Considering.
+    onMoveToBox:
+      hasBox && zone !== 'cards' && h.onBulkMove
+        ? (slotIds) => h.onBulkMove!(slotIds, zone, 'extras')
+        : undefined,
     onUseOwnCopy: h.onUseOwnCopy,
     onMoveToAnotherDeck: h.onMoveToAnotherDeck,
     onReleaseCopy: h.onReleaseCopy,
@@ -110,13 +119,21 @@ export function buildCardMenuCtx(args: {
 export function buildBulkActions(args: {
   selection: DeckSelection | null;
   hasSideboard: boolean;
+  hasBox?: boolean;
   onBulkMove: DeckDisplayProps['onBulkMove'];
   onBulkRemove: DeckDisplayProps['onBulkRemove'];
   setSelection: (next: DeckSelection | null) => void;
   setConfirmBulkRemove: (next: boolean) => void;
 }): DeckBulkAction[] {
-  const { selection, hasSideboard, onBulkMove, onBulkRemove, setSelection, setConfirmBulkRemove } =
-    args;
+  const {
+    selection,
+    hasSideboard,
+    hasBox,
+    onBulkMove,
+    onBulkRemove,
+    setSelection,
+    setConfirmBulkRemove,
+  } = args;
   return selection
     ? [
         ...(onBulkMove &&
@@ -152,6 +169,20 @@ export function buildBulkActions(args: {
                 label: 'Move to mainboard',
                 run: () => {
                   onBulkMove([...selection.keys], selection.zone, 'cards');
+                  setSelection(null);
+                },
+              },
+            ]
+          : []),
+        ...(onBulkMove &&
+        hasBox &&
+        (selection.zone === 'sideboard' || selection.zone === 'considering')
+          ? [
+              {
+                key: 'box',
+                label: 'Move into the box',
+                run: () => {
+                  onBulkMove([...selection.keys], selection.zone, 'extras');
                   setSelection(null);
                 },
               },

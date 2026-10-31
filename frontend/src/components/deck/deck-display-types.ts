@@ -73,6 +73,9 @@ export interface DeckDisplayProps {
    * shown only when it holds a card; never read for stats, legality or mana.
    */
   extras?: DeckDisplayCard[];
+  /** The deck came from a product, so it has an In the box even while empty:
+   *  a box card moved out to a pile can be moved back. */
+  fromProduct?: boolean;
   /** Optional grade/bracket — if provided, renders in the stats and toolbar. */
   bracketEstimation?: BracketEstimation;
   /** User-pinned bracket (1–5); when set it overrides the auto estimate. */

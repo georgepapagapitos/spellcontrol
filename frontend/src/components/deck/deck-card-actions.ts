@@ -58,6 +58,8 @@ export interface DeckCardActionCtx {
   onRemoveCard?: (slotId: string) => void;
   onMoveToZone?: (slotIds: string[]) => void;
   onMoveToConsidering?: (slotIds: string[]) => void;
+  /** Back into In the box, for a box card moved out to a pile. */
+  onMoveToBox?: (slotIds: string[]) => void;
   onUseOwnCopy?: (card: ScryfallCard) => void;
   onMoveToAnotherDeck?: (card: ScryfallCard) => void;
   onReleaseCopy?: (card: ScryfallCard) => void;
@@ -92,6 +94,7 @@ export function deckCardActions(ctx: DeckCardActionCtx): DeckCardAction[] {
     onRemoveCard,
     onMoveToZone,
     onMoveToConsidering,
+    onMoveToBox,
     onUseOwnCopy,
     onMoveToAnotherDeck,
     onReleaseCopy,
@@ -183,6 +186,23 @@ export function deckCardActions(ctx: DeckCardActionCtx): DeckCardAction[] {
         label: `Move all ${row.qty} copies to considering`,
         section: 'move',
         run: () => onMoveToConsidering(row.slotIds),
+      });
+    }
+  }
+
+  if (onMoveToBox && hasSlots) {
+    out.push({
+      key: 'move-box-one',
+      label: row.qty > 1 ? 'Move one copy into the box' : 'Move into the box',
+      section: 'move',
+      run: () => onMoveToBox([row.slotIds[0]]),
+    });
+    if (row.qty > 1) {
+      out.push({
+        key: 'move-box-all',
+        label: `Move all ${row.qty} copies into the box`,
+        section: 'move',
+        run: () => onMoveToBox(row.slotIds),
       });
     }
   }

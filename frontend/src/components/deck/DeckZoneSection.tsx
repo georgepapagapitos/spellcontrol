@@ -110,8 +110,8 @@ const OUTZONE_OF_ICON: Record<string, DeckZone> = {
  *
  * In the box holds the box's own cards, not swap or maybe cards: its rows can
  * be removed, re-counted, given or released a copy, and moved out to the
- * sideboard or Considering (through the menu, deck-display-actions.tsx), but
- * not moved into the deck, tagged, proxied or seated as commander.
+ * sideboard or Considering and back (through the menu, deck-display-actions.tsx),
+ * but not moved into the deck, tagged, proxied or seated as commander.
  */
 export function OutzoneZoneSection({
   group: g,
