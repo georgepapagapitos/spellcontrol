@@ -73,6 +73,48 @@ import { measureThemeFidelity, type ThemePage } from './themeFidelity';
 import { loadThemePages } from './deckGeneration/themeFidelityData';
 import { choosesColorBeforeGame, withChosenColor } from '@/deck-builder/lib/partnerUtils';
 import { liveSearchBudgetMs } from './liveGenSearch';
+import { parsePerturbation, perturbEdhrecBody } from './liveGenPerturb';
+import { freezeCards, nameOnlyIdentifiers, thawCards } from './liveGenFrozenCards';
+
+// E1061: LIVE_GEN_PERTURB changes one input of the run (an extra pool card, the
+// order of the lists, the goldfish seed) so frontend/scripts/gen-stability.mjs can
+// diff the decks against an unperturbed run. See liveGenPerturb.ts.
+const PERTURB = parsePerturbation(process.env.LIVE_GEN_PERTURB);
+// What the whole-deck search kept and undid, with each swap's gain, for the
+// stability report: the build report records the swaps but not their gains,
+// which is what says how close to MIN_GAIN a late swap was.
+type SearchTraceHolder = { __searchTrace?: unknown };
+vi.mock('./deckObjective/optimizerAsync', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./deckObjective/optimizerAsync')>();
+  return {
+    ...real,
+    optimizeDeckAsync: async (...args: Parameters<typeof real.optimizeDeckAsync>) => {
+      const r = await real.optimizeDeckAsync(...args);
+      (globalThis as SearchTraceHolder).__searchTrace = {
+        seedTotal: r.seedScore.total,
+        total: r.score.total,
+        stoppedBy: r.stoppedBy,
+        evaluations: r.evaluations,
+        refusals: r.refusals,
+        minGain: args[3]?.minGain ?? null,
+        swaps: r.swaps.map((x) => ({ out: x.out, in: x.in, kind: x.kind, delta: x.delta })),
+        undone: r.undone.map((x) => ({ out: x.out, in: x.in, delta: x.delta, why: x.why })),
+      };
+      return r;
+    },
+  };
+});
+vi.mock('./deckObjective', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./deckObjective')>();
+  const raw = process.env.LIVE_GEN_PERTURB ?? '';
+  const seed = raw.startsWith('seed:') ? Number(raw.slice(5)) : undefined;
+  if (seed === undefined) return real;
+  return {
+    ...real,
+    createObjectiveContext: (input: Parameters<typeof real.createObjectiveContext>[0]) =>
+      real.createObjectiveContext({ ...input, manaSim: { ...input.manaSim, seed } }),
+  };
+});
 
 const here = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = process.env.LIVE_GEN_OUTDIR ?? join(tmpdir(), 'spellcontrol-live-gen');
@@ -318,8 +360,31 @@ beforeAll(async () => {
     if (!HTTP_CACHE_DIR) {
       const res = await realFetch(input, { ...init, headers });
       if (isScryfall && res.ok) recordNameResolutions(url, await res.clone().text());
+      if (PERTURB.kind !== 'none' && !isScryfall && res.ok)
+        return new Response(perturbEdhrecBody(await res.text(), PERTURB, url), {
+          status: res.status,
+        });
       return res;
     }
+    // E1061: name-only /cards/collection batches are served from the first answer
+    // per card (liveGenFrozenCards.ts), so a pool change that reshuffles the
+    // batches cannot re-price the deck.
+    const collectionNames =
+      isScryfall && new URL(url).pathname === '/cards/collection' && typeof init?.body === 'string'
+        ? nameOnlyIdentifiers(init.body)
+        : null;
+    if (collectionNames) {
+      const thawed = thawCards(HTTP_CACHE_DIR, collectionNames);
+      if (thawed.complete) return new Response(JSON.stringify(thawed.body), { status: 200 });
+    }
+    const respond = async (res: Response): Promise<Response> => {
+      if (!collectionNames || !res.ok) return res;
+      const answer = (await res.clone().json()) as Parameters<typeof freezeCards>[2];
+      freezeCards(HTTP_CACHE_DIR, collectionNames, answer);
+      return new Response(JSON.stringify(thawCards(HTTP_CACHE_DIR, collectionNames, answer).body), {
+        status: 200,
+      });
+    };
     const key = createHash('sha1')
       .update(`${init?.method ?? 'GET'} ${url} ${typeof init?.body === 'string' ? init.body : ''}`)
       .digest('hex');
@@ -327,7 +392,11 @@ beforeAll(async () => {
     if (existsSync(file)) {
       const hit = JSON.parse(readFileSync(file, 'utf8')) as { status: number; body: string };
       if (isScryfall && hit.status === 200) recordNameResolutions(url, hit.body);
-      return new Response(hit.body, { status: hit.status });
+      return respond(
+        new Response(isScryfall ? hit.body : perturbEdhrecBody(hit.body, PERTURB, url), {
+          status: hit.status,
+        })
+      );
     }
     const res = await realFetch(input, { ...init, headers });
     // Only definitive answers are cached: a 404 ("no such card/page") is as
@@ -336,7 +405,11 @@ beforeAll(async () => {
       const body = await res.text();
       writeFileSync(file, JSON.stringify({ status: res.status, body }));
       if (isScryfall && res.ok) recordNameResolutions(url, body);
-      return new Response(body, { status: res.status });
+      return respond(
+        new Response(isScryfall ? body : perturbEdhrecBody(body, PERTURB, url), {
+          status: res.status,
+        })
+      );
     }
     return res;
   });
@@ -953,6 +1026,7 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
           searchTimeBudgetMs: liveSearchBudgetMs(process.env),
         };
 
+        (globalThis as SearchTraceHolder).__searchTrace = null;
         const deck = await generateDeck(ctx);
         const buildReport = assembleBuildReport({
           generated: deck,
@@ -1083,6 +1157,8 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
           generationRelaxedNote: deck.generationRelaxedNote ?? null,
           allNotes,
           buildReport,
+          perturbation: PERTURB,
+          searchTrace: (globalThis as SearchTraceHolder).__searchTrace ?? null,
           themeFidelity: themeFidelityDump(deck, themePages),
           cardRelevancy: buildCardRelevancy(deck),
           swapInclusion: swapInclusion(
