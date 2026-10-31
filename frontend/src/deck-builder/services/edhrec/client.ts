@@ -286,11 +286,16 @@ function highSynergyNamesOf(rawLists: RawCardList[]): string[] {
   if (real?.cardviews?.length) return real.cardviews.map((c) => c.name);
   const best = new Map<string, number>();
   for (const list of rawLists) {
-    const type = TAG_TYPE_MAP[list.tag?.toLowerCase()];
+    const type = list.tag ? tagType(list.tag) : undefined;
     if (!type || type === 'Land') continue;
     for (const c of list.cardviews ?? []) {
-      if (typeof c.synergy !== 'number' || !(c.synergy > 0)) continue;
-      if (c.synergy > (best.get(c.name) ?? -Infinity)) best.set(c.name, c.synergy);
+      // Same fallback parseCard uses, so the list survives EDHREC dropping synergy.
+      const pct = c.potential_decks
+        ? ((c.inclusion ?? c.num_decks ?? 0) / c.potential_decks) * 100
+        : 0;
+      const synergy = c.synergy ?? synergyFromLift(pct, c.lift);
+      if (synergy === undefined || !(synergy > 0)) continue;
+      if (synergy > (best.get(c.name) ?? -Infinity)) best.set(c.name, synergy);
     }
   }
   return [...best.entries()]

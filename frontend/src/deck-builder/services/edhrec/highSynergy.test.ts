@@ -30,6 +30,24 @@ describe('high synergy list rebuilt from synergy (E1052)', () => {
     expect(data?.highSynergyNames).toEqual(TOP_BY_SYNERGY);
   });
 
+  it('still finds the list when EDHREC drops synergy and ships only lift', async () => {
+    const liftOnly = structuredClone(page) as typeof page;
+    for (const l of liftOnly.container.json_dict.cardlists)
+      for (const c of (l.cardviews ?? []) as Array<{ synergy?: number }>) delete c.synergy;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () => ({ ok: true, status: 200, json: async () => liftOnly }) as unknown as Response
+      )
+    );
+    const data = await fetchTagPageData('e1052-aristocrats-lift-only');
+    // Lift-derived synergy reorders near ties (EDHREC's lift also corrects for
+    // spoil dates), so the list is mostly, not exactly, the same cards.
+    const names = data?.highSynergyNames ?? [];
+    expect(names).toHaveLength(TOP_BY_SYNERGY.length);
+    expect(names.filter((n) => TOP_BY_SYNERGY.includes(n)).length).toBeGreaterThanOrEqual(7);
+  });
+
   it('keeps using a real highsynergycards list when EDHREC ships one', async () => {
     const withList = {
       container: {
