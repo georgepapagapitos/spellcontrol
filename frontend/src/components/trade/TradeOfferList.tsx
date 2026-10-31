@@ -1,11 +1,12 @@
 import './TradeOfferList.css';
 import { useId, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { UserAvatar } from '@/components/profile/UserAvatar';
 import { formatMoney } from '@/lib/collection/format-money';
 import { formatRelativeTime } from '@/lib/util/format-time';
 import {
+  describeLinePrice,
   describeNet,
   printingKey,
   splitSideValue,
@@ -326,25 +327,25 @@ function TradeOfferCard({
         )}
       </header>
 
+      {/* Two columns of a balance sheet: each line priced beside its card, each
+          side totalled at the foot of its column, the net under both. The
+          labels carry the direction, so there is no arrow between them. */}
       <div className="trade-offer-sides">
         <TradeOfferSide
           label="You give"
           cards={offer.give}
-          value={give.text}
+          value={give}
           compact={compact}
           onInspect={inspect}
         />
-        <ArrowRight className="trade-offer-arrow" width={18} height={18} aria-label="for" />
         <TradeOfferSide
           label="You get"
           cards={offer.receive}
-          value={receive.text}
+          value={receive}
           compact={compact}
           onInspect={inspect}
         />
       </div>
-
-      {net && <p className="trade-offer-net">{net}</p>}
 
       {!compact && offer.note && <p className="trade-offer-note">“{offer.note}”</p>}
 
@@ -357,20 +358,30 @@ function TradeOfferCard({
         <SettledNote cards={offer.receive} locations={locations} />
       )}
 
-      {(canAnswer || canWithdraw) && (
-        <div className="trade-offer-actions">
-          {canAnswer && (
-            // Accepting moves cards out of your binders, so a list row only
-            // opens the review; the deal, the decks it touches and the copies
-            // that leave are all on that sheet before anything commits.
-            <Button variant="primary" disabled={busy} onClick={() => setReviewing(resolveAsk())}>
-              Review offer
-            </Button>
-          )}
-          {canWithdraw && (
-            <Button disabled={busy} onClick={() => void withdraw()}>
-              {busy ? 'Working…' : 'Withdraw'}
-            </Button>
+      {(net || canAnswer || canWithdraw) && (
+        // The bottom line: what the deal comes to, and what you can do about it.
+        <div className="trade-offer-foot">
+          {net && <p className="trade-offer-net">{net}</p>}
+          {(canAnswer || canWithdraw) && (
+            <div className="trade-offer-actions">
+              {canAnswer && (
+                // Accepting moves cards out of your binders, so a list row only
+                // opens the review; the deal, the decks it touches and the copies
+                // that leave are all on that sheet before anything commits.
+                <Button
+                  variant="primary"
+                  disabled={busy}
+                  onClick={() => setReviewing(resolveAsk())}
+                >
+                  Review offer
+                </Button>
+              )}
+              {canWithdraw && (
+                <Button disabled={busy} onClick={() => void withdraw()}>
+                  {busy ? 'Working…' : 'Withdraw'}
+                </Button>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -514,15 +525,22 @@ function TradeOfferAge({ offer }: { offer: TradeOffer }) {
  * floor and is labeled "from". Never renders a bare 0 for "unknown": the whole
  * point of putting a number here is that it can be trusted.
  */
-function useSideValue(cards: TradeCard[]): SideValue {
+interface PricedSide extends SideValue {
+  /** One line's price, for the row beside its card. */
+  line: (card: TradeCard) => string;
+}
+
+function useSideValue(cards: TradeCard[]): PricedSide {
   const { exact, needPrinting, needFloor } = useMemo(() => splitSideValue(cards), [cards]);
   const names = useMemo(() => needFloor.map((c) => c.name), [needFloor]);
   const { prices: floors, pending: floorPending } = useFloorPrices(names);
   const { prices: printings, pending: printingPending } = usePrintingPrices(needPrinting);
 
+  const line = (card: TradeCard) => describeLinePrice(card, floors, printings);
   if (names.length === 0 && needPrinting.length === 0)
-    return { text: formatMoney(exact), amount: exact, estimate: false };
-  if (floorPending || printingPending) return { text: '…', amount: null, estimate: true };
+    return { text: formatMoney(exact), amount: exact, estimate: false, line };
+  if (floorPending || printingPending)
+    return { text: '…', amount: null, estimate: true, line: () => '…' };
 
   const looked = needPrinting.reduce((sum, c) => sum + (printings.get(printingKey(c)) ?? 0), 0);
   const floor = needFloor.reduce((sum, c) => sum + (floors.get(c.name) ?? 0) * c.quantity, 0);
@@ -534,8 +552,12 @@ function useSideValue(cards: TradeCard[]): SideValue {
   // than a total that quietly omits a card.
   const suffix = anyUnknown ? ' +?' : '';
   if (names.length === 0 && !anyUnknown)
-    return { text: formatMoney(total), amount: total, estimate: false };
+    return { text: formatMoney(total), amount: total, estimate: false, line };
+  // Nothing on the side could be priced (every price is positive, so a zero
+  // total means none came back): "from $0.00 +?" reads as a price, it isn't one.
+  if (anyUnknown && total === 0) return { text: 'No price', amount: null, estimate: true, line };
   return {
+    line,
     text:
       names.length > 0 ? `from ${formatMoney(total)}${suffix}` : `${formatMoney(total)}${suffix}`,
     amount: anyUnknown ? null : total,
@@ -552,7 +574,7 @@ function TradeOfferSide({
 }: {
   label: string;
   cards: TradeCard[];
-  value: string;
+  value: PricedSide;
   compact: boolean;
   onInspect: (card: TradeCard) => void;
 }) {
@@ -563,7 +585,7 @@ function TradeOfferSide({
           the card list's accessible name ("$40.00 You give"). */}
       <p className="trade-offer-side-label">
         <span id={headingId}>{label}</span>
-        <span className="trade-offer-side-value">{value}</span>
+        {compact && <span className="trade-offer-side-value">{value.text}</span>}
       </p>
       {cards.length === 0 ? (
         <p className="trade-offer-side-nothing">Nothing</p>
@@ -574,9 +596,17 @@ function TradeOfferSide({
               key={`${card.oracleId || card.name}|${card.copies[0]?.scryfallId ?? ''}|${card.copies[0]?.finish ?? ''}`}
             >
               <TradeOfferCardTile card={card} compact={compact} onInspect={onInspect} />
+              {!compact && <span className="trade-offer-line-price">{value.line(card)}</span>}
             </li>
           ))}
         </ul>
+      )}
+      {!compact && (
+        // The foot of the column, ruled off like a receipt total.
+        <p className="trade-offer-side-total">
+          <span>Total</span>
+          <span className="trade-offer-side-value">{value.text}</span>
+        </p>
       )}
     </div>
   );

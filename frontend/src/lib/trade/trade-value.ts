@@ -184,7 +184,6 @@ export function splitSideValue(cards: TradeCard[]): {
   needPrinting: TradeCopy[];
   needFloor: TradeCard[];
 } {
-  const eur = getCurrency() === 'EUR';
   let exact = 0;
   const needPrinting: TradeCopy[] = [];
   const needFloor: TradeCard[] = [];
@@ -195,13 +194,43 @@ export function splitSideValue(cards: TradeCard[]): {
       continue;
     }
     for (const copy of card.copies) {
-      const entry = getPrice(copy.scryfallId, copy.finish);
-      const price = entry ? (eur ? entry.eur : entry.usd) : undefined;
-      if (price == null) needPrinting.push(copy);
+      const price = cachedCopyPrice(copy);
+      if (price === null) needPrinting.push(copy);
       else exact += price;
     }
   }
   return { exact, needPrinting, needFloor };
+}
+
+/** One copy's price from the device-local cache, or null when it isn't there. */
+function cachedCopyPrice(copy: TradeCopy): number | null {
+  const entry = getPrice(copy.scryfallId, copy.finish);
+  const price = entry ? (getCurrency() === 'EUR' ? entry.eur : entry.usd) : undefined;
+  return price ?? null;
+}
+
+/**
+ * One line's price, for the row beside the card: the same sources and the
+ * same honesty as the side total. A pinned line is exact (cache, else the
+ * looked-up printing); an any-printing ask is `from` its floor; a line that
+ * can't be priced at all says so rather than read as free.
+ */
+export function describeLinePrice(
+  card: TradeCard,
+  floors: Map<string, number | null>,
+  printings: Map<string, number | null>
+): string {
+  if (card.copies.length === 0) {
+    const floor = floors.get(card.name) ?? null;
+    return floor === null ? 'No price' : `from ${formatMoney(floor * card.quantity)}`;
+  }
+  let total = 0;
+  for (const copy of card.copies) {
+    const price = cachedCopyPrice(copy) ?? printings.get(printingKey(copy)) ?? null;
+    if (price === null) return 'No price';
+    total += price;
+  }
+  return formatMoney(total);
 }
 
 /**
