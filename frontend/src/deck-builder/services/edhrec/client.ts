@@ -26,6 +26,14 @@ export {
 } from './commander-page-cache';
 import { sortWUBRG } from '@/deck-builder/lib/edhrecUtils';
 import { fetchEdhrecTop } from '@/lib/discover/edhrec-top';
+import {
+  TAG_TYPE_MAP,
+  checkCardPage,
+  checkCardlistPage,
+  checkSaltPage,
+  isKnownCardlistTag,
+  reportUnknownTag,
+} from './drift';
 
 const BASE_URL = import.meta.env.DEV ? '/edhrec-api' : 'https://json.edhrec.com';
 
@@ -262,19 +270,6 @@ async function edhrecFetch<T>(endpoint: string, attempt = 0): Promise<T> {
 // Tags that represent high-priority theme synergy cards
 const THEME_SYNERGY_TAGS = new Set(['highsynergycards', 'topcards', 'gamechangers']);
 
-/** Map from cardlist tag (lowercased) to the MTG card type it implies. */
-const TAG_TYPE_MAP: Record<string, string> = {
-  creatures: 'Creature',
-  instants: 'Instant',
-  sorceries: 'Sorcery',
-  utilityartifacts: 'Artifact',
-  manaartifacts: 'Artifact',
-  enchantments: 'Enchantment',
-  planeswalkers: 'Planeswalker',
-  utilitylands: 'Land',
-  lands: 'Land',
-};
-
 /**
  * Backfill color identities on commanders whose colorIdentity is empty by
  * fetching the missing names from Scryfall. Mutates the passed array in-place
@@ -494,6 +489,9 @@ function parseCardlists(response: RawEDHRECResponse): EDHRECCommanderData['cardl
     rawCardLists.map((l: RawCardList) => l.tag)
   );
 
+  // Drift tripwire (reports only; the parse below is unchanged).
+  checkCardlistPage(rawCardLists);
+
   const cardlists: EDHRECCommanderData['cardlists'] = {
     creatures: [],
     instants: [],
@@ -514,6 +512,7 @@ function parseCardlists(response: RawEDHRECResponse): EDHRECCommanderData['cardl
     if (!list.cardviews || list.cardviews.length === 0) continue;
 
     const tag = list.tag.toLowerCase();
+    if (!isKnownCardlistTag(tag)) reportUnknownTag('cardlists', tag);
     logger.debug(`[EDHREC] Processing list "${list.tag}" with ${list.cardviews.length} cards`);
 
     // Determine the type this tag implies (if any)
@@ -958,6 +957,7 @@ let saltIndexPromise: Promise<Map<string, number>> | null = null;
 export function parseSaltIndex(
   cardviews: Array<{ name: string; salt?: number; label?: string }>
 ): Map<string, number> {
+  checkSaltPage(cardviews);
   const out = new Map<string, number>();
   for (const c of cardviews) {
     if (typeof c.salt === 'number' && Number.isFinite(c.salt)) {
@@ -1747,6 +1747,9 @@ function toLiftEntry(cv: RawCardPageView): LiftEntry | null {
  */
 export function parseCardLiftPool(raw: RawCardPageResponse): LiftEntry[] {
   const lists = raw.container?.json_dict?.cardlists ?? [];
+  checkCardPage(
+    lists.filter((l) => !LIFT_POOL_SKIP_TAGS.has(l.tag)).flatMap((l) => l.cardviews ?? [])
+  );
   const byName = new Map<string, LiftEntry>();
   for (const list of lists) {
     if (LIFT_POOL_SKIP_TAGS.has(list.tag)) continue;
