@@ -22,10 +22,30 @@ const PROXY_HEADER = 'X-Edhrec-Cache';
 const PROXY_DOWN_MS = 60_000;
 let proxyDownUntil = 0;
 
-/** Tests only: forget that the backend was unreachable (and the request
- *  spacing, which a fake-timer test leaves ahead of the real clock). */
+/**
+ * After one page runs out of 429/503 retries, EDHREC (or our route) is down or
+ * throttling us, so other pages skip the backoff ladder for this long instead
+ * of each spending about 15 s on it before generation can fall back (E1060).
+ * Every page still gets one attempt, and a success closes the window, so a
+ * recovery is seen on the next request.
+ */
+const OUTAGE_MS = 60_000;
+let outageUntil = 0;
+
+export function edhrecRetriesAllowed(): boolean {
+  return Date.now() >= outageUntil;
+}
+
+export function noteEdhrecOutage(down: boolean): void {
+  outageUntil = down ? Date.now() + OUTAGE_MS : 0;
+}
+
+/** Tests only: forget that the backend was unreachable, the outage window,
+ *  and the request spacing, which a fake-timer test leaves ahead of the real
+ *  clock. */
 export function resetEdhrecProxyState(): void {
   proxyDownUntil = 0;
+  outageUntil = 0;
   rateLimiter.reset();
 }
 

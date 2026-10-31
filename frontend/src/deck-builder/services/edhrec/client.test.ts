@@ -438,6 +438,7 @@ describe('fetchTagPageData — the whole tag page, not just the commanders', () 
 // ~99 sequential card-page fetches (E219 phase b). Exercised through
 // fetchCardLiftPool, the public entry point that reaches edhrecFetch.
 describe('edhrecFetch retry discipline', () => {
+  beforeEach(() => resetEdhrecProxyState());
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
@@ -478,6 +479,49 @@ describe('edhrecFetch retry discipline', () => {
     await vi.runAllTimersAsync();
 
     await expect(pending).resolves.toEqual([]); // empty page parses to no entries
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  // E1060: an outage cost every page the full ladder (1+2+4+8 s) before the
+  // no-EDHREC fallback could run, about 15 s a page and 111 s per generation.
+  it('after one page exhausts its retries, the next page tries once and fails fast', async () => {
+    const fetchMock = vi.fn(async () => res(503));
+    vi.stubGlobal('fetch', fetchMock);
+    vi.useFakeTimers();
+
+    const first = fetchCardLiftPool('Outage Probe One');
+    await vi.runAllTimersAsync();
+    await expect(first).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(MAX_RETRIES + 1);
+
+    fetchMock.mockClear();
+    const second = fetchCardLiftPool('Outage Probe Two');
+    await vi.runAllTimersAsync();
+    await expect(second).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('a success closes the outage window, so the ladder is back for the next throttle', async () => {
+    let fail = true;
+    const fetchMock = vi.fn(async () => (fail ? res(503) : res(200, {})));
+    vi.stubGlobal('fetch', fetchMock);
+    vi.useFakeTimers();
+
+    const down = fetchCardLiftPool('Recovery Probe One');
+    await vi.runAllTimersAsync();
+    await down;
+
+    fail = false;
+    const up = fetchCardLiftPool('Recovery Probe Two');
+    await vi.runAllTimersAsync();
+    await expect(up).resolves.toEqual([]);
+
+    let calls = 0;
+    fetchMock.mockImplementation(async () => (++calls === 1 ? res(429) : res(200, {})));
+    fetchMock.mockClear();
+    const throttled = fetchCardLiftPool('Recovery Probe Three');
+    await vi.runAllTimersAsync();
+    await expect(throttled).resolves.toEqual([]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
