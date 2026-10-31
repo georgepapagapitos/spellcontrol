@@ -25,7 +25,7 @@ describe('TradeOfferCardTile', () => {
       <TradeOfferCardTile card={pinned} compact={false} onInspect={vi.fn()} />
     );
 
-    expect(usePrintingThumb).toHaveBeenCalledWith('scry-lea', 'Sol Ring', 'normal');
+    expect(usePrintingThumb).toHaveBeenCalledWith('scry-lea', 'Sol Ring', 'small');
     const img = container.querySelector('img');
     expect(img?.getAttribute('data-scryfall-id')).toBe('scry-lea');
     expect(img?.getAttribute('src')).toBe('http://cdn/sol-lea.png');
@@ -40,7 +40,7 @@ describe('TradeOfferCardTile', () => {
       <TradeOfferCardTile card={anyPrinting} compact={false} onInspect={vi.fn()} />
     );
 
-    expect(usePrintingThumb).toHaveBeenCalledWith(undefined, 'Rhystic Study', 'normal');
+    expect(usePrintingThumb).toHaveBeenCalledWith(undefined, 'Rhystic Study', 'small');
     expect(screen.getByText('Any printing')).toBeTruthy();
     expect(
       screen.getByRole('button', { name: 'Preview Rhystic Study, 2 copies, any printing' })
@@ -56,22 +56,72 @@ describe('TradeOfferCardTile', () => {
     expect(screen.getByRole('button', { name: 'Preview Sol Ring, foil' })).toBeTruthy();
   });
 
-  it('shows the name on a card-shaped placeholder while there is no art', () => {
+  it('holds a card-shaped placeholder beside the name while there is no art', () => {
     usePrintingThumb.mockReturnValue({ src: undefined, id: undefined });
     const { container } = render(
       <TradeOfferCardTile card={pinned} compact={false} onInspect={vi.fn()} />
     );
     expect(container.querySelector('img')).toBeNull();
-    expect(container.querySelector('.trade-offer-chip-thumb.is-placeholder')?.textContent).toBe(
-      'Sol Ring'
-    );
+    expect(container.querySelector('.trade-offer-chip-thumb.is-placeholder')).toBeTruthy();
+    expect(container.querySelector('.trade-offer-chip-name')?.textContent).toBe('Sol Ring');
   });
 
-  it('uses small art for a ledger tile and opens the preview on click', () => {
-    usePrintingThumb.mockReturnValue({ src: 'x.png', id: 'scry-lea' });
+  it('names the set and collector number of the resolved printing, then its finish', () => {
+    usePrintingThumb.mockReturnValue({
+      src: 'x.png',
+      id: 'scry-lea',
+      printing: { set: 'lea', collector_number: '270' },
+    });
+    const foil = { ...pinned, quantity: 2, copies: [{ scryfallId: 'scry-lea', finish: 'foil' }] };
+    const { container } = render(
+      <TradeOfferCardTile card={foil} compact={false} onInspect={vi.fn()} />
+    );
+    expect(screen.getByText('LEA #270 · Foil')).toBeTruthy();
+    expect(container.querySelector('.trade-offer-chip-name')?.textContent).toBe('2× Sol Ring');
+    expect(screen.getByRole('button', { name: 'Preview Sol Ring, 2 copies, foil' })).toBeTruthy();
+  });
+
+  it('a line of two different printings says so, and names neither set', () => {
+    usePrintingThumb.mockReturnValue({
+      src: 'x.png',
+      id: 'scry-lea',
+      printing: { set: 'lea', collector_number: '270' },
+    });
+    const mixed = {
+      ...pinned,
+      quantity: 2,
+      copies: [
+        { scryfallId: 'scry-lea', finish: 'nonfoil' },
+        { scryfallId: 'scry-c21', finish: 'nonfoil' },
+      ],
+    };
+    render(<TradeOfferCardTile card={mixed} compact={false} onInspect={vi.fn()} />);
+    expect(screen.getByText('Mixed printings')).toBeTruthy();
+    expect(screen.queryByText(/LEA/)).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Preview Sol Ring, 2 copies, mixed printings' })
+    ).toBeTruthy();
+  });
+
+  it('a printing with no set code still renders', () => {
+    usePrintingThumb.mockReturnValue({
+      src: 'x.png',
+      id: 'scry-lea',
+      printing: { collector_number: '270' },
+    });
+    render(<TradeOfferCardTile card={pinned} compact={false} onInspect={vi.fn()} />);
+    expect(screen.getByText('#270')).toBeTruthy();
+  });
+
+  it('a ledger chip skips the set and number, and opens the preview on click', () => {
+    usePrintingThumb.mockReturnValue({
+      src: 'x.png',
+      id: 'scry-lea',
+      printing: { set: 'lea', collector_number: '270' },
+    });
     const onInspect = vi.fn();
     render(<TradeOfferCardTile card={pinned} compact onInspect={onInspect} />);
-    expect(usePrintingThumb).toHaveBeenLastCalledWith('scry-lea', 'Sol Ring', 'small');
+    expect(screen.queryByText(/LEA/)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Preview Sol Ring' }));
     expect(onInspect).toHaveBeenCalledWith(pinned);
   });

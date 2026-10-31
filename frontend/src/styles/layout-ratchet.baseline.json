@@ -7,7 +7,6 @@
     "components/deck/GenerationModePicker.css": 1,
     "components/overlays/Tabs.css": 1,
     "components/trade/TradeComposer.css": 2,
-    "components/trade/TradeOfferList.css": 2,
     "pages/DeckComparePage.css": 3,
     "pages/WelcomePage.css": 1,
     "playtest/components/CardInfoDialog.css": 1,

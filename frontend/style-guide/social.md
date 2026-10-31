@@ -18,12 +18,28 @@ depending on whether it is still a decision:
   `Withdrawn`. Never a bare `Waiting`: on the friend hub, where rows are not
   grouped by what you have to do, it put the same word on opposite situations
   one row apart.
-- **The net is stated once, under the two side totals**, as the subtraction
-  the reader was doing in their head: `You come out about $40.00 ahead` /
-  `They come out about $8.00 ahead` / `About even`. "about" only when a side
-  is a floor (an oracle-level ask). It is omitted entirely while a side
-  cannot be priced (`+?`), because a subtraction with a missing term is a lie
-  with a dollar sign.
+- **An open offer is a balance sheet.** Two columns, `You give` and `You
+  get`, side by side once the CARD is at least 36rem wide (a container query,
+  because the row is a different width on `/trades` and the friend hub) and
+  stacked below that. Each card is one line: art, name (`2× Arcane Signet`),
+  the printing (`MSC #211 · Foil`, or `Any printing`) and its own price at the
+  right edge in tabular figures. Each column ends in a ruled `Total`, and the
+  columns stretch so the two totals share a baseline however many lines either
+  side has. Stacked on a phone, a one-line side drops its total (it would only
+  repeat the line). No arrow between the sides: the labels carry the
+  direction. This replaced the E590 card tiles, whose 1-for-1 left two tiles
+  and a lone arrow in a 1,900px card with the totals 900px from their cards,
+  and whose 10-card side was a wall of art with no per-card prices.
+- **A line price is as honest as the total.** A pinned line is exact; an
+  any-printing ask is `from $x` (its cheapest printing); a line nothing could
+  price says `No price`, never `$0.00`. A side where nothing could be priced
+  totals `No price`, not `from $0.00 +?`.
+- **The net is the bottom line**, in a ruled foot under both columns with the
+  actions at its right end: the subtraction the reader was doing in their
+  head, `You come out about $40.00 ahead` / `They come out about $8.00 ahead` /
+  `About even`. "about" only when a side is a floor (an oracle-level ask). It
+  is omitted entirely while a side cannot be priced (`+?`), because a
+  subtraction with a missing term is a lie with a dollar sign.
 - **Decline and Withdraw confirm (E501).** Both are final on the server:
   there is no restore endpoint, so there is no Undo to offer. Each opens a
   danger confirm, `Decline the trade from <who>?` / `Withdraw your offer to
@@ -33,28 +49,23 @@ depending on whether it is still a decision:
   goes and an Undo toast replaces it; never both.
 - **A finished trade is a ledger line, not a decision.** Declined, withdrawn
   and settled rows render `.is-compact`: tighter padding, flat `--surface`,
-  no note, no net, the two sides collapsed to two ledger rows (`You give ·
-chips · value` over `You get · chips · value`, no arrow, at every width),
+  no note, no net, no line prices, the two sides collapsed to two ledger rows
+  (`You give · chips · value` over `You get · chips · value`, at every width),
   and a `Remove` icon button in the head. The chips stay and stay tappable
   (the record of what changed hands). Anything still in
   motion, including an accepted trade that has not settled here, keeps the
   full card and has no Remove.
-- **A line is a card tile, not a chip (E590).** The point of the row is to SEE
-  what is changing hands, so each line is a button holding card art at the
-  63:88 aspect with the card corner radius, the name under it (two lines,
-  ellipsis) and `×N` as a badge on the art. Open offers size the tile by the
-  side's own width (a container query on `.trade-offer-side`, because the row
-  is a different width on `/trades` and the friend hub): 120px under 20rem,
-  144px from 20rem, 160px from 26rem, i.e. two across on a 390 phone and in
-  each half of a desktop row. Three across left a desktop row with 90px
-  thumbnails in a 760px card, too small to read the printing. A finished
-  ledger row keeps the cards at 44px of art (52px from 36rem) with the name
-  beside them, so it stays a line but never goes back to a 20px thumbnail.
-  The tile stays a button that opens the carousel at that card, keeps the 44px
+- **A line keeps real card art.** The point of the row is still to SEE what is
+  changing hands (E590 killed the 20px chip thumbnail), so each line is a
+  button holding art at the 63:88 aspect with the card corner radius: 52px
+  wide, 56px once the column is 24rem (a container query on
+  `.trade-offer-side`). Enough to tell a foil or an old border from a reprint;
+  the button opens the carousel at that card for the full image. A finished
+  ledger row keeps 44px of art (52px from 36rem). The button keeps the 44px
   coarse-pointer floor and the focus ring, and its accessible name carries the
   name, the quantity and the printing state (`Preview Sol Ring, 2 copies,
-foil`). Loading and error are the same card-shaped box (the name on it), so
-  nothing shifts when art arrives.
+foil`). Loading and error hold the same card-shaped box, so nothing shifts
+  when art arrives.
 - **The art is the printing the line names.** A line pinned to a printing
   (`copies[0].scryfallId`) shows THAT printing, resolved by id through the
   batched `usePrintingThumb`, and carries it as `data-scryfall-id`; only a
@@ -62,14 +73,12 @@ foil`). Loading and error are the same card-shaped box (the name on it), so
   card by name. A pinned nonfoil says nothing extra (the art is the proof); a
   foil or etched printing says `Foil` / `Etched`.
 - **An oracle-level ask says "Any printing".** Offers sent before asks were per
-  printing have no copies on the ask side. The tile captions it `Any printing`
+  printing have no copies on the ask side. The line captions it `Any printing`
   (also in its accessible name), and in the carousel the panel opens with
   `Any printing. This one is an example.` so the picture never reads as a
   promise. A pinned line whose printing fails to load is NOT "any printing"
   (the ask still names one); its slide says `Couldn't load the printing in
-this trade. This is another printing of the card.` The two sides of an open
-  offer align to the top, so a caption on one tile never drops the other
-  side's label out of line.
+this trade. This is another printing of the card.`
 - **Remove is per-side.** The other person keeps their copy, so a single row
   needs no confirm; the bulk `Clear history` on `/trades` does confirm.
 

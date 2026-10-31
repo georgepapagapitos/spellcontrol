@@ -124,8 +124,10 @@ describe('usePrintingThumb', () => {
     );
     const { result } = renderHook(() => usePrintingThumb('scry-lea', 'Sol Ring', 'normal'));
     await waitFor(() =>
-      expect(result.current).toEqual({ src: 'http://cdn/sol-lea.png', id: 'scry-lea' })
+      expect(result.current).toMatchObject({ src: 'http://cdn/sol-lea.png', id: 'scry-lea' })
     );
+    // The resolved printing comes back too, so a caller can name its set.
+    expect(result.current.printing?.name).toBe('Sol Ring');
     // A pinned line never also asks for the default printing by name.
     expect(getCardsByNames).not.toHaveBeenCalled();
   });

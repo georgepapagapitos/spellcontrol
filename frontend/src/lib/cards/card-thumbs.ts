@@ -155,12 +155,13 @@ export async function loadPrinting(id: string): Promise<ScryfallCard | null> {
  * card by `name`. `id` is the printing the image really is: the scryfall id
  * when the pinned printing resolved, undefined for a name fallback, so a caller
  * can state honestly whether it is showing the printing or a stand-in.
+ * `printing` is that resolved card, so a caller can name its set and number.
  */
 export function usePrintingThumb(
   scryfallId: string | undefined,
   name: string,
   version: ThumbVersion = 'normal'
-): { src: string | undefined; id: string | undefined } {
+): { src: string | undefined; id: string | undefined; printing?: ScryfallCard } {
   const pinnedCard = scryfallId ? idCache.get(scryfallId) : undefined;
   const [, bump] = useState(0);
   useEffect(() => {
@@ -179,7 +180,7 @@ export function usePrintingThumb(
   // (or there never was an id), so a pinned line does not also fetch by name.
   const settled = !scryfallId || idCache.has(scryfallId);
   const byName = useCardThumb(settled && !pinnedSrc ? name : undefined, version);
-  if (pinnedSrc) return { src: pinnedSrc, id: scryfallId };
+  if (pinnedSrc) return { src: pinnedSrc, id: scryfallId, printing: pinnedCard ?? undefined };
   return { src: byName, id: undefined };
 }
 

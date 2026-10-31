@@ -308,6 +308,94 @@ describe('whose move, the net, and finished rows', () => {
     expect(screen.getByText('You come out about $40.00 ahead')).toBeTruthy();
   });
 
+  it('prices every line beside its card, and totals each side at the foot of its column', async () => {
+    pinned = { 'scry-sol': 2, 'scry-mox': 3.1 };
+    floors = new Map([['Rhystic Study', 42]]);
+    mount({
+      ...open,
+      give: [
+        ...open.give,
+        {
+          oracleId: 'o-mox',
+          name: 'Mox Amber',
+          quantity: 2,
+          copies: [
+            { scryfallId: 'scry-mox', finish: 'nonfoil' },
+            { scryfallId: 'scry-mox', finish: 'nonfoil' },
+          ],
+        },
+        {
+          oracleId: 'o-x',
+          name: 'Unpriced Thing',
+          quantity: 1,
+          copies: [{ scryfallId: 'scry-x', finish: 'nonfoil' }],
+        },
+      ],
+    });
+    // The unpriced line is looked up by printing (and fails here), so wait it out.
+    const give = screen.getByRole('list', { name: 'You give' });
+    await waitFor(() =>
+      expect(
+        [...give.querySelectorAll('.trade-offer-line-price')].map((n) => n.textContent)
+      ).toEqual(['$2.00', '$6.20', 'No price'])
+    );
+    const get = screen.getByRole('list', { name: 'You get' });
+    expect(get.querySelector('.trade-offer-line-price')?.textContent).toBe('from $42.00');
+    const totals = [...document.querySelectorAll('.trade-offer-side-total')].map(
+      (n) => n.textContent
+    );
+    expect(totals).toEqual(['Total$8.20 +?', 'Totalfrom $42.00']);
+  });
+
+  it('a line with one unpriced copy admits the gap like the total does, and a cached zero is not free', async () => {
+    pinned = { 'scry-mox': 3.1, 'scry-zero': 0 };
+    mount({
+      ...open,
+      give: [
+        {
+          oracleId: 'o-mox',
+          name: 'Mox Amber',
+          quantity: 2,
+          copies: [
+            { scryfallId: 'scry-mox', finish: 'nonfoil' },
+            { scryfallId: 'scry-gone', finish: 'nonfoil' },
+          ],
+        },
+        {
+          oracleId: 'o-zero',
+          name: 'Zero Card',
+          quantity: 1,
+          copies: [{ scryfallId: 'scry-zero', finish: 'nonfoil' }],
+        },
+      ],
+    });
+    const give = screen.getByRole('list', { name: 'You give' });
+    await waitFor(() =>
+      expect(
+        [...give.querySelectorAll('.trade-offer-line-price')].map((n) => n.textContent)
+      ).toEqual(['$3.10 +?', 'No price'])
+    );
+    expect(document.querySelector('.trade-offer-side-total')?.textContent).toBe('Total$3.10 +?');
+  });
+
+  it('a side nothing could price says "No price", never "from $0.00 +?"', () => {
+    mount(open);
+    const totals = [...document.querySelectorAll('.trade-offer-side-total')].map(
+      (n) => n.textContent
+    );
+    expect(totals[1]).toBe('TotalNo price');
+    expect(screen.queryByText(/\$0\.00/)).toBeNull();
+  });
+
+  it('a finished trade keeps one value per side and no line prices', () => {
+    pinned = { 'scry-sol': 2 };
+    floors = new Map([['Rhystic Study', 42]]);
+    mount({ ...open, status: 'declined' });
+    expect(document.querySelector('.trade-offer-line-price')).toBeNull();
+    expect(document.querySelector('.trade-offer-side-total')).toBeNull();
+    expect(screen.getByText('$2.00')).toBeTruthy();
+  });
+
   it('says so when the deal favors them', () => {
     pinned = { 'scry-sol': 50 };
     floors = new Map([['Rhystic Study', 42]]);
@@ -342,7 +430,8 @@ describe('whose move, the net, and finished rows', () => {
           },
         ],
       });
-      expect(await screen.findByText('$2.26')).toBeTruthy();
+      // Once on the line, once as the side's total.
+      expect(await screen.findAllByText('$2.26')).toHaveLength(2);
       expect(screen.queryByText(/from \$0\.30/)).toBeNull();
       // Both sides exact now, so the net is stated without "about".
       expect(screen.getByText('Even')).toBeTruthy();

@@ -6,7 +6,10 @@
   padding: var(--space-5) var(--space-3);
 }
 
+/* The card is the size container: the row is a different width on /trades
+   and the friend hub, so the sheet's columns key off its own width. */
 .trade-offer-card {
+  container: trade-offer / inline-size;
   padding: var(--space-3);
   display: flex;
   flex-direction: column;
@@ -133,36 +136,35 @@
 
 .trade-offer-sides {
   display: grid;
-  /* Stacked on a phone; the arrow rotates to point down so the direction still
-     reads. Side-by-side once there's room. */
-  grid-template-columns: 1fr;
-  /* Top-aligned: a caption ("Any printing", "Foil") makes one side's tile
-     taller, and centering dropped the other side's label out of line. */
-  align-items: start;
-  gap: var(--space-2);
+  /* Stacked on a phone: You give, its total, then You get, its total. Side by
+     side once the CARD has room (a container, not the viewport: the row is a
+     different width on /trades and the friend hub). Stretch, so each total
+     sits at the foot of its column and the two line up however many lines
+     either side has. */
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: var(--space-3);
 }
 
-@media (min-width: 34rem) {
+@container trade-offer (min-width: 36rem) {
   .trade-offer-sides {
-    grid-template-columns: 1fr auto 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-5);
   }
-}
 
-.trade-offer-arrow {
-  color: var(--text-muted);
-  justify-self: center;
-  align-self: center;
-  transform: rotate(90deg);
-}
-
-@media (min-width: 34rem) {
-  .trade-offer-arrow {
-    transform: none;
+  /* The rule between the two columns of the sheet. */
+  .trade-offer-card:not(.is-compact) .trade-offer-side + .trade-offer-side {
+    border-left: 1px solid var(--border);
+    padding-left: var(--space-5);
   }
 }
 
 .trade-offer-side {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  /* Sizes the art by the column's own width. */
+  container: trade-side / inline-size;
 }
 
 .trade-offer-side-label {
@@ -186,41 +188,66 @@
 
 .trade-offer-side-nothing {
   margin: 0;
+  padding: var(--space-2) 0;
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
 
-/* Each line is a card tile, not a chip: the point of the row is to SEE what is
-   changing hands. The side is the size container (the row's width differs
-   between /trades and the friend hub, and the arrow/stack switch moves it
-   again), so tile width steps with the room the side actually has:
-   120px under 20rem (two across at 320 and on the friend hub at 390), 144px
-   from 20rem (two across on a 390 phone and in each half of a desktop row),
-   160px from 26rem. Two across is the point: at three, a desktop row's art
-   was a 90px thumbnail in a 760px card, too small to read the printing. */
-.trade-offer-side {
-  container: trade-side / inline-size;
-}
-
+/* ── Lines: one row per card, priced at the right edge ─────────────────────
+   The art stays a recognisable card at the printing's own art (52px, 56px
+   once the column has room), so you can still tell a foil from a reprint at
+   a glance; the full card is one tap away in the carousel. */
 .trade-offer-side-cards {
-  --tile-w: 7.5rem;
+  --art-w: 3.25rem;
   list-style: none;
   padding: 0;
   margin: 0;
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+  flex-direction: column;
 }
 
-@container trade-side (min-width: 20rem) {
+@container trade-side (min-width: 24rem) {
   .trade-offer-side-cards {
-    --tile-w: 9rem;
+    --art-w: 3.5rem;
   }
 }
 
-@container trade-side (min-width: 26rem) {
-  .trade-offer-side-cards {
-    --tile-w: 10rem;
+.trade-offer-side-cards > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-2);
+}
+
+.trade-offer-side-cards > li + li {
+  border-top: 1px solid var(--border);
+}
+
+.trade-offer-line-price {
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+/* The foot of the column, ruled off like a receipt total. */
+.trade-offer-side-total {
+  margin: auto 0 0;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-strong);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* Stacked on a phone, a one-line side's total only repeats the line above
+   it. Side by side it stays, so the two totals still line up. */
+@container trade-offer (max-width: 35.99rem) {
+  .trade-offer-side-cards:has(> li:only-child) + .trade-offer-side-total {
+    display: none;
   }
 }
 
@@ -228,14 +255,14 @@
    the same way every other card in the app opens. */
 .trade-offer-chip {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  width: var(--tile-w);
-  max-width: 100%;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
   padding: var(--space-1);
-  border: 1px solid var(--border);
+  margin: var(--space-0-5) 0;
+  border: 1px solid transparent;
   border-radius: var(--radius);
-  background: var(--surface);
+  background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
@@ -244,7 +271,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .trade-offer-chip:hover {
-    border-color: var(--border-strong);
+    border-color: var(--border);
     background: var(--surface-raised);
   }
 }
@@ -254,8 +281,8 @@
   outline-offset: 2px;
 }
 
-/* Coarse-pointer floor on its REAL box. A tile is far taller than 44px, so this
-   only matters to the compact ledger chip, which is the smaller of the two. */
+/* Coarse-pointer floor on its REAL box. An open line's art is taller than
+   44px already, so this only matters to the compact ledger chip. */
 @media (pointer: coarse) {
   .trade-offer-chip {
     min-height: 44px;
@@ -267,7 +294,8 @@
 .trade-offer-art {
   position: relative;
   display: block;
-  width: 100%;
+  flex: 0 0 var(--art-w);
+  width: var(--art-w);
   aspect-ratio: 63 / 88;
 }
 
@@ -284,40 +312,21 @@
   background: var(--surface-raised);
 }
 
-/* No art yet (or none to be had): the name on a card-shaped blank. */
+/* No art yet (or none to be had): a card-shaped blank beside the name. */
 .trade-offer-chip-thumb.is-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-1);
   border: 1px solid var(--border);
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-  text-align: center;
-  overflow: hidden;
-}
-
-.trade-offer-chip-qty {
-  position: absolute;
-  right: var(--space-1);
-  bottom: var(--space-1);
-  padding: 0 var(--space-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--text-primary);
 }
 
 .trade-offer-chip-text {
   display: flex;
   flex-direction: column;
+  gap: var(--space-0-5);
   min-width: 0;
 }
 
 .trade-offer-chip-name {
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
+  font-weight: 500;
   color: var(--text-primary);
   overflow: hidden;
   display: -webkit-box;
@@ -326,21 +335,38 @@
   overflow-wrap: anywhere;
 }
 
-/* "Any printing" (an oracle-level ask, so the art is only an example) or the
-   finish of a pinned line. A pinned nonfoil says nothing: the art IS it. */
-.trade-offer-chip-caption {
-  font-size: var(--text-xs);
+.trade-offer-chip-qty {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
 }
 
-/* The net of the deal, stated once. The two side totals are the inputs; this
-   is the subtraction the reader was doing in their head. Muted: it informs
-   the decision, it is not the decision. */
+/* Set and number of the pinned printing, then "Foil" / "Etched", or "Any
+   printing" for an oracle-level ask (the art is only an example). A pinned
+   nonfoil names no finish: the art IS it. */
+.trade-offer-chip-caption {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The bottom line of the sheet: the net of the deal, stated once (the two
+   totals are the inputs; this is the subtraction the reader was doing in
+   their head), with the answer to it beside it. */
+.trade-offer-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
 .trade-offer-net {
   margin: 0;
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -361,18 +387,13 @@
 }
 
 /* Sides become two LEDGER ROWS, "You give · chips · value" over "You get ·
-   chips · value", at every width. The arrow goes (the labels already say
-   which way), and so does the stacked-on-phone layout that made a dead row
-   as tall as a live one. `display: contents` on the label <p> lets its
-   label and value spans sit in the row's own grid; the span keeps its id,
-   so the chip list's aria-labelledby still resolves. */
+   chips · value", at every width, and the stacked-on-phone layout goes, so a
+   dead row is never as tall as a live one. `display: contents` on the label
+   <p> lets its label and value spans sit in the row's own grid; the span keeps
+   its id, so the chip list's aria-labelledby still resolves. */
 .trade-offer-card.is-compact .trade-offer-sides {
   grid-template-columns: 1fr;
   gap: var(--space-1);
-}
-
-.trade-offer-card.is-compact .trade-offer-arrow {
-  display: none;
 }
 
 .trade-offer-card.is-compact .trade-offer-side {
@@ -407,12 +428,18 @@
   grid-row: 1;
 }
 
-/* Ledger tiles: a smaller card (44px of art, 52px once the row has room) with
-   the name beside it, so a finished trade still shows recognisable cards
-   without the height of a live one. */
+.trade-offer-card.is-compact .trade-offer-side-nothing {
+  padding: 0;
+}
+
+/* Ledger chips: a smaller card (44px of art, 52px once the row has room) with
+   the name beside it, wrapping across the row, so a finished trade still
+   shows recognisable cards without the height of a live one. */
 .trade-offer-card.is-compact .trade-offer-side-cards {
   --ledger-w: 11rem;
   --art-w: 2.75rem;
+  flex-direction: row;
+  flex-wrap: wrap;
   gap: var(--space-1);
 }
 
@@ -422,16 +449,20 @@
   }
 }
 
+.trade-offer-card.is-compact .trade-offer-side-cards > li + li {
+  border-top: 0;
+}
+
 .trade-offer-card.is-compact .trade-offer-chip {
-  flex-direction: row;
-  align-items: center;
-  width: auto;
+  margin: 0;
+  border-color: var(--border);
+  background: var(--surface);
   max-width: min(var(--ledger-w), 100%);
 }
 
-.trade-offer-card.is-compact .trade-offer-art {
-  flex: 0 0 var(--art-w);
-  width: var(--art-w);
+.trade-offer-card.is-compact .trade-offer-chip-name {
+  font-size: var(--text-xs);
+  font-weight: 400;
 }
 
 /* "Remove from your list" on a finished row. A card header, not a dense list
@@ -496,6 +527,11 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+}
+
+/* The answer sits at the right end of the bottom line, after the net. */
+.trade-offer-foot > .trade-offer-actions {
+  margin-left: auto;
 }
 
 .trade-offer-counter {
