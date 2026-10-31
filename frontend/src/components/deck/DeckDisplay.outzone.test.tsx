@@ -43,6 +43,7 @@ function renderDeck(opts: {
   onMoveToMainboard?: (slotIds: string[]) => void;
   onMoveFromConsidering?: (slotIds: string[]) => void;
   onBulkRemove?: (zone: string, slotIds: string[]) => void;
+  onBulkMove?: (slotIds: string[], from: string, to: string) => void;
   onReleaseCopy?: (card: ScryfallCard) => void;
   onSetProxy?: (slotIds: string[], proxy: boolean) => void;
 }) {
@@ -60,6 +61,7 @@ function renderDeck(opts: {
         onMoveToMainboard={opts.onMoveToMainboard}
         onMoveFromConsidering={opts.onMoveFromConsidering}
         onBulkRemove={opts.onBulkRemove}
+        onBulkMove={opts.onBulkMove}
         onReleaseCopy={opts.onReleaseCopy}
         onSetProxy={opts.onSetProxy}
       />
@@ -233,7 +235,7 @@ describe('DeckDisplay "Not in the deck" zone (E176)', () => {
       }
     );
 
-    it("a box card's menu removes it from the box and offers no move or proxy", () => {
+    it("a box card's menu removes it from the box and offers no move into the deck or proxy", () => {
       const onBulkRemove = vi.fn();
       const onMoveToMainboard = vi.fn();
       const onMoveFromConsidering = vi.fn();
@@ -253,6 +255,25 @@ describe('DeckDisplay "Not in the deck" zone (E176)', () => {
       expect(onBulkRemove).toHaveBeenCalledWith('extras', ['slot-Display Commander-0']);
       expect(onMoveToMainboard).not.toHaveBeenCalled();
       expect(onMoveFromConsidering).not.toHaveBeenCalled();
+    });
+
+    // A box card can leave for a pile (the user's call, 2026-10-30), never the deck.
+    it.each([
+      ['grid', 'Move to considering', 'considering'],
+      ['list', 'Move to considering', 'considering'],
+      ['grid', 'Move to sideboard', 'sideboard'],
+      ['list', 'Move to sideboard', 'sideboard'],
+    ] as const)("a box card's menu moves it out (%s: %s)", (view, item, to) => {
+      const onBulkMove = vi.fn();
+      const { getByRole } = renderDeck({ extras: ['Display Commander'], view, onBulkMove });
+      // A list row's ⋮ is labeled "Card actions"; the box holds one row.
+      const trigger =
+        view === 'list'
+          ? document.querySelector<HTMLElement>('.deck-outzone .deck-row-menu-trigger')!
+          : getByRole('button', { name: 'Actions for Display Commander' });
+      fireEvent.click(trigger);
+      fireEvent.click(getByRole('menuitem', { name: item }));
+      expect(onBulkMove).toHaveBeenCalledWith(['slot-Display Commander-0'], 'extras', to);
     });
 
     it('never reaches the mainboard stats', () => {

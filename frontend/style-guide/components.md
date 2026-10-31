@@ -174,8 +174,10 @@ where every section lives.
     the rest of the box" on a deck built from a product, which adds only what
     the box doesn't hold yet (a Secret Lair's bonus card, which MTGJSON's deck
     files omit, reaches an older deck this way). Its rows can be
-    removed, re-counted and given or released a copy; they cannot be moved into
-    the deck, tagged, proxied or seated as commander. The hero counts it as "+N
+    removed, re-counted, given or released a copy, and moved to the sideboard
+    or Considering (2026-10-30: a box card is sometimes worth playing, and
+    the piles are where that starts); they cannot be moved straight into the
+    deck, tagged, proxied or seated as commander. The hero counts it as "+N
     in the box", and it feeds nothing the other two piles don't.
 - **`BinderTabs.tsx` is a deliberate, permanent exception to "all tabbed
   surfaces go through `Tabs.tsx`" above (E164).** It hand-rolls plain
