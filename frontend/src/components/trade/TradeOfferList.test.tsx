@@ -347,6 +347,37 @@ describe('whose move, the net, and finished rows', () => {
     expect(totals).toEqual(['Total$8.20 +?', 'Totalfrom $42.00']);
   });
 
+  it('a line with one unpriced copy admits the gap like the total does, and a cached zero is not free', async () => {
+    pinned = { 'scry-mox': 3.1, 'scry-zero': 0 };
+    mount({
+      ...open,
+      give: [
+        {
+          oracleId: 'o-mox',
+          name: 'Mox Amber',
+          quantity: 2,
+          copies: [
+            { scryfallId: 'scry-mox', finish: 'nonfoil' },
+            { scryfallId: 'scry-gone', finish: 'nonfoil' },
+          ],
+        },
+        {
+          oracleId: 'o-zero',
+          name: 'Zero Card',
+          quantity: 1,
+          copies: [{ scryfallId: 'scry-zero', finish: 'nonfoil' }],
+        },
+      ],
+    });
+    const give = screen.getByRole('list', { name: 'You give' });
+    await waitFor(() =>
+      expect(
+        [...give.querySelectorAll('.trade-offer-line-price')].map((n) => n.textContent)
+      ).toEqual(['$3.10 +?', 'No price'])
+    );
+    expect(document.querySelector('.trade-offer-side-total')?.textContent).toBe('Total$3.10 +?');
+  });
+
   it('a side nothing could price says "No price", never "from $0.00 +?"', () => {
     mount(open);
     const totals = [...document.querySelectorAll('.trade-offer-side-total')].map(

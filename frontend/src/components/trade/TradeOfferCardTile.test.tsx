@@ -81,6 +81,38 @@ describe('TradeOfferCardTile', () => {
     expect(screen.getByRole('button', { name: 'Preview Sol Ring, 2 copies, foil' })).toBeTruthy();
   });
 
+  it('a line of two different printings says so, and names neither set', () => {
+    usePrintingThumb.mockReturnValue({
+      src: 'x.png',
+      id: 'scry-lea',
+      printing: { set: 'lea', collector_number: '270' },
+    });
+    const mixed = {
+      ...pinned,
+      quantity: 2,
+      copies: [
+        { scryfallId: 'scry-lea', finish: 'nonfoil' },
+        { scryfallId: 'scry-c21', finish: 'nonfoil' },
+      ],
+    };
+    render(<TradeOfferCardTile card={mixed} compact={false} onInspect={vi.fn()} />);
+    expect(screen.getByText('Mixed printings')).toBeTruthy();
+    expect(screen.queryByText(/LEA/)).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Preview Sol Ring, 2 copies, mixed printings' })
+    ).toBeTruthy();
+  });
+
+  it('a printing with no set code still renders', () => {
+    usePrintingThumb.mockReturnValue({
+      src: 'x.png',
+      id: 'scry-lea',
+      printing: { collector_number: '270' },
+    });
+    render(<TradeOfferCardTile card={pinned} compact={false} onInspect={vi.fn()} />);
+    expect(screen.getByText('#270')).toBeTruthy();
+  });
+
   it('a ledger chip skips the set and number, and opens the preview on click', () => {
     usePrintingThumb.mockReturnValue({
       src: 'x.png',

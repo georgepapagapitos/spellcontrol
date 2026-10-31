@@ -30,10 +30,16 @@ export function TradeOfferCardTile({
   const pin = card.copies[0];
   // The art is at most 56px wide; tapping the row opens the full card.
   const { src, id, printing } = usePrintingThumb(pin?.scryfallId, card.name, 'small');
-  const caption = pin ? FINISH_LABEL[pin.finish] : 'Any printing';
+  // A line can hand over copies of different printings (two Signets from two
+  // sets). Then the art is only the first of them, so the row must not name
+  // one set and number as if it were the whole line.
+  const uniform = card.copies.every(
+    (c) => c.scryfallId === pin?.scryfallId && c.finish === pin?.finish
+  );
+  const caption = !pin ? 'Any printing' : uniform ? FINISH_LABEL[pin.finish] : 'Mixed printings';
   const where =
-    !compact && printing
-      ? [printing.set.toUpperCase(), printing.collector_number && `#${printing.collector_number}`]
+    !compact && uniform && printing
+      ? [printing.set?.toUpperCase(), printing.collector_number && `#${printing.collector_number}`]
           .filter(Boolean)
           .join(' ')
       : null;

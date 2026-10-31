@@ -553,8 +553,8 @@ function useSideValue(cards: TradeCard[]): PricedSide {
   const suffix = anyUnknown ? ' +?' : '';
   if (names.length === 0 && !anyUnknown)
     return { text: formatMoney(total), amount: total, estimate: false, line };
-  // Nothing on the side could be priced (every price is positive, so a zero
-  // total means none came back): "from $0.00 +?" reads as a price, it isn't one.
+  // Nothing on the side could be priced (a zero price counts as none, in
+  // `trade-value.ts`, so a zero total means none came back): "from $0.00 +?" reads as a price, it isn't one.
   if (anyUnknown && total === 0) return { text: 'No price', amount: null, estimate: true, line };
   return {
     line,
