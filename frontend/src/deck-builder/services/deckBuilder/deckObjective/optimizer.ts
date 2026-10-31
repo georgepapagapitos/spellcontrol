@@ -51,7 +51,7 @@
  * because it makes the result depend on the machine.
  */
 import type { ScryfallCard } from '@/deck-builder/types';
-import { frontFaceName } from '@/lib/cards/card-text';
+import { frontFaceName, getByCardName } from '@/lib/cards/card-text';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { normalizeCardName } from '../cardIdentity';
 import { REPAIR_TIER, budgetRepairRule } from './budgetRepair';
@@ -75,7 +75,7 @@ import {
   replicates,
 } from './landUpgrades';
 import { reasonProblem } from './reasonCheck';
-import { protectionValue } from './terms/interaction';
+import { answerValue, protectionValue } from './terms/interaction';
 import {
   reasonsFor,
   rolesMovedBetween,
@@ -242,6 +242,19 @@ function forcedDisclosure(tier: ForcedTier, why: string, ownedOnly: boolean): st
 }
 /** Constraint checks allowed per shortlist slot before a step gives up. */
 const CHECKS_PER_SLOT = 25;
+/**
+ * A combo seating takes the deck's two weakest slots, so the single swaps it
+ * would have made there are lost with them (E1058: Narset's Reversal and
+ * Isochron Scepter took the slots Fierce Guardianship and Mana Drain filled
+ * otherwise, and the deck lost two counters). A seating is not taken while a
+ * pair of single swaps over the same two slots, at least one seating a premium
+ * answer, scores higher; this many premium singles are tried per slot.
+ */
+const SINGLES_PER_SLOT = 3;
+/** An answer or protection piece worth this much (interaction.ts) ... */
+const PREMIUM_ANSWER_VALUE = 0.7;
+/** ... that this share (%) of the commander's decks play, is a premium answer. */
+const PREMIUM_ANSWER_MIN_PCT = 15;
 
 const key = (name: string) => normalizeCardName(frontFaceName(name));
 
@@ -632,6 +645,53 @@ export function* optimizeSteps(
         opts.minGain,
         { ...trust!, roleOf, classesNow, gameChangersNow, repair, ...relax }
       );
+    // A premium answer: a counter or protection piece the commander's decks play
+    // (Mana Drain, Fierce Guardianship, Swan Song), not any card with a good answer value.
+    const premiumAnswer = (c: ScryfallCard): boolean => {
+      if (isLandCard(c)) return false;
+      const facts = ctx.factsOf(c);
+      const v = Math.max(answerValue(c, facts)?.v ?? 0, protectionValue(c, facts));
+      return (
+        v >= PREMIUM_ANSWER_VALUE &&
+        (getByCardName(ctx.edhrec, c.name)?.inclusion ?? 0) >= PREMIUM_ANSWER_MIN_PCT
+      );
+    };
+    // Whether the singles over a combo seating's two slots outscore it, scored
+    // against the seating itself (same slot reference, so the same goldfish
+    // games): each slot takes a premium answer or its best single, and at least
+    // one takes a premium answer. Not charged to the evaluation budget: it runs
+    // only for a seating already about to be taken.
+    const singlesOutscore = (combo: Move, comboScore: ObjectiveScore): boolean => {
+      const comboIns = new Set(combo.in.map((c) => c.name));
+      const [first, second] = combo.out.map((o) => {
+        const singles = moves.filter(
+          (m) =>
+            m.kind === 'improve' &&
+            m.landUp === undefined &&
+            m.out.length === 1 &&
+            m.out[0] === o &&
+            !comboIns.has(m.in[0].name)
+        );
+        const premium = singles.filter((m) => premiumAnswer(m.in[0])).slice(0, SINGLES_PER_SLOT);
+        return [...premium, ...singles.filter((m) => !premium.includes(m)).slice(0, 1)];
+      });
+      for (const a of first ?? [])
+        for (const b of second ?? []) {
+          if (a.in[0].name === b.in[0].name) continue;
+          if (!premiumAnswer(a.in[0]) && !premiumAnswer(b.in[0])) continue;
+          const pair: Move = {
+            out: [a.out[0], b.out[0]],
+            in: [a.in[0], b.in[0]],
+            kind: 'improve',
+            estimate: a.estimate + b.estimate,
+          };
+          if (trust && judgeOf(pair, false).bound) continue;
+          const altScore = scoreDeck(applyMove(current, pair), ctx);
+          if (infeasibility(altScore) > curInfeasible) continue;
+          if (altScore.total > comboScore.total) return true;
+        }
+      return false;
+    };
     // The least a forced repair gives up: 1 keeps the role floors and caps and
     // the class floors (an owned protection piece for Swiftfoot Boots), 2
     // keeps the caps and the floors but not the class (no owned card holds
@@ -752,6 +812,9 @@ export function* optimizeSteps(
       )
         continue;
       if (score.total - currentScore.total >= required) {
+        // A combo seating that the two single swaps over its slots outscore
+        // is not taken: the singles are (E1058).
+        if (move.kind === 'combo' && curRepairable === 0 && singlesOutscore(move, score)) continue;
         // A land is chosen from dozens by a noisy goldfish: the best of them
         // clears the bar by luck, so it has to clear it again on other games.
         if (move.landUp !== undefined) {
