@@ -1,0 +1,46 @@
+# Nightly upstream contract check (E1054).
+#
+# Every upstream format change so far broke a feature silently: EDHREC
+# inclusion -> num_decks (2026-07), salt/prices/type_line dropped and salt
+# moved from a label string to a number (E126), highsynergycards renamed
+# highliftcards (2026-10). The code read undefined and the feature went inert,
+# for days to weeks. This fetches ~20 real pages from EDHREC, Scryfall,
+# Commander Spellbook and Scryfall's oracle-tag feeds and asserts the fields
+# our readers use, so a change is a red run within a day.
+#
+# Like the nightly journey it surfaces failure as a red run, with the broken
+# contracts in the job summary. Not a required check: it needs the network and
+# runs on a schedule, not on PRs. A red run is a board row, not a re-run. The
+# assertions live in frontend/scripts/upstream-contract-lib.mjs, unit-tested
+# in the normal suite against real response fixtures.
+name: Nightly upstream contract
+
+on:
+  schedule:
+    - cron: '47 8 * * *' # daily, 08:47 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-upstream-contract
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: EDHREC, Scryfall, Spellbook, tagger
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+
+      # No install: the script uses only Node built-ins.
+      - name: Check the upstream contracts
+        working-directory: frontend
+        run: node scripts/upstream-contract.mjs

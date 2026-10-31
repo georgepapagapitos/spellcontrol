@@ -1,0 +1,63 @@
+{
+  "_source": "api.scryfall.com/cards/named?exact=Lightning+Bolt, fetched 2026-10-31; trimmed to the fields the readers use",
+  "body": {
+    "id": "7673784e-db4b-43a1-8d55-1bb9fc1e284f",
+    "oracle_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+    "name": "Lightning Bolt",
+    "set": "msc",
+    "set_name": "Marvel Super Heroes Commander",
+    "collector_number": "806",
+    "rarity": "uncommon",
+    "cmc": 1,
+    "type_line": "Instant",
+    "color_identity": ["R"],
+    "legalities": {
+      "standard": "not_legal",
+      "future": "not_legal",
+      "historic": "banned",
+      "timeless": "legal",
+      "gladiator": "legal",
+      "pioneer": "not_legal",
+      "modern": "legal",
+      "legacy": "legal",
+      "pauper": "legal",
+      "vintage": "legal",
+      "penny": "not_legal",
+      "commander": "legal",
+      "oathbreaker": "legal",
+      "standardbrawl": "not_legal",
+      "brawl": "legal",
+      "competitivebrawl": "legal",
+      "alchemy": "not_legal",
+      "paupercommander": "legal",
+      "duel": "legal",
+      "oldschool": "not_legal",
+      "premodern": "legal",
+      "predh": "legal",
+      "tlr": "legal"
+    },
+    "prices": {
+      "usd": "0.88",
+      "usd_foil": "2.51",
+      "usd_etched": null,
+      "eur": "1.91",
+      "eur_foil": "2.41",
+      "tix": "0.02"
+    },
+    "finishes": ["nonfoil", "foil"],
+    "image_uris": {
+      "small": "https://cards.scryfall.io/small/front/7/6/7673784e-db4b-43a1-8d55-1bb9fc1e284f.jpg?1783903008",
+      "normal": "https://cards.scryfall.io/normal/front/7/6/7673784e-db4b-43a1-8d55-1bb9fc1e284f.jpg?1783903008",
+      "large": "https://cards.scryfall.io/large/front/7/6/7673784e-db4b-43a1-8d55-1bb9fc1e284f.jpg?1783903008",
+      "png": "https://cards.scryfall.io/png/front/7/6/7673784e-db4b-43a1-8d55-1bb9fc1e284f.png?1783903008",
+      "art_crop": "https://cards.scryfall.io/art_crop/front/7/6/7673784e-db4b-43a1-8d55-1bb9fc1e284f.jpg?1783903008",
+      "border_crop": "https://cards.scryfall.io/border_crop/front/7/6/7673784e-db4b-43a1-8d55-1bb9fc1e284f.jpg?1783903008",
+      "thumb": "https://cards.scryfall.io/thumb/front/7/6/7673784e-db4b-43a1-8d55-1bb9fc1e284f.webp?1783903008",
+      "grid": "https://cards.scryfall.io/grid/front/7/6/7673784e-db4b-43a1-8d55-1bb9fc1e284f.webp?1783903008",
+      "display": "https://cards.scryfall.io/display/front/7/6/7673784e-db4b-43a1-8d55-1bb9fc1e284f.webp?1783903008",
+      "art": "https://cards.scryfall.io/art/front/7/6/7673784e-db4b-43a1-8d55-1bb9fc1e284f.webp?1783903008",
+      "crop": "https://cards.scryfall.io/crop/front/7/6/7673784e-db4b-43a1-8d55-1bb9fc1e284f.webp?1783903008",
+      "jpeg": "https://cards.scryfall.io/normal/front/7/6/7673784e-db4b-43a1-8d55-1bb9fc1e284f.jpg?1783903008"
+    }
+  }
+}
