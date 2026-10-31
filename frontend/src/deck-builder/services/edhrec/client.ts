@@ -34,7 +34,7 @@ import {
   isKnownCardlistTag,
   reportUnknownTag,
 } from './drift';
-import { edhrecRequest, rateLimiter } from './request';
+import { edhrecRequest, rateLimiter, edhrecRetriesAllowed, noteEdhrecOutage } from './request';
 
 /**
  * Network short-circuit for EDHREC. Unlike Scryfall + combos (which mirror
@@ -210,7 +210,9 @@ async function edhrecFetch<T>(endpoint: string, attempt = 0): Promise<T> {
   const response = await edhrecRequest(endpoint);
 
   if (!response.ok) {
-    if ((response.status === 429 || response.status === 503) && attempt < MAX_RETRIES) {
+    const throttled = response.status === 429 || response.status === 503;
+    if (throttled && attempt >= MAX_RETRIES) noteEdhrecOutage(true);
+    if (throttled && attempt < MAX_RETRIES && edhrecRetriesAllowed()) {
       // Rate limited (429) or upstream briefly overloaded (503) — honor
       // Retry-After if present, else exponential backoff. The old branch said
       // "retry once" but recursed with no attempt counter, so a sustained
@@ -230,6 +232,7 @@ async function edhrecFetch<T>(endpoint: string, attempt = 0): Promise<T> {
     });
   }
 
+  noteEdhrecOutage(false);
   const data = await response.json();
 
   // EDHREC returns { redirect: "..." } instead of real data for wrong partner
