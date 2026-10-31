@@ -70,15 +70,31 @@ describe('EDHREC drift reports', () => {
     const raw = live();
     lists(raw).push({ tag: 'evil"\n<script>', cardviews: lists(raw)[0].cardviews });
     parseEdhrecResponse(raw, 'x');
-    expect(messages()).toEqual(['EDHREC drift (cardlists): unknown cardlist tag "unparseable"']);
+    expect(messages()).toEqual([
+      'EDHREC drift (cardlists): unknown cardlist tag "evil%22%0A%3Cscript%3E"',
+    ]);
   });
 
-  it('stops after three drift reports per load so real errors keep their budget', () => {
+  it('reports one unknown tag per load so real errors keep their budget', () => {
     const raw = live();
     for (const tag of ['a1', 'a2', 'a3', 'a4', 'a5'])
       lists(raw).push({ tag, cardviews: lists(raw)[0].cardviews });
     parseEdhrecResponse(raw, 'x');
-    expect(reportError).toHaveBeenCalledTimes(3);
+    expect(reportError).toHaveBeenCalledTimes(1);
+  });
+
+  it('new tags never crowd out a missing field', () => {
+    const raw = live();
+    for (const tag of ['a1', 'a2', 'a3', 'a4', 'a5'])
+      lists(raw).push({ tag, cardviews: [] as Cardview[] });
+    for (const l of lists(raw)) l.cardviews = l.cardviews.length ? l.cardviews : [{}];
+    for (const l of lists(raw))
+      for (const c of l.cardviews) {
+        delete c.synergy;
+        delete c.lift;
+      }
+    parseEdhrecResponse(raw, 'x');
+    expect(messages().some((m) => m.includes('synergy-or-lift missing'))).toBe(true);
   });
 
   it('reports when synergy and lift are gone from every cardview, once', () => {
