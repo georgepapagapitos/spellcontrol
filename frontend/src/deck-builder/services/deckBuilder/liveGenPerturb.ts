@@ -129,8 +129,13 @@ export function perturbEdhrecBody(body: string, p: Perturbation, url: string): s
       .map((c) => Number(c.num_decks ?? c.inclusion) / (Number(c.potential_decks) || 1))
       .filter((x) => x > 0);
     const pct = p.pct === 'floor' ? Math.min(...shares, 1) * 100 : p.pct;
+    // Synergy and lift are the neighbour's, not this card's: copied, a 1% card scored like a
+    // 45-point synergy pick and displaced 30% cards (E1061 step 3). The repo's own tail
+    // injection zeroes synergy for the same reason (archetypeBlend TAIL_INCLUSION).
+    const { lift: _lift, synergy: _synergy, ...shape } = (template ?? {}) as RawView;
     views.push({
-      ...(template ?? {}),
+      ...shape,
+      synergy: 0,
       id: `perturb-${slug}`,
       name: p.name,
       sanitized: slug,
