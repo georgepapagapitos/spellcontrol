@@ -13,6 +13,7 @@ import { cardFaceText } from '../card-text';
 import type { ScryfallCard } from '../types';
 import { aiEnabled, generateReview, REFINE_MODEL, REVIEW_GENERATION } from '../ai/client';
 import { aiDailyUsdCap, spentTodayUsd } from '../ai/spend';
+import { plainDashes, plainDashStream } from '../ai/plain-dashes';
 import {
   checkBracketTool,
   lookupCardsTool,
@@ -223,7 +224,7 @@ aiRouter.get('/history', requireAuth, aiReadLimiter, async (req: Request, res: R
   res.json({
     readings: rows.rows.map((r) => ({
       id: r.id,
-      content: r.content,
+      content: plainDashes(r.content),
       model: r.model,
       createdAt: Number(r.created_at),
       ...(r.fetched_names?.length ? { fetched: r.fetched_names } : {}),
@@ -357,10 +358,11 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
     }
   } else if (cached.rows.length > 0) {
     const row = cached.rows[0];
-    send({ delta: row.content });
+    const content = plainDashes(row.content);
+    send({ delta: content });
     send({
       done: {
-        content: row.content,
+        content,
         cached: true,
         createdAt: Number(row.created_at),
         model: row.model,
@@ -425,13 +427,15 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
 
     // Pass 2 — write. The research pass's CARDS carry over; its prose does not.
     const found = renderFetchedCards(research.fetched, request.scope, request.currency);
+    const prose = plainDashStream((delta) => send({ delta }));
     generation = await generateReview(
       DECK_REVIEW_SYSTEM_PROMPT,
       found ? `${userMessage}\n\n${found}` : userMessage,
-      (delta) => send({ delta }),
+      prose.push,
       ac.signal,
       { ...REVIEW_GENERATION, answerMarker: WEAKNESS_MARK, endMarker: END_MARK }
     );
+    prose.flush();
     // Bill both passes, and keep the research pass's cards as the citation
     // allowlist — pass 2 has no tools, so its own `fetched` is always empty.
     generation = {
@@ -531,7 +535,7 @@ aiRouter.post('/deck-review', reviewLimiter, requireAuth, async (req: Request, r
 
   send({
     done: {
-      content: generation.content,
+      content: plainDashes(generation.content),
       cached: false,
       createdAt: now,
       model: REVIEW_GENERATION.model,
@@ -671,6 +675,8 @@ interface RefineDone {
 }
 type RefineLine = { delta: string } | { checking: true } | { done: RefineDone } | { error: string };
 
+const plainWhys = (tweaks: RefineTweak[]) => tweaks.map((t) => ({ ...t, why: plainDashes(t.why) }));
+
 // ────────────────────────────────────────────────
 // POST /api/ai/deck-refine — the post-generation second pass (T102 slice 4).
 // Same consent, same `ai_reviews` table, same daily quota pool as the review;
@@ -755,11 +761,12 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
   if (cached.rows.length > 0) {
     const row = cached.rows[0];
     const out = parseRefineOutput(row.content, request, resolveCandidate);
-    send({ delta: out.strategy });
+    const strategy = plainDashes(out.strategy);
+    send({ delta: strategy });
     send({
       done: {
-        content: out.strategy,
-        tweaks: out.tweaks,
+        content: strategy,
+        tweaks: plainWhys(out.tweaks),
         cached: true,
         model: row.model,
         usage: { inputTokens: row.input_tokens, outputTokens: row.output_tokens },
@@ -783,7 +790,8 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
 
   // The strategy is checked a paragraph at a time and streams only once checked
   // (E1029), so nothing the reader has seen is ever taken back.
-  const prose = checkedRefineProse(request, oracle, ac.signal, (text) => send({ delta: text }));
+  const shown = plainDashStream((text) => send({ delta: text }));
+  const prose = checkedRefineProse(request, oracle, ac.signal, shown.push);
   let generation;
   try {
     generation = await generateReview(
@@ -833,6 +841,7 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
   let checked, run;
   try {
     checked = await prose.finish(raw);
+    shown.flush();
     if (swaps) send({ checking: true });
     run = await swaps;
   } catch (err) {
@@ -942,8 +951,8 @@ aiRouter.post('/deck-refine', reviewLimiter, requireAuth, async (req: Request, r
 
   send({
     done: {
-      content: out.strategy,
-      tweaks: out.tweaks,
+      content: plainDashes(out.strategy),
+      tweaks: plainWhys(out.tweaks),
       cached: false,
       model: REFINE_MODEL,
       usage: { inputTokens, outputTokens },
