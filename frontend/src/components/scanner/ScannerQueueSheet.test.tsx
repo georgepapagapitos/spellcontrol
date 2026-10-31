@@ -103,6 +103,7 @@ function renderSheet(entries: ScannedEntry[] = [bolt, greaves], binders: BinderD
     onChangeFinish: vi.fn(),
     onChangeCondition: vi.fn(),
     onChangeLanguage: vi.fn(),
+    onChangeProxy: vi.fn(),
     onAddCard: vi.fn(),
     onConfirm: vi.fn(),
   };
@@ -162,6 +163,15 @@ describe('ScannerQueueSheet', () => {
     ).toHaveLength(2);
   });
 
+  it('tags a proxy row and values it at $0', () => {
+    renderSheet([{ ...bolt, proxy: true }, greaves]);
+    const boltRow = screen.getByRole('button', { name: /Edit 2 Lightning Bolt/ });
+    expect(within(boltRow).getByText('Proxy')).toBeTruthy();
+    expect(within(boltRow).getByText('$0.00')).toBeTruthy();
+    // The two Bolts drop out of the $7.98 total.
+    expect(screen.getByText('$4.98 total')).toBeTruthy();
+  });
+
   it('overrides the non-empty heading via the heading prop (the Add-cards sheet review context)', () => {
     render(
       <ScannerQueueSheet
@@ -174,6 +184,7 @@ describe('ScannerQueueSheet', () => {
         onChangeFinish={vi.fn()}
         onChangeCondition={vi.fn()}
         onChangeLanguage={vi.fn()}
+        onChangeProxy={vi.fn()}
         onAddCard={vi.fn()}
         onConfirm={vi.fn()}
         heading="3 cards"
@@ -271,6 +282,24 @@ describe('ScannerQueueSheet', () => {
       expect(props.onChangeFinish).toHaveBeenCalledWith(
         ['card-1::nonfoil', 'card-2::nonfoil'],
         'foil'
+      );
+    });
+
+    it('marks the selection as proxies', () => {
+      const props = renderSheet();
+      enterSelect();
+      screen.getAllByRole('checkbox').forEach((b) => fireEvent.click(b));
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      const dialog = screen.getByRole('dialog', { name: 'Edit 3 cards' });
+      fireEvent.click(within(dialog).getByRole('radio', { name: 'Proxy' }));
+      expect(props.onChangeProxy).toHaveBeenCalledWith(
+        ['card-1::nonfoil', 'card-2::nonfoil'],
+        true
+      );
+      fireEvent.click(within(dialog).getByRole('radio', { name: 'Real' }));
+      expect(props.onChangeProxy).toHaveBeenLastCalledWith(
+        ['card-1::nonfoil', 'card-2::nonfoil'],
+        false
       );
     });
 

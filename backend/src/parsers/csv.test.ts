@@ -119,6 +119,20 @@ describe('parseCsvAuto', () => {
     expect(parseCsvAuto('', 'generic-csv').rows).toEqual([]);
   });
 
+  // The exact header the scanner and Add list send (frontend
+  // lib/scanner/scan-import.ts entriesToImportCsv). The Proxy column is how a
+  // copy marked as a proxy before adding reaches the collection.
+  it('reads the scan queue CSV, Proxy column included', () => {
+    const csv =
+      'Name,Scryfall ID,Set Code,Collector Number,Foil,Quantity,Condition,Language,Proxy\n' +
+      'City of Brass,00000000-0000-0000-0000-000000000001,tmt,62,nonfoil,1,,,true\n' +
+      'Sol Ring,00000000-0000-0000-0000-000000000002,cmr,472,foil,2,lp,ja,';
+    const out = parseCsvAuto(csv, 'generic-csv').rows;
+    expect(out[0]).toMatchObject({ name: 'City of Brass', proxy: true });
+    expect(out[1]).toMatchObject({ name: 'Sol Ring', condition: 'lp', language: 'ja' });
+    expect(out[1].proxy).toBeUndefined();
+  });
+
   it('captures condition, language, altered, proxy from Moxfield-style CSV', () => {
     const csv =
       'Count,Name,Edition,Condition,Language,Foil,Alter,Proxy\n' +

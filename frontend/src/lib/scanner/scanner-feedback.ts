@@ -82,6 +82,20 @@ export function finishUnitPrice(
 }
 
 /**
+ * One copy's value for the scan queue's prices and totals. A proxy counts as
+ * $0, the same rule `applyPrices` (lib/collection/card-prices.ts) applies once
+ * the card is in the collection, so the list's total matches what lands.
+ */
+export function entryUnitPrice(entry: {
+  card: Pick<ScryfallCard, 'prices'>;
+  finish: Finish;
+  proxy?: boolean;
+}): number | null {
+  if (entry.proxy) return 0;
+  return finishUnitPrice(entry.card.prices, entry.finish);
+}
+
+/**
  * Renders a tier-appropriate "card landed" cue: a synthesized WebAudio
  * flourish + a haptic pulse. Cheap (no audio assets to ship) and always
  * fire-and-forget — any failure is silently swallowed.

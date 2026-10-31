@@ -45,7 +45,7 @@ function csvRow(vals: (string | number)[]): string {
  * already understands (`backend/src/parsers/csv.ts`, auto-detected by
  * `parsers/index.ts`). The Scryfall ID column resolves the EXACT printing
  * (decision B: "+" adds whatever printing is showing) and Foil/Condition/
- * Language round-trip every per-copy detail the queue carries — the old
+ * Language/Proxy round-trip every per-copy detail the queue carries — the old
  * MTGA-style plain-text line the scanner used to emit has no language
  * column, so this format replaced it (T153) instead of gaining a second one.
  * Used both by the scanner (`CardScanner`'s own confirm) and the Add-cards
@@ -61,6 +61,7 @@ export function entriesToImportCsv(entries: ScannedEntry[]): string {
     'Quantity',
     'Condition',
     'Language',
+    'Proxy',
   ]);
   const rows = entries.map((e) =>
     csvRow([
@@ -72,6 +73,7 @@ export function entriesToImportCsv(entries: ScannedEntry[]): string {
       e.qty,
       e.condition ?? '',
       e.language ?? '',
+      e.proxy ? 'true' : '',
     ])
   );
   return [header, ...rows].join('\n');

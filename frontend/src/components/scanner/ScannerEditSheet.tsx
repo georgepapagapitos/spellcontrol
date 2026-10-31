@@ -9,15 +9,16 @@ import { Modal } from '@/components/overlays/Modal';
 import { SearchPill } from '@/components/search/SearchPill';
 import { ConditionControl, FinishControl } from '@/components/card/CopyControls';
 import { Button, IconButton } from '@/components/shared/Button';
-import { Field } from '@/components/shared/form';
+import { Field, SwitchRow } from '@/components/shared/form';
 import { conditionLabel } from '@/components/shared/CardRow';
 import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { ADD_LANGUAGE_OPTIONS } from '@/components/card/PrintingPicker';
 import { fetchPrintings } from '@/lib/api';
 import { formatMoney } from '@/lib/collection/format-money';
 import { userMessage } from '@/lib/util/user-error';
+import { PROXY_HINT } from '@/lib/util/shared-copy';
 import { useCollectionStore } from '@/store/collection';
-import { FINISH_LABELS, finishUnitPrice } from '@/lib/scanner/scanner-feedback';
+import { FINISH_LABELS, entryUnitPrice, finishUnitPrice } from '@/lib/scanner/scanner-feedback';
 import type { ScannedEntry } from '@/lib/scanner/use-scan-queue';
 import { SCANNER_SHEET_BACKDROP } from './ScannerQueueSheet';
 
@@ -27,6 +28,7 @@ interface Props {
   onFinish: (finish: Finish) => void;
   onCondition: (condition: Condition) => void;
   onLanguage: (language: string) => void;
+  onProxy: (proxy: boolean) => void;
   onQty: (delta: number) => void;
   onPrinting: (card: ScryfallCard) => void;
   onRemove: () => void;
@@ -56,6 +58,7 @@ export function ScannerEditSheet({
   onFinish,
   onCondition,
   onLanguage,
+  onProxy,
   onQty,
   onPrinting,
   onRemove,
@@ -64,7 +67,7 @@ export function ScannerEditSheet({
   const [zoomed, setZoomed] = useState(false);
   const { card } = entry;
   const condition = entry.condition ?? 'nm';
-  const unit = finishUnitPrice(card.prices, entry.finish);
+  const unit = entryUnitPrice(entry);
   const img = bigImage(card);
 
   // "You own 2 already": one collection row per physical copy.
@@ -121,7 +124,7 @@ export function ScannerEditSheet({
                 <div className="scanner-edit-info">
                   <p className="scanner-edit-price">
                     {unit != null ? formatMoney(unit) : 'No price'}
-                    <span>Market</span>
+                    <span>{entry.proxy ? 'Proxy' : 'Market'}</span>
                   </p>
                   <p className="scanner-edit-meta">
                     {FINISH_LABELS[entry.finish]} · {conditionLabel(condition)}
@@ -157,6 +160,7 @@ export function ScannerEditSheet({
                 onChange={onLanguage}
               />
             </Field>
+            <SwitchRow label="Proxy" hint={PROXY_HINT} checked={!!entry.proxy} onChange={onProxy} />
 
             <div className="scanner-edit-field scanner-edit-qty">
               <span className="form-field-label" id="scanner-edit-qty-label">

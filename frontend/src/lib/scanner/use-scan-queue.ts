@@ -4,7 +4,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { safeLocalStorage } from '@/lib/util/safe-local-storage';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Condition, Finish } from '@/types/index';
-import { availableFinishes, finishUnitPrice } from './scanner-feedback';
+import { availableFinishes, entryUnitPrice } from './scanner-feedback';
 import { useScannerSettings } from './scanner-settings';
 
 /**
@@ -41,6 +41,14 @@ export interface ScannedEntry {
    * convention. Round-trips to the collection via the import CSV.
    */
   language?: string;
+  /**
+   * The row's copies are proxies. Undefined means real cards, the unmarked
+   * default. Like `condition` it isn't part of row identity: it covers the
+   * whole `qty` stack. Round-trips to the collection via the import CSV's
+   * Proxy column, and the row is valued at $0 like a proxy in the collection
+   * (see `entryUnitPrice` in scanner-feedback.ts).
+   */
+  proxy?: boolean;
   /** Where this row came from (see {@link EntrySource}). Undefined on a
    *  queue persisted before this field existed. */
   source?: EntrySource;
@@ -191,6 +199,7 @@ interface ScanQueueState {
   patchMany: (ids: string[], finish: Finish) => void;
   setCondition: (ids: string[], condition: Condition) => void;
   setLanguage: (ids: string[], language: string) => void;
+  setProxy: (ids: string[], proxy: boolean) => void;
   remove: (ids: string[]) => void;
   clear: () => void;
   changeQty: (id: string, delta: number) => void;
@@ -247,6 +256,11 @@ export const useScanQueueStore = create<ScanQueueState>()(
           queue: s.queue.map((e) =>
             ids.includes(e.id) ? { ...e, language: language || undefined } : e
           ),
+        })),
+      // Same shape again: real cards are stored as absent, the unmarked default.
+      setProxy: (ids, proxy) =>
+        set((s) => ({
+          queue: s.queue.map((e) => (ids.includes(e.id) ? { ...e, proxy: proxy || undefined } : e)),
         })),
       remove: (ids) => set((s) => ({ queue: s.queue.filter((e) => !ids.includes(e.id)) })),
       clear: () => set({ queue: [] }),
@@ -329,6 +343,11 @@ export interface UseScanQueueResult {
    * default.
    */
   changeLanguage: (ids: string | string[], language: string) => void;
+  /**
+   * Mark one entry or several as proxies, or back to real cards. Like
+   * {@link changeCondition}, this never re-keys or merges rows.
+   */
+  changeProxy: (ids: string | string[], proxy: boolean) => void;
 }
 
 /**
@@ -355,6 +374,7 @@ export function useScanQueue(): UseScanQueueResult {
   const patchMany = useScanQueueStore((s) => s.patchMany);
   const setConditionAction = useScanQueueStore((s) => s.setCondition);
   const setLanguageAction = useScanQueueStore((s) => s.setLanguage);
+  const setProxyAction = useScanQueueStore((s) => s.setProxy);
   const remove = useScanQueueStore((s) => s.remove);
   const clear = useScanQueueStore((s) => s.clear);
   const changeQtyAction = useScanQueueStore((s) => s.changeQty);
@@ -372,7 +392,7 @@ export function useScanQueue(): UseScanQueueResult {
   const totalPrice = useMemo(() => {
     let sum = 0;
     for (const entry of queue) {
-      const value = finishUnitPrice(entry.card.prices, entry.finish);
+      const value = entryUnitPrice(entry);
       if (value != null) sum += value * entry.qty;
     }
     return sum;
@@ -436,6 +456,11 @@ export function useScanQueue(): UseScanQueueResult {
     [setLanguageAction]
   );
 
+  const changeProxy = useCallback(
+    (ids: string | string[], proxy: boolean) => setProxyAction(toIds(ids), proxy),
+    [setProxyAction]
+  );
+
   return {
     queue,
     totalCount,
@@ -449,5 +474,6 @@ export function useScanQueue(): UseScanQueueResult {
     changeFinish,
     changeCondition,
     changeLanguage,
+    changeProxy,
   };
 }

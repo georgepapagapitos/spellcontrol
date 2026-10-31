@@ -54,6 +54,7 @@ function renderEdit(e: ScannedEntry = entry) {
     onFinish: vi.fn(),
     onCondition: vi.fn(),
     onLanguage: vi.fn(),
+    onProxy: vi.fn(),
     onQty: vi.fn(),
     onPrinting: vi.fn(),
     onRemove: vi.fn(),
@@ -118,6 +119,20 @@ describe('ScannerEditSheet', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Language' }));
     fireEvent.click(screen.getByRole('option', { name: 'Japanese' }));
     expect(props.onLanguage).toHaveBeenCalledWith('ja');
+  });
+
+  it('marks the card a proxy', () => {
+    const props = renderEdit();
+    const toggle = screen.getByRole('switch', { name: 'Proxy' });
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(toggle);
+    expect(props.onProxy).toHaveBeenCalledWith(true);
+  });
+
+  it('values a proxy row at $0', () => {
+    renderEdit({ ...entry, proxy: true });
+    expect(screen.getByRole('switch', { name: 'Proxy' }).getAttribute('aria-checked')).toBe('true');
+    expect(document.querySelector('.scanner-edit-price')?.textContent).toBe('$0.00Proxy');
   });
 
   it('steps the quantity, never below one', () => {
