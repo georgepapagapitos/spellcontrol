@@ -27,6 +27,7 @@ import { buildAlternatePool, type AlternatePoolResult } from '../phaseAlternateP
 import { blendTagPageIntoPool, resolveArchetypeBlend } from '../archetypeBlend';
 import { constrainsToCollection } from '../deckFilters';
 import type { GenerationState, GenerationContext } from './state';
+import { applyNoEdhrecPool } from './noEdhrecPool';
 import { fetchMergedThemeData, mergeThemeCardlists } from './themePages';
 
 /** The EDHREC pool candidates the E93 thinness ladder can land on, from most
@@ -837,6 +838,11 @@ export async function acquireCardPoolPhase(
     }
   }
 
+  // E1057: no EDHREC data at all (down, blocked, or a commander it has no page
+  // for): synthesize the pool from Scryfall function tags instead of building
+  // from bare fills. Only the default mode; the alternative modes have a pool.
+  if (!usingCache && !altPool) await applyNoEdhrecPool(state, onProgress);
+
   // E282: one thinness reading BEFORE either widener runs, so the second
   // widener (and the disclosure) sees the commander page's own coverage, not
   // the first widener's injections.
@@ -1098,7 +1104,8 @@ export function populateGenerationCachePhase(
   ctx: PopulateGenerationCacheContext
 ): void {
   const { usingCache, cacheableIntegrityNotes } = ctx;
-  if (!usingCache && state.edhrecData) {
+  // A Scryfall stand-in pool (E1057) is never cached: a retry should ask EDHREC again.
+  if (!usingCache && state.edhrecData && !state.noEdhrecReason) {
     const key = buildCacheKey(state.context);
     generationCache = {
       edhrecData: state.edhrecData,

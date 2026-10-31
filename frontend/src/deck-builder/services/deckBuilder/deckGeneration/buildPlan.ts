@@ -66,6 +66,10 @@ export interface BuildPlanInput {
   hasPartner: boolean;
   /** The commander's payoff is attacking (`commanderWantsExtraCombat`). */
   commanderWantsExtraCombat: boolean;
+  /** E1057: `edhrecData` is a Scryfall-built stand-in with no EDHREC stats, so
+   *  there is no land signal to tune from: the land count stays what was asked
+   *  for, exactly as when there is no EDHREC data at all. */
+  edhrecIsStandIn?: boolean;
 }
 
 export interface BuildPlan {
@@ -111,7 +115,12 @@ export function resolveBuildPlan(input: BuildPlanInput): BuildPlan {
   let landCountSizingAnchor = DEFAULT_LAND_COUNT;
   let landCountAutoTuned = false;
   const plannedRampCount = dynamic.targets.ramp;
-  if (karstenAppliesToFormat(format) && isDefaultLandCount(customization) && edhrecData) {
+  if (
+    karstenAppliesToFormat(format) &&
+    isDefaultLandCount(customization) &&
+    edhrecData &&
+    !input.edhrecIsStandIn
+  ) {
     const manaCurve = edhrecData.stats?.manaCurve ?? {};
     const curveTotal = Object.values(manaCurve).reduce((s, v) => s + v, 0);
     const avgCmc =

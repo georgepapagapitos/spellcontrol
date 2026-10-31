@@ -1719,7 +1719,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   if (!altPool && customization.mtgFormat !== 'paupercommander') {
     const coverageNote = buildEdhrecCoverageNote(
       partnerCommander ? `${commander.name} and ${partnerCommander.name}` : commander.name,
-      state.dataSource === 'scryfall' ? null : (state.edhrecData?.stats.numDecks ?? 0)
+      state.noEdhrecReason === 'no-decks'
+        ? 0
+        : state.dataSource === 'scryfall'
+          ? null
+          : (state.edhrecData?.stats.numDecks ?? 0)
     );
     if (coverageNote) integrityNotes.unshift(coverageNote);
   }
@@ -1901,6 +1905,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     archetypeFallback,
     hasPartner: !!partnerCommander,
     commanderWantsExtraCombat,
+    edhrecIsStandIn: !!state.noEdhrecReason,
   });
   resolvedLandCount = plan.resolvedLandCount;
   landCountAutoTuned = plan.landCountAutoTuned;

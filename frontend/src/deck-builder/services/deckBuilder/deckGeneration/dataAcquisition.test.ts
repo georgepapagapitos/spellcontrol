@@ -649,3 +649,85 @@ describe('populateGenerationCachePhase', () => {
     expect(result.usingCache).toBe(false);
   });
 });
+
+describe('acquireCardPoolPhase with no EDHREC data (E1057)', () => {
+  const standIn = (): EDHRECCommanderData => ({
+    ...edhrecData(),
+    stats: { ...edhrecData().stats, numDecks: 0 },
+  });
+
+  beforeEach(() => {
+    clearGenerationCache();
+    buildAlternatePoolMock.mockReset();
+    fetchCommanderDataMock.mockReset();
+  });
+
+  it('builds the pool from Scryfall function tags when every EDHREC fetch fails', async () => {
+    fetchCommanderDataMock.mockRejectedValue(new Error('EDHREC API error: 503'));
+    buildAlternatePoolMock.mockResolvedValue({
+      data: standIn(),
+      dataSource: 'oracle-role',
+      poolSize: 120,
+      effectiveConstraint: '',
+    });
+    const state = makeState();
+    await acquireCardPoolPhase(state, { usingCache: false, scryfallQuery: '' });
+    expect(buildAlternatePoolMock).toHaveBeenCalledWith(
+      'oracle-role',
+      expect.objectContaining({ permanentsOnly: false }),
+      ['U'],
+      undefined
+    );
+    expect(state.edhrecData).not.toBeNull();
+    expect(state.dataSource).toBe('scryfall');
+    expect(state.noEdhrecReason).toBe('unreachable');
+  });
+
+  it('does the same for a page that loaded with no decks and no cards', async () => {
+    fetchCommanderDataMock.mockResolvedValue({
+      ...edhrecData(),
+      stats: { ...edhrecData().stats, numDecks: 0 },
+      cardlists: { ...edhrecData().cardlists, allNonLand: [] },
+    });
+    buildAlternatePoolMock.mockResolvedValue({
+      data: standIn(),
+      dataSource: 'oracle-role',
+      poolSize: 120,
+      effectiveConstraint: '',
+    });
+    const state = makeState();
+    await acquireCardPoolPhase(state, { usingCache: false, scryfallQuery: '' });
+    expect(state.noEdhrecReason).toBe('no-decks');
+  });
+
+  it('leaves a real EDHREC page alone and never asks Scryfall for a stand-in', async () => {
+    fetchCommanderDataMock.mockResolvedValue(edhrecData());
+    const state = makeState();
+    await acquireCardPoolPhase(state, { usingCache: false, scryfallQuery: '' });
+    expect(buildAlternatePoolMock).not.toHaveBeenCalled();
+    expect(state.noEdhrecReason).toBeUndefined();
+    expect(state.dataSource).toBe('base');
+  });
+
+  it('keeps the old Scryfall-fill path when the stand-in search comes back empty', async () => {
+    fetchCommanderDataMock.mockRejectedValue(new Error('down'));
+    buildAlternatePoolMock.mockResolvedValue({
+      data: standIn(),
+      dataSource: 'oracle-role',
+      poolSize: 0,
+      effectiveConstraint: '',
+    });
+    const state = makeState();
+    await acquireCardPoolPhase(state, { usingCache: false, scryfallQuery: '' });
+    expect(state.edhrecData).toBeNull();
+    expect(state.noEdhrecReason).toBeUndefined();
+  });
+
+  it('never caches the stand-in pool, so a retry asks EDHREC again', async () => {
+    const state = makeState();
+    state.edhrecData = standIn();
+    state.noEdhrecReason = 'unreachable';
+    populateGenerationCachePhase(state, { usingCache: false, cacheableIntegrityNotes: [] });
+    expect((await acquireCommanderDataPhase(makeState())).usingCache).toBe(false);
+  });
+});

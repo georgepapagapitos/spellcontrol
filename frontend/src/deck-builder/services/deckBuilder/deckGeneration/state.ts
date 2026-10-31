@@ -161,6 +161,9 @@ export interface GenerationState {
   combos: EDHRECCombo[];
   edhrecData: EDHRECCommanderData | null;
   dataSource: DeckDataSource;
+  /** E1057: set when `edhrecData` is a Scryfall-built stand-in because EDHREC
+   *  gave nothing to build from. Drives the coverage note's wording. */
+  noEdhrecReason?: 'unreachable' | 'no-decks';
   /** E93 disclosure: set when a bracket-narrowed EDHREC page was too thin and
    *  generation laddered down to a broader page. Undefined otherwise. */
   bracketPoolFallbackNote: string | undefined;

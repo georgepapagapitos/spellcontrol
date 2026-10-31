@@ -150,7 +150,8 @@ export async function liftPicksPhase(
   state: GenerationState,
   opts: LiftPicksOptions = {}
 ): Promise<LiftPicksResult | undefined> {
-  if (!state.edhrecData) return undefined;
+  // A Scryfall stand-in pool (E1057) has no EDHREC page behind it to look cards up on.
+  if (!state.edhrecData || state.noEdhrecReason) return undefined;
 
   try {
     const nonLandCards = (Object.keys(state.categories) as DeckCategory[])
