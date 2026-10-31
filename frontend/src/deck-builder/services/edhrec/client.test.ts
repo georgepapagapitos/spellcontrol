@@ -223,6 +223,39 @@ describe('parseEdhrecResponse — 2026-07-23 salt/prices/type_line drift (E126)'
   });
 });
 
+describe('parseEdhrecResponse — synergy falls back to lift (2026-10)', () => {
+  // Real cardview from a live curl of json.edhrec.com/pages/commanders/
+  // sythis-harvests-hand.json (2026-10-31), which ships both fields. EDHREC
+  // says lift replaces synergy; this pins that dropping `synergy` keeps the
+  // value every synergy reader depends on.
+  const view = {
+    name: 'Sanctum Weaver',
+    sanitized: 'sanctum-weaver',
+    synergy: 0.7584552660725473,
+    lift: 6.584166225768871,
+    num_decks: 12815,
+    potential_decks: 14330,
+  };
+  const { synergy: _shipped, ...liftOnly } = view;
+  const parse = (cv: Omit<typeof view, 'synergy'> & { synergy?: number }) =>
+    parseEdhrecResponse(
+      { container: { json_dict: { cardlists: [{ tag: 'creatures', cardviews: [cv] }] } } },
+      'sythis-harvests-hand'
+    ).cardlists.creatures[0];
+
+  it('keeps the shipped synergy when both fields are present', () => {
+    expect(parse(view).synergy).toBe(0.7584552660725473);
+  });
+
+  it('derives the same synergy from lift when synergy is missing', () => {
+    expect(parse(liftOnly).synergy).toBeCloseTo(0.7584552660725473, 3);
+  });
+
+  it('leaves synergy unset when neither field is usable', () => {
+    expect(parse({ ...liftOnly, lift: 0 }).synergy).toBeUndefined();
+  });
+});
+
 describe('parseSaltIndex — E126 salt-gate reactivation (2026-07-23)', () => {
   // Real cardviews from a live curl of json.edhrec.com/pages/top/salt.json
   // (2026-07-23): salt is a DIRECT numeric field; no `label` exists anywhere

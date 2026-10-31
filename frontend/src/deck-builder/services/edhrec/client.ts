@@ -115,6 +115,10 @@ interface RawEDHRECCard {
   num_decks?: number;
   potential_decks?: number;
   synergy?: number;
+  /** Play rate here divided by play rate across the colors (1 = independent).
+   *  EDHREC added it next to `synergy` in 2026-10 and says lift replaces
+   *  synergy, so parseCard derives `synergy` from it when the field is gone. */
+  lift?: number;
   image_uris?: Array<{ normal: string; art_crop?: string }>;
   color_identity?: string[];
   // Note: cmc and primary_type are NOT available in cardlist cards
@@ -299,6 +303,19 @@ async function backfillColorIdentities(
 }
 
 /**
+ * EDHREC synergy is (play rate here) minus (play rate across the colors), as a
+ * fraction; lift is the ratio of the same two rates. So the color baseline is
+ * inclusion / lift and synergy follows from it. EDHREC's 2026-10 changelog
+ * says lift replaces synergy, and every synergy reader (synergyLift.ts, card
+ * priority) would go quietly flat if the field were dropped. Live check,
+ * Sanctum Weaver on Sythis: shipped synergy 0.7585, derived 0.7584.
+ */
+function synergyFromLift(inclusionPct: number, lift: number | undefined): number | undefined {
+  if (lift === undefined || !(lift > 0)) return undefined;
+  return (inclusionPct - inclusionPct / lift) / 100;
+}
+
+/**
  * Parse raw EDHREC card into our format
  * @param raw - Raw card data from EDHREC
  * @param tagHint - Optional tag from the cardlist to help determine primary_type
@@ -335,7 +352,7 @@ function parseCard(raw: RawEDHRECCard, tagHint?: string): EDHRECCard {
     ...(raw.potential_decks && raw.potential_decks > 0
       ? { potential_decks: raw.potential_decks }
       : {}),
-    synergy: raw.synergy,
+    synergy: raw.synergy ?? synergyFromLift(inclusionPercent, raw.lift),
     isThemeSynergyCard,
     isNewCard,
     isGameChanger,
