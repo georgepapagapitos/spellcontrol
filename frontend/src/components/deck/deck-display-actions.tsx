@@ -34,6 +34,7 @@ export type CardMenuHandlers = Pick<
   | 'cover'
   | 'onSetCardTags'
   | 'onBulkRemove'
+  | 'onBulkMove'
 >;
 
 export function buildCardMenuCtx(args: {
@@ -45,13 +46,19 @@ export function buildCardMenuCtx(args: {
   handlers: CardMenuHandlers;
 }): DeckCardActionCtx {
   const { row, zone, isSingleton, hasSideboard, onSetQty, handlers: h } = args;
-  // In the box holds the box's own cards: remove, re-count and give or release
-  // a copy, nothing that moves, tags, proxies or seats it (DeckZoneSection).
+  // In the box holds the box's own cards: remove, re-count, give or release a
+  // copy, and move out to the sideboard or Considering. Not into the deck, and
+  // nothing that tags, proxies or seats it (DeckZoneSection).
   if (zone === 'extras') {
+    const moveOut = (to: DeckZone) =>
+      h.onBulkMove ? (slotIds: string[]) => h.onBulkMove!(slotIds, 'extras', to) : undefined;
     return {
       row,
       isSingleton: false,
       onSetQty,
+      moveZone: hasSideboard ? 'sideboard' : undefined,
+      onMoveToZone: hasSideboard ? moveOut('sideboard') : undefined,
+      onMoveToConsidering: moveOut('considering'),
       onRemoveCard: h.onBulkRemove ? (slotId) => h.onBulkRemove!('extras', [slotId]) : undefined,
       onUseOwnCopy: h.onUseOwnCopy,
       onReleaseCopy: h.onReleaseCopy,
@@ -112,25 +119,27 @@ export function buildBulkActions(args: {
     args;
   return selection
     ? [
-        ...(onBulkMove && selection.zone === 'cards' && hasSideboard
+        ...(onBulkMove &&
+        (selection.zone === 'cards' || selection.zone === 'extras') &&
+        hasSideboard
           ? [
               {
                 key: 'sideboard',
                 label: 'Move to sideboard',
                 run: () => {
-                  onBulkMove([...selection.keys], 'cards', 'sideboard');
+                  onBulkMove([...selection.keys], selection.zone, 'sideboard');
                   setSelection(null);
                 },
               },
             ]
           : []),
-        ...(onBulkMove && selection.zone === 'cards'
+        ...(onBulkMove && (selection.zone === 'cards' || selection.zone === 'extras')
           ? [
               {
                 key: 'considering',
                 label: 'Move to considering',
                 run: () => {
-                  onBulkMove([...selection.keys], 'cards', 'considering');
+                  onBulkMove([...selection.keys], selection.zone, 'considering');
                   setSelection(null);
                 },
               },

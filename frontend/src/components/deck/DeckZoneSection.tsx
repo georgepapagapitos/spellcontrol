@@ -109,8 +109,9 @@ const OUTZONE_OF_ICON: Record<string, DeckZone> = {
  * are not passed: the role lens counts the deck, so it never dims these.
  *
  * In the box holds the box's own cards, not swap or maybe cards: its rows can
- * be removed, re-counted and given or released a copy, but not moved into the
- * deck, tagged, proxied or seated as commander.
+ * be removed, re-counted, given or released a copy, and moved out to the
+ * sideboard or Considering (through the menu, deck-display-actions.tsx), but
+ * not moved into the deck, tagged, proxied or seated as commander.
  */
 export function OutzoneZoneSection({
   group: g,

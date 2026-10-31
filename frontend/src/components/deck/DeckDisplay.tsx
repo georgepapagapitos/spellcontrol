@@ -553,6 +553,7 @@ export function DeckDisplay(props: DeckDisplayProps) {
         cover,
         onSetCardTags,
         onBulkRemove,
+        onBulkMove,
       },
     });
 
