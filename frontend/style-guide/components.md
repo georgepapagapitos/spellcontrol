@@ -169,7 +169,10 @@ where every section lives.
     `Package`). Its cards claim a copy like any slot, so the whole box is
     accounted for. It is the exception to "an empty pile stays on the page":
     nothing in the deck moves there, so an empty one would be a header every
-    deck carries for the few that came with extras. Cards reach it from a
+    deck carries for the few that came with extras. A sideboard or Considering
+    card can move into it ("Move into the box", menu and bulk bar) on a deck
+    built from a product, or one whose box holds a card, so a box card moved
+    out can go back even when that left the box empty. Cards reach it from a
     product import, the add sheet's "In the box" zone, or the Edit menu's "Add
     the rest of the box" on a deck built from a product, which adds only what
     the box doesn't hold yet (a Secret Lair's bonus card, which MTGJSON's deck

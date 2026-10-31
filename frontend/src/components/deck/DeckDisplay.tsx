@@ -104,6 +104,7 @@ export function DeckDisplay(props: DeckDisplayProps) {
     sideboard = [],
     considering = [],
     extras = [],
+    fromProduct = false,
     archetypeOverride,
     // deckGrade: removed from stat-strip (UX-315: one grading system; letter grades dropped)
     roleCounts,
@@ -435,6 +436,7 @@ export function DeckDisplay(props: DeckDisplayProps) {
   // (every DECK_FORMAT_CONFIGS entry does today, but the format config's own
   // sideboardSize gate is the single source). false → Considering alone.
   const hasSideboard = formatConfig.sideboardSize > 0;
+  const hasBox = fromProduct || extras.length > 0;
 
   // The selection's moves and Remove: the bulk bar's buttons and the menu a
   // right-click on a selected card opens, from one list (T162). Tagging is the
@@ -442,6 +444,7 @@ export function DeckDisplay(props: DeckDisplayProps) {
   const bulkActions: DeckBulkAction[] = buildBulkActions({
     selection,
     hasSideboard,
+    hasBox,
     onBulkMove,
     onBulkRemove,
     setSelection,
@@ -531,6 +534,7 @@ export function DeckDisplay(props: DeckDisplayProps) {
       zone,
       isSingleton: formatConfig.isSingleton,
       hasSideboard,
+      hasBox,
       onSetQty: bindQtyToZone(onSetQty, zone),
       handlers: {
         onEditCard,

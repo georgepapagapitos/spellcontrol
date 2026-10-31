@@ -39,6 +39,7 @@ function renderDeck(opts: {
   sideboard?: string[];
   considering?: string[];
   extras?: string[];
+  fromProduct?: boolean;
   view?: 'list' | 'grid' | 'stacks';
   onMoveToMainboard?: (slotIds: string[]) => void;
   onMoveFromConsidering?: (slotIds: string[]) => void;
@@ -58,6 +59,7 @@ function renderDeck(opts: {
         sideboard={slots(opts.sideboard ?? [])}
         considering={slots(opts.considering ?? [], 5)}
         extras={slots(opts.extras ?? [], 7)}
+        fromProduct={opts.fromProduct}
         onMoveToMainboard={opts.onMoveToMainboard}
         onMoveFromConsidering={opts.onMoveFromConsidering}
         onBulkRemove={opts.onBulkRemove}
@@ -274,6 +276,41 @@ describe('DeckDisplay "Not in the deck" zone (E176)', () => {
       fireEvent.click(trigger);
       fireEvent.click(getByRole('menuitem', { name: item }));
       expect(onBulkMove).toHaveBeenCalledWith(['slot-Display Commander-0'], 'extras', to);
+    });
+
+    // And back: a pile card returns to the box, even one the move left empty.
+    it.each([
+      ['grid', 'sideboard'],
+      ['list', 'sideboard'],
+      ['grid', 'considering'],
+      ['list', 'considering'],
+    ] as const)('a %s %s card moves into an empty box', (view, from) => {
+      const onBulkMove = vi.fn();
+      const { getByRole } = renderDeck({
+        [from]: ['Pile Card'],
+        fromProduct: true,
+        view,
+        onBulkMove,
+      });
+      const trigger =
+        view === 'list'
+          ? document.querySelector<HTMLElement>('.deck-outzone .deck-row-menu-trigger')!
+          : getByRole('button', { name: 'Actions for Pile Card' });
+      fireEvent.click(trigger);
+      fireEvent.click(getByRole('menuitem', { name: 'Move into the box' }));
+      expect(onBulkMove).toHaveBeenCalledWith(['slot-Pile Card-0'], from, 'extras');
+    });
+
+    it('offers no move into the box on a deck without one', () => {
+      const { getByRole, queryByRole } = renderDeck({
+        sideboard: ['Pile Card'],
+        view: 'grid',
+        onBulkMove: vi.fn(),
+        onMoveToMainboard: vi.fn(),
+      });
+      fireEvent.click(getByRole('button', { name: 'Actions for Pile Card' }));
+      expect(getByRole('menuitem', { name: 'Move to mainboard' })).toBeTruthy();
+      expect(queryByRole('menuitem', { name: 'Move into the box' })).toBeNull();
     });
 
     it('never reaches the mainboard stats', () => {
