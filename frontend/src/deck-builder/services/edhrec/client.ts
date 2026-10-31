@@ -247,6 +247,17 @@ async function edhrecFetch<T>(endpoint: string, attempt = 0): Promise<T> {
 // Tags that represent high-priority theme synergy cards
 const THEME_SYNERGY_TAGS = new Set(['highsynergycards', 'topcards', 'gamechangers']);
 
+/**
+ * Inclusion (percent of decks) a `highliftcards` entry needs to join the
+ * generator pool. Those cards appear in no type list, so skipping the tag
+ * drops them outright; routing all of them lets ~5% lift cards displace
+ * 23-33% staples (Talrand). Over 273 cached pages the lists hold 2,720 cards:
+ * median 12%, 449 (1.6 a page) at 30%+. The real gains sit at 33-62% (Sythis
+ * Seals, Meren Chupacabra, Ur-Dragon Utvara Hellkite, Yuriko Shadow of
+ * Mortality); the Talrand losers sit at 5-6%.
+ */
+export const HIGH_LIFT_POOL_MIN_INCLUSION = 30;
+
 /** How many cards EDHREC's old `highsynergycards` list carried. */
 const HIGH_SYNERGY_COUNT = 10;
 
@@ -584,7 +595,8 @@ function parseCardlists(response: RawEDHRECResponse): EDHRECCommanderData['cardl
         tag === 'newcards' ||
         tag === 'highsynergycards' ||
         tag === 'topcards' ||
-        tag === 'gamechangers'
+        tag === 'gamechangers' ||
+        (tag === 'highliftcards' && card.inclusion >= HIGH_LIFT_POOL_MIN_INCLUSION)
       ) {
         cardlists.allNonLand.push(card);
       }

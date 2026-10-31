@@ -1,0 +1,125 @@
+{
+  "_source": "json.edhrec.com/pages/commanders/sythis-harvests-hand.json, fetched 2026-10-31; highliftcards whole, enchantments cut to 3, cardviews trimmed to the fields the app reads",
+  "container": {
+    "json_dict": {
+      "cardlists": [
+        {
+          "tag": "highliftcards",
+          "header": "High Lift Cards",
+          "cardviews": [
+            {
+              "name": "Whip Silk",
+              "sanitized": "whip-silk",
+              "synergy": 0.29880212722596,
+              "lift": 18.677811945544263,
+              "num_decks": 4513,
+              "potential_decks": 14295
+            },
+            {
+              "name": "Mana Bloom",
+              "sanitized": "mana-bloom",
+              "synergy": 0.05279224710244065,
+              "lift": 15.700841642474876,
+              "num_decks": 806,
+              "potential_decks": 14295
+            },
+            {
+              "name": "Celestial Ancient",
+              "sanitized": "celestial-ancient",
+              "synergy": 0.11693233241946685,
+              "lift": 14.87725747066635,
+              "num_decks": 1792,
+              "potential_decks": 14295
+            },
+            {
+              "name": "Flickering Ward",
+              "sanitized": "flickering-ward",
+              "synergy": 0.35393259563001944,
+              "lift": 14.803556364967976,
+              "num_decks": 5426,
+              "potential_decks": 14295
+            },
+            {
+              "name": "Seal of Primordium",
+              "sanitized": "seal-of-primordium",
+              "synergy": 0.3684518589407562,
+              "lift": 14.71688641304635,
+              "num_decks": 5651,
+              "potential_decks": 14295
+            },
+            {
+              "name": "Seal of Cleansing",
+              "sanitized": "seal-of-cleansing",
+              "synergy": 0.41111760260366415,
+              "lift": 14.293991157726227,
+              "num_decks": 6319,
+              "potential_decks": 14295
+            },
+            {
+              "name": "Solitary Confinement",
+              "sanitized": "solitary-confinement",
+              "synergy": 0.3074270260092766,
+              "lift": 13.298606835134628,
+              "num_decks": 4752,
+              "potential_decks": 14295
+            },
+            {
+              "name": "Meticulous Excavation",
+              "sanitized": "meticulous-excavation",
+              "synergy": 0.08549413207028952,
+              "lift": 12.881413544383475,
+              "num_decks": 1325,
+              "potential_decks": 14295
+            },
+            {
+              "name": "Soul Snare",
+              "sanitized": "soul-snare",
+              "synergy": 0.11441576162992588,
+              "lift": 12.815447888235528,
+              "num_decks": 1774,
+              "potential_decks": 14295
+            },
+            {
+              "name": "Seam Rip",
+              "sanitized": "seam-rip",
+              "synergy": 0.05766647053095567,
+              "lift": 12.746257722942664,
+              "num_decks": 619,
+              "potential_decks": 9892
+            }
+          ]
+        },
+        {
+          "tag": "enchantments",
+          "header": "Enchantments",
+          "cardviews": [
+            {
+              "name": "Kenrith's Transformation",
+              "sanitized": "kenriths-transformation",
+              "synergy": 0.5371793057065777,
+              "lift": 5.881673002499013,
+              "num_decks": 9252,
+              "potential_decks": 14295
+            },
+            {
+              "name": "Darksteel Mutation",
+              "sanitized": "darksteel-mutation",
+              "synergy": 0.5427481044331381,
+              "lift": 6.216149987813412,
+              "num_decks": 9246,
+              "potential_decks": 14295
+            },
+            {
+              "name": "Fertile Ground",
+              "sanitized": "fertile-ground",
+              "synergy": 0.5503722631590947,
+              "lift": 7.301980060192696,
+              "num_decks": 9116,
+              "potential_decks": 14295
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
