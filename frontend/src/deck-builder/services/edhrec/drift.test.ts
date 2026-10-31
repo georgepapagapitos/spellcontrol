@@ -75,6 +75,13 @@ describe('EDHREC drift reports', () => {
     ]);
   });
 
+  it('survives a tag with a lone surrogate', () => {
+    const raw = live();
+    lists(raw).push({ tag: 'bad\uD800tag', cardviews: lists(raw)[0].cardviews });
+    expect(() => parseEdhrecResponse(raw, 'x')).not.toThrow();
+    expect(messages()).toEqual(['EDHREC drift (cardlists): unknown cardlist tag "unparseable"']);
+  });
+
   it('reports one unknown tag per load so real errors keep their budget', () => {
     const raw = live();
     for (const tag of ['a1', 'a2', 'a3', 'a4', 'a5'])

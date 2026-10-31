@@ -89,9 +89,19 @@ function report(source: string, kind: DriftKind, detail: string, message: string
  *  two different odd tags stay two signatures. */
 const TAG_SHAPE = /^[a-z0-9_+-]{1,40}$/;
 
+/** encodeURIComponent throws on a lone surrogate, and a report must never
+ *  break parsing. */
+function encodeTag(t: string): string {
+  try {
+    return encodeURIComponent(t).slice(0, 40);
+  } catch {
+    return 'unparseable';
+  }
+}
+
 export function reportUnknownTag(source: string, tag: string): void {
   const t = tag.toLowerCase();
-  const safe = TAG_SHAPE.test(t) ? t : encodeURIComponent(t).slice(0, 40);
+  const safe = TAG_SHAPE.test(t) ? t : encodeTag(t);
   report(source, 'unknown-tag', safe, `unknown cardlist tag "${safe}"`);
 }
 
