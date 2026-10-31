@@ -1,0 +1,21 @@
+{
+  "_source": "oracle_tags bulk feed, first line (taggings cut to 3), fetched 2026-10-31; trimmed to the fields the readers use",
+  "body": {
+    "object": "tag",
+    "id": "00155182-3099-4742-be68-f8b4ea259d78",
+    "label": "tutor-creature-giant",
+    "slug": "tutor-creature-giant",
+    "type": "oracle",
+    "uri": "https://tagger.scryfall.com/tags/card/tutor-creature-giant",
+    "description": "Cards that tutor Giant cards.",
+    "parent_ids": ["23fd5e7c-3ddc-49b0-818f-bd5fabb04d8f"],
+    "child_ids": [],
+    "aliases": ["tutor-giant"],
+    "taggings": [
+      {
+        "oracle_id": "2445e58b-87ed-4ab2-8209-a5e1f566fba7",
+        "weight": "median"
+      }
+    ]
+  }
+}

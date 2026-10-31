@@ -1,0 +1,255 @@
+{
+  "_source": "json.edhrec.com/pages/combos/sythis-harvests-hand.json, fetched 2026-10-31; trimmed to the fields the readers use",
+  "body": {
+    "container": {
+      "json_dict": {
+        "cardlists": [
+          {
+            "href": "/combos/mono-white/1274-3693",
+            "combo": {
+              "comboId": "1274-3693",
+              "count": 52910,
+              "results": ["Infinite damage", "Infinite lifegain", "Infinite lifegain triggers"],
+              "nonCardPrerequisiteCount": 1,
+              "rank": 36,
+              "comboVote": {
+                "bracket": "4-5",
+                "voteCount": 22,
+                "earlyScore": 1,
+                "prereqScore": 0.9545454545454546,
+                "resultScore": 1,
+                "controversial": false
+              }
+            },
+            "cardviews": [
+              {
+                "id": "3245ff74-1f9c-4518-a23f-1579f338f232",
+                "name": "Heliod, Sun-Crowned",
+                "sanitized": "heliod-sun-crowned"
+              },
+              {
+                "id": "5272436e-74f0-44c4-a291-ea8ebc3f1525",
+                "name": "Walking Ballista",
+                "sanitized": "walking-ballista"
+              }
+            ]
+          },
+          {
+            "href": "/combos/selesnya/1355-1995",
+            "combo": {
+              "comboId": "1355-1995",
+              "count": 2897,
+              "results": ["Infinite colored mana"],
+              "nonCardPrerequisiteCount": 1,
+              "rank": 2054,
+              "comboVote": {
+                "bracket": "4-5",
+                "voteCount": 14,
+                "earlyScore": 1,
+                "prereqScore": 0.7142857142857143,
+                "resultScore": 0.6428571428571429,
+                "controversial": false
+              }
+            },
+            "cardviews": [
+              {
+                "id": "3c9ac089-6962-48fd-bf67-f041ece27fa9",
+                "name": "Sanctum Weaver",
+                "sanitized": "sanctum-weaver"
+              },
+              {
+                "id": "da0d5436-b881-45ac-b8ec-248d88714021",
+                "name": "Gauntlets of Light",
+                "sanitized": "gauntlets-of-light"
+              }
+            ]
+          },
+          {
+            "href": "/combos/selesnya/1355-2024",
+            "combo": {
+              "comboId": "1355-2024",
+              "count": 1776,
+              "results": [
+                "Infinitely large creatures you control until end of turn",
+                "Infinite colored mana",
+                "Infinitely large creature until end of turn",
+                "Infinite untap of creatures you control",
+                "Infinite mana creatures you control can produce"
+              ],
+              "nonCardPrerequisiteCount": 1,
+              "rank": 3055,
+              "comboVote": {
+                "bracket": "any",
+                "voteCount": 16,
+                "earlyScore": 0.8125,
+                "prereqScore": 0.4375,
+                "resultScore": 0.625,
+                "controversial": true
+              }
+            },
+            "cardviews": [
+              {
+                "id": "3c9ac089-6962-48fd-bf67-f041ece27fa9",
+                "name": "Sanctum Weaver",
+                "sanitized": "sanctum-weaver"
+              },
+              {
+                "id": "a0ae8525-ce10-40bd-8980-a05fb81a0fac",
+                "name": "Seedcradle Witch",
+                "sanitized": "seedcradle-witch"
+              }
+            ]
+          },
+          {
+            "href": "/combos/selesnya/3807-4762",
+            "combo": {
+              "comboId": "3807-4762",
+              "count": 18976,
+              "results": ["Infinite green mana"],
+              "nonCardPrerequisiteCount": 1,
+              "rank": 220,
+              "comboVote": {
+                "bracket": "4-5",
+                "voteCount": 20,
+                "earlyScore": 1,
+                "prereqScore": 1,
+                "resultScore": 0.85,
+                "controversial": false
+              }
+            },
+            "cardviews": [
+              {
+                "id": "22589a81-3ea8-4e78-98c9-c015e7539cf9",
+                "name": "Devoted Druid",
+                "sanitized": "devoted-druid"
+              },
+              {
+                "id": "975dcfab-0281-4fee-92aa-021ea6c524c7",
+                "name": "Swift Reconfiguration",
+                "sanitized": "swift-reconfiguration"
+              }
+            ]
+          },
+          {
+            "href": "/combos/selesnya/1350-1355--85",
+            "combo": {
+              "comboId": "1350-1355--85",
+              "count": 1810,
+              "results": [
+                "Infinite creature LTB",
+                "Infinite creature ETB",
+                "Infinite colored mana",
+                "Infinite storm count"
+              ],
+              "nonCardPrerequisiteCount": 1,
+              "rank": 3021,
+              "comboVote": null
+            },
+            "cardviews": [
+              {
+                "id": "e811461a-6a90-416f-940c-c9579659ae0c",
+                "name": "Meticulous Excavation",
+                "sanitized": "meticulous-excavation"
+              },
+              {
+                "id": "3c9ac089-6962-48fd-bf67-f041ece27fa9",
+                "name": "Sanctum Weaver",
+                "sanitized": "sanctum-weaver"
+              }
+            ]
+          },
+          {
+            "href": "/combos/selesnya/432-1687",
+            "combo": {
+              "comboId": "432-1687",
+              "count": 4907,
+              "results": ["Infinite creature tokens", "Infinite creature ETB"],
+              "nonCardPrerequisiteCount": 0,
+              "rank": 1279,
+              "comboVote": {
+                "bracket": "4-5",
+                "voteCount": 16,
+                "earlyScore": 1,
+                "prereqScore": 1,
+                "resultScore": 0.8125,
+                "controversial": false
+              }
+            },
+            "cardviews": [
+              {
+                "id": "2b1d890f-7ef8-47b9-9ec8-f3884a1d09db",
+                "name": "Siona, Captain of the Pyleas",
+                "sanitized": "siona-captain-of-the-pyleas"
+              },
+              {
+                "id": "681149f2-0802-4ab7-9521-3b3c7281f55d",
+                "name": "Shielded by Faith",
+                "sanitized": "shielded-by-faith"
+              }
+            ]
+          },
+          {
+            "href": "/combos/mono-white/104-3693",
+            "combo": {
+              "comboId": "104-3693",
+              "count": 9558,
+              "results": ["Infinite damage", "Infinite lifegain", "Infinite lifegain triggers"],
+              "nonCardPrerequisiteCount": 1,
+              "rank": 572,
+              "comboVote": {
+                "bracket": "any",
+                "voteCount": 14,
+                "earlyScore": 0.9285714285714286,
+                "prereqScore": 0.14285714285714285,
+                "resultScore": 0.9285714285714286,
+                "controversial": false
+              }
+            },
+            "cardviews": [
+              {
+                "id": "47ce8b7e-d8e1-489a-a69e-99089eeb8739",
+                "name": "Cleric Class",
+                "sanitized": "cleric-class"
+              },
+              {
+                "id": "5272436e-74f0-44c4-a291-ea8ebc3f1525",
+                "name": "Walking Ballista",
+                "sanitized": "walking-ballista"
+              }
+            ]
+          },
+          {
+            "href": "/combos/mono-green/515-2757",
+            "combo": {
+              "comboId": "515-2757",
+              "count": 8538,
+              "results": ["Infinite creature ETB", "Infinite tapped creature tokens"],
+              "nonCardPrerequisiteCount": 1,
+              "rank": 648,
+              "comboVote": {
+                "bracket": "4-5",
+                "voteCount": 24,
+                "earlyScore": 0.9583333333333334,
+                "prereqScore": 0.9166666666666666,
+                "resultScore": 0.875,
+                "controversial": false
+              }
+            },
+            "cardviews": [
+              {
+                "id": "9dda7531-82a1-4f49-8858-601ddbc6e2bc",
+                "name": "Earthcraft",
+                "sanitized": "earthcraft"
+              },
+              {
+                "id": "6f2aa025-e041-4ed5-a046-9debc474fda0",
+                "name": "Squirrel Nest",
+                "sanitized": "squirrel-nest"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

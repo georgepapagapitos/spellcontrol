@@ -1,0 +1,136 @@
+{
+  "_source": "json.edhrec.com/pages/commanders/week.json, fetched 2026-10-31; trimmed to the fields the readers use",
+  "body": {
+    "container": {
+      "json_dict": {
+        "cardlists": [
+          {
+            "tag": "pastweek",
+            "cardviews": [
+              {
+                "id": "55cd03d9-2535-4cf3-a8b2-1418e1190f4a",
+                "name": "Jace, Multiverse Architect",
+                "sanitized": "jace-multiverse-architect",
+                "num_decks": 2986,
+                "potential_decks": 0,
+                "rank": 1
+              },
+              {
+                "id": "c7f2c2d5-e052-49e8-b5de-712858c2ea78",
+                "name": "Y'shtola, Night's Blessed",
+                "sanitized": "yshtola-nights-blessed",
+                "num_decks": 1976,
+                "potential_decks": 0,
+                "rank": 2
+              },
+              {
+                "id": "8ae6fc26-cfad-4da8-98d9-49c27c24d293",
+                "name": "Giada, Font of Hope",
+                "sanitized": "giada-font-of-hope",
+                "num_decks": 1658,
+                "potential_decks": 0,
+                "rank": 3
+              },
+              {
+                "id": "f3869752-eade-4e7a-8dd1-68cafb9e10be",
+                "name": "Vraska, Soul of Stone",
+                "sanitized": "vraska-soul-of-stone",
+                "num_decks": 1562,
+                "potential_decks": 0,
+                "rank": 4
+              },
+              {
+                "id": "6529d399-677e-45a6-ac3e-12a0b10f6c37",
+                "name": "Tam, the Possibility",
+                "sanitized": "tam-the-possibility",
+                "num_decks": 1318,
+                "potential_decks": 0,
+                "rank": 5
+              },
+              {
+                "id": "b5d1955a-9ff0-4f8b-9af8-341371957299",
+                "name": "Teval, the Balanced Scale",
+                "sanitized": "teval-the-balanced-scale",
+                "num_decks": 1270,
+                "potential_decks": 0,
+                "rank": 6
+              },
+              {
+                "id": "6b913e79-a9f6-44d4-bb37-c4f6f66b8151",
+                "name": "Hearthhull, the Worldseed",
+                "sanitized": "hearthhull-the-worldseed",
+                "num_decks": 1251,
+                "potential_decks": 0,
+                "rank": 7
+              },
+              {
+                "id": "ecc1027a-8c07-44a0-bdde-fa2844cff694",
+                "name": "Vivi Ornitier",
+                "sanitized": "vivi-ornitier",
+                "num_decks": 1216,
+                "potential_decks": 0,
+                "rank": 8
+              },
+              {
+                "id": "a577ba08-0aa8-45be-aa83-d5078770127c",
+                "name": "Edgar Markov",
+                "sanitized": "edgar-markov",
+                "num_decks": 1205,
+                "potential_decks": 0,
+                "rank": 9
+              },
+              {
+                "id": "034e0929-b2c7-4b5f-94f2-8eaf4fb1a2a1",
+                "name": "Sauron, the Dark Lord",
+                "sanitized": "sauron-the-dark-lord",
+                "num_decks": 1167,
+                "potential_decks": 0,
+                "rank": 10
+              },
+              {
+                "id": "2524645e-b066-4351-885b-10faa8d819d7",
+                "name": "Pantlaza, Sun-Favored",
+                "sanitized": "pantlaza-sun-favored",
+                "num_decks": 1081,
+                "potential_decks": 0,
+                "rank": 11
+              },
+              {
+                "id": "07b4e4f8-6a31-4533-be51-668ce3ddc84f",
+                "name": "Cloud, Ex-SOLDIER",
+                "sanitized": "cloud-ex-soldier",
+                "num_decks": 1066,
+                "potential_decks": 0,
+                "rank": 12
+              },
+              {
+                "id": "e71c8c39-3fbb-4a42-9cf6-b3224f5a56fc",
+                "name": "Kaalia of the Vast",
+                "sanitized": "kaalia-of-the-vast",
+                "num_decks": 1033,
+                "potential_decks": 0,
+                "rank": 13
+              },
+              {
+                "id": "2d6ff182-a853-4898-895b-072c89324ca7",
+                "name": "Kwia Vigorbloom",
+                "sanitized": "kwia-vigorbloom",
+                "num_decks": 1019,
+                "potential_decks": 0,
+                "rank": 14
+              },
+              {
+                "id": "10d42b35-844f-4a64-9981-c6118d45e826",
+                "name": "The Ur-Dragon",
+                "sanitized": "the-ur-dragon",
+                "num_decks": 1013,
+                "potential_decks": 0,
+                "rank": 15
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

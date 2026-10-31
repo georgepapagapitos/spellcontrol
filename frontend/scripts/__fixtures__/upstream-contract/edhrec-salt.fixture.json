@@ -1,0 +1,496 @@
+{
+  "_source": "json.edhrec.com/pages/top/salt.json, fetched 2026-10-31; trimmed to the fields the readers use",
+  "body": {
+    "container": {
+      "json_dict": {
+        "cardlists": [
+          {
+            "tag": "",
+            "cardviews": [
+              {
+                "id": "5902c2aa-c77c-4c6a-9a1e-77cb9bb53aa1",
+                "name": "Stasis",
+                "sanitized": "stasis",
+                "num_decks": 18395,
+                "potential_decks": 0,
+                "salt": 3.0530035335689045
+              },
+              {
+                "id": "77f1f6ac-983f-4f3e-8906-47f774e8367b",
+                "name": "Armageddon",
+                "sanitized": "armageddon",
+                "num_decks": 41231,
+                "potential_decks": 0,
+                "salt": 2.981967213114754
+              },
+              {
+                "id": "ab3cec7e-513e-400d-a1a8-2c71cdde02c6",
+                "name": "Winter Orb",
+                "sanitized": "winter-orb",
+                "num_decks": 48873,
+                "potential_decks": 0,
+                "salt": 2.927487352445194
+              },
+              {
+                "id": "64bc9b1d-5818-4d9e-b771-e49af4ff9a5c",
+                "name": "The Tabernacle at Pendrell Vale",
+                "sanitized": "the-tabernacle-at-pendrell-vale",
+                "num_decks": 15492,
+                "potential_decks": 0,
+                "salt": 2.830357142857143
+              },
+              {
+                "id": "9f37c5b6-a59c-45cd-9a99-e9357fe9ea1b",
+                "name": "Rhystic Study",
+                "sanitized": "rhystic-study",
+                "num_decks": 1129323,
+                "potential_decks": 0,
+                "salt": 2.816666666666667
+              },
+              {
+                "id": "14dc88ee-bba9-4625-af0d-89f3762a0ead",
+                "name": "Tergrid, God of Fright",
+                "sanitized": "tergrid-god-of-fright",
+                "num_decks": 91302,
+                "potential_decks": 0,
+                "salt": 2.8130193905817173
+              },
+              {
+                "id": "f43748ea-1d65-4ee8-9c66-221412a284c0",
+                "name": "Grand Arbiter Augustin IV",
+                "sanitized": "grand-arbiter-augustin-iv",
+                "num_decks": 78276,
+                "potential_decks": 0,
+                "salt": 2.758526603001364
+              },
+              {
+                "id": "ecc1027a-8c07-44a0-bdde-fa2844cff694",
+                "name": "Vivi Ornitier",
+                "sanitized": "vivi-ornitier",
+                "num_decks": 104675,
+                "potential_decks": 0,
+                "salt": 2.710261569416499
+              },
+              {
+                "id": "86bf43b1-8d4e-4759-bb2d-0b2e03ba7012",
+                "name": "Static Orb",
+                "sanitized": "static-orb",
+                "num_decks": 27368,
+                "potential_decks": 0,
+                "salt": 2.706422018348624
+              },
+              {
+                "id": "11dca9ba-b27f-4af8-9962-3794e743886f",
+                "name": "Ravages of War",
+                "sanitized": "ravages-of-war",
+                "num_decks": 9529,
+                "potential_decks": 0,
+                "salt": 2.632758620689655
+              },
+              {
+                "id": "861b5889-0183-4bee-afeb-a4b2aa700a8e",
+                "name": "Smothering Tithe",
+                "sanitized": "smothering-tithe",
+                "num_decks": 958964,
+                "potential_decks": 0,
+                "salt": 2.6236024844720496
+              },
+              {
+                "id": "3bf0d325-5928-4593-8faa-64ffa414cb48",
+                "name": "Jokulhaups",
+                "sanitized": "jokulhaups",
+                "num_decks": 9904,
+                "potential_decks": 0,
+                "salt": 2.5924528301886793
+              },
+              {
+                "id": "c85f9623-5900-473c-a3b1-f98473b9a545",
+                "name": "Obliterate",
+                "sanitized": "obliterate",
+                "num_decks": 13468,
+                "potential_decks": 0,
+                "salt": 2.5836120401337794
+              },
+              {
+                "id": "9fe3af8c-109d-486c-aa34-3f023abda5b7",
+                "name": "Vorinclex, Voice of Hunger",
+                "sanitized": "vorinclex-voice-of-hunger",
+                "num_decks": 93614,
+                "potential_decks": 0,
+                "salt": 2.554666666666667
+              },
+              {
+                "id": "cd9dd7c6-36b6-4fe2-b3d3-f62a6e10a428",
+                "name": "Sunder",
+                "sanitized": "sunder",
+                "num_decks": 7487,
+                "potential_decks": 0,
+                "salt": 2.5174708818635607
+              },
+              {
+                "id": "726e8b29-13e9-4138-b6a9-d2a0d8188d1c",
+                "name": "Thassa's Oracle",
+                "sanitized": "thassas-oracle",
+                "num_decks": 284677,
+                "potential_decks": 0,
+                "salt": 2.5042372881355934
+              },
+              {
+                "id": "14a360b6-c7b4-4b25-8288-b3bb8d527bda",
+                "name": "Jin-Gitaxias, Core Augur",
+                "sanitized": "jin-gitaxias-core-augur",
+                "num_decks": 96701,
+                "potential_decks": 0,
+                "salt": 2.5027397260273974
+              },
+              {
+                "id": "a2fb7128-806b-4148-80fe-eb967f248021",
+                "name": "Humility",
+                "sanitized": "humility",
+                "num_decks": 9615,
+                "potential_decks": 0,
+                "salt": 2.4803418803418804
+              },
+              {
+                "id": "98b0a4a8-9319-451b-9b79-b0bca7a41e91",
+                "name": "Drannith Magistrate",
+                "sanitized": "drannith-magistrate",
+                "num_decks": 189876,
+                "potential_decks": 0,
+                "salt": 2.4741463414634146
+              },
+              {
+                "id": "d5806e68-1054-458e-866d-1f2470f682b2",
+                "name": "The One Ring",
+                "sanitized": "the-one-ring",
+                "num_decks": 816146,
+                "potential_decks": 0,
+                "salt": 2.4455032757593806
+              },
+              {
+                "id": "71cce019-162c-4969-89ac-1cf94148a032",
+                "name": "Devastation",
+                "sanitized": "devastation",
+                "num_decks": 3546,
+                "potential_decks": 0,
+                "salt": 2.4402985074626864
+              },
+              {
+                "id": "73744717-518c-478e-9da9-201c49124f37",
+                "name": "Decree of Annihilation",
+                "sanitized": "decree-of-annihilation",
+                "num_decks": 8879,
+                "potential_decks": 0,
+                "salt": 2.3892405063291138
+              },
+              {
+                "id": "086f97e9-8b62-44f3-b467-149c2ac5ca78",
+                "name": "Opposition Agent",
+                "sanitized": "opposition-agent",
+                "num_decks": 232555,
+                "potential_decks": 0,
+                "salt": 2.3884615384615384
+              },
+              {
+                "id": "2ef3d4b5-0453-4bf0-b018-23b0c3b9ae11",
+                "name": "Worldfire",
+                "sanitized": "worldfire",
+                "num_decks": 17044,
+                "potential_decks": 0,
+                "salt": 2.378330373001776
+              },
+              {
+                "id": "dfb7c4b9-f2f4-4d4e-baf2-86551c8150fe",
+                "name": "Cyclonic Rift",
+                "sanitized": "cyclonic-rift",
+                "num_decks": 1025789,
+                "potential_decks": 0,
+                "salt": 2.35279655808236
+              },
+              {
+                "id": "84e64f38-b1f3-47cd-8cfb-a4861369aca3",
+                "name": "Toxrill, the Corrosive",
+                "sanitized": "toxrill-the-corrosive",
+                "num_decks": 64222,
+                "potential_decks": 0,
+                "salt": 2.325
+              },
+              {
+                "id": "f76bc2da-8f4b-4153-8a7b-c601b19affaf",
+                "name": "Winter Moon",
+                "sanitized": "winter-moon",
+                "num_decks": 56906,
+                "potential_decks": 0,
+                "salt": 2.3248407643312103
+              },
+              {
+                "id": "114d2180-093b-4838-97ad-badbc8ee50b0",
+                "name": "Farewell",
+                "sanitized": "farewell",
+                "num_decks": 527042,
+                "potential_decks": 0,
+                "salt": 2.3236024844720498
+              },
+              {
+                "id": "5a03f5d5-d5c3-4a7d-8d44-e60b498b4ed5",
+                "name": "Hokori, Dust Drinker",
+                "sanitized": "hokori-dust-drinker",
+                "num_decks": 5554,
+                "potential_decks": 0,
+                "salt": 2.3185689948892674
+              },
+              {
+                "id": "ec9c84db-cf45-43e1-b38f-8bbf53cf088b",
+                "name": "Rising Waters",
+                "sanitized": "rising-waters",
+                "num_decks": 3416,
+                "potential_decks": 0,
+                "salt": 2.3107861060329067
+              },
+              {
+                "id": "f7f3dd95-bd14-4e0f-a388-444f9cf1b0dc",
+                "name": "Fierce Guardianship",
+                "sanitized": "fierce-guardianship",
+                "num_decks": 876461,
+                "potential_decks": 0,
+                "salt": 2.2891052951917223
+              },
+              {
+                "id": "7ff23780-d183-4cca-ad0c-448ef325bf36",
+                "name": "Apocalypse",
+                "sanitized": "apocalypse",
+                "num_decks": 3333,
+                "potential_decks": 0,
+                "salt": 2.2857142857142856
+              },
+              {
+                "id": "d67be074-cdd4-41d9-ac89-0a0456c4e4b2",
+                "name": "Sheoldred, the Apocalypse",
+                "sanitized": "sheoldred-the-apocalypse",
+                "num_decks": 271618,
+                "potential_decks": 0,
+                "salt": 2.2804583835946923
+              },
+              {
+                "id": "d072e9ca-aae7-45dc-8025-3ce590bae63f",
+                "name": "Blood Moon",
+                "sanitized": "blood-moon",
+                "num_decks": 106198,
+                "potential_decks": 0,
+                "salt": 2.238031914893617
+              },
+              {
+                "id": "25b0b816-0583-44aa-9dc5-f3ff48993a51",
+                "name": "Gaea's Cradle",
+                "sanitized": "gaeas-cradle",
+                "num_decks": 290001,
+                "potential_decks": 0,
+                "salt": 2.2337992376111817
+              },
+              {
+                "id": "7b7a348a-51f7-4dc5-8fe7-1c70fea5e050",
+                "name": "Urza, Lord High Artificer",
+                "sanitized": "urza-lord-high-artificer",
+                "num_decks": 163999,
+                "potential_decks": 0,
+                "salt": 2.231132075471698
+              },
+              {
+                "id": "3a22892e-abf9-4353-82b8-1d1fc2bd9b26",
+                "name": "Smokestack",
+                "sanitized": "smokestack",
+                "num_decks": 15923,
+                "potential_decks": 0,
+                "salt": 2.218543046357616
+              },
+              {
+                "id": "9c8a2a5a-cb9b-4582-a453-085da78584f9",
+                "name": "Expropriate",
+                "sanitized": "expropriate",
+                "num_decks": 66786,
+                "potential_decks": 0,
+                "salt": 2.214681440443213
+              },
+              {
+                "id": "c57b4876-5387-4f73-b8e2-8e7bdca8b0bc",
+                "name": "Jin-Gitaxias, Progress Tyrant",
+                "sanitized": "jin-gitaxias-progress-tyrant",
+                "num_decks": 93858,
+                "potential_decks": 0,
+                "salt": 2.209395973154362
+              },
+              {
+                "id": "2e72f8cb-5bc3-4711-9b7c-a6eea9a0beaf",
+                "name": "Nether Void",
+                "sanitized": "nether-void",
+                "num_decks": 4398,
+                "potential_decks": 0,
+                "salt": 2.181651376146789
+              },
+              {
+                "id": "9de0ee5d-10f6-4152-8416-1f2b749b439d",
+                "name": "Tectonic Break",
+                "sanitized": "tectonic-break",
+                "num_decks": 4149,
+                "potential_decks": 0,
+                "salt": 2.1708126036484248
+              },
+              {
+                "id": "0600d6c2-0f72-4e79-a55d-1f06dffa48c2",
+                "name": "Back to Basics",
+                "sanitized": "back-to-basics",
+                "num_decks": 29397,
+                "potential_decks": 0,
+                "salt": 2.1620689655172414
+              },
+              {
+                "id": "89f612d6-7c59-4a7b-a87d-45f789e88ba5",
+                "name": "Force of Will",
+                "sanitized": "force-of-will",
+                "num_decks": 485688,
+                "potential_decks": 0,
+                "salt": 2.1529338327091136
+              },
+              {
+                "id": "27691efa-052d-4afe-b9ef-159858ca660f",
+                "name": "Braids, Cabal Minion",
+                "sanitized": "braids-cabal-minion",
+                "num_decks": 33341,
+                "potential_decks": 0,
+                "salt": 2.1476014760147604
+              },
+              {
+                "id": "f675f509-4343-4568-96dd-265626cb6c2b",
+                "name": "Notion Thief",
+                "sanitized": "notion-thief",
+                "num_decks": 132411,
+                "potential_decks": 0,
+                "salt": 2.137295081967213
+              },
+              {
+                "id": "a577ba08-0aa8-45be-aa83-d5078770127c",
+                "name": "Edgar Markov",
+                "sanitized": "edgar-markov",
+                "num_decks": 1003,
+                "potential_decks": 0,
+                "salt": 2.113003095975232
+              },
+              {
+                "id": "336474b4-2cf5-44c0-b72c-f75f1a7ed928",
+                "name": "Global Ruin",
+                "sanitized": "global-ruin",
+                "num_decks": 1476,
+                "potential_decks": 0,
+                "salt": 2.1116928446771377
+              },
+              {
+                "id": "6330d925-96a8-47e1-855d-035ddc2af709",
+                "name": "Ruination",
+                "sanitized": "ruination",
+                "num_decks": 16396,
+                "potential_decks": 0,
+                "salt": 2.1114982578397212
+              },
+              {
+                "id": "e36a7eff-89c8-4799-b264-38892912ba05",
+                "name": "Mana Breach",
+                "sanitized": "mana-breach",
+                "num_decks": 11259,
+                "potential_decks": 0,
+                "salt": 2.108455882352941
+              },
+              {
+                "id": "fe9be3e0-076c-4703-9750-2a6b0a178bc9",
+                "name": "Yuriko, the Tiger's Shadow",
+                "sanitized": "yuriko-the-tigers-shadow",
+                "num_decks": 34029,
+                "potential_decks": 0,
+                "salt": 2.102384291725105
+              },
+              {
+                "id": "a60e8f23-90b2-4bc6-bd54-a95055556389",
+                "name": "The Legend of Yangchen",
+                "sanitized": "the-legend-of-yangchen",
+                "num_decks": 39886,
+                "potential_decks": 0,
+                "salt": 2.0917721518987342
+              },
+              {
+                "id": "7c024bae-5631-4e20-ac69-df392ac9e109",
+                "name": "Orcish Bowmasters",
+                "sanitized": "orcish-bowmasters",
+                "num_decks": 413394,
+                "potential_decks": 0,
+                "salt": 2.089894606323621
+              },
+              {
+                "id": "13ac5292-9817-4f5d-b3fa-611f9ba44443",
+                "name": "Sen Triplets",
+                "sanitized": "sen-triplets",
+                "num_decks": 5718,
+                "potential_decks": 0,
+                "salt": 2.0764818355640537
+              },
+              {
+                "id": "3a14d6c5-cfd1-4860-834a-5a0dc9df0320",
+                "name": "Deadpool, Trading Card",
+                "sanitized": "deadpool-trading-card",
+                "num_decks": 45667,
+                "potential_decks": 0,
+                "salt": 2.061493411420205
+              },
+              {
+                "id": "4e6e5c63-b6e5-4756-bf23-6c6f8669442d",
+                "name": "Narset, Parter of Veils",
+                "sanitized": "narset-parter-of-veils",
+                "num_decks": 158491,
+                "potential_decks": 0,
+                "salt": 2.056695992179863
+              },
+              {
+                "id": "3d23f800-7a6f-40e3-b242-9f5955e47a75",
+                "name": "Glacial Chasm",
+                "sanitized": "glacial-chasm",
+                "num_decks": 74361,
+                "potential_decks": 0,
+                "salt": 2.0389294403892944
+              },
+              {
+                "id": "a6222cc6-996e-4b73-af87-e837bf1eb921",
+                "name": "Aura Shards",
+                "sanitized": "aura-shards",
+                "num_decks": 149758,
+                "potential_decks": 0,
+                "salt": 2.038038038038038
+              },
+              {
+                "id": "3c429c40-2389-41e5-8681-4bb274e25eba",
+                "name": "Mana Drain",
+                "sanitized": "mana-drain",
+                "num_decks": 731033,
+                "potential_decks": 0,
+                "salt": 2.0251688152240637
+              },
+              {
+                "id": "63cda4a0-0dff-4edb-ae67-a2b7e2971350",
+                "name": "Kinnan, Bonder Prodigy",
+                "sanitized": "kinnan-bonder-prodigy",
+                "num_decks": 96913,
+                "potential_decks": 0,
+                "salt": 2.0240847784200384
+              },
+              {
+                "id": "00d03b17-75ae-40d2-8570-b219ef0dfd4a",
+                "name": "Mindslaver",
+                "sanitized": "mindslaver",
+                "num_decks": 35801,
+                "potential_decks": 0,
+                "salt": 2.0155709342560555
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,121 @@
+{
+  "_source": "json.edhrec.com/pages/top/week.json, fetched 2026-10-31; trimmed to the fields the readers use",
+  "body": {
+    "container": {
+      "json_dict": {
+        "cardlists": [
+          {
+            "tag": "pastweek",
+            "cardviews": [
+              {
+                "id": "fc817e07-c1f3-469f-9cf7-0945dea7400f",
+                "name": "Sol Ring",
+                "sanitized": "sol-ring",
+                "num_decks": 230833,
+                "potential_decks": 275261
+              },
+              {
+                "id": "795df2ee-fbfc-4961-852c-e3ec50cc52da",
+                "name": "Arcane Signet",
+                "sanitized": "arcane-signet",
+                "num_decks": 193741,
+                "potential_decks": 275261
+              },
+              {
+                "id": "4645eebf-c9fc-4ee7-b646-61dc1205b4b0",
+                "name": "Swords to Plowshares",
+                "sanitized": "swords-to-plowshares",
+                "num_decks": 83232,
+                "potential_decks": 132550
+              },
+              {
+                "id": "cba7cf86-a9e7-4022-bb46-d9b0f136f3ca",
+                "name": "Path to Exile",
+                "sanitized": "path-to-exile",
+                "num_decks": 65577,
+                "potential_decks": 132550
+              },
+              {
+                "id": "4f616706-ec97-4923-bb1e-11a69fbaa1f8",
+                "name": "Counterspell",
+                "sanitized": "counterspell",
+                "num_decks": 55725,
+                "potential_decks": 135670
+              },
+              {
+                "id": "4cfcaacc-216d-4872-8a7a-27eace8039ed",
+                "name": "Talisman of Dominance",
+                "sanitized": "talisman-of-dominance",
+                "num_decks": 25472,
+                "potential_decks": 69831
+              },
+              {
+                "id": "a78f5d3f-74d6-4ec1-89c4-e24639d3f4ba",
+                "name": "Cultivate",
+                "sanitized": "cultivate",
+                "num_decks": 41863,
+                "potential_decks": 120872
+              },
+              {
+                "id": "aaf258fc-3ba4-4b83-bdbf-10a07e0b6c03",
+                "name": "Assassin's Trophy",
+                "sanitized": "assassins-trophy",
+                "num_decks": 19121,
+                "potential_decks": 55814
+              },
+              {
+                "id": "7d4b1d44-126e-4987-9a9f-f0f9627a09cb",
+                "name": "Blasphemous Act",
+                "sanitized": "blasphemous-act",
+                "num_decks": 46373,
+                "potential_decks": 136658
+              },
+              {
+                "id": "dde15e36-ad2d-4438-9b51-78a04bc80779",
+                "name": "Farseek",
+                "sanitized": "farseek",
+                "num_decks": 40225,
+                "potential_decks": 120872
+              },
+              {
+                "id": "492c2f9a-51e7-4e0f-9899-23bf43ea988b",
+                "name": "Birds of Paradise",
+                "sanitized": "birds-of-paradise",
+                "num_decks": 39594,
+                "potential_decks": 120872
+              },
+              {
+                "id": "7e8c867f-172f-4c17-9ca6-6b4aa853f525",
+                "name": "Talisman of Indulgence",
+                "sanitized": "talisman-of-indulgence",
+                "num_decks": 21077,
+                "potential_decks": 65820
+              },
+              {
+                "id": "201a1c88-4faa-4fb2-86e8-706c2745b942",
+                "name": "Talisman of Creativity",
+                "sanitized": "talisman-of-creativity",
+                "num_decks": 21396,
+                "potential_decks": 66863
+              },
+              {
+                "id": "2ed6abbe-3ec0-48a9-94ad-e62660a63de0",
+                "name": "Heroic Intervention",
+                "sanitized": "heroic-intervention",
+                "num_decks": 38609,
+                "potential_decks": 120872
+              },
+              {
+                "id": "5fd601c4-44a9-45d0-a2a4-03a2eca700c7",
+                "name": "Talisman of Progress",
+                "sanitized": "talisman-of-progress",
+                "num_decks": 21730,
+                "potential_decks": 68297
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "_source": "api.scryfall.com/cards/search?q=otag:ramp (data omitted), fetched 2026-10-31; trimmed to the fields the readers use",
+  "body": {
+    "object": "list",
+    "total_cards": 2326,
+    "has_more": true
+  }
+}

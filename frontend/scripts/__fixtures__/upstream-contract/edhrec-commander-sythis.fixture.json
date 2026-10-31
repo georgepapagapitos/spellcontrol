@@ -1,0 +1,1098 @@
+{
+  "_source": "json.edhrec.com/pages/commanders/sythis-harvests-hand.json, fetched 2026-10-31; trimmed to the fields the readers use",
+  "body": {
+    "container": {
+      "json_dict": {
+        "card": {
+          "name": "Sythis, Harvest's Hand",
+          "num_decks": 14330
+        },
+        "cardlists": [
+          {
+            "tag": "newcards",
+            "cardviews": [
+              {
+                "id": "ff0bc30f-9d20-458e-808f-bdc2825905a5",
+                "name": "Pia, Aether Ascetic",
+                "sanitized": "pia-aether-ascetic",
+                "synergy": 0.14240163122883293,
+                "lift": 4.2239469611184255,
+                "num_decks": 314,
+                "potential_decks": 1683
+              },
+              {
+                "id": "2d6ff182-a853-4898-895b-072c89324ca7",
+                "name": "Kwia Vigorbloom",
+                "sanitized": "kwia-vigorbloom",
+                "synergy": -0.014650164592268138,
+                "lift": 0.6793067886960867,
+                "num_decks": 58,
+                "potential_decks": 1869
+              },
+              {
+                "id": "2b198e10-b507-4314-a29c-a219f06e48b7",
+                "name": "Vigorbloom Charm",
+                "sanitized": "vigorbloom-charm",
+                "synergy": -0.10669426465346069,
+                "lift": 0.12477914105903098,
+                "num_decks": 27,
+                "potential_decks": 1775
+              },
+              {
+                "id": "eaf9dc77-c83b-49cf-84be-6bd791cb925e",
+                "name": "Omnipresence",
+                "sanitized": "omnipresence",
+                "synergy": 0.003303840531243425,
+                "lift": 1.327028125017156,
+                "num_decks": 22,
+                "potential_decks": 1641
+              },
+              {
+                "id": "6b8789a6-3b63-4198-af5f-c2f2f49fafd9",
+                "name": "Puppet Crafting",
+                "sanitized": "puppet-crafting",
+                "synergy": 0.010367398730917805,
+                "lift": 6.695460085313833,
+                "num_decks": 20,
+                "potential_decks": 1641
+              }
+            ]
+          },
+          {
+            "tag": "topcards",
+            "cardviews": [
+              {
+                "id": "3c9ac089-6962-48fd-bf67-f041ece27fa9",
+                "name": "Sanctum Weaver",
+                "sanitized": "sanctum-weaver",
+                "synergy": 0.7584552660725473,
+                "lift": 6.584166225768871,
+                "num_decks": 12815,
+                "potential_decks": 14330
+              },
+              {
+                "id": "3f50538b-f866-4e75-8856-2ad8af635011",
+                "name": "Enchantress's Presence",
+                "sanitized": "enchantresss-presence",
+                "synergy": 0.7548482871899185,
+                "lift": 7.34045926249981,
+                "num_decks": 12523,
+                "potential_decks": 14330
+              },
+              {
+                "id": "2cc3804b-3304-4add-81b4-0482bfed8074",
+                "name": "Destiny Spinner",
+                "sanitized": "destiny-spinner",
+                "synergy": 0.6805712115308887,
+                "lift": 6.755725790904228,
+                "num_decks": 11447,
+                "potential_decks": 14330
+              },
+              {
+                "id": "ba03e105-a76c-4769-a35a-d780448890ec",
+                "name": "Sterling Grove",
+                "sanitized": "sterling-grove",
+                "synergy": 0.6848865801831959,
+                "lift": 7.687510108727403,
+                "num_decks": 11282,
+                "potential_decks": 14330
+              },
+              {
+                "id": "07ff517f-5c31-46e9-9efb-52bc9ec9298d",
+                "name": "Jukai Naturalist",
+                "sanitized": "jukai-naturalist",
+                "synergy": 0.6603174896321719,
+                "lift": 6.785068605933593,
+                "num_decks": 11098,
+                "potential_decks": 14330
+              },
+              {
+                "id": "47260e7c-29bf-46f1-a029-9da7bbb418b5",
+                "name": "Wild Growth",
+                "sanitized": "wild-growth",
+                "synergy": 0.5806656632985435,
+                "lift": 4.093215661683569,
+                "num_decks": 11011,
+                "potential_decks": 14330
+              },
+              {
+                "id": "5ea568df-04a1-4012-98ec-ba75e189e0ca",
+                "name": "Utopia Sprawl",
+                "sanitized": "utopia-sprawl",
+                "synergy": 0.580628452925479,
+                "lift": 4.4217903186070995,
+                "num_decks": 10752,
+                "potential_decks": 14330
+              },
+              {
+                "id": "7680a8e1-cd59-43c5-8f06-426b918692c8",
+                "name": "Setessan Champion",
+                "sanitized": "setessan-champion",
+                "synergy": 0.6145328614995584,
+                "lift": 6.245740511035405,
+                "num_decks": 10485,
+                "potential_decks": 14330
+              },
+              {
+                "id": "f882aa63-d43c-4359-9de6-77231500a08e",
+                "name": "Eidolon of Blossoms",
+                "sanitized": "eidolon-of-blossoms",
+                "synergy": 0.5972959374958609,
+                "lift": 6.229421039152369,
+                "num_decks": 10196,
+                "potential_decks": 14330
+              },
+              {
+                "id": "6875be24-1515-488f-a899-929c8e480dfd",
+                "name": "Sigil of the Empty Throne",
+                "sanitized": "sigil-of-the-empty-throne",
+                "synergy": 0.6094841953444056,
+                "lift": 10.125468876563023,
+                "num_decks": 9691,
+                "potential_decks": 14330
+              }
+            ]
+          },
+          {
+            "tag": "highliftcards",
+            "cardviews": [
+              {
+                "id": "10566804-fd15-4ef0-ad7d-cc979f4cc8c5",
+                "name": "Whip Silk",
+                "sanitized": "whip-silk",
+                "synergy": 0.29979842343574004,
+                "lift": 18.760702848229545,
+                "num_decks": 4538,
+                "potential_decks": 14330
+              },
+              {
+                "id": "03a40bf7-5eb9-4b36-9388-48b482a6fcf2",
+                "name": "Mana Bloom",
+                "sanitized": "mana-bloom",
+                "synergy": 0.052807859499352794,
+                "lift": 15.761740728624767,
+                "num_decks": 808,
+                "potential_decks": 14330
+              },
+              {
+                "id": "b942e6ca-fd5a-4462-9413-c82483601b61",
+                "name": "Celestial Ancient",
+                "sanitized": "celestial-ancient",
+                "synergy": 0.11666074335002925,
+                "lift": 14.902095090440136,
+                "num_decks": 1792,
+                "potential_decks": 14330
+              },
+              {
+                "id": "23fcd6a8-be83-4304-ae32-d3dfc855f596",
+                "name": "Flickering Ward",
+                "sanitized": "flickering-ward",
+                "synergy": 0.3550217167453954,
+                "lift": 14.841970464807504,
+                "num_decks": 5455,
+                "potential_decks": 14330
+              },
+              {
+                "id": "fd5592ab-6883-4c5a-8d50-d9530d905b19",
+                "name": "Seal of Primordium",
+                "sanitized": "seal-of-primordium",
+                "synergy": 0.36872208417901337,
+                "lift": 14.752251690488162,
+                "num_decks": 5668,
+                "potential_decks": 14330
+              },
+              {
+                "id": "22a6673b-1528-4e0f-b316-bd482c7ed8aa",
+                "name": "Seal of Cleansing",
+                "sanitized": "seal-of-cleansing",
+                "synergy": 0.4114463776496227,
+                "lift": 14.340229256443711,
+                "num_decks": 6338,
+                "potential_decks": 14330
+              },
+              {
+                "id": "b9031a7f-8821-443c-9c9d-552fb25b2101",
+                "name": "Solitary Confinement",
+                "sanitized": "solitary-confinement",
+                "synergy": 0.30795004109631724,
+                "lift": 13.358504037537154,
+                "num_decks": 4770,
+                "potential_decks": 14330
+              },
+              {
+                "id": "18f3a850-b2e1-4970-9971-5f662fb3df31",
+                "name": "Soul Snare",
+                "sanitized": "soul-snare",
+                "synergy": 0.11424418720505955,
+                "lift": 12.8734387535853,
+                "num_decks": 1775,
+                "potential_decks": 14330
+              },
+              {
+                "id": "e811461a-6a90-416f-940c-c9579659ae0c",
+                "name": "Meticulous Excavation",
+                "sanitized": "meticulous-excavation",
+                "synergy": 0.08546467839124372,
+                "lift": 12.856860328725631,
+                "num_decks": 1328,
+                "potential_decks": 14330
+              },
+              {
+                "id": "9d298847-2d02-4593-b4d3-c5b722edac1e",
+                "name": "Seam Rip",
+                "sanitized": "seam-rip",
+                "synergy": 0.057638265026296036,
+                "lift": 12.794913937376531,
+                "num_decks": 626,
+                "potential_decks": 10012
+              }
+            ]
+          },
+          {
+            "tag": "creatures",
+            "cardviews": [
+              {
+                "id": "c4f9e9fc-8b89-40ee-9b20-10e4a23e6333",
+                "name": "Mesa Enchantress",
+                "sanitized": "mesa-enchantress",
+                "synergy": 0.5768086155024956,
+                "lift": 7.778845958767535,
+                "num_decks": 9485,
+                "potential_decks": 14330
+              },
+              {
+                "id": "df83d28d-bb0b-4f3d-a16f-8ee8bf452e10",
+                "name": "Satyr Enchanter",
+                "sanitized": "satyr-enchanter",
+                "synergy": 0.535073115159617,
+                "lift": 7.999800915052382,
+                "num_decks": 8763,
+                "potential_decks": 14330
+              },
+              {
+                "id": "0d3af89d-d22c-45e8-9fec-170ac9bb0a34",
+                "name": "Archon of Sun's Grace",
+                "sanitized": "archon-of-suns-grace",
+                "synergy": 0.4902267008773072,
+                "lift": 7.444603231996939,
+                "num_decks": 8115,
+                "potential_decks": 14330
+              },
+              {
+                "id": "a360af3e-626d-46c9-99cf-6c85921f5d26",
+                "name": "Herald of the Pantheon",
+                "sanitized": "herald-of-the-pantheon",
+                "synergy": 0.4729844264734561,
+                "lift": 9.077224312783411,
+                "num_decks": 7617,
+                "potential_decks": 14330
+              },
+              {
+                "id": "722a73a1-9497-4d8d-850c-ec6c6ab1b8d3",
+                "name": "Verduran Enchantress",
+                "sanitized": "verduran-enchantress",
+                "synergy": 0.469857148410652,
+                "lift": 9.151918247670999,
+                "num_decks": 7559,
+                "potential_decks": 14330
+              },
+              {
+                "id": "36c8c075-9597-412e-9fc4-9d73b4405d12",
+                "name": "Alseid of Life's Bounty",
+                "sanitized": "alseid-of-lifes-bounty",
+                "synergy": 0.45842523035878335,
+                "lift": 10.607423062430446,
+                "num_decks": 7253,
+                "potential_decks": 14330
+              },
+              {
+                "id": "43be1363-7e73-4862-b45f-07f490ab46be",
+                "name": "Dryad of the Ilysian Grove",
+                "sanitized": "dryad-of-the-ilysian-grove",
+                "synergy": 0.4002070230515233,
+                "lift": 9.458236690751344,
+                "num_decks": 6413,
+                "potential_decks": 14330
+              },
+              {
+                "id": "b99ff81f-08d9-4b4a-a879-de5e5e402802",
+                "name": "Argothian Enchantress",
+                "sanitized": "argothian-enchantress",
+                "synergy": 0.3846618999038056,
+                "lift": 10.811773470775336,
+                "num_decks": 6074,
+                "potential_decks": 14330
+              },
+              {
+                "id": "3245ff74-1f9c-4518-a23f-1579f338f232",
+                "name": "Heliod, Sun-Crowned",
+                "sanitized": "heliod-sun-crowned",
+                "synergy": 0.34146495091569146,
+                "lift": 5.21533612266968,
+                "num_decks": 6054,
+                "potential_decks": 14330
+              },
+              {
+                "id": "e8f2fcb4-8d06-49ac-9c70-9c54d77c6d86",
+                "name": "Starfield Mystic",
+                "sanitized": "starfield-mystic",
+                "synergy": 0.3517133007539402,
+                "lift": 6.606608342263982,
+                "num_decks": 5939,
+                "potential_decks": 14330
+              },
+              {
+                "id": "0a707ab3-b9b5-422a-8b0f-e963d3ad6606",
+                "name": "Calix, Guided by Fate",
+                "sanitized": "calix-guided-by-fate",
+                "synergy": 0.27273034749363484,
+                "lift": 5.78495312460712,
+                "num_decks": 4725,
+                "potential_decks": 14330
+              },
+              {
+                "id": "d1682673-e947-44e2-b9c9-cbcb9a16892b",
+                "name": "Weaver of Harmony",
+                "sanitized": "weaver-of-harmony",
+                "synergy": 0.2818195403625875,
+                "lift": 7.040863174085298,
+                "num_decks": 4707,
+                "potential_decks": 14330
+              }
+            ]
+          },
+          {
+            "tag": "instants",
+            "cardviews": [
+              {
+                "id": "4645eebf-c9fc-4ee7-b646-61dc1205b4b0",
+                "name": "Swords to Plowshares",
+                "sanitized": "swords-to-plowshares",
+                "synergy": 0.0003987231172434269,
+                "lift": 1.0006091830538835,
+                "num_decks": 9385,
+                "potential_decks": 14330
+              },
+              {
+                "id": "cba7cf86-a9e7-4022-bb46-d9b0f136f3ca",
+                "name": "Path to Exile",
+                "sanitized": "path-to-exile",
+                "synergy": -0.07447891419444136,
+                "lift": 0.8643563199170372,
+                "num_decks": 6801,
+                "potential_decks": 14330
+              },
+              {
+                "id": "1c9675fb-1a89-420f-aea8-50e0642f549c",
+                "name": "Enlightened Tutor",
+                "sanitized": "enlightened-tutor",
+                "synergy": 0.26664627851750544,
+                "lift": 2.9767835269625085,
+                "num_decks": 5754,
+                "potential_decks": 14330
+              },
+              {
+                "id": "2ed6abbe-3ec0-48a9-94ad-e62660a63de0",
+                "name": "Heroic Intervention",
+                "sanitized": "heroic-intervention",
+                "synergy": 0.007789177780484491,
+                "lift": 1.0210626327600645,
+                "num_decks": 5411,
+                "potential_decks": 14330
+              },
+              {
+                "id": "ea751fe2-b64a-4265-8885-a9016b29b5b3",
+                "name": "Eladamri's Call",
+                "sanitized": "eladamris-call",
+                "synergy": 0.09928577311289519,
+                "lift": 1.6761436891472419,
+                "num_decks": 3527,
+                "potential_decks": 14330
+              },
+              {
+                "id": "1929cf4b-0d18-4f7d-a631-621a378ff015",
+                "name": "Beast Within",
+                "sanitized": "beast-within",
+                "synergy": -0.12536970091309674,
+                "lift": 0.6558039358818045,
+                "num_decks": 3423,
+                "potential_decks": 14330
+              },
+              {
+                "id": "483fa1cb-1e35-44f2-a143-98c0f107f5ca",
+                "name": "Teferi's Protection",
+                "sanitized": "teferis-protection",
+                "synergy": 0.057189618760758315,
+                "lift": 1.350754029648464,
+                "num_decks": 3156,
+                "potential_decks": 14330
+              },
+              {
+                "id": "c3f9b454-97e9-4c77-b37a-e974221ae385",
+                "name": "Generous Gift",
+                "sanitized": "generous-gift",
+                "synergy": -0.09409779135076834,
+                "lift": 0.6902616949680261,
+                "num_decks": 3005,
+                "potential_decks": 14330
+              },
+              {
+                "id": "f39aa2e9-e294-4ce6-bf5e-e1f579101a7a",
+                "name": "Worldly Tutor",
+                "sanitized": "worldly-tutor",
+                "synergy": 0.07303039007976764,
+                "lift": 1.6802358329201834,
+                "num_decks": 2585,
+                "potential_decks": 14330
+              },
+              {
+                "id": "523414cb-f8db-407a-808a-01454e03d8b9",
+                "name": "Crop Rotation",
+                "sanitized": "crop-rotation",
+                "synergy": 0.09489208439252213,
+                "lift": 2.98744616080904,
+                "num_decks": 2044,
+                "potential_decks": 14330
+              },
+              {
+                "id": "1c2b13b1-31f0-4676-88a7-53f3a190e9a2",
+                "name": "Silence",
+                "sanitized": "silence",
+                "synergy": 0.0916779868565816,
+                "lift": 3.1886477564249964,
+                "num_decks": 1914,
+                "potential_decks": 14330
+              },
+              {
+                "id": "aa686c34-1c11-469f-93c2-f9891aea521f",
+                "name": "Veil of Summer",
+                "sanitized": "veil-of-summer",
+                "synergy": 0.06987084885044187,
+                "lift": 2.983650924443737,
+                "num_decks": 1506,
+                "potential_decks": 14330
+              }
+            ]
+          },
+          {
+            "tag": "sorceries",
+            "cardviews": [
+              {
+                "id": "f06edd53-f3ac-44b0-a087-5670ba8f0fa5",
+                "name": "Idyllic Tutor",
+                "sanitized": "idyllic-tutor",
+                "synergy": 0.355448883508383,
+                "lift": 6.101655874540861,
+                "num_decks": 6092,
+                "potential_decks": 14330
+              },
+              {
+                "id": "8dee155b-1f06-4d74-afa8-a1244c254978",
+                "name": "Winds of Rath",
+                "sanitized": "winds-of-rath",
+                "synergy": 0.22925572490548035,
+                "lift": 4.587419130599149,
+                "num_decks": 4201,
+                "potential_decks": 14330
+              },
+              {
+                "id": "2b0b3a09-6964-4615-bfc5-4835d07cf6f8",
+                "name": "Austere Command",
+                "sanitized": "austere-command",
+                "synergy": 0.06488268895770355,
+                "lift": 1.3560653610589959,
+                "num_decks": 3541,
+                "potential_decks": 14330
+              },
+              {
+                "id": "01880c6f-be00-48b5-913f-ec6c80ced184",
+                "name": "Resurgent Belief",
+                "sanitized": "resurgent-belief",
+                "synergy": 0.19629396507876623,
+                "lift": 10.564165166929886,
+                "num_decks": 3107,
+                "potential_decks": 14330
+              },
+              {
+                "id": "7fd2fe13-bbc0-42b7-bc42-3b51910ce118",
+                "name": "Replenish",
+                "sanitized": "replenish",
+                "synergy": 0.16129566385466226,
+                "lift": 9.70134987474082,
+                "num_decks": 2577,
+                "potential_decks": 14330
+              },
+              {
+                "id": "64f7a506-0aa1-4c2d-b322-e0e9179d05fb",
+                "name": "Brilliant Restoration",
+                "sanitized": "brilliant-restoration",
+                "synergy": 0.14215553851254067,
+                "lift": 6.582424546748755,
+                "num_decks": 2402,
+                "potential_decks": 14330
+              },
+              {
+                "id": "6db45698-9da9-4cea-b9bf-0f84ab276b51",
+                "name": "Open the Armory",
+                "sanitized": "open-the-armory",
+                "synergy": 0.11740366678042868,
+                "lift": 3.917756899918976,
+                "num_decks": 2259,
+                "potential_decks": 14330
+              },
+              {
+                "id": "a78f5d3f-74d6-4ec1-89c4-e24639d3f4ba",
+                "name": "Cultivate",
+                "sanitized": "cultivate",
+                "synergy": -0.26256210685147646,
+                "lift": 0.3691834127763256,
+                "num_decks": 2202,
+                "potential_decks": 14330
+              },
+              {
+                "id": "114d2180-093b-4838-97ad-badbc8ee50b0",
+                "name": "Farewell",
+                "sanitized": "farewell",
+                "synergy": 0.03645790397314359,
+                "lift": 1.3249908788461902,
+                "num_decks": 2130,
+                "potential_decks": 14330
+              },
+              {
+                "id": "fdf59a6e-7708-45a1-884d-d12e9f7b9ed9",
+                "name": "Approach of the Second Sun",
+                "sanitized": "approach-of-the-second-sun",
+                "synergy": 0.11709769820210944,
+                "lift": 5.0144742132626945,
+                "num_decks": 2096,
+                "potential_decks": 14330
+              },
+              {
+                "id": "099c081d-06ae-4ca5-ab3b-f70d01509258",
+                "name": "Rampant Growth",
+                "sanitized": "rampant-growth",
+                "synergy": -0.20571881697764488,
+                "lift": 0.3634243005774649,
+                "num_decks": 1683,
+                "potential_decks": 14330
+              },
+              {
+                "id": "b10d99bf-b2ce-4443-b924-ff0eb8be1033",
+                "name": "Finale of Devastation",
+                "sanitized": "finale-of-devastation",
+                "synergy": 0.017976609554419667,
+                "lift": 1.2130030101754483,
+                "num_decks": 1467,
+                "potential_decks": 14330
+              }
+            ]
+          },
+          {
+            "tag": "utilityartifacts",
+            "cardviews": [
+              {
+                "id": "96b6b2e1-c3e6-464c-8a13-b15deb34e862",
+                "name": "Aetherflux Reservoir",
+                "sanitized": "aetherflux-reservoir",
+                "synergy": 0.07499156056212672,
+                "lift": 1.9766061848595855,
+                "num_decks": 2175,
+                "potential_decks": 14330
+              },
+              {
+                "id": "1ba006c8-0ffc-4e68-9a55-c7b842d3add9",
+                "name": "Helm of the Gods",
+                "sanitized": "helm-of-the-gods",
+                "synergy": 0.11163968746525203,
+                "lift": 7.772965772125827,
+                "num_decks": 1836,
+                "potential_decks": 14330
+              },
+              {
+                "id": "3b69b12e-ef29-455c-8939-eacf44c6c3f6",
+                "name": "Swiftfoot Boots",
+                "sanitized": "swiftfoot-boots",
+                "synergy": -0.14846754030509343,
+                "lift": 0.4099247437095109,
+                "num_decks": 1478,
+                "potential_decks": 14330
+              },
+              {
+                "id": "6146bf98-3cab-4044-a1a2-cf2203f617aa",
+                "name": "Cloudstone Curio",
+                "sanitized": "cloudstone-curio",
+                "synergy": 0.04810811448918258,
+                "lift": 7.06799503121484,
+                "num_decks": 803,
+                "potential_decks": 14330
+              },
+              {
+                "id": "659ef698-96ea-4fa9-b63c-0da93a2d1e78",
+                "name": "Lightning Greaves",
+                "sanitized": "lightning-greaves",
+                "synergy": -0.10342884082611659,
+                "lift": 0.34912286671195925,
+                "num_decks": 795,
+                "potential_decks": 14330
+              }
+            ]
+          },
+          {
+            "tag": "enchantments",
+            "cardviews": [
+              {
+                "id": "6e776a1e-266d-4b30-83da-be4721a55ed2",
+                "name": "Darksteel Mutation",
+                "sanitized": "darksteel-mutation",
+                "synergy": 0.5435533847034566,
+                "lift": 6.235045848765657,
+                "num_decks": 9277,
+                "potential_decks": 14330
+              },
+              {
+                "id": "44d60a41-3f5e-4559-b18c-22c0fe15235e",
+                "name": "Kenrith's Transformation",
+                "sanitized": "kenriths-transformation",
+                "synergy": 0.5376896260208025,
+                "lift": 5.911119080896421,
+                "num_decks": 9274,
+                "potential_decks": 14330
+              },
+              {
+                "id": "83778d03-6196-4994-8f78-4db6cec823fb",
+                "name": "Fertile Ground",
+                "sanitized": "fertile-ground",
+                "synergy": 0.5508395560031958,
+                "lift": 7.3327124931493515,
+                "num_decks": 9140,
+                "potential_decks": 14330
+              },
+              {
+                "id": "fd0e8a82-0201-483e-a976-5f29764b35a4",
+                "name": "Ethereal Armor",
+                "sanitized": "ethereal-armor",
+                "synergy": 0.47916487175131317,
+                "lift": 5.9307722357521655,
+                "num_decks": 8259,
+                "potential_decks": 14330
+              },
+              {
+                "id": "e1f723a8-0be9-4270-b451-a52d6b2fda4e",
+                "name": "Ghostly Prison",
+                "sanitized": "ghostly-prison",
+                "synergy": 0.456264720769149,
+                "lift": 5.238128554137711,
+                "num_decks": 8081,
+                "potential_decks": 14330
+              },
+              {
+                "id": "5c4e3031-ffc2-4d4d-a9f9-e85820059315",
+                "name": "Sphere of Safety",
+                "sanitized": "sphere-of-safety",
+                "synergy": 0.4894054901834,
+                "lift": 7.783758535148554,
+                "num_decks": 8047,
+                "potential_decks": 14330
+              },
+              {
+                "id": "5fc0b82a-f943-4330-b9e7-bb4527354bfd",
+                "name": "All That Glitters",
+                "sanitized": "all-that-glitters",
+                "synergy": 0.46021277469097355,
+                "lift": 6.037500922528818,
+                "num_decks": 7904,
+                "potential_decks": 14330
+              },
+              {
+                "id": "c7a19fc5-20f3-48d2-8c12-e012d3b302e7",
+                "name": "Ancestral Mask",
+                "sanitized": "ancestral-mask",
+                "synergy": 0.42330981686241254,
+                "lift": 6.198101056217252,
+                "num_decks": 7233,
+                "potential_decks": 14330
+              },
+              {
+                "id": "43787574-7700-47ab-b57c-98ef968cce71",
+                "name": "Grasp of Fate",
+                "sanitized": "grasp-of-fate",
+                "synergy": 0.4129158001290308,
+                "lift": 6.801536623482382,
+                "num_decks": 6937,
+                "potential_decks": 14330
+              },
+              {
+                "id": "42ce2d7f-5924-47c0-b5ed-dacf9f9617a0",
+                "name": "Authority of the Consuls",
+                "sanitized": "authority-of-the-consuls",
+                "synergy": 0.33277998604801207,
+                "lift": 3.748135441072627,
+                "num_decks": 6504,
+                "potential_decks": 14330
+              },
+              {
+                "id": "d859e1f9-feb3-497a-af0b-f74fee46861f",
+                "name": "Blind Obedience",
+                "sanitized": "blind-obedience",
+                "synergy": 0.39685778143858036,
+                "lift": 8.309469667671605,
+                "num_decks": 6465,
+                "potential_decks": 14330
+              },
+              {
+                "id": "674c0a50-9c37-4c29-84d8-eb3e34f34d37",
+                "name": "Hallowed Haunting",
+                "sanitized": "hallowed-haunting",
+                "synergy": 0.3960351499117933,
+                "lift": 10.737517089105092,
+                "num_decks": 6258,
+                "potential_decks": 14330
+              }
+            ]
+          },
+          {
+            "tag": "planeswalkers",
+            "cardviews": [
+              {
+                "id": "53ec142a-81c0-43e3-bf37-bdc18d7b780e",
+                "name": "Calix, Destiny's Hand",
+                "sanitized": "calix-destinys-hand",
+                "synergy": 0.1722058670561224,
+                "lift": 7.274531630516827,
+                "num_decks": 2861,
+                "potential_decks": 14330
+              }
+            ]
+          },
+          {
+            "tag": "utilitylands",
+            "cardviews": [
+              {
+                "id": "f08dfd99-59fa-4a6c-bd69-c647f639de4d",
+                "name": "Hall of Heliod's Generosity",
+                "sanitized": "hall-of-heliods-generosity",
+                "synergy": 0.4979921581704385,
+                "lift": 5.41933968159164,
+                "num_decks": 8751,
+                "potential_decks": 14330
+              },
+              {
+                "id": "13caa07e-3b72-4ee2-92c6-f119d02341f9",
+                "name": "Reliquary Tower",
+                "sanitized": "reliquary-tower",
+                "synergy": 0.3164512785691668,
+                "lift": 2.134465749314205,
+                "num_decks": 8532,
+                "potential_decks": 14330
+              },
+              {
+                "id": "4e4b6e22-93b2-4896-bba5-0ceaa5d8ea3c",
+                "name": "Yavimaya, Cradle of Growth",
+                "sanitized": "yavimaya-cradle-of-growth",
+                "synergy": 0.09064392878982896,
+                "lift": 1.4796501937619335,
+                "num_decks": 4007,
+                "potential_decks": 14330
+              },
+              {
+                "id": "2135ac5a-187b-4dc9-8f82-34e8d1603416",
+                "name": "Boseiju, Who Endures",
+                "sanitized": "boseiju-who-endures",
+                "synergy": 0.090621466508504,
+                "lift": 1.50738785031006,
+                "num_decks": 3858,
+                "potential_decks": 14330
+              },
+              {
+                "id": "f7a18130-dbaa-4657-a885-3a96a985935a",
+                "name": "Serra's Sanctum",
+                "sanitized": "serras-sanctum",
+                "synergy": 0.23308046370168786,
+                "lift": 8.643872023187772,
+                "num_decks": 3777,
+                "potential_decks": 14330
+              },
+              {
+                "id": "834b27a0-dfd7-4f96-8cde-cacac4b24acc",
+                "name": "Nykthos, Shrine to Nyx",
+                "sanitized": "nykthos-shrine-to-nyx",
+                "synergy": 0.12295315709891835,
+                "lift": 3.7144809951215123,
+                "num_decks": 2411,
+                "potential_decks": 14330
+              },
+              {
+                "id": "c375a022-5b57-496d-a802-e4ea8376e9e4",
+                "name": "Eiganjo, Seat of the Empire",
+                "sanitized": "eiganjo-seat-of-the-empire",
+                "synergy": 0.055580142455491754,
+                "lift": 1.6214910031511915,
+                "num_decks": 2078,
+                "potential_decks": 14330
+              },
+              {
+                "id": "c84f49bb-3780-4f92-8db2-b27605ceefed",
+                "name": "Rogue's Passage",
+                "sanitized": "rogues-passage",
+                "synergy": -0.10114884540321326,
+                "lift": 0.5835430592069184,
+                "num_decks": 2031,
+                "potential_decks": 14330
+              },
+              {
+                "id": "25b0b816-0583-44aa-9dc5-f3ff48993a51",
+                "name": "Gaea's Cradle",
+                "sanitized": "gaeas-cradle",
+                "synergy": 0.042700048575640165,
+                "lift": 1.6992182491632493,
+                "num_decks": 1487,
+                "potential_decks": 14330
+              },
+              {
+                "id": "c634273a-94b0-4104-9d10-ae522ece1fc7",
+                "name": "Adagia, Windswept Bastion",
+                "sanitized": "adagia-windswept-bastion",
+                "synergy": 0.03582157434460083,
+                "lift": 1.938682952872826,
+                "num_decks": 753,
+                "potential_decks": 10178
+              },
+              {
+                "id": "059164e1-894d-4586-9800-e60d6fbd6eb6",
+                "name": "Shifting Woodland",
+                "sanitized": "shifting-woodland",
+                "synergy": 0.03462973782650711,
+                "lift": 2.0723670713293436,
+                "num_decks": 959,
+                "potential_decks": 14330
+              },
+              {
+                "id": "068bc755-9d3d-430b-abc5-c775a5415bf9",
+                "name": "Ishgard, the Holy See",
+                "sanitized": "ishgard-the-holy-see",
+                "synergy": 0.03631685851481643,
+                "lift": 2.194502775772234,
+                "num_decks": 748,
+                "potential_decks": 11211
+              }
+            ]
+          },
+          {
+            "tag": "manaartifacts",
+            "cardviews": [
+              {
+                "id": "fc817e07-c1f3-469f-9cf7-0945dea7400f",
+                "name": "Sol Ring",
+                "sanitized": "sol-ring",
+                "synergy": -0.15879165354978741,
+                "lift": 0.7899582154434752,
+                "num_decks": 8558,
+                "potential_decks": 14330
+              },
+              {
+                "id": "795df2ee-fbfc-4961-852c-e3ec50cc52da",
+                "name": "Arcane Signet",
+                "sanitized": "arcane-signet",
+                "synergy": -0.22266334255520642,
+                "lift": 0.6117706945611395,
+                "num_decks": 5028,
+                "potential_decks": 14330
+              },
+              {
+                "id": "df44b703-e025-480d-9c7b-55873407bdf4",
+                "name": "Thought Vessel",
+                "sanitized": "thought-vessel",
+                "synergy": 0.13193322455853726,
+                "lift": 2.581569368680762,
+                "num_decks": 3086,
+                "potential_decks": 14330
+              },
+              {
+                "id": "43b5b24f-316a-406d-b30a-0f6252f6590d",
+                "name": "Selesnya Signet",
+                "sanitized": "selesnya-signet",
+                "synergy": -0.10526805815365911,
+                "lift": 0.42697197570310935,
+                "num_decks": 1124,
+                "potential_decks": 14330
+              },
+              {
+                "id": "57c4bd1f-757c-4b62-a87d-73da94f904f3",
+                "name": "Lotus Petal",
+                "sanitized": "lotus-petal",
+                "synergy": 0.04455313711279951,
+                "lift": 2.651637820420767,
+                "num_decks": 1025,
+                "potential_decks": 14330
+              },
+              {
+                "id": "518bbc36-58ea-44c4-a857-75a3aff058f5",
+                "name": "Decanter of Endless Water",
+                "sanitized": "decanter-of-endless-water",
+                "synergy": 0.04033861990884573,
+                "lift": 2.818074631302616,
+                "num_decks": 896,
+                "potential_decks": 14330
+              },
+              {
+                "id": "f340cbf7-5bbe-45b9-a4bf-d1caa500ff93",
+                "name": "Chrome Mox",
+                "sanitized": "chrome-mox",
+                "synergy": 0.039471788544219774,
+                "lift": 2.712116655288346,
+                "num_decks": 896,
+                "potential_decks": 14330
+              },
+              {
+                "id": "89e8443d-daf4-4cef-9080-d7568b5c540e",
+                "name": "Talisman of Unity",
+                "sanitized": "talisman-of-unity",
+                "synergy": -0.09067443586554066,
+                "lift": 0.4059679731605394,
+                "num_decks": 888,
+                "potential_decks": 14330
+              }
+            ]
+          },
+          {
+            "tag": "lands",
+            "cardviews": [
+              {
+                "id": "2e781bfd-f8cb-4d20-b977-4359f3a21311",
+                "name": "Forest",
+                "sanitized": "forest",
+                "synergy": -0.0505584193120443,
+                "lift": 0.9483181483260941,
+                "num_decks": 13294,
+                "potential_decks": 14330
+              },
+              {
+                "id": "09ac862f-0a51-44dd-b86f-9412b8218b13",
+                "name": "Plains",
+                "sanitized": "plains",
+                "synergy": -0.05178717336149652,
+                "lift": 0.9469394861071331,
+                "num_decks": 13244,
+                "potential_decks": 14330
+              },
+              {
+                "id": "a73297d2-580c-4174-a427-265f6916d09f",
+                "name": "Command Tower",
+                "sanitized": "command-tower",
+                "synergy": 0.040043520341439875,
+                "lift": 1.0478657995654994,
+                "num_decks": 12562,
+                "potential_decks": 14330
+              },
+              {
+                "id": "dbded07b-46d4-4efe-9ab1-00b8b1ae8e5a",
+                "name": "Canopy Vista",
+                "sanitized": "canopy-vista",
+                "synergy": -0.015436028914346922,
+                "lift": 0.9768165079983978,
+                "num_decks": 9320,
+                "potential_decks": 14330
+              },
+              {
+                "id": "10133c76-755c-413d-a515-f1c31c053eae",
+                "name": "Sunpetal Grove",
+                "sanitized": "sunpetal-grove",
+                "synergy": 0.017999981057112646,
+                "lift": 1.0310993313415218,
+                "num_decks": 8552,
+                "potential_decks": 14330
+              },
+              {
+                "id": "b9b0589d-f327-46a7-8bac-06b7654c547a",
+                "name": "Temple Garden",
+                "sanitized": "temple-garden",
+                "synergy": 0.1172510069306748,
+                "lift": 1.2464082590422658,
+                "num_decks": 8499,
+                "potential_decks": 14330
+              },
+              {
+                "id": "18d236ce-3b78-403a-b5f9-4fb44123d85b",
+                "name": "Brushland",
+                "sanitized": "brushland",
+                "synergy": 0.11185123382328432,
+                "lift": 1.301954841562628,
+                "num_decks": 6911,
+                "potential_decks": 14330
+              },
+              {
+                "id": "bd1d13f7-fd38-4f0b-a8e0-1eac78668117",
+                "name": "Windswept Heath",
+                "sanitized": "windswept-heath",
+                "synergy": 0.14575260553285074,
+                "lift": 1.475298424220092,
+                "num_decks": 6483,
+                "potential_decks": 14330
+              },
+              {
+                "id": "b0a062a6-fec2-48f8-9e13-f2126791c768",
+                "name": "Fortified Village",
+                "sanitized": "fortified-village",
+                "synergy": -0.0012577500215852355,
+                "lift": 0.9972134365856544,
+                "num_decks": 6450,
+                "potential_decks": 14330
+              },
+              {
+                "id": "f0b11ba3-68ba-4067-af40-2a55e31b395e",
+                "name": "Bountiful Promenade",
+                "sanitized": "bountiful-promenade",
+                "synergy": 0.05242092647986929,
+                "lift": 1.134050249383186,
+                "num_decks": 6355,
+                "potential_decks": 14330
+              },
+              {
+                "id": "a7143aa7-b16d-4e63-910c-6ceec55483f3",
+                "name": "Strength of the Harvest",
+                "sanitized": "strength-of-the-harvest",
+                "synergy": 0.2923855411569836,
+                "lift": 3.131047466071711,
+                "num_decks": 6156,
+                "potential_decks": 14330
+              },
+              {
+                "id": "178e61e4-472f-42cd-9d3b-4880c2acc527",
+                "name": "Overgrown Farmland",
+                "sanitized": "overgrown-farmland",
+                "synergy": -0.007965276370642538,
+                "lift": 0.9810556493744528,
+                "num_decks": 5911,
+                "potential_decks": 14330
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "panels": {
+      "taglinks": [
+        {
+          "count": 2231,
+          "slug": "enchantress",
+          "value": "Enchantress"
+        },
+        {
+          "count": 691,
+          "slug": "auras",
+          "value": "Auras"
+        },
+        {
+          "count": 318,
+          "slug": "lifegain",
+          "value": "Lifegain"
+        },
+        {
+          "count": 270,
+          "slug": "combo",
+          "value": "Combo"
+        }
+      ]
+    }
+  }
+}

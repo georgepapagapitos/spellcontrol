@@ -1,0 +1,230 @@
+{
+  "_source": "json.commanderspellbook.com/variants.json, first 3 variants (uses cut to card name+oracleId), fetched 2026-10-31; trimmed to the fields the readers use",
+  "body": [
+    {
+      "id": "483-720-1806-2034",
+      "status": "OK",
+      "uses": [
+        {
+          "card": {
+            "name": "Kinzu of the Bleak Coven",
+            "oracleId": "e4f4c41b-2533-497f-96bb-7083ef597268"
+          },
+          "quantity": 1
+        },
+        {
+          "card": {
+            "name": "Eternal Scourge",
+            "oracleId": "c8b0436e-16d2-4d48-a894-454d69a3743b"
+          },
+          "quantity": 1
+        },
+        {
+          "card": {
+            "name": "Ashnod's Altar",
+            "oracleId": "4d18bcba-a346-445e-a182-6cc30b7e066d"
+          },
+          "quantity": 1
+        },
+        {
+          "card": {
+            "name": "Cruel Celebrant",
+            "oracleId": "3ee78cfc-0e9e-4737-a7e2-b42f94228040"
+          },
+          "quantity": 1
+        }
+      ],
+      "produces": [
+        {
+          "feature": {
+            "name": "Infinite colorless mana"
+          },
+          "quantity": 1
+        },
+        {
+          "feature": {
+            "name": "Infinite creature ETB"
+          },
+          "quantity": 1
+        },
+        {
+          "feature": {
+            "name": "Infinite creature LTB"
+          },
+          "quantity": 1
+        }
+      ],
+      "identity": "WB",
+      "popularity": 0,
+      "bracketTag": "E",
+      "legalities": {
+        "commander": true,
+        "pauperCommanderMain": false,
+        "pauperCommander": false,
+        "oathbreaker": true,
+        "predh": false,
+        "standardBrawl": false,
+        "brawl": true,
+        "competitiveBrawl": true,
+        "alchemy": false,
+        "vintage": true,
+        "legacy": true,
+        "premodern": false,
+        "modern": false,
+        "pioneer": false,
+        "standard": false,
+        "pauper": false
+      }
+    },
+    {
+      "id": "720-1806-2034-3845",
+      "status": "OK",
+      "uses": [
+        {
+          "card": {
+            "name": "Kinzu of the Bleak Coven",
+            "oracleId": "e4f4c41b-2533-497f-96bb-7083ef597268"
+          },
+          "quantity": 1
+        },
+        {
+          "card": {
+            "name": "Eternal Scourge",
+            "oracleId": "c8b0436e-16d2-4d48-a894-454d69a3743b"
+          },
+          "quantity": 1
+        },
+        {
+          "card": {
+            "name": "Ashnod's Altar",
+            "oracleId": "4d18bcba-a346-445e-a182-6cc30b7e066d"
+          },
+          "quantity": 1
+        },
+        {
+          "card": {
+            "name": "Panicked Bystander // Cackling Culprit",
+            "oracleId": "fc58a086-2743-4465-bf16-4a20701cd3b1"
+          },
+          "quantity": 1
+        }
+      ],
+      "produces": [
+        {
+          "feature": {
+            "name": "Infinite colorless mana"
+          },
+          "quantity": 1
+        },
+        {
+          "feature": {
+            "name": "Infinite creature ETB"
+          },
+          "quantity": 1
+        },
+        {
+          "feature": {
+            "name": "Infinite creature LTB"
+          },
+          "quantity": 1
+        }
+      ],
+      "identity": "WB",
+      "popularity": 0,
+      "bracketTag": "E",
+      "legalities": {
+        "commander": true,
+        "pauperCommanderMain": false,
+        "pauperCommander": false,
+        "oathbreaker": true,
+        "predh": false,
+        "standardBrawl": false,
+        "brawl": true,
+        "competitiveBrawl": true,
+        "alchemy": false,
+        "vintage": true,
+        "legacy": true,
+        "premodern": false,
+        "modern": false,
+        "pioneer": false,
+        "standard": false,
+        "pauper": false
+      }
+    },
+    {
+      "id": "720-1806-1829-2034",
+      "status": "OK",
+      "uses": [
+        {
+          "card": {
+            "name": "Kinzu of the Bleak Coven",
+            "oracleId": "e4f4c41b-2533-497f-96bb-7083ef597268"
+          },
+          "quantity": 1
+        },
+        {
+          "card": {
+            "name": "Eternal Scourge",
+            "oracleId": "c8b0436e-16d2-4d48-a894-454d69a3743b"
+          },
+          "quantity": 1
+        },
+        {
+          "card": {
+            "name": "Ashnod's Altar",
+            "oracleId": "4d18bcba-a346-445e-a182-6cc30b7e066d"
+          },
+          "quantity": 1
+        },
+        {
+          "card": {
+            "name": "Vindictive Vampire",
+            "oracleId": "11ad664e-36d3-4d5b-8a87-59ea715877e0"
+          },
+          "quantity": 1
+        }
+      ],
+      "produces": [
+        {
+          "feature": {
+            "name": "Infinite colorless mana"
+          },
+          "quantity": 1
+        },
+        {
+          "feature": {
+            "name": "Infinite creature ETB"
+          },
+          "quantity": 1
+        },
+        {
+          "feature": {
+            "name": "Infinite creature LTB"
+          },
+          "quantity": 1
+        }
+      ],
+      "identity": "B",
+      "popularity": 0,
+      "bracketTag": "E",
+      "legalities": {
+        "commander": true,
+        "pauperCommanderMain": false,
+        "pauperCommander": false,
+        "oathbreaker": true,
+        "predh": false,
+        "standardBrawl": false,
+        "brawl": true,
+        "competitiveBrawl": true,
+        "alchemy": false,
+        "vintage": true,
+        "legacy": true,
+        "premodern": false,
+        "modern": false,
+        "pioneer": false,
+        "standard": false,
+        "pauper": false
+      }
+    }
+  ]
+}

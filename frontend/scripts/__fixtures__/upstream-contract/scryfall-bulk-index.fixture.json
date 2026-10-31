@@ -1,0 +1,23 @@
+{
+  "_source": "api.scryfall.com/bulk-data, fetched 2026-10-31; trimmed to the fields the readers use",
+  "body": {
+    "object": "list",
+    "data": [
+      {
+        "type": "oracle_cards",
+        "updated_at": "2026-10-31T09:01:54.814+00:00",
+        "jsonl_download_uri": "https://data.scryfall.io/oracle-cards/oracle-cards-20261031090154.jsonl.gz"
+      },
+      {
+        "type": "default_cards",
+        "updated_at": "2026-10-31T09:05:45.156+00:00",
+        "jsonl_download_uri": "https://data.scryfall.io/default-cards/default-cards-20261031090545.jsonl.gz"
+      },
+      {
+        "type": "oracle_tags",
+        "updated_at": "2026-10-31T09:00:32.931+00:00",
+        "jsonl_download_uri": "https://data.scryfall.io/oracle-tags/oracle-tags-20261031090032.jsonl.gz"
+      }
+    ]
+  }
+}
