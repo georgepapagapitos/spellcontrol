@@ -1,7 +1,10 @@
 // Pins the churn arithmetic of gen-stability-lib.mjs on a hand-built pair of dumps.
 import { describe, expect, it } from 'vitest';
 import {
+  cardPhase,
   deckChurn,
+  firstDivergence,
+  netStapleLosses,
   finalNames,
   marginRead,
   preLateNames,
@@ -114,5 +117,61 @@ describe('searchDivergence', () => {
       runOnly: ['C>E'],
     });
     expect(searchDivergence(a, { decklist: {} })).toBeNull();
+  });
+});
+
+describe('phase attribution', () => {
+  const snap = (phase, names) => ({ phase, names });
+  const traced = (trace) => ({ decklist: {}, phaseTrace: trace });
+  const a = traced([
+    snap('pick', ['X', 'Y']),
+    snap('smart-trim', ['X', 'Y']),
+    snap('fixup', ['X', 'Z']),
+    snap('bracket', ['X', 'Z']),
+    snap('bracket', ['X', 'Z']),
+  ]);
+  const b = traced([
+    snap('pick', ['X', 'Y']),
+    snap('smart-trim', ['X', 'W']),
+    snap('fixup', ['X', 'W']),
+    snap('bracket', ['X', 'W']),
+    snap('bracket', ['X', 'W']),
+  ]);
+
+  it('names the first phase after which two decks differ', () => {
+    expect(firstDivergence(a, b)).toBe('smart-trim');
+    expect(firstDivergence(a, a)).toBeNull();
+    expect(firstDivergence({ decklist: {} }, b)).toBeNull();
+  });
+
+  it('says which phase cut a card from one run, or seated it in the other', () => {
+    // Z is in a's final deck; b never held it, so a seated it in fixup.
+    expect(cardPhase('Z', a, b, 'dropped')).toBe('ref seat:fixup');
+    // With b as the reference, Y is in a's run only: b held it at pick and smart-trim cut it.
+    expect(cardPhase('Y', b, a, 'gained')).toBe('ref cut:smart-trim');
+    expect(cardPhase('W', a, b, 'gained')).toBe('seat:smart-trim');
+    expect(cardPhase('Z', { decklist: {} }, b, 'dropped')).toBeNull();
+  });
+
+  it('suffixes a phase that runs twice', () => {
+    const c = traced([snap('pick', ['A']), snap('bracket', ['A']), snap('bracket', ['A', 'B'])]);
+    const d = traced([snap('pick', ['A']), snap('bracket', ['A']), snap('bracket', ['A'])]);
+    expect(firstDivergence(c, d)).toBe('bracket#2');
+  });
+});
+
+describe('netStapleLosses', () => {
+  const st = (name, incl) => ({ name, incl });
+  const gain = (incl) => ({ name: `g${incl}`, incl });
+
+  it('does not count a staple that left for a card played as often', () => {
+    const dropped = [st('Oblivion Sower', 55.5), st('Solemn Simulacrum', 50.8)];
+    expect(netStapleLosses(dropped, [gain(56.7), gain(70.9)])).toEqual([]);
+  });
+
+  it('matches each gained card once, and counts a figureless gain as no match', () => {
+    const dropped = [st('A', 60), st('B', 45)];
+    expect(netStapleLosses(dropped, [gain(61)]).map((s) => s.name)).toEqual(['B']);
+    expect(netStapleLosses([st('Breeding Pool', 40.9)], [gain(null)]).length).toBe(1);
   });
 });
