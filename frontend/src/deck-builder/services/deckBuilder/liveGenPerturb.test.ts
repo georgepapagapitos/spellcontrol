@@ -88,4 +88,27 @@ describe('live panel perturbations (E1061)', () => {
     expect(view).toMatchObject({ name: 'Ornithopter', num_decks: 1, potential_decks: 100 });
     expect(names(perturbEdhrecBody(out, p, PAGE))).toHaveLength(6);
   });
+
+  it('adds a card with no synergy or lift of its own, whatever the neighbour carries', () => {
+    // The clone template is the list's top card; copying its synergy made a 1% card
+    // outrank 30% ones (Ornithopter at 1.2% scored 46 against 47 for a 33% card).
+    const body = JSON.stringify({
+      container: {
+        json_dict: {
+          cardlists: [
+            {
+              tag: 'utilityartifacts',
+              cardviews: [
+                { name: 'A', num_decks: 50, potential_decks: 100, synergy: 0.45, lift: 1.6 },
+              ],
+            },
+          ],
+        },
+      },
+    });
+    const out = perturbEdhrecBody(body, parsePerturbation('add:Ornithopter@1'), PAGE);
+    const view = JSON.parse(out).container.json_dict.cardlists[0].cardviews.at(-1);
+    expect(view.synergy).toBe(0);
+    expect(view.lift).toBeUndefined();
+  });
 });
