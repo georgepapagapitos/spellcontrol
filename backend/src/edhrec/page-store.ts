@@ -4,7 +4,7 @@ import { getDb } from '../db';
 import { edhrecPages } from '../db/schema-edhrec-pages';
 import { logger } from '../logger';
 import { errorMessage } from '../error-utils';
-import { pageShapeProblem, type EdhrecPageRef } from './page-paths';
+import { pageShapeProblem, type EdhrecPageRef, edhrecPageUrl } from './page-paths';
 
 /**
  * Serves EDHREC's per-page JSON (commander, theme, tag, card, combo, salt
@@ -47,7 +47,6 @@ const NEGATIVE_MAX_ENTRIES = 5000;
 const SERVED_TOUCH_MS = 60 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_UPSTREAM_BYTES = 8 * 1024 * 1024;
-const EDHREC_BASE = 'https://json.edhrec.com';
 // The default undici UA was bot-blocked on another host (rules/ingest.ts).
 const USER_AGENT = 'SpellControl/1.0 (+https://spellcontrol.com)';
 
@@ -131,7 +130,7 @@ async function fetchUpstream(path: string, cold: boolean): Promise<Upstream> {
     await takeTurn();
     let res: Response;
     try {
-      res = await fetch(`${EDHREC_BASE}${path}`, {
+      res = await fetch(edhrecPageUrl(path), {
         headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
         signal: AbortSignal.timeout(timeout),
       });
