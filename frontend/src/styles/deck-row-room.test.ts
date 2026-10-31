@@ -54,6 +54,13 @@ describe('deck row room', () => {
     expect(rule('.deck-row-name-text:has(> .deck-row-proxy-tag)')).toMatch(/line-clamp:\s*3/);
   });
 
+  // Firefox split "Vandalblast" in a 708px cell: the name box shrink-wrapped
+  // to its own text and came out a sub-pixel short. It takes the free space.
+  it('lets the name take the free width instead of shrink-wrapping', () => {
+    expect(rule('.deck-row-name-text')).toMatch(/flex:\s*1 1 auto/);
+    expect(rule('.deck-row-name-stack')).toMatch(/flex:\s*1 1 auto/);
+  });
+
   it("keeps qty, mana and price on the name's first line", () => {
     expect(rule('.deck-row')).toMatch(/align-items:\s*first baseline/);
     expect(rule('.deck-row-name')).toMatch(/align-items:\s*first baseline/);
