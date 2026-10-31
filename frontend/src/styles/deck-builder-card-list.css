@@ -817,7 +817,8 @@
    stack takes the name-text's place in .deck-row-name and shrinks the same
    way (min-width: 0), so the chips after it keep their slots. */
 .deck-row-name-stack {
-  flex: 0 1 auto;
+  /* Grows for the same reason as .deck-row-name-text. */
+  flex: 1 1 auto;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -1117,7 +1118,11 @@
    a tall row; the full name stays in the title and the tap-to-open preview.
    The chips keep their slots: the chip tiers below keep ~7rem for the name. */
 .deck-row-name-text {
-  flex: 0 1 auto;
+  /* Takes the cell's free space rather than shrink-wrapping its text. Sized to
+     exactly its own max-content, Firefox (DPR 2, plain set) measured the box a
+     fraction of a pixel short of the text it then drew, so "Vandalblast" broke
+     before its last letter in a 708px cell (2026-10-30). */
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   display: -webkit-box;
