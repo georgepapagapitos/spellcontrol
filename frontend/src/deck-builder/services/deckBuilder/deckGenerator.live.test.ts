@@ -75,6 +75,7 @@ import { choosesColorBeforeGame, withChosenColor } from '@/deck-builder/lib/part
 import { liveSearchBudgetMs } from './liveGenSearch';
 import { parsePerturbation, perturbEdhrecBody } from './liveGenPerturb';
 import { freezeCards, nameOnlyIdentifiers, thawCards } from './liveGenFrozenCards';
+import { readPhaseTrace, resetPhaseTrace } from './liveGenPhaseTrace';
 
 // E1061: LIVE_GEN_PERTURB changes one input of the run (an extra pool card, the
 // order of the lists, the goldfish seed) so frontend/scripts/gen-stability.mjs can
@@ -103,6 +104,81 @@ vi.mock('./deckObjective/optimizerAsync', async (importOriginal) => {
       return r;
     },
   };
+});
+// The deck after each card-moving phase, so a card that differs between two
+// runs is attributed to the phase that first let them diverge (liveGenPhaseTrace.ts).
+vi.mock('./deckGeneration/phaseStapleManaRocks', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./deckGeneration/phaseStapleManaRocks')>();
+  const { tracePhase: trace } = await import('./liveGenPhaseTrace');
+  return { ...real, stapleManaRocksPhase: trace('staple-rocks', real.stapleManaRocksPhase) };
+});
+vi.mock('./deckGeneration/phaseLandSqueezeReconcile', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./deckGeneration/phaseLandSqueezeReconcile')>();
+  const { tracePhase: trace } = await import('./liveGenPhaseTrace');
+  return {
+    ...real,
+    applyLandSqueezeReconcile: trace('land-squeeze', real.applyLandSqueezeReconcile),
+  };
+});
+vi.mock('./deckGeneration/phaseSmartTrim', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./deckGeneration/phaseSmartTrim')>();
+  const { tracePhase: trace } = await import('./liveGenPhaseTrace');
+  return { ...real, smartTrimPhase: trace('smart-trim', real.smartTrimPhase) };
+});
+vi.mock('./deckGeneration/phaseComboAudit', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./deckGeneration/phaseComboAudit')>();
+  const { tracePhase: trace } = await import('./liveGenPhaseTrace');
+  return { ...real, comboIntegrityAuditPhase: trace('combo-audit', real.comboIntegrityAuditPhase) };
+});
+vi.mock('./deckGeneration/phaseApplyComboFloor', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./deckGeneration/phaseApplyComboFloor')>();
+  const { tracePhase: trace } = await import('./liveGenPhaseTrace');
+  return { ...real, applyComboFloor: trace('combo-floor', real.applyComboFloor) };
+});
+vi.mock('./deckGeneration/phasePostGenFixup', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./deckGeneration/phasePostGenFixup')>();
+  const { tracePhase: trace } = await import('./liveGenPhaseTrace');
+  return { ...real, postGenFixupPhase: trace('fixup', real.postGenFixupPhase) };
+});
+vi.mock('./deckGeneration/phaseCoherenceRepair', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./deckGeneration/phaseCoherenceRepair')>();
+  const { tracePhase: trace } = await import('./liveGenPhaseTrace');
+  return { ...real, applyCoherenceRepair: trace('coherence', real.applyCoherenceRepair) };
+});
+vi.mock('./deckGeneration/phaseFlagshipSeating', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./deckGeneration/phaseFlagshipSeating')>();
+  const { tracePhase: trace } = await import('./liveGenPhaseTrace');
+  return { ...real, applyFlagshipSeating: trace('flagship', real.applyFlagshipSeating) };
+});
+vi.mock('./deckGeneration/phaseBracketConverge', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./deckGeneration/phaseBracketConverge')>();
+  const { tracePhase: trace } = await import('./liveGenPhaseTrace');
+  return { ...real, applyBracketConvergence: trace('bracket', real.applyBracketConvergence) };
+});
+vi.mock('./deckGeneration/phaseBudgetConverge', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./deckGeneration/phaseBudgetConverge')>();
+  const { tracePhase: trace } = await import('./liveGenPhaseTrace');
+  return { ...real, applyBudgetConvergence: trace('budget', real.applyBudgetConvergence) };
+});
+vi.mock('./deckGeneration/phaseRoleSurplusRebalance', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./deckGeneration/phaseRoleSurplusRebalance')>();
+  const { tracePhase: trace } = await import('./liveGenPhaseTrace');
+  return { ...real, applyRoleSurplusRebalance: trace('surplus', real.applyRoleSurplusRebalance) };
+});
+vi.mock('./deckGeneration/wholeDeckSearchStep', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./deckGeneration/wholeDeckSearchStep')>();
+  const { tracePhase: trace } = await import('./liveGenPhaseTrace');
+  return { ...real, run: trace('search', real.run) };
+});
+vi.mock('./deckGeneration/phaseStapleGuarantee', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./deckGeneration/phaseStapleGuarantee')>();
+  const { tracePhase: trace } = await import('./liveGenPhaseTrace');
+  return { ...real, guaranteeStaples: trace('staple-guarantee', real.guaranteeStaples) };
+});
+vi.mock('./deckGeneration/budgetLastResort', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./deckGeneration/budgetLastResort')>();
+  const { tracePhase: trace } = await import('./liveGenPhaseTrace');
+  return { ...real, runBudgetLastResort: trace('budget-last-resort', real.runBudgetLastResort) };
 });
 vi.mock('./deckObjective', async (importOriginal) => {
   const real = await importOriginal<typeof import('./deckObjective')>();
@@ -1027,6 +1103,7 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
         };
 
         (globalThis as SearchTraceHolder).__searchTrace = null;
+        resetPhaseTrace();
         const deck = await generateDeck(ctx);
         const buildReport = assembleBuildReport({
           generated: deck,
@@ -1159,6 +1236,7 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
           buildReport,
           perturbation: PERTURB,
           searchTrace: (globalThis as SearchTraceHolder).__searchTrace ?? null,
+          phaseTrace: readPhaseTrace(),
           themeFidelity: themeFidelityDump(deck, themePages),
           cardRelevancy: buildCardRelevancy(deck),
           swapInclusion: swapInclusion(

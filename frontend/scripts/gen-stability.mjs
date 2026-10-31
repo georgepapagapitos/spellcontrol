@@ -124,6 +124,7 @@ function report(opts) {
       cardsChanged: total((r) => r.changed),
       preLateCardsChanged: total((r) => r.preLateChanged),
       staplesLost: total((r) => r.staplesLost.length),
+      staplesLostNet: total((r) => r.staplesLostNet.length),
       byWhy: rows.reduce((m, r) => {
         for (const [k, v] of Object.entries(r.byWhy)) m[k] = (m[k] ?? 0) + v;
         return m;
@@ -134,7 +135,7 @@ function report(opts) {
     console.log(
       formatTable(
         rows,
-        `\n## ${label} (${RUNS[label]}) vs ref: ${summary.decksChanged}/${summary.decks} decks changed, ${summary.cardsChanged} cards, ${summary.staplesLost} staples >= ${bar}% lost, pre-late cards changed ${summary.preLateCardsChanged}`
+        `\n## ${label} (${RUNS[label]}) vs ref: ${summary.decksChanged}/${summary.decks} decks changed, ${summary.cardsChanged} cards, ${summary.staplesLost} staples >= ${bar}% dropped (${summary.staplesLostNet} with nothing as well played in their place), pre-late cards changed ${summary.preLateCardsChanged}`
       )
     );
   }
