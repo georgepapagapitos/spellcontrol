@@ -1430,7 +1430,8 @@
    to the next line as a whole word; a proxied name gets a third line so a
    two-line name never clamps the tag away. */
 .deck-row-proxy-tag {
-  margin-left: var(--space-1-5);
+  /* With the space before it (ProxyTag), this keeps the old ~6px gap. */
+  margin-left: var(--space-0-5);
   color: var(--text-muted);
   font-variant: all-small-caps;
   white-space: nowrap;

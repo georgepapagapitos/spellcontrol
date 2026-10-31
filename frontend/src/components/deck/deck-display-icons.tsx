@@ -124,10 +124,16 @@ export function RowPrice({ row, currency }: { row: Row; currency: Currency }) {
 export function ProxyTag({ row }: { row: Row }) {
   const n = proxyMarkQty(row);
   if (n === 0) return null;
+  // The leading space is the line-break opportunity. With only a margin
+  // between them, the name and the nowrap tag are one unbreakable run, so a
+  // narrow cell split the name itself ("Vandalblas" / "t proxy").
   return (
-    <Chip className="deck-row-proxy-tag" title={allocationSummary(row)}>
-      {n === row.qty ? 'proxy' : `${n} proxy`}
-    </Chip>
+    <>
+      {' '}
+      <Chip className="deck-row-proxy-tag" title={allocationSummary(row)}>
+        {n === row.qty ? 'proxy' : `${n} proxy`}
+      </Chip>
+    </>
   );
 }
 
