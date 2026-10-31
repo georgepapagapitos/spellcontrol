@@ -9,7 +9,13 @@
  */
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { estimateBracket, createTagLookup, HARDCODED_GAME_CHANGERS, SOFT_SCORE } from '../index';
+import {
+  estimateBracket,
+  createComboVotes,
+  createTagLookup,
+  HARDCODED_GAME_CHANGERS,
+  SOFT_SCORE,
+} from '../index';
 import {
   agreement,
   baselines,
@@ -46,7 +52,23 @@ const synthetic = JSON.parse(fs.readFileSync(fixture('synthetic.json'), 'utf8'))
   probes: string[];
 };
 
-const bench = createBench(corpus, HARDCODED_GAME_CHANGERS);
+// EDHREC's community early/late votes (frontend/public/combo-votes.json, the file the app and
+// the backend inject). OFF by default: measured 2026-10-31 (E1053) they move 5 of 265 decks, all
+// the wrong way against these labels (precon 197/197 -> 193/197, ScrollVault 62/70 -> 60/70,
+// synthetic 20/20 -> 19/20), because voters call several Spellbook-Spicy two-card combos early
+// (Combat Celebrant + Helm of the Host, The Gitrog Monster + Dakmor Salvage) where Spellbook and
+// ScrollVault read Bracket 3. CALIBRATION_VOTES=1 runs the report with them on.
+const votes = process.env.CALIBRATION_VOTES
+  ? createComboVotes(
+      JSON.parse(
+        fs.readFileSync(
+          new URL('../../../../frontend/public/combo-votes.json', import.meta.url),
+          'utf8'
+        )
+      )
+    )
+  : undefined;
+const bench = createBench(corpus, HARDCODED_GAME_CHANGERS, votes);
 const rows = runCorpus(bench, corpus.decks);
 const REPORT = !!process.env.CALIBRATION_REPORT;
 const FULL = !!process.env.CALIBRATION_FULL;

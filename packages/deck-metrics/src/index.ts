@@ -66,6 +66,38 @@ export interface DetectedCombo {
   templatesSatisfied?: boolean;
 }
 
+/**
+ * What EDHREC's community vote says about when a two-card combo comes together:
+ * `early` (voted executable before about turn 6, "Brackets 4 and 5" only) or
+ * `late` (voted not typically executable before turn 6, a Bracket 3 combo).
+ * Keyed by Commander Spellbook variant id, the id `DetectedCombo.comboId`
+ * already carries. An id absent from the map is unvoted: the Spellbook tag and
+ * the deck's own speed decide, as they did before the votes existed.
+ */
+export type ComboSpeedVote = 'early' | 'late';
+export type ComboVotes = ReadonlyMap<string, ComboSpeedVote>;
+
+/** The committed snapshot's shape (`frontend/public/combo-votes.json`), as the
+ *  callers parse it. Thresholds are applied when the snapshot is written. */
+export interface ComboVoteSnapshot {
+  early?: readonly string[];
+  late?: readonly string[];
+}
+
+/** Votes from the snapshot. An id in both lists (none today) reads as unvoted:
+ *  two opposite verdicts cancel rather than pick one. */
+export function createComboVotes(snapshot: ComboVoteSnapshot | null | undefined): ComboVotes {
+  const votes = new Map<string, ComboSpeedVote>();
+  const clash = new Set<string>();
+  for (const id of snapshot?.early ?? []) votes.set(id, 'early');
+  for (const id of snapshot?.late ?? []) {
+    if (votes.has(id)) clash.add(id);
+    else votes.set(id, 'late');
+  }
+  for (const id of clash) votes.delete(id);
+  return votes;
+}
+
 export interface BracketEstimation {
   bracket: 1 | 2 | 3 | 4 | 5;
   label: string;
@@ -776,11 +808,28 @@ function isCommanderCombo(combo: DetectedCombo, commanders: ReadonlySet<string>)
  */
 export function floorsAtFourAlone(
   combo: DetectedCombo,
-  commanderNames: readonly string[] = []
+  commanderNames: readonly string[] = [],
+  votes?: ComboVotes
 ): boolean {
   if (!countsTowardComboFloor(combo)) return false;
-  if (combo.cardCount <= 2 && combo.bracketTag === 'R') return true;
+  if (isVotedEarly(combo, votes) || isRuthlessAndNotVotedLate(combo, votes)) return true;
   return isCommanderCombo(combo, new Set(commanderNames));
+}
+
+/** A two-card combo the community voted executable before about turn 6. */
+function isVotedEarly(combo: DetectedCombo, votes: ComboVotes | undefined): boolean {
+  return combo.cardCount <= 2 && votes?.get(combo.comboId) === 'early';
+}
+
+/**
+ * A two-card combo Spellbook rates Ruthless that the community has not voted
+ * late. A late vote ("not typically executable before turn 6") is a direct
+ * answer to the one question the Ruthless rating only implies, so it withdraws
+ * the rating's claim to be early; the combo still counts toward every other
+ * gate (redundancy, the floor gate itself, the commander rule).
+ */
+function isRuthlessAndNotVotedLate(combo: DetectedCombo, votes: ComboVotes | undefined): boolean {
+  return combo.cardCount <= 2 && combo.bracketTag === 'R' && votes?.get(combo.comboId) !== 'late';
 }
 
 export function estimateBracket(
@@ -792,7 +841,10 @@ export function estimateBracket(
   gameChangerNames: Set<string>,
   tags: TagLookup,
   /** The deck's commander(s). Optional; a combo they're part of assembles faster. */
-  commanderNames: readonly string[] = []
+  commanderNames: readonly string[] = [],
+  /** EDHREC's community early/late vote per combo id. Optional: unvoted combos
+   *  fall back to Spellbook's tag and the deck's own speed. */
+  comboVotes?: ComboVotes
 ): BracketEstimation {
   // ── 1. Count signals ──
 
@@ -915,7 +967,13 @@ export function estimateBracket(
     // (E48 calibration: living-energy/creative-energy/goth-girl). cEDH decks still
     // reach B4 via 'R' tags or high acceleration, so dropping 'S' here regressed no
     // high-power deck in the 48-deck reference set.
-    const hasReliableTag = counted.some((c) => c.cardCount <= 2 && c.bracketTag === 'R');
+    //
+    // The community vote (EDHREC, E1053) answers "early or late?" directly, so it
+    // outranks the tag in both directions: a combo voted early floors at 4 on its
+    // own, and a Ruthless one voted late no longer counts as proof of speed.
+    const votedEarly = counted.filter((c) => isVotedEarly(c, comboVotes));
+    const ruthless = counted.filter((c) => isRuthlessAndNotVotedLate(c, comboVotes));
+    const hasReliableTag = votedEarly.length > 0 || ruthless.length > 0;
     // Redundancy is its own form of speed: many interchangeable combos assemble
     // reliably without tutors/fast mana. Lines through one bottleneck count once.
     const independentComboCount = independentLines(counted, comboWeight, commanders);
@@ -940,12 +998,15 @@ export function estimateBracket(
     // list speeds the combo up. The floor stays 4 (the rating is the RC's
     // per-combo classification, E382), but it names the combo it rests on
     // instead of claiming a speed the list doesn't show.
-    const byRatingOnly = hasReliableTag && accel < 4 && !isComboDense && !usesCommander;
+    const byRatingOnly =
+      votedEarly.length === 0 &&
+      ruthless.length > 0 &&
+      accel < 4 &&
+      !isComboDense &&
+      !usesCommander;
 
     if (byRatingOnly) {
-      const ruthlessCombos = counted
-        .filter((c) => c.cardCount <= 2 && c.bracketTag === 'R')
-        .map((c) => c.cards);
+      const ruthlessCombos = ruthless.map((c) => c.cards);
       const others = ruthlessCombos.length - 1;
       hardFloors.push({
         bracket: 4,
@@ -964,7 +1025,10 @@ export function estimateBracket(
       // Name the evidence, not a verdict: "fires before opponents can respond"
       // overclaimed for a deck that merely runs six tutors.
       const evidence: string[] = [];
-      if (hasReliableTag) evidence.push('Commander Spellbook rates a combo here Ruthless');
+      if (votedEarly.length > 0) {
+        evidence.push('EDHREC players vote a combo here as one that comes together early');
+      }
+      if (ruthless.length > 0) evidence.push('Commander Spellbook rates a combo here Ruthless');
       if (usesCommander) {
         evidence.push('your commander is a combo piece, so the deck only has to draw the rest');
       }

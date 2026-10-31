@@ -1,6 +1,6 @@
 name: Refresh build snapshots
 
-# Keeps frontend/public/{tagger-tags,otag-index,comprehensive-rules,sld-drops}.json
+# Keeps frontend/public/{combo-votes,tagger-tags,otag-index,comprehensive-rules,sld-drops}.json
 # current, and opens a PR with whatever changed.
 #
 # Why this exists: those four snapshots are age-gated at MAX_AGE_DAYS = 30 in
@@ -108,6 +108,11 @@ jobs:
         working-directory: frontend
         run: node scripts/refresh-voltron-veto.mjs
 
+      # About 23 EDHREC pages of 100 combos, 150 ms apart. Age-gated like the rest.
+      - name: Refresh combo early/late votes (EDHREC)
+        working-directory: frontend
+        run: node scripts/refresh-combo-votes.mjs
+
       - name: Refresh flavor names (Scryfall)
         working-directory: packages/binder-routing
         run: node scripts/refresh-flavor-names.mjs
@@ -134,6 +139,7 @@ jobs:
               ["../backend/data/daily/pool.json", (d) => (d.cards || []).length >= 500],
               ["public/daily-names.json", (d) => (d.names || []).length > 25000],
               ["public/voltron-veto.json", (d) => !!d.generatedAt && (d.names || []).length > 300],
+              ["public/combo-votes.json", (d) => !!d.generatedAt && (d.early || []).length > 500 && (d.late || []).length > 200],
             ];
             let bad = 0;
             for (const [file, ok] of checks) {
@@ -183,6 +189,7 @@ jobs:
               ["public/cube-signal-peasant.json", "scripts/refresh-cube-signal-budget.mjs"],
               ["../backend/data/daily/cards.json", "scripts/refresh-daily-cards.mjs"],
               ["public/voltron-veto.json", "scripts/refresh-voltron-veto.mjs"],
+              ["public/combo-votes.json", "scripts/refresh-combo-votes.mjs"],
             ];
             let stale = 0;
             for (const [file, script] of targets) {
@@ -232,6 +239,7 @@ jobs:
             frontend/public/cube-signal-peasant.json
             frontend/public/daily-names.json
             frontend/public/voltron-veto.json
+            frontend/public/combo-votes.json
             backend/data/daily/cards.json
             backend/data/daily/pool.json
             packages/binder-routing/src/flavor-names.ts

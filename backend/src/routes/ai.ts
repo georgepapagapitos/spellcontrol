@@ -22,6 +22,7 @@ import {
   type AiTool,
 } from '../ai/tools';
 import { getTagLookup } from '../ai/tags';
+import { getComboVotes } from '../ai/combo-votes';
 import { estimateForNames, renderBracketCheck } from '../ai/bracket';
 import { backendOracleTagLookup } from '../ai/otag-lookup';
 import { loadRelevantCombos } from './combos';
@@ -654,6 +655,7 @@ function bracketTools(
     loadCombos: loadRelevantCombos,
     commanderNames: commanders,
     oracleTags: backendOracleTagLookup(),
+    comboVotes: getComboVotes(),
   };
   return [
     checkBracketTool(deckNames, (names) => estimateForNames(names, inputs), renderBracketCheck),

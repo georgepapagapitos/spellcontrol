@@ -204,8 +204,11 @@ function withStallTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  *        counts however it was seated, the way the deck page counts it.
  *   v25 — "cards to consider" fits the deck's settings (budget, owned-only,
  *        bracket ceilings) before its top-30 cut, not after (E1003).
+ *   v26 — the bracket reads EDHREC's community early/late vote on two-card
+ *        combos: a combo voted early floors at Bracket 4 on its own, and a
+ *        Ruthless one voted late no longer proves the list is fast (E1053).
  */
-const ANALYSIS_ENGINE_VERSION = 'v25-gap-fit';
+const ANALYSIS_ENGINE_VERSION = 'v26-combo-votes';
 
 /** Suffix marking a persisted `gradeBracketSignature` as a PARTIAL result
  *  (EDHREC was unreachable). Distinguishes it from a full result computed for

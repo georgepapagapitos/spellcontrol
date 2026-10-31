@@ -6,6 +6,7 @@ import {
   HARDCODED_GAME_CHANGERS,
   EMPTY_ORACLE_TAGS,
   type BracketEstimation,
+  type ComboVotes,
   type DetectedCombo,
   type TagLookup,
   type OracleTagLookup,
@@ -82,6 +83,9 @@ export interface BracketInputs {
    *  (`otag-lookup.ts`). Defaults to "no known tags" — every `otag:` template
    *  clause then reads null (unsupported), same as an absent snapshot. */
   oracleTags?: OracleTagLookup;
+  /** EDHREC's community early/late vote per combo id (`combo-votes.ts`). Unset
+   *  reads every combo as unvoted. */
+  comboVotes?: ComboVotes;
 }
 
 /**
@@ -103,7 +107,14 @@ export interface BracketInputs {
  */
 export async function estimateForNames(
   names: string[],
-  { cache, tags, loadCombos, commanderNames, oracleTags = EMPTY_ORACLE_TAGS }: BracketInputs
+  {
+    cache,
+    tags,
+    loadCombos,
+    commanderNames,
+    oracleTags = EMPTY_ORACLE_TAGS,
+    comboVotes,
+  }: BracketInputs
 ): Promise<BracketEstimation> {
   const oracleIds: string[] = [];
   const deckCards: ScryfallCard[] = [];
@@ -170,7 +181,8 @@ export async function estimateForNames(
     roleCounts,
     new Set(HARDCODED_GAME_CHANGERS),
     tags,
-    commanderNames
+    commanderNames,
+    comboVotes
   );
 }
 

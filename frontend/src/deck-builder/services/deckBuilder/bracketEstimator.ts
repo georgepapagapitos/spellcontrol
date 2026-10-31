@@ -18,10 +18,12 @@ import {
   estimateBracket as estimateBracketCore,
   isMassLandDenialFloor as isMassLandDenialFloorCore,
   isTutor as isTutorCore,
+  floorsAtFourAlone as floorsAtFourAloneCore,
   type BracketEstimation,
   type DetectedCombo as DeckMetricsCombo,
   type TagLookup,
 } from '@spellcontrol/deck-metrics';
+import { getComboVotes } from './comboVotes';
 import {
   hasTag,
   getCardRole,
@@ -36,7 +38,6 @@ export {
   isGameChangerCard,
   isFastMana,
   countsTowardComboFloor,
-  floorsAtFourAlone,
   floorOf,
   bracketReasons,
   bracketSource,
@@ -86,8 +87,18 @@ export function estimateBracket(
     roleCounts,
     gameChangerNames,
     taggerLookup,
-    commanderNames
+    commanderNames,
+    getComboVotes()
   );
+}
+
+/** `floorsAtFourAlone` with the community vote the estimator itself reads, so Bracket
+ *  Fit breaks the same combos the estimate counts. */
+export function floorsAtFourAlone(
+  combo: DeckMetricsCombo,
+  commanderNames: readonly string[] = []
+): boolean {
+  return floorsAtFourAloneCore(combo, commanderNames, getComboVotes());
 }
 
 export function isMassLandDenialFloor(name: string): boolean {

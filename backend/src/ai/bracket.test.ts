@@ -2,7 +2,11 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import os from 'os';
 import path from 'path';
 import fs from 'fs';
-import { createTagLookup, type BracketEstimation } from '@spellcontrol/deck-metrics';
+import {
+  createComboVotes,
+  createTagLookup,
+  type BracketEstimation,
+} from '@spellcontrol/deck-metrics';
 import { ScryfallCache } from '../cache';
 import { estimateForNames, renderBracketCheck } from './bracket';
 import { checkBracketTool } from './tools';
@@ -197,6 +201,32 @@ describe('estimateForNames', () => {
     expect((await estimateForNames(names, withCombo)).bracket).toBe(3);
     const est = await estimateForNames(names, { ...withCombo, commanderNames: ['Llanowar Elves'] });
     expect(est.bracket).toBe(4);
+  });
+
+  it('reads the community early vote: a Spicy two-card combo floors at 4 with no commander (E1053)', async () => {
+    // Sanguine Bond + Exquisite Blood, Spellbook variant 690-3966 (tag S, voted early 16 votes).
+    const combo = {
+      id: '690-3966',
+      identity: 'b',
+      produces: ['Infinite lifegain'],
+      prerequisites: null,
+      description: null,
+      manaNeeded: null,
+      popularity: 1,
+      legalities: { commander: 'legal' },
+      cardCount: 2,
+      bracket: 3,
+      bracketTag: 'S',
+      cards: [
+        { oracleId: 'o2', cardName: 'Llanowar Elves', quantity: 1 },
+        { oracleId: 'o1', cardName: 'Forest', quantity: 1 },
+      ],
+    };
+    const withCombo = { ...inputs(), loadCombos: async () => [combo] };
+    const names = ['Llanowar Elves', 'Forest'];
+    expect((await estimateForNames(names, withCombo)).bracket).toBe(3);
+    const voted = { ...withCombo, comboVotes: createComboVotes({ early: ['690-3966'] }) };
+    expect((await estimateForNames(names, voted)).bracket).toBe(4);
   });
 
   it('survives a combo lookup that throws — a floor is lost, not the answer', async () => {

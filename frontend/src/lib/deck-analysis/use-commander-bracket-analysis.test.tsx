@@ -49,7 +49,7 @@ function sig(
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null
 ): string {
   return [
-    'v25-gap-fit',
+    'v26-combo-votes',
     deck.commander?.name ?? '',
     deck.partnerCommander?.name ?? '',
     deck.cards

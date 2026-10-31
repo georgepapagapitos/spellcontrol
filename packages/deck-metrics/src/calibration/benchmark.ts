@@ -34,6 +34,7 @@ import {
   floorOf,
   SOFT_SCORE,
   type BracketEstimation,
+  type ComboVotes,
   type DetectedCombo,
   type RoleKey,
 } from '../index';
@@ -95,7 +96,12 @@ export interface Bench {
   swap(deck: CorpusDeck, state: DeckState, out: string, add: string): DeckState;
 }
 
-export function createBench(corpus: Corpus, gameChangers?: ReadonlySet<string>): Bench {
+export function createBench(
+  corpus: Corpus,
+  gameChangers?: ReadonlySet<string>,
+  /** EDHREC's community early/late votes; unset reads every combo as unvoted. */
+  votes?: ComboVotes
+): Bench {
   const tags = createTagLookup(corpus.tags);
   const gc = new Set(gameChangers ?? corpus.meta.gameChangers.names);
   const oneAwayByPiece = new Map<CorpusDeck, Map<string, string[]>>();
@@ -168,7 +174,8 @@ export function createBench(corpus: Corpus, gameChangers?: ReadonlySet<string>):
         roleCounts,
         gc,
         tags,
-        s.commanders
+        s.commanders,
+        votes
       );
     },
     swap(deck, s, out, add) {

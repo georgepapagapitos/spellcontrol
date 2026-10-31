@@ -32,6 +32,7 @@ import { fetchCommanderData, fetchPartnerCommanderData, fetchCardLiftPool } from
 import { buildLiftIndex } from './liftSynergy';
 import { computeEdhrecRoleTargets } from './roleTargets';
 import { estimateBracket, type BracketEstimation } from './bracketEstimator';
+import { loadComboVotes } from './comboVotes';
 import { buildBracketFitPlan, type BracketFitPlan } from './bracketFit';
 import {
   analyzeDeck,
@@ -722,6 +723,7 @@ export async function analyzeCommanderDeck(
     // loadTaggerData is idempotent and de-duped, so in the common case (already
     // loaded) this resolves immediately.
     await loadTaggerData();
+    await loadComboVotes(); // never rejects; unvoted combos fall back to the tag
     await scryfallBudget(loadCardFacts(), false); // premiumCards.ts reads the facts
 
     let edhrecData: EDHRECCommanderData;

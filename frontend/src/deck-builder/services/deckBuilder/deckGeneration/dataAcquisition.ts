@@ -26,6 +26,7 @@ import { loadCardSimilar, hasCardSimilar } from '../cardSimilar';
 import { buildAlternatePool, type AlternatePoolResult } from '../phaseAlternatePool';
 import { blendTagPageIntoPool, resolveArchetypeBlend } from '../archetypeBlend';
 import { constrainsToCollection } from '../deckFilters';
+import { loadComboVotes } from '../comboVotes';
 import type { GenerationState, GenerationContext } from './state';
 import { fetchMergedThemeData, mergeThemeCardlists } from './themePages';
 
@@ -326,6 +327,9 @@ export function setGenerationCacheCardMap(cardMap: Map<string, ScryfallCard>): v
  * lookup errors.
  */
 async function enrichCombosWithBracketTags(combos: EDHRECCombo[]): Promise<EDHRECCombo[]> {
+  // The community early/late votes the bracket estimator reads, loaded here so the convergence
+  // phases that estimate later see them (the load never rejects).
+  await loadComboVotes();
   if (combos.length === 0) return combos;
   try {
     const ids = combos.map((c) => c.comboId);
