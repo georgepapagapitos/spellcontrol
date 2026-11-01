@@ -475,6 +475,12 @@ const TOUCHING_BY_DESIGN_PARENTS = [
   // Switch rows share one hairline between them (form.css .switch-row + .switch-row,
   // STYLE_GUIDE § Table settings): the Edit card sheet's flags.
   'div.card-edit-flags',
+  // The new-deck start page's ways to start (DeckNewPage.css .deck-new-door):
+  // rows split by one 0.5px hairline under the framed Generate door
+  // (STYLE_GUIDE § Layout system, "Ways to start are a list", #2975). They are
+  // links and buttons, so they carry no role=list/listitem; the exemption
+  // lives here instead.
+  'div.deck-new-doors',
 ];
 /**
  * The primary control rows, which must stay ONE row at phone width.
