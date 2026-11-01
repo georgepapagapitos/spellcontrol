@@ -267,6 +267,8 @@ export async function createTestEnv(): Promise<TestEnv> {
       updated_at BIGINT NOT NULL,
       discord_channel_id TEXT
     );
+    CREATE INDEX game_sessions_host_idx ON game_sessions(host_user_id);
+    CREATE INDEX game_sessions_updated_idx ON game_sessions(updated_at);
     CREATE TABLE combos (
       id TEXT PRIMARY KEY,
       identity TEXT NOT NULL,
