@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import express from 'express';
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
@@ -35,5 +37,16 @@ describe('global JSON body limit', () => {
   it('still accepts a collection-sized body on /api/sync', async () => {
     const res = await request(makeApp()).post('/api/sync').send(big(5));
     expect(res.status).toBe(200);
+  });
+});
+
+describe('server.ts wiring', () => {
+  const src = readFileSync(join(__dirname, 'server.ts'), 'utf8');
+  it('mounts the split parsers and no ad-hoc express.json', () => {
+    expect(src).toContain('mountBodyParsers(app)');
+    expect(src).not.toMatch(/express\.json\(/);
+  });
+  it('serves refresh-prices through the hardened handler', () => {
+    expect(src).toContain('createRefreshPricesHandler(');
   });
 });
