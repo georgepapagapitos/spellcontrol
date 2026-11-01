@@ -32,6 +32,19 @@ let proxyDownUntil = 0;
 const OUTAGE_MS = 60_000;
 let outageUntil = 0;
 
+/** One attempt's budget. A connection that stalls (no reset, no status) would
+ *  otherwise hang generation forever, since the 429/503 retry only sees answers. */
+export const ATTEMPT_TIMEOUT_MS = 15_000;
+
+/** True for the abort a per-attempt timeout produces. */
+export function isEdhrecTimeout(err: unknown): boolean {
+  return err instanceof DOMException && err.name === 'TimeoutError';
+}
+
+function timedFetch(url: string, headers: Record<string, string>): Promise<Response> {
+  return fetch(url, { headers, signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS) });
+}
+
 export function edhrecRetriesAllowed(): boolean {
   return Date.now() >= outageUntil;
 }
@@ -64,7 +77,7 @@ export async function edhrecRequest(endpoint: string): Promise<Response> {
   const headers = { Accept: 'application/json' };
   if (Date.now() >= proxyDownUntil) {
     try {
-      const res = await fetch(apiUrl(`${PROXY_PATH}${endpoint}`), { headers });
+      const res = await timedFetch(apiUrl(`${PROXY_PATH}${endpoint}`), headers);
       const tag = res.headers.get(PROXY_HEADER);
       // 502/504 with no route header: the host's edge, our backend is down.
       // 503 'unavailable': the backend is up but cannot reach EDHREC and holds
@@ -74,11 +87,12 @@ export async function edhrecRequest(endpoint: string): Promise<Response> {
       if (!down && !cannotReach) return res;
       await res.body?.cancel();
     } catch {
-      // Unreachable (offline, DNS, no server): fall through to EDHREC.
+      // Unreachable or stalled past the timeout (offline, DNS, no server):
+      // fall through to EDHREC.
     }
     proxyDownUntil = Date.now() + PROXY_DOWN_MS;
   }
-  return fetch(`${DIRECT_BASE_URL}${endpoint}`, { headers });
+  return timedFetch(`${DIRECT_BASE_URL}${endpoint}`, headers);
 }
 
 const MIN_REQUEST_DELAY = 100; // 100ms between requests

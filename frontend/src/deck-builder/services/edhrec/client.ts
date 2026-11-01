@@ -34,7 +34,13 @@ import {
   isKnownCardlistTag,
   reportUnknownTag,
 } from './drift';
-import { edhrecRequest, rateLimiter, edhrecRetriesAllowed, noteEdhrecOutage } from './request';
+import {
+  edhrecRequest,
+  rateLimiter,
+  edhrecRetriesAllowed,
+  noteEdhrecOutage,
+  isEdhrecTimeout,
+} from './request';
 
 /**
  * Network short-circuit for EDHREC. Unlike Scryfall + combos (which mirror
@@ -207,7 +213,22 @@ function getTargetBracketSuffix(targetBracket?: TargetBracket): string {
 async function edhrecFetch<T>(endpoint: string, attempt = 0): Promise<T> {
   await rateLimiter.throttle();
 
-  const response = await edhrecRequest(endpoint);
+  let response: Response;
+  try {
+    response = await edhrecRequest(endpoint);
+  } catch (err) {
+    // A stalled attempt (no answer within the per-attempt budget) is retried
+    // like a throttle; once the ladder is spent it surfaces to the caller's
+    // EDHREC-unavailable fallback and opens the outage window.
+    if (!isEdhrecTimeout(err)) throw err;
+    if (attempt >= MAX_RETRIES) {
+      noteEdhrecOutage(true);
+      throw err;
+    }
+    if (!edhrecRetriesAllowed()) throw err;
+    await new Promise((resolve) => setTimeout(resolve, BASE_BACKOFF_MS * 2 ** attempt));
+    return edhrecFetch<T>(endpoint, attempt + 1);
+  }
 
   if (!response.ok) {
     const throttled = response.status === 429 || response.status === 503;

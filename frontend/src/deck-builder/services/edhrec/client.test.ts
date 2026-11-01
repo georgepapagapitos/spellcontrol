@@ -734,3 +734,82 @@ describe('EDHREC pages are read through our backend (E1056)', () => {
     expect(urls(fetchMock).every((u) => u.startsWith('/api/edhrec/page/'))).toBe(true);
   });
 });
+
+// E1075: a connection that stalls with no status never reached the 429/503
+// retry, so a hung fetch hung generation. Each attempt now carries a timeout.
+describe('edhrecFetch per-attempt timeout', () => {
+  beforeEach(() => resetEdhrecProxyState());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  /** Node's AbortSignal.timeout runs on a real timer the fake clock cannot
+   *  advance, so route it through setTimeout. */
+  function fakeAbortTimeout() {
+    vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms: number) => {
+      const c = new AbortController();
+      setTimeout(() => c.abort(new DOMException('timed out', 'TimeoutError')), ms);
+      return c.signal;
+    });
+  }
+
+  /** A fetch that never answers and rejects only when its signal aborts. */
+  function hangingFetch(init?: RequestInit) {
+    return new Promise<Response>((_, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(init.signal?.reason));
+    });
+  }
+
+  function okResponse() {
+    return {
+      ok: true,
+      status: 200,
+      statusText: '200',
+      headers: { get: () => null },
+      json: async () => ({}),
+    } as unknown as Response;
+  }
+
+  it('gives up on a fetch that never answers, retries, then soft-fails', async () => {
+    fakeAbortTimeout();
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => hangingFetch(init));
+    vi.stubGlobal('fetch', fetchMock);
+    vi.useFakeTimers();
+
+    const pending = fetchCardLiftPool('Stall Probe');
+    await vi.runAllTimersAsync();
+
+    await expect(pending).resolves.toEqual([]);
+    // MAX_RETRIES + 1 attempts, each of which may try the backend then EDHREC.
+    const calls = fetchMock.mock.calls.length;
+    expect(calls).toBeGreaterThanOrEqual(MAX_RETRIES + 1);
+    expect(calls).toBeLessThanOrEqual(2 * (MAX_RETRIES + 1));
+  });
+
+  it('recovers when one attempt stalls and the next answers', async () => {
+    fakeAbortTimeout();
+    let calls = 0;
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) =>
+      ++calls <= 2 ? hangingFetch(init) : Promise.resolve(okResponse())
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    vi.useFakeTimers();
+
+    const pending = fetchCardLiftPool('Stall Recover Probe');
+    await vi.runAllTimersAsync();
+
+    await expect(pending).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('leaves a prompt answer untouched and hands fetch a signal', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => okResponse());
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchCardLiftPool('Prompt Probe')).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+  });
+});
