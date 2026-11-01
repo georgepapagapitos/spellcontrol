@@ -29,4 +29,8 @@ describe('nightly journey failure tracking', () => {
     expect(notify).toContain('gh issue close');
     expect(notify).toContain('--label "$LABEL"');
   });
+  it('reads the finished journey job log, not the in-progress run log', () => {
+    expect(notify).toMatch(/gh run view --job "\$jid" --log/);
+    expect(notify).not.toMatch(/gh run view "\$\{\{ github\.run_id \}\}" --log/);
+  });
 });
