@@ -19,6 +19,8 @@ import { logger } from './logger';
  * (the SPA shell is static; a crashing bundle never touches it) pages the
  * same way an outage does.
  *
+ * A third: the database. See `DbProbe`.
+ *
  * `uptime.yml` is the GitHub-cron backstop this replaces — its 5-minute
  * schedule measured ~8 firings a day with multi-hour gaps.
  */
@@ -31,16 +33,49 @@ export interface ErrorBurstCheck {
   threshold: number;
 }
 
+/**
+ * `/health` never touches Postgres on purpose (Fly's check must not depend on
+ * it: 2026-08-17), so a database outage would ping green. This probe is the
+ * heartbeat's own: one cheap query, a 5 s ceiling, retried once so a single
+ * slow query does not page.
+ */
+export type DbProbe = () => Promise<unknown>;
+export const DB_PROBE_TIMEOUT_MS = 5_000;
+
+async function dbDown(probe: DbProbe): Promise<boolean> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      await Promise.race([
+        probe(),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error('db probe timed out')), DB_PROBE_TIMEOUT_MS);
+        }),
+      ]);
+      return false;
+    } catch {
+      // retry once
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  return true;
+}
+
 export async function probeAndPing(
   pingUrl: string,
   origin: string,
-  errorBurst?: ErrorBurstCheck
+  errorBurst?: ErrorBurstCheck,
+  dbProbe?: DbProbe
 ): Promise<boolean> {
   const ok = await fetch(`${origin}/health`, { signal: AbortSignal.timeout(20_000) })
     .then(async (res) => res.ok && ((await res.json()) as { ok?: unknown }).ok === true)
     .catch(() => false);
   let failure = ok ? '' : `${origin}/health did not answer ok`;
-  if (ok && errorBurst) {
+  if (ok && dbProbe && (await dbDown(dbProbe))) {
+    failure = 'database probe failed (SELECT 1 did not answer)';
+  }
+  if (ok && !failure && errorBurst) {
     const n = await errorBurst.count(errorBurst.minutes).catch(() => 0);
     if (n > errorBurst.threshold) {
       failure = `${n} client errors in the last ${errorBurst.minutes} min (threshold ${errorBurst.threshold})`;
@@ -62,9 +97,10 @@ export async function probeAndPing(
 export function scheduleHeartbeat(
   pingUrl: string,
   origin: string,
-  errorBurst?: ErrorBurstCheck
+  errorBurst?: ErrorBurstCheck,
+  dbProbe?: DbProbe
 ): void {
-  const tick = () => void probeAndPing(pingUrl, origin, errorBurst);
+  const tick = () => void probeAndPing(pingUrl, origin, errorBurst, dbProbe);
   tick();
   setInterval(tick, HEARTBEAT_INTERVAL_MS).unref();
 }

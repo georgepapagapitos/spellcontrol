@@ -5,7 +5,13 @@ import type { Pool } from 'pg';
 import { sql } from 'drizzle-orm';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { getDb } from '../db';
-import { recentErrorCount, scrubText } from './events';
+import {
+  COUNT_ROWS_PER_DAY,
+  ERROR_HITS_PER_IP_CAP,
+  recentErrorCount,
+  resetErrorHits,
+  scrubText,
+} from './events';
 
 let app: Server;
 let pool: Pool;
@@ -129,6 +135,7 @@ describe('POST /api/events {name:"error"}', () => {
 
   it('stores a tab that reloaded onto a new build, but keeps it out of the burst alert', async () => {
     await pool.query('DELETE FROM error_counts');
+    resetErrorHits();
     const reload = {
       name: 'error',
       path: '/decks/:id',
@@ -241,5 +248,64 @@ describe('scrubText', () => {
     scrubText('+'.repeat(100_000), 200);
     scrubText('a@' + 'b'.repeat(100_000), 200);
     expect(performance.now() - t0).toBeLessThan(500);
+  });
+});
+
+describe('beacon burst alert and row caps (E1070, E1071)', () => {
+  const err = (message: string) =>
+    request(app).post('/api/events').send({ name: 'error', path: '/', kind: 'error', message });
+
+  it('counts a hit on a row already at 300 as one, not 300', async () => {
+    await pool.query('DELETE FROM error_counts');
+    resetErrorHits();
+    await pool.query(
+      `INSERT INTO error_counts (day, path, kind, message, frame, count, last_seen)
+         VALUES (CURRENT_DATE, '/', 'error', 'old loop', '', 300, now() - interval '1 hour')`
+    );
+    await err('old loop');
+    expect(await recentErrorCount(15)).toBe(1);
+  });
+
+  it('keeps 30 identical beacons from one caller under the default threshold of 25', async () => {
+    resetErrorHits();
+    for (let i = 0; i < 30; i++) await err('spam');
+    expect(await recentErrorCount(15)).toBe(ERROR_HITS_PER_IP_CAP);
+    expect(await recentErrorCount(15)).toBeLessThanOrEqual(25);
+  });
+
+  it('forgets hits older than the window', async () => {
+    resetErrorHits();
+    await err('x');
+    expect(await recentErrorCount(15, Date.now() + 16 * 60_000)).toBe(0);
+  });
+
+  it('folds paths past the per-day cap into one overflow row, for events and vitals', async () => {
+    await pool.query('DELETE FROM event_counts');
+    await pool.query('DELETE FROM vital_counts');
+    for (let i = 0; i < COUNT_ROWS_PER_DAY + 100; i += 20) {
+      await Promise.all(
+        Array.from({ length: 20 }, (_, j) => {
+          const path = `/p${i + j}`;
+          return Promise.all([
+            request(app).post('/api/events').send({ name: 'pageview', path }),
+            request(app).post('/api/events').send({ name: 'vital', path, metric: 'LCP', value: 1 }),
+          ]);
+        })
+      );
+    }
+    for (const table of ['event_counts', 'vital_counts']) {
+      const { rows } = await pool.query<{ n: string }>(`SELECT count(*)::text AS n FROM ${table}`);
+      // concurrent writers can each pass the count check once, so allow a small slack
+      expect(Number(rows[0].n), table).toBeLessThanOrEqual(COUNT_ROWS_PER_DAY + 25);
+      const over = await pool.query(`SELECT 1 FROM ${table} WHERE path = '[overflow]'`);
+      expect(over.rowCount, table).toBe(1);
+    }
+  });
+
+  it('drops a path that is not route-shaped', async () => {
+    await pool.query('DELETE FROM event_counts');
+    await request(app).post('/api/events').send({ name: 'pageview', path: '/a b<script>' });
+    const { rows } = await pool.query('SELECT 1 FROM event_counts');
+    expect(rows).toHaveLength(0);
   });
 });

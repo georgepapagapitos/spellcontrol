@@ -1425,7 +1425,8 @@ async function start() {
         process.env.HEALTHCHECKS_PROBE_ORIGIN ?? 'https://spellcontrol.com',
         burstThreshold > 0
           ? { count: recentErrorCount, minutes: 15, threshold: burstThreshold }
-          : undefined
+          : undefined,
+        () => getPool().query('SELECT 1')
       )
     );
   }
