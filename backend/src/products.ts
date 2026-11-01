@@ -25,6 +25,8 @@ const SECRET_LAIR_TYPE = 'Secret Lair Drop';
 const SECRET_LAIR_CODE = 'SLD';
 
 const MTGJSON_BASE = 'https://mtgjson.com/api/v5';
+/** DeckList.json is a few MB and a deck file is large; undici's default would be minutes. */
+const MTGJSON_FETCH_TIMEOUT_MS = 45_000;
 const FETCH_HEADERS = { Accept: 'application/json', 'User-Agent': SCRYFALL_USER_AGENT };
 
 /** A row of MTGJSON's `DeckList.json`. */
@@ -99,7 +101,10 @@ async function getDeckList(): Promise<DeckListEntry[]> {
 }
 
 async function fetchDeckList(): Promise<DeckListEntry[]> {
-  const response = await fetch(`${MTGJSON_BASE}/DeckList.json`, { headers: FETCH_HEADERS });
+  const response = await fetch(`${MTGJSON_BASE}/DeckList.json`, {
+    headers: FETCH_HEADERS,
+    signal: AbortSignal.timeout(MTGJSON_FETCH_TIMEOUT_MS),
+  });
   if (!response.ok) {
     throw new Error(`MTGJSON DeckList returned HTTP ${response.status}`);
   }
@@ -255,6 +260,7 @@ async function fetchProductDeck(fileName: string): Promise<MtgjsonDeckFile | nul
 
   const response = await fetch(`${MTGJSON_BASE}/decks/${encodeURIComponent(fileName)}.json`, {
     headers: FETCH_HEADERS,
+    signal: AbortSignal.timeout(MTGJSON_FETCH_TIMEOUT_MS),
   });
   if (response.status === 404) return null;
   if (!response.ok) {

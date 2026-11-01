@@ -3,7 +3,11 @@
  * Refreshes once per TTL window. Concurrent calls share a single in-flight request.
  */
 
-import { SCRYFALL_USER_AGENT } from './scryfall';
+import {
+  SCRYFALL_FETCH_TIMEOUT_MS,
+  SCRYFALL_PAGED_FETCH_TIMEOUT_MS,
+  SCRYFALL_USER_AGENT,
+} from './scryfall';
 
 interface ScryfallSet {
   code: string;
@@ -57,6 +61,7 @@ async function fetchSetMap(): Promise<SetMap> {
       Accept: 'application/json',
       'User-Agent': SCRYFALL_USER_AGENT,
     },
+    signal: AbortSignal.timeout(SCRYFALL_FETCH_TIMEOUT_MS),
   });
   if (!response.ok) {
     throw new Error(`Scryfall /sets returned HTTP ${response.status}`);
@@ -206,6 +211,7 @@ async function fetchSetCards(code: string): Promise<SetCard[]> {
   for (let page = 0; page < MAX_SET_PAGES; page++) {
     const response = await fetch(url, {
       headers: { Accept: 'application/json', 'User-Agent': SCRYFALL_USER_AGENT },
+      signal: AbortSignal.timeout(SCRYFALL_PAGED_FETCH_TIMEOUT_MS),
     });
     if (response.status === 404) {
       throw new SetNotFoundError(`No cards found for set "${code}".`);
