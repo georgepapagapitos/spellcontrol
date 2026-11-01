@@ -18,5 +18,6 @@ describe('filter popover panel scrolls inside its cap', () => {
     const m = css.match(/\n\.filter-popover-panel\s*\{([^}]*)\}/);
     expect(m, '.filter-popover-panel rule').not.toBeNull();
     expect(m![1]).toMatch(/overflow-y:\s*auto/);
+    expect(m![1]).toMatch(/max-height:\s*var\(--panel-room/);
   });
 });

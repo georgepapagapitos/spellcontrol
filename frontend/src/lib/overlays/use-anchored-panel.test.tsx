@@ -94,7 +94,8 @@ describe('useAnchoredPanel', () => {
     try {
       fireEvent.click(trigger);
       const panel = screen.getByRole('dialog', { name: 'panel' });
-      const cap = parseFloat(panel.style.maxHeight);
+      const cap = parseFloat(panel.style.getPropertyValue('--panel-room'));
+      expect(panel.style.maxHeight).toBe('');
       expect(cap).toBeGreaterThan(0);
       expect(cap).toBeLessThan(360);
     } finally {
