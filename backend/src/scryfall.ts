@@ -26,6 +26,15 @@ const BATCH_CONCURRENCY = 3;
 const MIN_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 30_000;
 const MAX_RETRIES = 5;
+/**
+ * Per-request ceiling for Scryfall API calls (not bulk downloads). undici's default is
+ * minutes, so a stalled socket would hold a retry loop, an import, or the getSetMap
+ * inFlight promise for that long. A timeout throws TimeoutError, which the retry
+ * loops already catch as a network error.
+ */
+export const SCRYFALL_FETCH_TIMEOUT_MS = 15_000;
+/** Paged search and the 75-card collection POST return large bodies; allow longer. */
+export const SCRYFALL_PAGED_FETCH_TIMEOUT_MS = 30_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -401,6 +410,7 @@ async function fetchBatchWithRetry(
           'User-Agent': SCRYFALL_USER_AGENT,
         },
         body: JSON.stringify({ identifiers }),
+        signal: AbortSignal.timeout(SCRYFALL_PAGED_FETCH_TIMEOUT_MS),
       });
 
       if (response.ok) {
@@ -592,6 +602,7 @@ async function fetchSearchPageWithRetry(url: string): Promise<SearchResponse | n
           Accept: 'application/json',
           'User-Agent': SCRYFALL_USER_AGENT,
         },
+        signal: AbortSignal.timeout(SCRYFALL_PAGED_FETCH_TIMEOUT_MS),
       });
 
       if (response.ok) {
@@ -674,6 +685,7 @@ export async function fetchRulings(id: string): Promise<Ruling[]> {
     try {
       const response = await fetch(`https://api.scryfall.com/cards/${id}/rulings`, {
         headers: { Accept: 'application/json', 'User-Agent': SCRYFALL_USER_AGENT },
+        signal: AbortSignal.timeout(SCRYFALL_FETCH_TIMEOUT_MS),
       });
 
       if (response.ok) {

@@ -102,6 +102,7 @@ export async function fetchScryfallBulkEntry(
 ): Promise<{ url: string; updatedAt: string; jsonl: boolean }> {
   const res = await fetch(SCRYFALL_BULK_INDEX_URL, {
     headers: { Accept: 'application/json', 'User-Agent': SCRYFALL_USER_AGENT },
+    signal: AbortSignal.timeout(15_000),
   });
   if (!res.ok) throw new Error(`Scryfall bulk index returned ${res.status}`);
   const body = (await res.json()) as BulkIndexResponse;
@@ -201,6 +202,7 @@ function bulkDownloadMarkerPath(dbPath: string): string {
  * truncated file that looks complete.
  */
 async function downloadBulkToDisk(url: string, dest: string): Promise<void> {
+  // fetch-timeout-exempt: bulk download, streamed to disk
   const res = await fetch(url, { headers: { 'User-Agent': SCRYFALL_USER_AGENT } });
   if (!res.ok || !res.body) {
     throw new Error(`Scryfall bulk download returned ${res.status}`);

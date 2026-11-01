@@ -110,6 +110,7 @@ async function downloadBulkToTemp(url: string): Promise<string> {
   const tmpPath = path.join(os.tmpdir(), `scanner-v2-bulk-${process.pid}-${Date.now()}${ext}`);
   logger.info(`[embedding-ingest] downloading bulk feed → ${tmpPath}`);
   const t0 = Date.now();
+  // fetch-timeout-exempt: bulk download, streamed to disk
   const res = await fetch(url, { headers: { 'User-Agent': SCRYFALL_UA } });
   if (!res.ok) throw new Error(`unique_artwork download failed: HTTP ${res.status}`);
   if (!res.body) throw new Error('unique_artwork response missing body');

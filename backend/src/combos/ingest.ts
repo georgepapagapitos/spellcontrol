@@ -86,6 +86,7 @@ export interface IngestResult {
  * response stream.
  */
 export async function* streamSpellbookVariants(): AsyncIterable<unknown> {
+  // fetch-timeout-exempt: bulk download, streamed
   const response = await fetch(SPELLBOOK_BULK_URL, {
     headers: {
       Accept: 'application/json',

@@ -110,7 +110,7 @@ async function fetchGameChangerNames(): Promise<Set<string>> {
     while (hasMore) {
       const res = await fetch(
         `${SCRYFALL_SEARCH_URL}?q=${encodeURIComponent('is:gamechanger')}&page=${page}`,
-        { headers: { 'User-Agent': SCRYFALL_USER_AGENT } }
+        { headers: { 'User-Agent': SCRYFALL_USER_AGENT }, signal: AbortSignal.timeout(30_000) }
       );
       if (!res.ok) throw new Error(`Scryfall is:gamechanger search returned ${res.status}`);
       const body = (await res.json()) as ScryfallSearchNameOnly;
@@ -216,6 +216,7 @@ async function buildPayload(): Promise<BulkPayload> {
     fetchGameChangerNames(),
   ]);
   logger.info('[offline] downloading Scryfall oracle bulk from', url);
+  // fetch-timeout-exempt: bulk download, streamed to disk
   const dlRes = await fetch(url, { headers: { 'User-Agent': SCRYFALL_USER_AGENT } });
   if (!dlRes.ok || !dlRes.body) {
     throw new Error(`Scryfall oracle bulk download returned ${dlRes.status}`);
