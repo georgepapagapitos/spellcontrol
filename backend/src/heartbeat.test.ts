@@ -59,6 +59,27 @@ describe('probeAndPing', () => {
     }
   });
 
+  it('pings /fail when the database probe rejects twice, but not on one blip', async () => {
+    let n = 0;
+    const down = async () => {
+      n++;
+      throw new Error('ECONNREFUSED');
+    };
+    const a = stubFetch(async () => Response.json({ ok: true }));
+    await expect(probeAndPing(PING, ORIGIN, undefined, down)).resolves.toBe(false);
+    expect(n).toBe(2);
+    expect(a.calls).toEqual([`${ORIGIN}/health`, `${PING}/fail`]);
+    expect(a.bodies[0]).toMatch(/database probe failed/);
+
+    let calls = 0;
+    const blip = async () => {
+      if (calls++ === 0) throw new Error('slow');
+    };
+    const b = stubFetch(async () => Response.json({ ok: true }));
+    await expect(probeAndPing(PING, ORIGIN, undefined, blip)).resolves.toBe(true);
+    expect(b.calls).toEqual([`${ORIGIN}/health`, PING]);
+  });
+
   it('survives the ping delivery itself failing', async () => {
     vi.stubGlobal('fetch', async (url: string) => {
       if (url === `${ORIGIN}/health`) return Response.json({ ok: true });

@@ -107,6 +107,12 @@ export function scrubText(text: string, max: number): string {
     .slice(0, max);
 }
 
+/** Distinct (name, path) / (path, metric, rating) rows a single day may hold in event_counts and vital_counts. */
+export const COUNT_ROWS_PER_DAY = 500;
+const OVERFLOW_PATH = '[overflow]';
+/** A route-shaped path: URL path characters only, so a beacon cannot smuggle free text into a row. */
+const PATH_SHAPE = /^\/[A-Za-z0-9/_\-.~%@:+=,*]*$/;
+
 const beaconLimiter = testAwareLimiter({ windowMs: 60_000, max: 60 });
 
 function str(v: unknown, max: number): string {
@@ -117,13 +123,13 @@ eventsRouter.post('/', beaconLimiter, async (req: Request, res: Response) => {
   const body = (req.body ?? {}) as Record<string, unknown>;
   const name = str(body.name, 40);
   const path = str(body.path, 200);
-  if (!path.startsWith('/')) {
+  if (!path.startsWith('/') || !PATH_SHAPE.test(path)) {
     res.status(204).end();
     return;
   }
   try {
     if (EVENT_NAMES.has(name)) await countEvent(name, path);
-    else if (name === 'error') await countError(path, body);
+    else if (name === 'error') await countError(path, body, req.ip ?? '');
     else if (name === 'vital') await countVital(path, body);
     else if (name === 'suggestion') {
       const label = parseSuggestion(body);
@@ -136,7 +142,18 @@ eventsRouter.post('/', beaconLimiter, async (req: Request, res: Response) => {
 });
 
 async function countEvent(name: string, path: string): Promise<void> {
-  await getPool().query(
+  const pool = getPool();
+  const existing = await pool.query(
+    `SELECT 1 FROM event_counts WHERE day = CURRENT_DATE AND name = $1 AND path = $2`,
+    [name, path]
+  );
+  if (existing.rowCount === 0) {
+    const { rows } = await pool.query<{ n: string }>(
+      `SELECT count(*)::text AS n FROM event_counts WHERE day = CURRENT_DATE`
+    );
+    if (Number(rows[0]?.n ?? 0) >= COUNT_ROWS_PER_DAY) path = OVERFLOW_PATH;
+  }
+  await pool.query(
     `INSERT INTO event_counts (day, name, path, count)
        VALUES (CURRENT_DATE, $1, $2, 1)
        ON CONFLICT (day, name, path) DO UPDATE SET count = event_counts.count + 1`,
@@ -144,9 +161,10 @@ async function countEvent(name: string, path: string): Promise<void> {
   );
 }
 
-async function countError(path: string, body: Record<string, unknown>): Promise<void> {
+async function countError(path: string, body: Record<string, unknown>, ip: string): Promise<void> {
   const kind = str(body.kind, 20);
   if (!ERROR_KINDS.has(kind)) return;
+  if (kind !== 'reload') noteErrorHit(ip);
   let message = scrubText(str(body.message, 1000), ERROR_MESSAGE_MAX) || '[no message]';
   let frame = scrubText(str(body.frame, 1000), ERROR_FRAME_MAX);
   const pool = getPool();
@@ -177,7 +195,18 @@ async function countVital(path: string, body: Record<string, unknown>): Promise<
   const metric = str(body.metric, 10);
   const rating = rateVital(metric, Number(body.value));
   if (!rating) return;
-  await getPool().query(
+  const pool = getPool();
+  const existing = await pool.query(
+    `SELECT 1 FROM vital_counts WHERE day = CURRENT_DATE AND path = $1 AND metric = $2 AND rating = $3`,
+    [path, metric, rating]
+  );
+  if (existing.rowCount === 0) {
+    const { rows } = await pool.query<{ n: string }>(
+      `SELECT count(*)::text AS n FROM vital_counts WHERE day = CURRENT_DATE`
+    );
+    if (Number(rows[0]?.n ?? 0) >= COUNT_ROWS_PER_DAY) path = OVERFLOW_PATH;
+  }
+  await pool.query(
     `INSERT INTO vital_counts (day, path, metric, rating, count)
        VALUES (CURRENT_DATE, $1, $2, $3, 1)
        ON CONFLICT (day, path, metric, rating) DO UPDATE SET count = vital_counts.count + 1`,
@@ -186,17 +215,53 @@ async function countVital(path: string, body: Record<string, unknown>): Promise<
 }
 
 /**
- * Client errors counted in the last `minutes` — the heartbeat's burst check
- * (see heartbeat.ts). Sums `count`, so one error looping in one tab counts
- * every time it fires, which is what a burst alert should see. A `reload` row is
- * left out: every deploy produces a wave of them from tabs that were open, and
- * each one already recovered.
+ * Burst-alert window state. The error_counts `count` is cumulative for the
+ * whole day, so summing it over "rows touched in the window" credits a day's
+ * history to one new hit; and the beacon is unauthenticated, so one caller can
+ * send identical beacons and page the owner. The alert therefore reads hits
+ * seen by this process, each caller (IP) contributing at most
+ * ERROR_HITS_PER_IP_CAP per window: a real regression reaches enough distinct
+ * callers to pass the threshold, one noisy or hostile caller cannot. Hits live
+ * in memory only (never stored with an IP, per the beacon contract), so a
+ * restart starts the window empty, which also keeps a deploy quiet.
  */
-export async function recentErrorCount(minutes: number): Promise<number> {
-  const { rows } = await getPool().query<{ n: string }>(
-    `SELECT COALESCE(SUM(count), 0)::text AS n FROM error_counts
-      WHERE last_seen > now() - ($1::int * interval '1 minute') AND kind <> 'reload'`,
-    [minutes]
-  );
-  return Number(rows[0]?.n ?? 0);
+export const ERROR_HITS_PER_IP_CAP = 5;
+const ERROR_HIT_IPS_MAX = 5000;
+const errorHits = new Map<string, number[]>();
+
+function noteErrorHit(ip: string, now = Date.now()): void {
+  let hits = errorHits.get(ip);
+  if (!hits) {
+    if (errorHits.size >= ERROR_HIT_IPS_MAX) {
+      const oldest = errorHits.keys().next().value;
+      if (oldest !== undefined) errorHits.delete(oldest);
+    }
+    hits = [];
+    errorHits.set(ip, hits);
+  }
+  hits.push(now);
+  // Keep the newest few: older ones can only matter inside a window the cap already fills.
+  if (hits.length > ERROR_HITS_PER_IP_CAP) hits.splice(0, hits.length - ERROR_HITS_PER_IP_CAP);
+}
+
+/** Test seam: forget every recorded hit. */
+export function resetErrorHits(): void {
+  errorHits.clear();
+}
+
+/**
+ * Client errors seen in the last `minutes`, for the heartbeat's burst check
+ * (see heartbeat.ts): the sum over callers of min(hits in window, cap). A
+ * `reload` is never recorded: every deploy produces a wave of them from tabs
+ * that were open, and each one already recovered.
+ */
+export async function recentErrorCount(minutes: number, now = Date.now()): Promise<number> {
+  const since = now - minutes * 60_000;
+  let total = 0;
+  for (const [ip, hits] of errorHits) {
+    const live = hits.filter((t) => t > since);
+    if (live.length === 0) errorHits.delete(ip);
+    else total += Math.min(live.length, ERROR_HITS_PER_IP_CAP);
+  }
+  return total;
 }

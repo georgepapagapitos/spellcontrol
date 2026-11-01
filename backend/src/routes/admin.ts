@@ -109,6 +109,9 @@ adminRouter.get('/ai-spend', requireAdmin, adminLimiter, async (_req: Request, r
  * tombstoned) rows — cheap enough to run on every request because each
  * sum is one indexed scan per table.
  */
+/** Row ceiling per beacon table in /events; the writers cap distinct rows per day, this bounds a 365-day read. */
+const ADMIN_EVENT_ROWS_MAX = 50_000;
+
 /**
  * GET /api/admin/events?days=30
  * Raw (day, name, path, count) rows from the first-party beacon for the last
@@ -121,7 +124,7 @@ adminRouter.get('/events', requireAdmin, adminLimiter, async (req: Request, res:
   const [events, errors, vitals] = await Promise.all([
     pool.query<{ day: string; name: string; path: string; count: number }>(
       `SELECT day::text AS day, name, path, count FROM event_counts
-        WHERE day >= CURRENT_DATE - ($1::int - 1) ORDER BY day DESC, count DESC`,
+        WHERE day >= CURRENT_DATE - ($1::int - 1) ORDER BY day DESC, count DESC LIMIT ${ADMIN_EVENT_ROWS_MAX}`,
       [days]
     ),
     pool.query<{
@@ -135,12 +138,12 @@ adminRouter.get('/events', requireAdmin, adminLimiter, async (req: Request, res:
     }>(
       `SELECT day::text AS day, path, kind, message, frame, count, last_seen::text AS last_seen
          FROM error_counts
-        WHERE day >= CURRENT_DATE - ($1::int - 1) ORDER BY count DESC, last_seen DESC`,
+        WHERE day >= CURRENT_DATE - ($1::int - 1) ORDER BY count DESC, last_seen DESC LIMIT ${ADMIN_EVENT_ROWS_MAX}`,
       [days]
     ),
     pool.query<{ day: string; path: string; metric: string; rating: string; count: number }>(
       `SELECT day::text AS day, path, metric, rating, count FROM vital_counts
-        WHERE day >= CURRENT_DATE - ($1::int - 1)`,
+        WHERE day >= CURRENT_DATE - ($1::int - 1) ORDER BY day DESC LIMIT ${ADMIN_EVENT_ROWS_MAX}`,
       [days]
     ),
   ]);
