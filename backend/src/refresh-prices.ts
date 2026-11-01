@@ -82,7 +82,11 @@ export function createRefreshPricesHandler(deps: RefreshPricesDeps): RequestHand
       const fetched = live.length > 0 ? await deps.fetchLive(live) : [];
       if (live.length > 0) {
         const got = new Set(fetched.map((c) => c.id));
-        for (const id of live) if (!got.has(id)) notFound.set(id, t + REFRESH_NOT_FOUND_TTL_MS);
+        // An empty result means the fetch gave up (429 retries, network), not
+        // that every id is unknown, so only a partial answer is remembered.
+        if (fetched.length > 0) {
+          for (const id of live) if (!got.has(id)) notFound.set(id, t + REFRESH_NOT_FOUND_TTL_MS);
+        }
         logger.info(
           `[refresh-prices] ${cached.size}/${ids.length} from bulk cache, ${live.length} live` +
             (candidates.length > live.length

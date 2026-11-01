@@ -65,10 +65,19 @@ describe('POST /api/refresh-prices live fallback', () => {
   });
 
   it('does not re-ask Scryfall for an id it just did not know', async () => {
+    const { app, fetchLive } = setup((id) => id === uuid(1));
+    const body = { scryfallIds: [uuid(1), uuid(2)] };
+    await request(app).post('/api/refresh-prices').send(body);
+    await request(app).post('/api/refresh-prices').send(body);
+    expect(fetchLive).toHaveBeenCalledTimes(2);
+    expect(fetchLive.mock.calls[1][0]).toEqual([uuid(1)]);
+  });
+
+  it('does not remember ids after an empty result (a failed fetch)', async () => {
     const { app, fetchLive } = setup(() => false);
     const body = { scryfallIds: [uuid(1), uuid(2)] };
     await request(app).post('/api/refresh-prices').send(body);
     await request(app).post('/api/refresh-prices').send(body);
-    expect(fetchLive).toHaveBeenCalledTimes(1);
+    expect(fetchLive).toHaveBeenCalledTimes(2);
   });
 });
