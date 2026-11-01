@@ -45,24 +45,57 @@ export const EDHREC_INCLUSION_THRESHOLD = 25; // percent
 export const EDHREC_BLEND_WEIGHT = 0.6;
 
 // ─── EDHREC-Derived Role Counts ─────────────────────────────────────
-// For the current commander, count cards per role whose EDHREC inclusion
-// meets the threshold. Lands are skipped (basics dominate the distribution
-// and role classification doesn't apply). Cards whose role is undefined
-// are assumed to be synergy/payoff pieces and correctly contribute nothing.
+// For the current commander, count cards per role by EDHREC inclusion. Lands
+// are skipped (basics dominate the distribution and role classification does
+// not apply). Cards whose role is undefined are assumed to be synergy/payoff
+// pieces and correctly contribute nothing.
+//
+// The count is soft (E1061): a card carries a weight that ramps linearly from
+// 0 at `threshold - EDHREC_RAMP_HALF_WIDTH` to 1 at `threshold + ...`, instead
+// of a hard step at the threshold. A hard step let a card drifting 24.9 to 25.1
+// add a whole count to a role target, and the targets drive pick boosts on
+// ~90 cards, so EDHREC's day-to-day drift rerouted unrelated picks.
+export const EDHREC_RAMP_HALF_WIDTH = 5; // percentage points
+
+/** Weight of one card in the role count: 0 below the ramp, 1 above it. */
+export function edhrecInclusionWeight(
+  inclusion: number,
+  threshold: number = EDHREC_INCLUSION_THRESHOLD
+): number {
+  const lo = threshold - EDHREC_RAMP_HALF_WIDTH;
+  return Math.min(1, Math.max(0, (inclusion - lo) / (2 * EDHREC_RAMP_HALF_WIDTH)));
+}
+
+/** Fractional per-role count: the sum of each role card's inclusion weight. */
+export function computeEdhrecRoleMass(
+  edhrecData: EDHRECCommanderData | null | undefined,
+  threshold: number = EDHREC_INCLUSION_THRESHOLD
+): Record<RoleKey, number> {
+  const mass: Record<RoleKey, number> = { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 };
+  if (!edhrecData?.cardlists?.allNonLand) return mass;
+
+  for (const card of edhrecData.cardlists.allNonLand) {
+    const w = edhrecInclusionWeight(card.inclusion, threshold);
+    if (w <= 0) continue;
+    const role = getCardRole(card.name);
+    if (role) mass[role] += w;
+  }
+
+  return mass;
+}
+
+/** The soft count rounded to whole cards, for display and integer callers. */
 export function computeEdhrecRoleTargets(
   edhrecData: EDHRECCommanderData | null | undefined,
   threshold: number = EDHREC_INCLUSION_THRESHOLD
 ): Record<RoleKey, number> {
-  const counts: Record<RoleKey, number> = { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 };
-  if (!edhrecData?.cardlists?.allNonLand) return counts;
-
-  for (const card of edhrecData.cardlists.allNonLand) {
-    if (card.inclusion < threshold) continue;
-    const role = getCardRole(card.name);
-    if (role) counts[role]++;
-  }
-
-  return counts;
+  const mass = computeEdhrecRoleMass(edhrecData, threshold);
+  return {
+    ramp: Math.round(mass.ramp),
+    removal: Math.round(mass.removal),
+    boardwipe: Math.round(mass.boardwipe),
+    cardDraw: Math.round(mass.cardDraw),
+  };
 }
 
 // ─── Theme → Archetype Mapping ──────────────────────────────────────
@@ -639,61 +672,75 @@ export function getDynamicRoleTargets(
     : 'balanced';
   const pacingMults = PACING_ROLE_ADJUSTMENTS[pacing];
 
-  // EDHREC-derived counts (zero-filled when edhrecData is missing)
-  const edhrecCounts = edhrecData
-    ? computeEdhrecRoleTargets(edhrecData, overrideThreshold ?? EDHREC_INCLUSION_THRESHOLD)
+  // EDHREC-derived soft counts (zero-filled when edhrecData is missing)
+  const edhrecMass = edhrecData
+    ? computeEdhrecRoleMass(edhrecData, overrideThreshold ?? EDHREC_INCLUSION_THRESHOLD)
     : null;
 
   const blendWeight = Math.min(1, Math.max(0, overrideBlendWeight ?? EDHREC_BLEND_WEIGHT));
 
-  const result = {} as Record<RoleKey, number>;
-  const breakdown = {} as Record<RoleKey, RoleTargetBreakdown>;
+  // Everything stays unrounded until the end: rounding per role and then
+  // rescaling the rounded values let one card's count move another role's
+  // target (E1061).
+  const floors: Record<RoleKey, number> = { ramp: 1, removal: 1, boardwipe: 0, cardDraw: 1 };
+  const raw = {} as Record<RoleKey, number>;
+  const archetypeTargets = {} as Record<RoleKey, number>;
   let total = 0;
-
   for (const role of ROLE_KEYS) {
     const archetypeTarget = base[role] * archetypeMults[role];
-    const blendedPrePacing = edhrecCounts
-      ? blendWeight * edhrecCounts[role] + (1 - blendWeight) * archetypeTarget
+    archetypeTargets[role] = archetypeTarget;
+    const blendedPrePacing = edhrecMass
+      ? blendWeight * edhrecMass[role] + (1 - blendWeight) * archetypeTarget
       : archetypeTarget;
-    const afterPacing = blendedPrePacing * pacingMults[role];
-
-    const floor = role === 'boardwipe' ? 0 : 1;
-    const finalCount = Math.max(floor, Math.round(afterPacing));
-    result[role] = finalCount;
-    total += finalCount;
-
-    breakdown[role] = {
-      edhrecCount: edhrecCounts ? edhrecCounts[role] : null,
-      archetypeTarget: Math.round(archetypeTarget),
-      pacingMultiplier: pacingMults[role],
-      blended: finalCount,
-    };
+    raw[role] = Math.max(floors[role], blendedPrePacing * pacingMults[role]);
+    total += raw[role];
   }
 
   // Cap total to reasonable range (scaled by format)
   const maxTotal = Math.round(format * 0.35); // ~34 for 99
   const minTotal = Math.round(format * 0.28); // ~28 for 99
+  const rescaled = total > maxTotal || total < minTotal;
+  if (rescaled) {
+    const scale = (total > maxTotal ? maxTotal : minTotal) / total;
+    for (const role of ROLE_KEYS) raw[role] = Math.max(floors[role], raw[role] * scale);
+  }
 
-  if (total > maxTotal) {
-    const scale = maxTotal / total;
-    for (const role of ROLE_KEYS) {
-      const floor = role === 'boardwipe' ? 0 : 1;
-      result[role] = Math.max(floor, Math.round(result[role] * scale));
-      breakdown[role].blended = result[role];
+  // Round once, per role, so a role's target depends only on its own value
+  // and the (continuous) scale. Floors can push a rescaled total past the
+  // cap, so any overshoot comes off the role with the largest rounded-up
+  // remainder, any shortfall goes on the role with the largest rounded-down one.
+  const result = {} as Record<RoleKey, number>;
+  for (const role of ROLE_KEYS) result[role] = Math.round(raw[role]);
+  if (rescaled) {
+    const sum = () => ROLE_KEYS.reduce((acc, r) => acc + result[r], 0);
+    let guard = 0;
+    while (sum() > maxTotal && guard++ < 16) {
+      const pick = ROLE_KEYS.filter((r) => result[r] > floors[r]).sort(
+        (x, y) => result[y] - raw[y] - (result[x] - raw[x])
+      )[0];
+      if (!pick) break;
+      result[pick]--;
     }
-  } else if (total < minTotal) {
-    const scale = minTotal / total;
-    for (const role of ROLE_KEYS) {
-      const floor = role === 'boardwipe' ? 0 : 1;
-      result[role] = Math.max(floor, Math.round(result[role] * scale));
-      breakdown[role].blended = result[role];
+    while (sum() < minTotal && guard++ < 32) {
+      const pick = [...ROLE_KEYS].sort((x, y) => raw[y] - result[y] - (raw[x] - result[x]))[0];
+      result[pick]++;
     }
+  }
+
+  const breakdown = {} as Record<RoleKey, RoleTargetBreakdown>;
+  for (const role of ROLE_KEYS) {
+    breakdown[role] = {
+      edhrecCount: edhrecMass ? Math.round(edhrecMass[role]) : null,
+      archetypeTarget: Math.round(archetypeTargets[role]),
+      pacingMultiplier: pacingMults[role],
+      blended: result[role],
+    };
   }
 
   logger.debug(
     `[DeckGen] Dynamic role targets: archetype=${archetype}, pacing=${pacing}, blend=${blendWeight}`,
     result,
-    `(total=${Object.values(result).reduce((s, v) => s + v, 0)}, edhrecCounts=${edhrecCounts ? JSON.stringify(edhrecCounts) : 'null'})`
+    `(total=${Object.values(result).reduce((s, v) => s + v, 0)}, edhrecMass=${edhrecMass ? JSON.stringify(edhrecMass) : 'null'})`
   );
 
   return { targets: result, archetype, pacing, breakdown };

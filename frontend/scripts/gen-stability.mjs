@@ -46,6 +46,8 @@ export const RUNS = {
   targeted: 'add:Anticipate@36@instants',
   shuffle: 'shuffle:11',
   seed: 'seed:7',
+  // EDHREC's day-to-day drift: every card's inclusion moved by up to +-1 point
+  drift: 'drift:1@1',
 };
 
 const TEST = 'src/deck-builder/services/deckBuilder/deckGenerator.live.test.ts';

@@ -111,4 +111,39 @@ describe('live panel perturbations (E1061)', () => {
     expect(view.synergy).toBe(0);
     expect(view.lift).toBeUndefined();
   });
+
+  it('drift moves each card by a bounded, repeatable amount and keeps the cards', () => {
+    const p = parsePerturbation('drift:1@3');
+    expect(p).toEqual({ kind: 'drift', points: 1, seed: 3 });
+    expect(parsePerturbation('drift:2')).toEqual({ kind: 'drift', points: 2, seed: 0 });
+    expect(() => parsePerturbation('drift:abc')).toThrow();
+    const body = JSON.stringify({
+      container: {
+        json_dict: {
+          cardlists: [
+            {
+              tag: 'x',
+              cardviews: ['A', 'B', 'C', 'D', 'E', 'F'].map((name) => ({
+                name,
+                num_decks: 500,
+                potential_decks: 1000,
+              })),
+            },
+          ],
+        },
+      },
+    });
+    const a = perturbEdhrecBody(body, p, PAGE);
+    expect(perturbEdhrecBody(body, p, PAGE)).toBe(a);
+    const views = JSON.parse(a).container.json_dict.cardlists[0].cardviews as {
+      name: string;
+      num_decks: number;
+    }[];
+    expect(views.map((v) => v.name)).toEqual(['A', 'B', 'C', 'D', 'E', 'F']);
+    for (const v of views) expect(Math.abs(v.num_decks - 500)).toBeLessThanOrEqual(10);
+    expect(views.some((v) => v.num_decks !== 500)).toBe(true);
+    expect(new Set(views.map((v) => v.num_decks)).size).toBeGreaterThan(1);
+    expect(perturbEdhrecBody(body, p, 'https://x/pages/cards/sol-ring.json')).toBe(body);
+    expect(perturbEdhrecBody(body, { kind: 'drift', points: 1, seed: 4 }, PAGE)).not.toBe(a);
+  });
 });

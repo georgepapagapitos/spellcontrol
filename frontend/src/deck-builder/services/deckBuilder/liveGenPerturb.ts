@@ -16,6 +16,9 @@
  *                                 not move (a lower pct does move it: board E1061)
  *   shuffle:<seed>                the order of the cards inside every EDHREC list
  *   seed:<n>                      the whole-deck search's goldfish seed
+ *   drift:<points>[@<seed>]       every commander-page card's inclusion moved by a
+ *                                 deterministic amount in [-points, +points] (seeded by the
+ *                                 card name), which models EDHREC's day-to-day drift
  *
  * `shuffle` only reaches the generator through ties: parseCardlists sorts each
  * list by inclusion, and the sort is stable.
@@ -25,7 +28,8 @@ export type Perturbation =
   | { kind: 'none' }
   | { kind: 'add'; name: string; pct: number | 'floor'; list: string }
   | { kind: 'shuffle'; seed: number }
-  | { kind: 'seed'; seed: number };
+  | { kind: 'seed'; seed: number }
+  | { kind: 'drift'; points: number; seed: number };
 
 export function parsePerturbation(raw: string | undefined): Perturbation {
   const text = (raw ?? '').trim();
@@ -37,6 +41,14 @@ export function parsePerturbation(raw: string | undefined): Perturbation {
     const seed = Number(rest);
     if (!Number.isInteger(seed)) throw new Error(`LIVE_GEN_PERTURB ${kind}: needs an integer`);
     return { kind, seed };
+  }
+  if (kind === 'drift') {
+    const [pts, sd] = rest.split('@');
+    const points = Number(pts);
+    const seed = sd === undefined ? 0 : Number(sd);
+    if (!Number.isFinite(points) || points < 0 || points > 20 || !Number.isInteger(seed))
+      throw new Error('LIVE_GEN_PERTURB drift: wants drift:<points 0-20>[@<integer seed>]');
+    return { kind, points, seed };
   }
   if (kind === 'add') {
     const [name, pct, list] = rest.split('@');
@@ -57,6 +69,27 @@ function mulberry32(seed: number): () => number {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+/** FNV-1a, 32 bit: a stable hash of the card name and seed. */
+function hash32(text: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  // murmur3 finalizer: FNV's high bits barely move between near-identical names.
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x85ebca6b) >>> 0;
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35) >>> 0;
+  h ^= h >>> 16;
+  return h >>> 0;
+}
+
+/** The card's drift in percentage points, in [-points, +points]. */
+export function driftDelta(name: string, points: number, seed: number): number {
+  return (hash32(`${seed}:${name.toLowerCase()}`) / 4294967295) * 2 * points - points;
 }
 
 function shuffleInPlace<T>(items: T[], rand: () => number): void {
@@ -110,6 +143,23 @@ export function perturbEdhrecBody(body: string, p: Perturbation, url: string): s
   if (p.kind === 'shuffle') {
     const rand = mulberry32(p.seed);
     for (const list of lists) if (list.cardviews) shuffleInPlace(list.cardviews, rand);
+  } else if (p.kind === 'drift') {
+    for (const list of lists) {
+      for (const view of list.cardviews ?? []) {
+        const potential = Number(view.potential_decks);
+        if (!(potential > 0)) continue;
+        const delta = driftDelta(view.name, p.points, p.seed);
+        // Whichever count field the client reads (inclusion, else num_decks).
+        for (const field of ['inclusion', 'num_decks'] as const) {
+          const count = Number(view[field]);
+          if (view[field] === undefined || !Number.isFinite(count)) continue;
+          view[field] = Math.min(
+            potential,
+            Math.max(1, Math.round(count + (delta / 100) * potential))
+          );
+        }
+      }
+    }
   } else {
     const key = p.name.toLowerCase();
     const present = lists.some((l) => l.cardviews?.some((c) => c.name.toLowerCase() === key));

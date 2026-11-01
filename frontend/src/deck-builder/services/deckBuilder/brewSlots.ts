@@ -10,7 +10,7 @@ import { calculateCardPriority, OWNED_PRIORITY_BOOST } from './cardPicking';
 import { isSignatureSynergy } from './synergyLift';
 import {
   getBaseRoleTargets,
-  computeEdhrecRoleTargets,
+  computeEdhrecRoleMass,
   EDHREC_BLEND_WEIGHT,
   EDHREC_INCLUSION_THRESHOLD,
 } from './roleTargets';
@@ -113,7 +113,7 @@ export function computeBrewRoleTargets(
   nonlandTotal: number
 ): Record<RoleKey, number> {
   const base = getBaseRoleTargets(nonlandTotal);
-  const edhrecCounts = computeEdhrecRoleTargets(edhrecData, EDHREC_INCLUSION_THRESHOLD);
+  const edhrecCounts = computeEdhrecRoleMass(edhrecData, EDHREC_INCLUSION_THRESHOLD);
   const targets = {} as Record<RoleKey, number>;
   for (const role of BREW_ROLE_ORDER) {
     const blended =
