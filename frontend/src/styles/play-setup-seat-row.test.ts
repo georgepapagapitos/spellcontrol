@@ -61,7 +61,7 @@ describe('play setup seat row at narrow widths', () => {
       ['.play-setup-seat-deck-add', 'deck'],
       ['.play-setup-seat-remove', 'remove'],
     ]) {
-      const escaped = sel.replace(/[.-]/g, '\\$&');
+      const escaped = sel.replace(/[\\^$.*+?()[\]{}|-]/g, '\\$&');
       expect(block, sel).toMatch(
         new RegExp(`${escaped}\\s*(?:,[^{}]*)?\\{[^}]*grid-area:\\s*${area}\\b`)
       );
