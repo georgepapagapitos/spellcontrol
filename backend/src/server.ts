@@ -1,4 +1,6 @@
 import { logger } from './logger';
+import { mountBodyParsers } from './body-limits';
+import { createRefreshPricesHandler } from './refresh-prices';
 import { attachRequestId, unhandledErrorHandler } from './request-context';
 import { scheduleHeartbeat } from './heartbeat';
 import { precompressed } from './precompressed';
@@ -312,10 +314,7 @@ const setsLimiter = testAwareLimiter({ windowMs: 60_000, max: 60 });
 /** Scryfall card UUID — validates the :id path param on the card-by-id routes. */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Kept ABOVE the sync snapshot cap (MAX_SNAPSHOT_BYTES, 64MB) so an oversize
-// collection is rejected by the sync route with a friendly, actionable message
-// rather than a raw body-parser 413.
-app.use(express.json({ limit: '72mb' }));
+mountBodyParsers(app);
 
 app.use('/api/cards', cardImagesRouter);
 app.use('/api/cards', cardLookupRouter);
@@ -971,56 +970,15 @@ app.get(
   }
 );
 
-app.post('/api/refresh-prices', priceLimiter, async (req: Request, res: Response) => {
-  try {
-    const raw = (req.body && (req.body as { scryfallIds?: unknown }).scryfallIds) as unknown;
-    if (!Array.isArray(raw)) {
-      return res.status(400).json({ error: 'Body must be { scryfallIds: string[] }.' });
-    }
-
-    const ids = Array.from(
-      new Set(raw.filter((x): x is string => typeof x === 'string' && x.length > 0))
-    ).slice(0, 1000);
-
-    if (ids.length === 0) {
-      return res.json({ prices: {} });
-    }
-
-    // Serve from the nightly `default_cards` dump, which carries prices and
-    // restamps every printing daily (scryfall-bulk.ts). Only ids the dump
-    // doesn't cover go to the live API.
-    //
-    // This route used to call fetchCardsByIds for EVERY id — that function
-    // bypasses the cache deliberately, wanting current prices rather than the
-    // 7-day snapshot. It cost ~14 upstream requests per 1000-id chunk, and
-    // because it runs server-side, every user's refresh spends the SAME
-    // per-IP budget on our one Fly machine. It was the live 429 source:
-    //
-    //   POST /api/refresh-prices 200 8583ms
-    //   [scryfall] batch 5 hit 429, waiting 30000ms before retry 1/5
-    //   POST /api/refresh-prices 200 66790ms
-    //
-    // Daily prices are the right granularity for valuing a collection, and are
-    // far fresher than the 7-day TTL the bypass was written to avoid.
-    const cached = cache.getMany(ids, false, PRICE_MAX_AGE_MS);
-    const uncached = ids.filter((id) => !cached.has(id));
-    const fetched = uncached.length > 0 ? await fetchCardsByIds(uncached, cache) : [];
-    if (uncached.length > 0) {
-      logger.info(
-        `[refresh-prices] ${cached.size}/${ids.length} from bulk cache, ${uncached.length} live`
-      );
-    }
-    const cards = [...cached.values(), ...fetched];
-
-    // `prices` (per finish, emitted only when priced) + `releasedAt` (per
-    // printing, emitted whether or not it's priced). Both rules, and why they
-    // differ, live on buildPriceRefreshPayload.
-    res.json(buildPriceRefreshPayload(cards, Date.now()));
-  } catch (err) {
-    logger.error('[refresh-prices] error:', err);
-    res.status(500).json({ error: 'Price refresh failed.' });
-  }
-});
+app.post(
+  '/api/refresh-prices',
+  priceLimiter,
+  createRefreshPricesHandler({
+    getCached: (ids) => cache.getMany(ids, false, PRICE_MAX_AGE_MS),
+    fetchLive: (ids) => fetchCardsByIds(ids, cache),
+    buildPayload: buildPriceRefreshPayload,
+  })
+);
 
 /**
  * Picks a single usd value from a Scryfall card's price block. Prefers the

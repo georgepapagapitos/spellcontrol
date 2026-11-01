@@ -32,6 +32,10 @@ export function unhandledErrorHandler(
     res.status(413).json({ error: 'File is too large. Maximum size is 20 MB.', requestId });
     return;
   }
+  if ((err as { type?: string }).type === 'entity.too.large') {
+    res.status(413).json({ error: 'That request is too large.', requestId });
+    return;
+  }
   logger.error(
     `[server] unhandled error req=${requestId} user=${req.user?.id ?? 'anon'} ${req.method} ${req.path}`,
     err
