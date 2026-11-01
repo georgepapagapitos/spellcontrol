@@ -183,17 +183,21 @@
 /* On touch the target grows past the marks to 44px through a ghost, not the
    button's own box: padding cancelled by a negative margin pushed the button
    past the tile's clipped edge (the foot sits only --space-1-5 in), so at
-   large text it was a quarter hidden. The ghost is clipped there instead,
-   and the button stays whole. */
+   large text it was a quarter hidden. The ghost is the same size, but it
+   hangs no further below the trigger than the foot's own inset, which is all
+   the tile's overflow:hidden leaves; the rest of the 44px grows upward into
+   the art. A ghost centered on a 24px trigger overhung the tile by 4px and
+   read 41px tall in the journey (E1079). Guard:
+   styles/copy-places-ghost.test.ts. */
 @media (pointer: coarse) {
   .copy-places-trigger--art::after {
     content: '';
     position: absolute;
-    top: 50%;
+    bottom: calc(var(--space-1-5) * -1);
     left: 50%;
     width: max(100%, 44px);
-    height: max(100%, 44px);
-    transform: translate(-50%, -50%);
+    height: max(calc(100% + var(--space-1-5)), 44px);
+    transform: translateX(-50%);
   }
 }
 
