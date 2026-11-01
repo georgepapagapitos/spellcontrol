@@ -223,8 +223,9 @@
   min-width: min(16rem, calc(100vw - 2rem));
   max-width: min(20rem, calc(100vw - 2rem));
   padding: var(--space-2-5);
-  /* The hook caps it with an inline max-height (the room on its side of the
-     trigger); this is what makes that cap scroll rather than clip. */
+  /* The hook publishes the room on its side of the trigger as --panel-room;
+     cap to it and scroll, so a tall panel stays reachable at 640x360 / 400% zoom. */
+  max-height: var(--panel-room, none);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
