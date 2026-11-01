@@ -332,3 +332,18 @@ describe('mtgo export (.dek XML)', () => {
     expect(result).not.toContain('<Foo>');
   });
 });
+
+// Pins the exact strings backend/src/parsers/text.test.ts feeds the text parser
+// ("reads back what deck export writes"); change one side and the other fails.
+describe('formatLine strings the text importer round-trips (E1072)', () => {
+  it.each([
+    ['mtga', {}, '1 Sol Ring (CMR) 472'],
+    ['moxfield', { finish: 'foil' }, '1 Sol Ring (CMR) 472 *F*'],
+    ['moxfield', { finish: 'etched' }, '1 Sol Ring (CMR) 472 *E*'],
+    ['plain', { finish: 'foil' }, '1 Sol Ring (CMR) 472 [Foil]'],
+    ['plain', { finish: 'etched', language: 'ja' }, '1 Sol Ring (CMR) 472 [Etched] [JA]'],
+    ['plain', { language: 'ja' }, '1 Sol Ring (CMR) 472 [JA]'],
+  ] as const)('%s %j', (format, overrides, expected) => {
+    expect(formatLine(entry(overrides), format)).toBe(expected);
+  });
+});

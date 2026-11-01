@@ -346,3 +346,33 @@ describe('parseTextList', () => {
     });
   });
 });
+
+// Round-trip guard (E1072). The left column is, verbatim, what the frontend's
+// `formatLine` (lib/import-export/deck-export.ts) writes for each export
+// format x finish x language; frontend/deck-export.test.ts pins the same
+// strings, so a change to either side fails one of the two suites.
+describe('parseTextList reads back what deck export writes', () => {
+  const cases: Array<[string, string | undefined, string | undefined, string | undefined]> = [
+    // [line, setCode, finish, language]
+    ['1 Sol Ring (CMR) 472', 'CMR', undefined, undefined], // mtga
+    ['1 Sol Ring (CMR) 472 *F*', 'CMR', 'foil', undefined], // moxfield foil
+    ['1 Sol Ring (CMR) 472 *E*', 'CMR', 'etched', undefined], // moxfield etched
+    ['1 Sol Ring (CMR) *F*', 'CMR', 'foil', undefined], // moxfield, no collector number
+    ['1 Sol Ring *E*', undefined, 'etched', undefined], // moxfield, no set
+    ['1 Sol Ring (CMR) 472 [Foil]', 'CMR', 'foil', undefined], // plain
+    ['1 Sol Ring (CMR) 472 [Etched] [JA]', 'CMR', 'etched', 'ja'],
+    ['1 Sol Ring (CMR) 472 [JA]', 'CMR', undefined, 'ja'],
+    ['1 Sol Ring (CMR) [Foil] [DE]', 'CMR', 'foil', 'de'],
+    ['1 Sol Ring [Foil] [ZHS]', undefined, 'foil', 'zhs'],
+  ];
+  it.each(cases)('%s', (line, setCode, finish, language) => {
+    const { rows, unparsedLines } = parseTextList(line);
+    expect(unparsedLines).toEqual([]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].name).toBe('Sol Ring');
+    expect(rows[0].quantity).toBe(1);
+    expect(rows[0].setCode).toBe(setCode);
+    expect(rows[0].finish).toBe(finish);
+    expect(rows[0].language).toBe(language);
+  });
+});

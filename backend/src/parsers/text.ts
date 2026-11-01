@@ -29,8 +29,9 @@ const MAX_LINE_LENGTH = 512;
 // lost outright. The markers join the name for cleanName to strip.
 const MTGA_FULL =
   /^(\d+)\s*x?\s+(.+?)\s+\(([A-Za-z0-9]{2,5})\)\s+([A-Za-z0-9★-]+)((?:\s+(?:\*[A-Za-z]+\*|\[[A-Za-z]+\]))*)\s*$/;
-// "1 Sol Ring (CMR)"
-const MTGA_NO_COLLECTOR = /^(\d+)\s*x?\s+(.+?)\s+\(([A-Za-z0-9]{2,5})\)\s*$/;
+// "1 Sol Ring (CMR)", optionally with the same trailing markers
+const MTGA_NO_COLLECTOR =
+  /^(\d+)\s*x?\s+(.+?)\s+\(([A-Za-z0-9]{2,5})\)((?:\s+(?:\*[A-Za-z]+\*|\[[A-Za-z]+\]))*)\s*$/;
 // "4x Lightning Bolt", "4 Lightning Bolt", or "4xLightning Bolt" (no space after x)
 const QTY_NAME = /^(\d+)\s*x?\s*(.+)$/;
 
@@ -72,6 +73,7 @@ export function parseTextList(text: string): ParseResult {
         quantity: parseInt(match[1]) || 1,
         setCode: match[3].toUpperCase(),
         collectorNumber: match[4],
+        language: cleaned.language,
         finish: cleaned.finish,
         condition: cleaned.condition,
         sourceFormat: 'mtga',
@@ -83,11 +85,12 @@ export function parseTextList(text: string): ParseResult {
     match = line.match(MTGA_NO_COLLECTOR);
     if (match) {
       usedMtga = true;
-      const cleaned = cleanName(match[2]);
+      const cleaned = cleanName(match[2] + match[4]);
       rows.push({
         name: cleaned.name,
         quantity: parseInt(match[1]) || 1,
         setCode: match[3].toUpperCase(),
+        language: cleaned.language,
         finish: cleaned.finish,
         condition: cleaned.condition,
         sourceFormat: 'mtga',
@@ -102,6 +105,7 @@ export function parseTextList(text: string): ParseResult {
       rows.push({
         name: cleaned.name,
         quantity: parseInt(match[1]) || 1,
+        language: cleaned.language,
         finish: cleaned.finish,
         condition: cleaned.condition,
         sourceFormat: 'plain',
@@ -116,6 +120,7 @@ export function parseTextList(text: string): ParseResult {
       rows.push({
         name: cleaned.name,
         quantity: 1,
+        language: cleaned.language,
         finish: cleaned.finish,
         condition: cleaned.condition,
         sourceFormat: 'plain',
@@ -137,45 +142,37 @@ export function parseTextList(text: string): ParseResult {
  * rightmost token) is stripped first, then finish, each independently. A
  * name with only one marker, or neither, is unaffected.
  */
-function cleanName(raw: string): { name: string; finish?: Finish; condition?: Condition } {
+function cleanName(raw: string): {
+  name: string;
+  finish?: Finish;
+  condition?: Condition;
+  language?: string;
+} {
   let name = raw;
-
-  // Condition marker — invented for the scanner round-trip (no external tool
-  // emits this), so a single canonical spelling per condition is enough:
-  // *LP*/*MP*/*HP*/*DMG*, matching the short codes CardRow's condition chip
-  // already renders (conditionShort). NM is never emitted — it's the default.
-  let condition: Condition | undefined;
-  if (/\s*\*DMG\*\s*$/i.test(name)) {
-    condition = 'damaged';
-    name = name.replace(/\s*\*DMG\*\s*$/i, '');
-  } else if (/\s*\*HP\*\s*$/i.test(name)) {
-    condition = 'hp';
-    name = name.replace(/\s*\*HP\*\s*$/i, '');
-  } else if (/\s*\*MP\*\s*$/i.test(name)) {
-    condition = 'mp';
-    name = name.replace(/\s*\*MP\*\s*$/i, '');
-  } else if (/\s*\*LP\*\s*$/i.test(name)) {
-    condition = 'lp';
-    name = name.replace(/\s*\*LP\*\s*$/i, '');
-  }
-
   let finish: Finish | undefined;
-  if (/\s*\*ETCHED\*\s*$/i.test(name)) {
-    finish = 'etched';
-    name = name.replace(/\s*\*ETCHED\*\s*$/i, '');
-  } else if (/\s*\[ETCHED\]\s*$/i.test(name)) {
-    finish = 'etched';
-    name = name.replace(/\s*\[ETCHED\]\s*$/i, '');
-  } else if (/\s*\*FOIL\*\s*$/i.test(name)) {
-    finish = 'foil';
-    name = name.replace(/\s*\*FOIL\*\s*$/i, '');
-  } else if (/\s*\*F\*\s*$/i.test(name)) {
-    finish = 'foil';
-    name = name.replace(/\s*\*F\*\s*$/i, '');
-  } else if (/\s*\[FOIL\]\s*$/i.test(name)) {
-    finish = 'foil';
-    name = name.replace(/\s*\[FOIL\]\s*$/i, '');
+  let condition: Condition | undefined;
+  let language: string | undefined;
+
+  // Loop-strip trailing tokens in any order: the scanner emits `*F* *LP*`,
+  // Moxfield `*F*` / `*E*`, and our plain export `[Foil] [JA]`. The rightmost
+  // token of each kind wins, and a name with no marker is unaffected.
+  // Condition markers are invented for the scanner round-trip (NM is the
+  // default and never emitted): *LP*/*MP*/*HP*/*DMG*.
+  for (;;) {
+    const m = name.match(/\s*(?:\*([A-Za-z]+)\*|\[([A-Za-z]+)\])\s*$/);
+    if (!m) break;
+    const star = m[1] !== undefined;
+    const tok = (m[1] ?? m[2]).toUpperCase();
+    if (star && tok === 'DMG') condition ??= 'damaged';
+    else if (star && tok === 'HP') condition ??= 'hp';
+    else if (star && tok === 'MP') condition ??= 'mp';
+    else if (star && tok === 'LP') condition ??= 'lp';
+    else if (tok === 'ETCHED' || (star && tok === 'E')) finish ??= 'etched';
+    else if (tok === 'FOIL' || (star && tok === 'F')) finish ??= 'foil';
+    else if (!star && /^[A-Z]{2,3}$/.test(tok)) language ??= tok.toLowerCase();
+    else break;
+    name = name.slice(0, m.index);
   }
 
-  return { name: name.trim(), finish, condition };
+  return { name: name.trim(), finish, condition, language };
 }

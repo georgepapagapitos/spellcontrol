@@ -264,3 +264,16 @@ describe('parseLanguage', () => {
     expect(parseLanguage(undefined)).toBeUndefined();
   });
 });
+
+describe('Archidekt condition codes (E1082)', () => {
+  // Archidekt export writes these exact codes (collection-export.ts ARCHIDEKT_CONDITION).
+  it.each([
+    ['NM', 'nm'],
+    ['LP', 'lp'],
+    ['MP', 'mp'],
+    ['HP', 'hp'],
+    ['D', 'damaged'],
+  ])('reads %s as %s', (code, condition) => {
+    expect(parseCondition(code)).toBe(condition);
+  });
+});
