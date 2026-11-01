@@ -13,7 +13,8 @@
 # and a changed crop needs the `visual-change` label.
 #
 # Not a required check (it runs on a schedule, not on PRs). A red run is a
-# defect to file on the board, with the screenshot attached.
+# defect to file on the board, with the screenshot attached; the `notify` job
+# below keeps one `nightly-journey` issue open while it is red.
 name: Nightly journey
 
 on:
@@ -264,7 +265,13 @@ jobs:
             fi
             exit 0
           fi
-          fails=$(gh run view "${{ github.run_id }}" --log 2>/dev/null | grep -E '(^|[[:space:]])FAIL ' | sed -E 's/^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+[0-9TZ:.-]+[[:space:]]+//' | sort -u | head -40 || true)
+          # Job-level log: a run-level log is refused while this notify job is
+          # still running, but the finished journey job's log is readable.
+          jid=$(gh run view "${{ github.run_id }}" --json jobs --jq '.jobs[] | select(.name=="Chrome + Firefox journey") | .databaseId' 2>/dev/null || true)
+          fails=""
+          if [ -n "$jid" ]; then
+            fails=$(gh run view --job "$jid" --log 2>/dev/null | grep -E '(^|[[:space:]])FAIL ' | cut -f3- | sed -E 's/^[0-9TZ:.-]+[[:space:]]+//' | sort -u | head -40 || true)
+          fi
           printf 'Nightly journey %s.\n\nRun: %s\n\nFAIL lines:\n\n```\n%s\n```\n\nScreenshots and report.json are in the run'"'"'s `journey-*` artifact.\n' \
             "$RESULT" "$RUN_URL" "${fails:-none found in the log; open the run}" > body.md
           if [ -n "$open" ]; then
