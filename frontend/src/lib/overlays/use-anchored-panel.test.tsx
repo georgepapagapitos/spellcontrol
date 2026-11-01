@@ -72,4 +72,36 @@ describe('useAnchoredPanel', () => {
       Object.defineProperty(HTMLElement.prototype, 'offsetHeight', layout.offsetHeight);
     }
   });
+
+  it('caps the panel to the room on its side of the trigger so a tall panel scrolls', () => {
+    // 640x360 landscape: a trigger near the top leaves ~300px below it.
+    Object.defineProperty(window, 'innerWidth', { value: 640, configurable: true });
+    const innerHeight = window.innerHeight;
+    Object.defineProperty(window, 'innerHeight', { value: 360, configurable: true });
+    render(<Probe />);
+    const trigger = screen.getByRole('button', { name: 'open' });
+    trigger.getBoundingClientRect = () =>
+      ({ left: 10, width: 70, right: 80, top: 40, height: 22, bottom: 62 }) as DOMRect;
+    const layout = Object.getOwnPropertyDescriptors(HTMLElement.prototype);
+    Object.defineProperty(HTMLElement.prototype, 'offsetWidth', {
+      configurable: true,
+      get: () => 300,
+    });
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      get: () => 700,
+    });
+    try {
+      fireEvent.click(trigger);
+      const panel = screen.getByRole('dialog', { name: 'panel' });
+      const cap = parseFloat(panel.style.getPropertyValue('--panel-room'));
+      expect(panel.style.maxHeight).toBe('');
+      expect(cap).toBeGreaterThan(0);
+      expect(cap).toBeLessThan(360);
+    } finally {
+      Object.defineProperty(window, 'innerHeight', { value: innerHeight, configurable: true });
+      Object.defineProperty(HTMLElement.prototype, 'offsetWidth', layout.offsetWidth);
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', layout.offsetHeight);
+    }
+  });
 });

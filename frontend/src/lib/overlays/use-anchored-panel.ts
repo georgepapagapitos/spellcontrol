@@ -69,7 +69,12 @@ export function useAnchoredPanel({ align = 'right', ignoreSelector }: Options = 
       bottom: placement.bottom,
       left: placement.left,
       right: placement.right,
-    });
+      // The room on the side it opens, as a custom property rather than an
+      // inline max-height: an inline cap would override every consumer's own
+      // stylesheet cap (rule-field, keyword and sort panels). A panel opts in
+      // with `max-height: var(--panel-room)`.
+      '--panel-room': `${placement.maxHeight}px`,
+    } as CSSProperties);
   }, [open, align]);
 
   const { closeAndReturnFocus } = useMenuKeyboard({
