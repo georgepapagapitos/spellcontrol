@@ -224,10 +224,10 @@ async function countVital(path: string, body: Record<string, unknown>): Promise<
  * callers to pass the threshold, one noisy or hostile caller cannot. The cap
  * is per caller across every message, so one IP cannot buy weight with
  * varied text either. With the default threshold of 25 a cap of 9 means three
- * clients that each loop on an error page (27), two do not (18), and a lone
- * caller never gets past 9 however many beacons it sends. (The old cap of 5
- * needed six distinct callers, which a user base of about seven almost never
- * supplies.) Hits live
+ * distinct callers page (27) and two do not (18); a lone caller never gets
+ * past 9. The cap is tuned to the default threshold, so retune it if
+ * ERROR_BURST_ALERT moves. Three callers can page, so this is a spoof bar,
+ * not authentication, which the beacon never had. Hits live
  * in memory only (never stored with an IP, per the beacon contract), so a
  * restart starts the window empty, which also keeps a deploy quiet.
  */
