@@ -223,6 +223,10 @@
   min-width: min(16rem, calc(100vw - 2rem));
   max-width: min(20rem, calc(100vw - 2rem));
   padding: var(--space-2-5);
+  /* The hook caps it with an inline max-height (the room on its side of the
+     trigger); this is what makes that cap scroll rather than clip. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .filter-popover-row {

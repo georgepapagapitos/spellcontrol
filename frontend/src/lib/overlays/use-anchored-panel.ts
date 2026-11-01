@@ -69,6 +69,9 @@ export function useAnchoredPanel({ align = 'right', ignoreSelector }: Options = 
       bottom: placement.bottom,
       left: placement.left,
       right: placement.right,
+      // The room on the side it opens: a tall panel scrolls inside the safe
+      // viewport (640x360 landscape, 400% zoom) instead of running off-screen.
+      maxHeight: placement.maxHeight,
     });
   }, [open, align]);
 
