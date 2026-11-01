@@ -62,6 +62,7 @@ import { discoverRouter } from './routes/discover';
 import { eventsRouter, recentErrorCount } from './routes/events';
 import { sitemapHandler } from './sitemap';
 import { isSpaRoute } from './spa-routes';
+import { redirectLegacyApiHost } from './legacy-host';
 import { activityRouter } from './routes/activity';
 import { followsRouter } from './routes/follows';
 import { bracketVotesRouter } from './routes/bracket-votes';
@@ -1112,6 +1113,8 @@ app.get('/sitemap.xml', sitemapHandler);
 
 const SPA_DIR = path.join(__dirname, '..', 'public');
 if (existsSync(SPA_DIR)) {
+  // api.spellcontrol.com is a legacy hostname; send its page requests to the apex.
+  app.use(redirectLegacyApiHost);
   // Share-landing routes need to render before the SPA static handler so
   // we can inject per-share OG/Twitter meta + a robots:noindex into the
   // shell. Scrapers (Discord/Slack/iMessage/Twitter) don't run JS, so
