@@ -63,6 +63,59 @@ function flatten(map: ColumnMap): string[] {
   return out.sort();
 }
 
+/** Per-schema facts beyond column name/type, each a sorted list of normalized lines. */
+interface Extras {
+  nullability: string[];
+  defaults: string[];
+  indexes: string[];
+  constraints: string[];
+}
+
+async function introspectExtras(pool: Pool, schemaName: string): Promise<Extras> {
+  const strip = (v: string) => v.replaceAll(`${schemaName}.`, '');
+  const cols = await pool.query<{
+    table_name: string;
+    column_name: string;
+    is_nullable: string;
+    column_default: string | null;
+  }>(
+    `SELECT table_name, column_name, is_nullable, column_default
+       FROM information_schema.columns WHERE table_schema = $1`,
+    [schemaName]
+  );
+  const idx = await pool.query<{ indexdef: string }>(
+    `SELECT indexdef FROM pg_indexes WHERE schemaname = $1`,
+    [schemaName]
+  );
+  // Constraint names are auto-generated for inline ones and can differ in
+  // harmless ways, so compare by table + kind + definition, not by name.
+  const cons = await pool.query<{ rel: string; contype: string; def: string }>(
+    `SELECT c.conrelid::regclass::text AS rel, c.contype, pg_get_constraintdef(c.oid) AS def
+       FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace
+      WHERE n.nspname = $1 AND c.contype <> 'n'`,
+    [schemaName]
+  );
+  return {
+    nullability: cols.rows
+      .map((r) => `${r.table_name}.${r.column_name} nullable=${r.is_nullable}`)
+      .sort(),
+    defaults: cols.rows
+      .map(
+        (r) =>
+          `${r.table_name}.${r.column_name} default=${r.column_default === null ? '(none)' : strip(r.column_default)}`
+      )
+      .sort(),
+    indexes: idx.rows.map((r) => strip(r.indexdef)).sort(),
+    constraints: cons.rows.map((r) => `${strip(r.rel)} ${r.contype} ${strip(r.def)}`).sort(),
+  };
+}
+
+function diffLines(a: string[], b: string[]): { onlyA: string[]; onlyB: string[] } {
+  const sa = new Set(a);
+  const sb = new Set(b);
+  return { onlyA: a.filter((x) => !sb.has(x)), onlyB: b.filter((x) => !sa.has(x)) };
+}
+
 describe('schema parity — ensureSchema() vs the test harness DDL', () => {
   let prodSchema: string;
   let prodPool: Pool;
@@ -71,6 +124,8 @@ describe('schema parity — ensureSchema() vs the test harness DDL', () => {
 
   let prod: ColumnMap;
   let harness: ColumnMap;
+  let prodExtras: Extras;
+  let harnessExtras: Extras;
 
   beforeAll(async () => {
     const url = testDatabaseUrl();
@@ -91,12 +146,14 @@ describe('schema parity — ensureSchema() vs the test harness DDL', () => {
     setDbForTesting(prodPool, drizzle(prodPool, { schema }));
     await ensureSchema();
     prod = await introspect(prodPool, prodSchema);
+    prodExtras = await introspectExtras(prodPool, prodSchema);
 
     // ── Side B: the harness's own DDL (this re-points the module-level pool) ─
     env = await createTestEnv();
     const cur = await env.pool.query<{ s: string }>('SELECT current_schema() AS s');
     harnessSchema = cur.rows[0].s;
     harness = await introspect(env.pool, harnessSchema);
+    harnessExtras = await introspectExtras(env.pool, harnessSchema);
   }, 60_000);
 
   afterAll(async () => {
@@ -178,4 +235,36 @@ describe('schema parity — ensureSchema() vs the test harness DDL', () => {
         'against one representation while production stores another.'
     ).toEqual([]);
   });
+
+  const extraChecks: [string, keyof Extras, string][] = [
+    [
+      'nullability',
+      'nullability',
+      'A column is NULL-able in one definition and NOT NULL in the other.',
+    ],
+    [
+      'defaults',
+      'defaults',
+      'A column default differs: inserts that omit it behave differently in tests than in production.',
+    ],
+    [
+      'indexes',
+      'indexes',
+      'An index exists in only one definition: tests miss the planner/uniqueness behavior production has.',
+    ],
+    [
+      'constraints',
+      'constraints',
+      'A PK/UNIQUE/FK/CHECK constraint exists in only one definition.',
+    ],
+  ];
+  for (const [label, key, why] of extraChecks) {
+    it(`agrees on ${label}`, () => {
+      const { onlyA, onlyB } = diffLines(prodExtras[key], harnessExtras[key]);
+      expect({ 'only in ensureSchema()': onlyA, 'only in test-helpers.ts': onlyB }, why).toEqual({
+        'only in ensureSchema()': [],
+        'only in test-helpers.ts': [],
+      });
+    });
+  }
 });
