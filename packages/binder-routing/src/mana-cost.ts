@@ -105,7 +105,7 @@ function emptyCounts(): Record<ManaSymbolKey, number> {
 function tallyFace(face: string): FaceTally {
   const counts = emptyCounts();
   const strict = emptyCounts();
-  for (const m of face.matchAll(/\{([^}]+)\}/g)) {
+  for (const m of face.matchAll(/\{([^{}]+)\}/g)) {
     const s = parseSymbol(m[1]);
     if (!s) continue;
     if (s.special) {
