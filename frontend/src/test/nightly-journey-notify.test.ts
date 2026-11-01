@@ -33,4 +33,12 @@ describe('nightly journey failure tracking', () => {
     expect(notify).toMatch(/gh run view --job "\$jid" --log/);
     expect(notify).not.toMatch(/gh run view "\$\{\{ github\.run_id \}\}" --log/);
   });
+  it('sanitizes the harvested FAIL lines before they reach the issue body', () => {
+    // The lines carry console text from the pages under test: a backtick would
+    // close the code fence and an @ would mention someone.
+    const harvest = notify.split('\n').find((l) => l.includes('fails=$(gh run view')) ?? '';
+    expect(harvest).toContain("grep -E '^FAIL '");
+    expect(harvest).toContain("tr -d '`@'");
+    expect(harvest).toMatch(/tr -cd '\[:print:\]\\n'/);
+  });
 });
