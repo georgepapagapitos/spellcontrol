@@ -59,7 +59,7 @@ import {
 } from './routes/public';
 import { reportsRouter } from './routes/reports';
 import { discoverRouter } from './routes/discover';
-import { eventsRouter, recentErrorCount } from './routes/events';
+import { eventsRouter, recentErrorCount, ERROR_BURST_DEFAULT_THRESHOLD } from './routes/events';
 import { sitemapHandler } from './sitemap';
 import { isSpaRoute } from './spa-routes';
 import { redirectLegacyApiHost } from './legacy-host';
@@ -1421,7 +1421,7 @@ async function start() {
   if (heartbeatUrl && process.env.UPTIME_HEARTBEAT_DISABLED !== '1') {
     // ERROR_BURST_ALERT client errors inside 15 minutes also report a failure
     // (a crashing bundle behind a healthy shell). 0 disables the burst check.
-    const burstThreshold = Number(process.env.ERROR_BURST_ALERT ?? 25);
+    const burstThreshold = Number(process.env.ERROR_BURST_ALERT ?? ERROR_BURST_DEFAULT_THRESHOLD);
     afterBoot('uptime heartbeat', 0, () =>
       scheduleHeartbeat(
         heartbeatUrl,

@@ -7,7 +7,9 @@ import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { getDb } from '../db';
 import {
   COUNT_ROWS_PER_DAY,
+  ERROR_BURST_DEFAULT_THRESHOLD,
   ERROR_HITS_PER_IP_CAP,
+  noteErrorHit,
   recentErrorCount,
   resetErrorHits,
   scrubText,
@@ -270,7 +272,21 @@ describe('beacon burst alert and row caps (E1070, E1071)', () => {
     resetErrorHits();
     for (let i = 0; i < 30; i++) await err('spam');
     expect(await recentErrorCount(15)).toBe(ERROR_HITS_PER_IP_CAP);
-    expect(await recentErrorCount(15)).toBeLessThanOrEqual(25);
+    expect(await recentErrorCount(15)).toBeLessThan(ERROR_BURST_DEFAULT_THRESHOLD);
+  });
+
+  it('pages when three clients each loop on an error, not when two do', async () => {
+    resetErrorHits();
+    for (const ip of ['10.0.0.1', '10.0.0.2']) for (let i = 0; i < 40; i++) noteErrorHit(ip);
+    expect(await recentErrorCount(15)).toBeLessThan(ERROR_BURST_DEFAULT_THRESHOLD);
+    for (let i = 0; i < 40; i++) noteErrorHit('10.0.0.3');
+    expect(await recentErrorCount(15)).toBeGreaterThanOrEqual(ERROR_BURST_DEFAULT_THRESHOLD);
+  });
+
+  it('does not let one caller buy weight with varied messages', async () => {
+    resetErrorHits();
+    for (let i = 0; i < 30; i++) await err(`varied ${i}`);
+    expect(await recentErrorCount(15)).toBeLessThan(ERROR_BURST_DEFAULT_THRESHOLD);
   });
 
   it('forgets hits older than the window', async () => {

@@ -221,15 +221,22 @@ async function countVital(path: string, body: Record<string, unknown>): Promise<
  * send identical beacons and page the owner. The alert therefore reads hits
  * seen by this process, each caller (IP) contributing at most
  * ERROR_HITS_PER_IP_CAP per window: a real regression reaches enough distinct
- * callers to pass the threshold, one noisy or hostile caller cannot. Hits live
+ * callers to pass the threshold, one noisy or hostile caller cannot. The cap
+ * is per caller across every message, so one IP cannot buy weight with
+ * varied text either. With the default threshold of 25 a cap of 9 means three
+ * distinct callers page (27) and two do not (18); a lone caller never gets
+ * past 9. The cap is tuned to the default threshold, so retune it if
+ * ERROR_BURST_ALERT moves. Three callers can page, so this is a spoof bar,
+ * not authentication, which the beacon never had. Hits live
  * in memory only (never stored with an IP, per the beacon contract), so a
  * restart starts the window empty, which also keeps a deploy quiet.
  */
-export const ERROR_HITS_PER_IP_CAP = 5;
+export const ERROR_BURST_DEFAULT_THRESHOLD = 25;
+export const ERROR_HITS_PER_IP_CAP = 9;
 const ERROR_HIT_IPS_MAX = 5000;
 const errorHits = new Map<string, number[]>();
 
-function noteErrorHit(ip: string, now = Date.now()): void {
+export function noteErrorHit(ip: string, now = Date.now()): void {
   let hits = errorHits.get(ip);
   if (!hits) {
     if (errorHits.size >= ERROR_HIT_IPS_MAX) {
