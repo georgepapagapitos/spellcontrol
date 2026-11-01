@@ -311,7 +311,7 @@ function parseFinish(raw: string | undefined): Finish | undefined {
  * Normalize condition values across tools. Handles:
  *   ManaBox: near_mint / lightly_played / moderately_played / heavily_played / damaged / poor
  *   Moxfield: Near Mint / Lightly Played / Moderately Played / Heavily Played / Damaged
- *   Archidekt / TCG: NM / LP / MP / HP / DMG / PO
+ *   Archidekt: NM / LP / MP / HP / D; TCG: NM / LP / MP / HP / DMG / PO
  */
 export function parseCondition(raw: string | undefined): Condition | undefined {
   if (!raw) return undefined;
@@ -325,7 +325,7 @@ export function parseCondition(raw: string | undefined): Condition | undefined {
   if (v === 'mp' || v === 'moderatelyplayed' || v === 'gd' || v === 'good' || v === 'vg')
     return 'mp';
   if (v === 'hp' || v === 'heavilyplayed' || v === 'played' || v === 'pl') return 'hp';
-  if (v === 'dmg' || v === 'damaged' || v === 'poor' || v === 'po') return 'damaged';
+  if (v === 'd' || v === 'dmg' || v === 'damaged' || v === 'poor' || v === 'po') return 'damaged';
   return undefined;
 }
 
