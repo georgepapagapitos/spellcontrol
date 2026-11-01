@@ -142,6 +142,11 @@ jobs:
       - name: Check shared package registration
         run: node scripts/check-shared-package-registration.mjs
 
+      # Line ratchet for packages/*/src (E1080): the packages have no shared
+      # test runner, so the twin of the frontend/backend ratchet tests runs here.
+      - name: Check file size ratchet
+        run: node scripts/check-file-size-ratchet.mjs
+
   # One job per packages/* shared package. The `name` must stay exactly
   # "<package> — typecheck & test": those are the required status checks in the
   # "protect main" ruleset, and a renamed check never reports, so every PR would
