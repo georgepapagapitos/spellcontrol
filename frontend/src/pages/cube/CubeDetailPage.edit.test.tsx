@@ -14,6 +14,11 @@ import {
 import type { GeneratedCube, Pick } from '../../lib/cube/generate';
 import type { CubeCard } from '../../lib/cube/core';
 
+const downloaded = vi.hoisted(() => [] as { text: string; name: string }[]);
+vi.mock('@/lib/import-export/collection-export', () => ({
+  downloadText: (text: string, name: string) => downloaded.push({ text, name }),
+}));
+
 vi.mock('../../deck-builder/services/scryfall/client', () => ({
   getCardsByNames: vi.fn(() => Promise.resolve(new Map())),
 }));
@@ -359,5 +364,22 @@ describe('CubeDetailPage — header actions', () => {
     fireEvent.click(copyItem);
 
     await waitFor(() => expect(writeText).toHaveBeenCalled());
+  });
+
+  it('downloads the Draftmancer and CubeCobra CSV files from the overflow menu', async () => {
+    downloaded.length = 0;
+    useCubeStore.setState({ saved: [saved()] });
+    renderAt('/decks/cube/cube-1');
+    await waitFor(() => expect(screen.getByText('Color balance')).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Download for Draftmancer' }));
+    expect(downloaded[0].name).toMatch(/-draftmancer\.txt$/);
+    expect(downloaded[0].text.startsWith('[Settings]\n')).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Download CubeCobra CSV' }));
+    expect(downloaded[1].name).toMatch(/-cubecobra\.csv$/);
+    expect(downloaded[1].text.startsWith('name,CMC,Type,Color,Set,Collector Number')).toBe(true);
   });
 });

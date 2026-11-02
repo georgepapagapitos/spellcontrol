@@ -14,7 +14,7 @@ export function CubeImportPage() {
       <BackLink to="/decks/cube/new" label="New cube" />
       <PageHeader
         title="Import a cube"
-        meta="Paste a public CubeCobra link and see what you already own."
+        meta="Paste a public CubeCobra link or a card list and see what you already own."
       />
       <ImportCube />
     </div>
