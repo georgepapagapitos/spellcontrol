@@ -31,14 +31,15 @@ describe('nightly journey failure tracking', () => {
     expect(notify).toContain('--label "$LABEL"');
   });
   it('reads the finished journey job log, not the in-progress run log', () => {
-    expect(notify).toMatch(/gh run view --job "\$jid" --log/);
+    expect(notify).toContain('gh api "repos/$GH_REPO/actions/jobs/$jid/logs"');
+    expect(notify).not.toMatch(/gh run view --job/);
     expect(notify).not.toMatch(/gh run view "\$\{\{ github\.run_id \}\}" --log/);
   });
   it('sanitizes the harvested FAIL lines before they reach the issue body', () => {
     // The lines carry console text from the pages under test: a backtick would
     // close the code fence and an @ would mention someone. Sanitizing happens
     // before any line is selected.
-    const harvest = notify.split('\n').find((l) => l.includes('log=$(gh run view')) ?? '';
+    const harvest = notify.split('\n').find((l) => l.includes('log=$(gh api')) ?? '';
     expect(harvest).toContain("tr -d '`@'");
     expect(harvest).toMatch(/tr -cd '\[:print:\]\\n'/);
     expect(harvest).toContain('cut -c1-300');
