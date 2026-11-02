@@ -544,6 +544,13 @@ function buildIdentifier(row: ImportRow): Identifier | null {
  * sanity-check before claiming a match.
  */
 /**
+ * Most printings one lookup returns (two full Scryfall pages). The longest
+ * non-basic print runs are under 150, so a picker never notices; a basic land's
+ * 800+ is cut to its newest MAX_PRINTINGS rather than paged out in full.
+ */
+export const MAX_PRINTINGS = 350;
+
+/**
  * Fetches all paper printings of a card via Scryfall's search endpoint.
  * Returns an array of ScryfallCards sorted by release date (newest first).
  * Handles pagination — Scryfall caps search results at 175 per page.
@@ -581,11 +588,12 @@ export async function fetchPrintings(
     const result = await fetchSearchPageWithRetry(url);
     if (!result) break;
     all.push(...result.data);
+    if (all.length >= MAX_PRINTINGS) break;
     url = result.has_more && result.next_page ? result.next_page : null;
     if (url) await sleep(REQUEST_DELAY_MS);
   }
 
-  return all;
+  return all.slice(0, MAX_PRINTINGS);
 }
 
 interface SearchResponse {

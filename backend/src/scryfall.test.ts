@@ -3,6 +3,7 @@ import {
   resolveCards,
   fetchCardsByIds,
   fetchPrintings,
+  MAX_PRINTINGS,
   getCardById,
   cardAliasKeys,
 } from './scryfall';
@@ -680,6 +681,24 @@ describe('fetchPrintings', () => {
     await vi.runAllTimersAsync();
     const out = await promise;
     expect(out.map((c) => c.id)).toEqual(['a', 'b']);
+  });
+
+  // A basic land has 800+ printings; the route must stop paging, not return them all.
+  it('stops paginating once the cap is reached', async () => {
+    const page = (n: number) =>
+      jsonResponse({
+        object: 'list',
+        data: Array.from({ length: 175 }, (_, i) => card({ id: `p${n}-${i}` })),
+        has_more: true,
+        next_page: `https://api.scryfall.com/cards/search?page=${n + 1}`,
+      });
+    let n = 0;
+    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(() => Promise.resolve(page(++n)));
+    const promise = fetchPrintings('Forest');
+    await vi.runAllTimersAsync();
+    const out = await promise;
+    expect(out).toHaveLength(MAX_PRINTINGS);
+    expect(fetchSpy).toHaveBeenCalledTimes(Math.ceil(MAX_PRINTINGS / 175));
   });
 
   it('strips the back face from split / DFC names in the query', async () => {

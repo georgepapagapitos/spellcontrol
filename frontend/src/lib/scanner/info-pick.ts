@@ -17,6 +17,21 @@ export const MAX_SAME_ART = 12;
 /** The whole refinement may take this long before the matcher's card stands. */
 const REFINE_BUDGET_MS = 4_000;
 
+const DOUBLE_FACED = new Set(['transform', 'modal_dfc', 'double_faced_token', 'reversible_card']);
+
+/**
+ * Cards whose printings are never worth fetching: a basic land has hundreds of
+ * printings, and a double-faced card carries its illustration per face. Checked
+ * before the lookup so a scan of a basic never pulls its whole print run
+ * through the backend.
+ */
+function neverRefined(card: ScryfallCard): boolean {
+  return (
+    /\bBasic\b/.test(card.type_line ?? '') ||
+    (card.layout !== undefined && DOUBLE_FACED.has(card.layout))
+  );
+}
+
 /**
  * The printings that share `card`'s illustration, `card` included, each with a
  * 488x680 `normal` image. Fewer than two means there is nothing to choose
@@ -26,7 +41,7 @@ const REFINE_BUDGET_MS = 4_000;
  */
 export function sameArtPrintings(card: ScryfallCard, printings: ScryfallCard[]): ScryfallCard[] {
   const ill = card.illustration_id;
-  if (!ill || /\bBasic\b/.test(card.type_line)) return [];
+  if (!ill || neverRefined(card)) return [];
   const same = printings.filter((p) => p.illustration_id === ill && p.image_uris?.normal);
   if (!same.some((p) => p.id === card.id) && card.image_uris?.normal) same.push(card);
   return same.length >= 2 && same.length <= MAX_SAME_ART ? same : [];
@@ -116,7 +131,7 @@ export async function refinePrinting(
   scan: GrayImage,
   deps: RefineDeps = defaultDeps
 ): Promise<ScryfallCard> {
-  if (!card.illustration_id) return card;
+  if (!card.illustration_id || neverRefined(card)) return card;
   const work = async (): Promise<ScryfallCard> => {
     const candidates = sameArtPrintings(
       card,
