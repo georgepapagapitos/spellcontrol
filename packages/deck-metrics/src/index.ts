@@ -1123,18 +1123,8 @@ export {
   type TemplateResolution,
 } from './template-query.js';
 
-// ── Deck cover art ──────────────────────────────────────────────────────────
-export { pickDeckCover, coverHasArt, type DeckCoverInput } from './cover.js';
-
-// ── Scryfall image URLs (WebP migration, 2027-01-01 JPEG removal) ───────────
-export {
-  isLegacyScryfallImage,
-  modernScryfallImage,
-  normalizeImageUris,
-  scryfallJpegImage,
-  withLegacyImageKeys,
-  withModernImageKeys,
-} from './scryfall-images.js';
+export * from './cover.js';
+export * from './scryfall-images.js';
 
 /**
  * Bumped whenever the estimator's rules or weights change, so a bracket

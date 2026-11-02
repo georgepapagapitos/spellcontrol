@@ -30,8 +30,11 @@ import { createGunzip } from 'node:zlib';
 import { createInterface } from 'node:readline';
 import { Readable } from 'node:stream';
 import { dirname, resolve } from 'node:path';
+import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { modernScryfallImage } from '@spellcontrol/deck-metrics';
+// The package's ESM build is plain .js with no "type": "module", which plain Node cannot
+// load, so take the CJS build through require.
+const { modernScryfallImage } = createRequire(import.meta.url)('@spellcontrol/deck-metrics');
 
 const BULK_URL = 'https://api.scryfall.com/bulk-data';
 const UA = 'SpellControl-DailyRefresh/1.0';
