@@ -15,70 +15,18 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import puppeteer from 'puppeteer-core';
 import { TIERS, executable } from './journey-browser.mjs';
+import { LCP_CEILING_MS, LCP_RUNS, imageFormat, judgeTier } from './journey-lcp-judge.mjs';
 
-export const LCP_RUNS = 3;
-// Median LCP ceilings in ms per tier. Set from three runs of three cold
-// visits per tier against production on 2026-11-02 (Chrome, unthrottled, from
-// a Mac): median of each run set was phone 972 / 628 / 588 ms and desktop
-// 616 / 560 / 572 ms. The ceiling is the worst of those x 1.5, rounded up to
-// the next 250 ms.
-export const LCP_CEILING_MS = { phone: 1500, desktop: 1000 };
-// The hero art is named in the initial HTML (E1105): an inline script in
-// index.html preloads today's pick from a static table. A LCP image that only
-// the app's JS can find fails the nightly.
-export const LCP_DISCOVERY_ENFORCED = true;
-
-const median = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
-
-/** Image format from the response content type, falling back to the extension. */
-export function imageFormat(contentType, url) {
-  const ct = /image\/([a-z0-9.+-]+)/i.exec(contentType ?? '');
-  if (ct) return ct[1].toLowerCase();
-  const ext = /\.([a-z0-9]+)(?:$|[?#])/i.exec(url ?? '');
-  return ext ? ext[1].toLowerCase() : 'unknown';
-}
-
-/**
- * Whether the initial HTML (what the server sent, before any script ran) lets
- * the preload scanner find `imageUrl`: a `<link rel=preload as=image>` for it,
- * or an `<img>` for it in the markup, or an inline script that creates that
- * preload (the hero's art rotates by day, so the markup cannot name one URL:
- * the script holds the table and runs before any module).
- */
-export function discoveredInHtml(html, imageUrl) {
-  if (!imageUrl) return false;
-  const bare = imageUrl.split('?')[0];
-  const mentions = (tag) => tag.includes(bare) || tag.includes(imageUrl);
-  const links = html.match(/<link\b[^>]*>/gi) ?? [];
-  if (links.some((t) => /\brel=["']?preload/i.test(t) && /\bas=["']?image/i.test(t) && mentions(t)))
-    return true;
-  if ((html.match(/<img\b[^>]*>/gi) ?? []).some(mentions)) return true;
-  return (html.match(/<script\b(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/gi) ?? []).some(
-    (t) => mentions(t) && /preload/.test(t) && /\bas\s*=\s*['"]image['"]/.test(t)
-  );
-}
-
-/**
- * Pass/fail for one tier's runs. Pure, so the nightly's rule is testable.
- * `runs` are { lcp, imageUrl, tag }.
- */
-export function judgeTier(tier, runs, html) {
-  const lcps = runs.map((r) => r.lcp).filter((n) => Number.isFinite(n));
-  const med = lcps.length ? median(lcps) : null;
-  const failures = [];
-  const advisories = [];
-  if (med === null) failures.push('no LCP entry recorded');
-  else if (med > LCP_CEILING_MS[tier])
-    failures.push(
-      `median LCP ${Math.round(med)} ms is over the ${LCP_CEILING_MS[tier]} ms ceiling`
-    );
-  const imageUrl = runs.find((r) => r.imageUrl)?.imageUrl ?? null;
-  if (imageUrl && !discoveredInHtml(html, imageUrl))
-    (LCP_DISCOVERY_ENFORCED ? failures : advisories).push(
-      'the LCP image is not discoverable from the initial HTML (no preload, no <img>)'
-    );
-  return { medianLcp: med, failures, advisories };
-}
+export {
+  HERO_ART_URLS,
+  LCP_CEILING_MS,
+  LCP_DISCOVERY_ENFORCED,
+  LCP_RUNS,
+  discoveredInHtml,
+  imageFormat,
+  isHeroArt,
+  judgeTier,
+} from './journey-lcp-judge.mjs';
 
 async function oneRun(browser, base, tier) {
   const context = await browser.createBrowserContext(); // cold: no cache, no storage
