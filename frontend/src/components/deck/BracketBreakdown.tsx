@@ -53,7 +53,7 @@ const {
 } = SOFT_SCORE;
 
 /** The static page that says how the estimate is made and how it was checked. */
-export const BRACKET_METHOD_HREF = '/guides/bracket-estimator.html';
+const BRACKET_METHOD_HREF = '/guides/bracket-estimator.html';
 
 const HARD_FLOOR_TIP =
   'A hard floor is the lowest bracket this deck can be. Cut the cards that set it to go lower.';
