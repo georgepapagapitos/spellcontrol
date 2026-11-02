@@ -497,7 +497,7 @@ describe('T173 — a disabled data action says what turns it on', () => {
   it('gives backup, export and delete a reason on an empty account', () => {
     renderYouPage('/you/data');
     expect(button('Download backup').disabled).toBe(true);
-    expect(screen.getByText('Needs cards, a binder or a deck.')).toBeTruthy();
+    expect(screen.getByText('Needs cards, a binder, a deck or a cube.')).toBeTruthy();
     expect(button('Export').disabled).toBe(true);
     expect(button('Delete collection').disabled).toBe(true);
     expect(screen.getAllByText('Needs cards in your collection.')).toHaveLength(2);

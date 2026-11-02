@@ -1325,6 +1325,21 @@ export const useCollectionStore = create<CollectionState>()(
           useDecksStore.setState({ decks: backup.decks });
         }
 
+        // Cubes follow the same contract: absent = leave alone, present =
+        // replace wholesale. The cube store's own subscriber
+        // (persistCubesState) pushes the change through the normal sync path.
+        // A working result that pointed at a cube the backup drops is cleared
+        // so the view never claims a cube that no longer exists.
+        if (backup.cubes) {
+          const restored = backup.cubes;
+          useCubeStore.setState((s) => ({
+            saved: restored,
+            ...(s.loadedId && !restored.some((c) => c.id === s.loadedId)
+              ? { result: null, loadedId: null }
+              : {}),
+          }));
+        }
+
         set({
           cards: collection?.cards ?? [],
           fileName: collection?.fileName ?? '',

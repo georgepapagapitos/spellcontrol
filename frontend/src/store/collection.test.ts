@@ -31,6 +31,7 @@ import {
   recordValueSnapshot,
 } from '@/lib/collection/value-history';
 import type { BinderDef, BinderInput, EnrichedCard, ListEntry, UploadResponse } from '../types';
+import type { SavedCube } from './cube';
 
 function enriched(
   overrides: Partial<EnrichedCard> & { copyId: string; scryfallId: string }
@@ -1243,6 +1244,38 @@ describe('backup snapshot / restore', () => {
     expect(s.cards).toEqual([]);
     expect(s.activeTab).toBe('uncategorized');
     expect(clearCollection).toHaveBeenCalled();
+  });
+
+  // Guard (E1083): the JSON backup used to omit cubes entirely, so a guest had
+  // no cube backup path. Present = replace; absent = leave alone.
+  it('restores saved cubes from a backup and leaves them alone when the backup has none', async () => {
+    const { useCubeStore } = await import('./cube');
+    const keep = { id: 'c-keep', name: 'Keep', size: 360, picks: [] } as unknown as SavedCube;
+    const fromBackup = {
+      id: 'c-new',
+      name: 'Restored',
+      size: 540,
+      picks: [],
+    } as unknown as SavedCube;
+    useCubeStore.setState({ saved: [keep], loadedId: 'c-keep' });
+    const base = {
+      format: 'spellcontrol-backup' as const,
+      exportedAt: 1,
+      collection: null,
+      binders: [],
+    };
+
+    // Old-format backup (no cubes key): existing cubes untouched.
+    await useCollectionStore.getState().restoreFromBackup({ ...base, version: 1 });
+    expect(useCubeStore.getState().saved).toEqual([keep]);
+    expect(useCubeStore.getState().loadedId).toBe('c-keep');
+
+    // Backup with cubes: replaced wholesale, a dangling loadedId is cleared.
+    await useCollectionStore
+      .getState()
+      .restoreFromBackup({ ...base, version: 2, cubes: [fromBackup] });
+    expect(useCubeStore.getState().saved).toEqual([fromBackup]);
+    expect(useCubeStore.getState().loadedId).toBeNull();
   });
 });
 

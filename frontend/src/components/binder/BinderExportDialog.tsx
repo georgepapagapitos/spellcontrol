@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useCollectionStore } from '@/store/collection';
+import { useCubeStore } from '@/store/cube';
 import { useDecksStore } from '@/store/decks';
 import { Modal } from '@/components/overlays/Modal';
 import type { MaterializedBinder, EnrichedCard } from '@/types/index';
@@ -26,6 +27,7 @@ type ExportKind = 'binder' | 'binder-csv' | 'binder-print' | 'all-binders' | 'fu
 export function BinderExportDialog({ binders, activeId, onClose }: Props) {
   const buildBackupSnapshot = useCollectionStore((s) => s.buildBackupSnapshot);
   const decks = useDecksStore((s) => s.decks);
+  const cubes = useCubeStore((s) => s.saved);
 
   const active = binders.find((b) => b.def.id === activeId) ?? null;
   const allBinderCards = collectCards(binders);
@@ -57,9 +59,9 @@ export function BinderExportDialog({ binders, activeId, onClose }: Props) {
           allBindersBackupFileName()
         );
       } else {
-        // Full backup: collection + binders + decks, same as the Settings-style export.
+        // Full backup: collection + binders + decks + cubes, same as the Settings-style export.
         const snapshot = buildBackupSnapshot();
-        downloadBackup(buildBackup(snapshot.collection, snapshot.binders, decks));
+        downloadBackup(buildBackup(snapshot.collection, snapshot.binders, decks, cubes));
       }
     } finally {
       onClose();

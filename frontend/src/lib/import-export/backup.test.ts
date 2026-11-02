@@ -13,6 +13,7 @@ import {
   downloadBackup,
 } from './backup';
 import type { BinderDef, EnrichedCard } from '@/types/index';
+import type { SavedCube } from '@/store/cube';
 
 function card(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
   return {
@@ -236,5 +237,15 @@ describe('downloadBackup', () => {
     expect(click).toHaveBeenCalled();
     expect(createObjectURL).toHaveBeenCalled();
     createSpy.mockRestore();
+  });
+
+  it('round-trips a saved cube, and an old backup parses with cubes undefined', () => {
+    const cube = { id: 'c1', name: 'My cube', size: 360, picks: [] } as unknown as SavedCube;
+    const parsed = parseBackup(JSON.stringify(buildBackup(null, [], [], [cube])));
+    expect(parsed.cubes).toEqual([cube]);
+    expect(parseBackup(JSON.stringify(buildBackup(null, [], []))).cubes).toBeUndefined();
+    const v1 = { format: BACKUP_FORMAT, version: 1, collection: null, binders: [] };
+    expect(parseBackup(JSON.stringify(v1)).cubes).toBeUndefined();
+    expect(buildBinderBackup(sampleBinder, []).cubes).toBeUndefined();
   });
 });
