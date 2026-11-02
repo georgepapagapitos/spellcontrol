@@ -44,7 +44,9 @@ describe('ManaBox CSV export round trip', () => {
     ]);
   });
 
-  it('keeps the altered flag', () => {
+  it('keeps the altered and misprint flags', () => {
     expect(out.rows[2].altered).toBe(true);
+    expect(out.rows[1].misprint).toBe(true);
+    expect(out.rows[0].misprint).toBe(false);
   });
 });
