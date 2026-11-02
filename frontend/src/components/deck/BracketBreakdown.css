@@ -807,3 +807,28 @@
     animation: none;
   }
 }
+
+/* ── Second opinion ── Commander Spellbook's tag, credited and never mapped. */
+.spellbook-opinion-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.spellbook-opinion-muted {
+  color: var(--text-secondary);
+}
+
+.spellbook-opinion-verdict {
+  font-weight: 600;
+}
+
+.spellbook-opinion-note {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}

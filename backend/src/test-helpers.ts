@@ -40,6 +40,7 @@ import { brewersRouter } from './routes/brewers';
 import { aiRouter } from './routes/ai';
 import { eventsRouter } from './routes/events';
 import { edhrecRouter } from './routes/edhrec';
+import { spellbookRouter } from './routes/spellbook';
 
 /**
  * Returns the Postgres connection string for tests. vitest.global-setup.ts
@@ -693,6 +694,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/combos', combosRouter);
   app.use('/api/aggregates', aggregatesRouter);
   app.use('/api/edhrec', edhrecRouter);
+  app.use('/api/spellbook', spellbookRouter);
   app.use('/api/shares', sharesRouter);
   app.use('/api/feedback', feedbackRouter);
   app.use('/api/offline', offlineRouter);
