@@ -1,0 +1,71 @@
+name: Scanner Benchmark
+
+# Manual run of the scanner accuracy benchmark against the production matcher.
+# The method and corpus live in backend/src/scanner/benchmark/README.md.
+#
+# Why not in CI: the embedding index is a Git LFS file and the MobileCLIP model
+# load plus ~140 inferences take about a minute. The pHash stage of the same
+# benchmark already runs in the backend job on every PR
+# (backend/src/scanner/benchmark/benchmark.test.ts).
+
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: 'gate = the 20-card CI subset against the production matcher; full = the whole corpus, all stages (~10-20 min)'
+        required: true
+        default: gate
+        type: choice
+        options:
+          - gate
+          - full
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: Scanner benchmark (${{ inputs.scope }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/lfs-pull
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      # BEFORE the backend's npm ci — see the action for why (TS2688 otherwise).
+      - name: Build shared packages
+        uses: ./.github/actions/build-shared
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Gate (production matcher on the fixed subset)
+        if: inputs.scope == 'gate'
+        working-directory: backend
+        env:
+          SCANNER_BENCH_PIPELINE: '1'
+        run: npx vitest run src/scanner/benchmark/benchmark.test.ts
+
+      - name: Fetch the corpus art
+        if: inputs.scope == 'full'
+        working-directory: backend
+        run: npm run scanner:bench -- fetch
+
+      - name: Run the whole corpus
+        if: inputs.scope == 'full'
+        working-directory: backend
+        run: npm run scanner:bench -- run --write
+
+      - name: Upload results
+        if: inputs.scope == 'full'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: scanner-benchmark-results
+          path: backend/src/scanner/benchmark/results.json

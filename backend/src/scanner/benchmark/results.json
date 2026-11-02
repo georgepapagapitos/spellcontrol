@@ -1,0 +1,172 @@
+{
+  "meta": {
+    "seed": 20261102,
+    "cards": 200,
+    "conditions": ["clean", "perspective", "blur", "glare", "noise", "occlusion", "combined"],
+    "indexRecords": 55725,
+    "node": "v22.23.2",
+    "platform": "darwin-arm64",
+    "date": "2026-11-02"
+  },
+  "stages": {
+    "hash": {
+      "clean": {
+        "n": 200,
+        "top1": 200,
+        "top3": 200
+      },
+      "perspective": {
+        "n": 200,
+        "top1": 168,
+        "top3": 183
+      },
+      "blur": {
+        "n": 200,
+        "top1": 200,
+        "top3": 200
+      },
+      "glare": {
+        "n": 200,
+        "top1": 124,
+        "top3": 148
+      },
+      "noise": {
+        "n": 200,
+        "top1": 200,
+        "top3": 200
+      },
+      "occlusion": {
+        "n": 200,
+        "top1": 157,
+        "top3": 176
+      },
+      "combined": {
+        "n": 200,
+        "top1": 86,
+        "top3": 111
+      }
+    },
+    "embedding": {
+      "clean": {
+        "n": 200,
+        "top1": 200,
+        "top3": 200
+      },
+      "perspective": {
+        "n": 200,
+        "top1": 200,
+        "top3": 200
+      },
+      "blur": {
+        "n": 200,
+        "top1": 197,
+        "top3": 200
+      },
+      "glare": {
+        "n": 200,
+        "top1": 199,
+        "top3": 200
+      },
+      "noise": {
+        "n": 200,
+        "top1": 199,
+        "top3": 200
+      },
+      "occlusion": {
+        "n": 200,
+        "top1": 199,
+        "top3": 200
+      },
+      "combined": {
+        "n": 200,
+        "top1": 192,
+        "top3": 194
+      }
+    },
+    "pipeline": {
+      "clean": {
+        "n": 200,
+        "top1": 200,
+        "top3": 200,
+        "confident": 200,
+        "confidentWrong": 0,
+        "borderline": 0,
+        "miss": 0
+      },
+      "perspective": {
+        "n": 200,
+        "top1": 198,
+        "top3": 198,
+        "confident": 198,
+        "confidentWrong": 0,
+        "borderline": 1,
+        "miss": 1
+      },
+      "blur": {
+        "n": 200,
+        "top1": 199,
+        "top3": 199,
+        "confident": 200,
+        "confidentWrong": 1,
+        "borderline": 0,
+        "miss": 0
+      },
+      "glare": {
+        "n": 200,
+        "top1": 184,
+        "top3": 184,
+        "confident": 184,
+        "confidentWrong": 0,
+        "borderline": 9,
+        "miss": 7
+      },
+      "noise": {
+        "n": 200,
+        "top1": 200,
+        "top3": 200,
+        "confident": 200,
+        "confidentWrong": 0,
+        "borderline": 0,
+        "miss": 0
+      },
+      "occlusion": {
+        "n": 200,
+        "top1": 195,
+        "top3": 195,
+        "confident": 195,
+        "confidentWrong": 1,
+        "borderline": 2,
+        "miss": 3
+      },
+      "combined": {
+        "n": 200,
+        "top1": 152,
+        "top3": 152,
+        "confident": 128,
+        "confidentWrong": 1,
+        "borderline": 41,
+        "miss": 31
+      }
+    }
+  },
+  "timing": {
+    "hash": {
+      "n": 1400,
+      "p50": 3.2,
+      "p95": 13.4,
+      "max": 236.6
+    },
+    "embedding": {
+      "n": 1400,
+      "p50": 102.7,
+      "p95": 330.6,
+      "max": 825.4
+    },
+    "pipeline": {
+      "n": 1400,
+      "p50": 34,
+      "p95": 214.6,
+      "max": 530.3
+    }
+  }
+}

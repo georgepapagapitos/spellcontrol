@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Card scanner accuracy: method and numbers</title>
+    <meta
+      name="description"
+      content="How SpellControl measures its card scanner: 200 seeded cards, synthetic camera-like queries, and top-1 and top-3 accuracy for the hash, the embedding and the production pipeline. The queries are synthetic; real-camera numbers are pending."
+    />
+    <link rel="canonical" href="https://spellcontrol.com/guides/scanner-accuracy.html" />
+    <link rel="icon" type="image/svg+xml" href="/sc-icon.svg" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="SpellControl" />
+    <meta property="og:title" content="Card scanner accuracy: method and numbers" />
+    <meta
+      property="og:description"
+      content="An open benchmark of SpellControl's card scanner on synthetic camera-like queries, with the card list, the code and the weak spots."
+    />
+    <meta property="og:url" content="https://spellcontrol.com/guides/scanner-accuracy.html" />
+    <meta property="og:image" content="https://spellcontrol.com/og-image.png" />
+    <link rel="stylesheet" href="/guides/guides.css" />
+    <script src="/guides/beacon.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <a href="/">SpellControl</a> › <a href="/guides/">Guides</a> › Scanner accuracy
+      </nav>
+
+      <h1>Card scanner accuracy: method and numbers</h1>
+      <p>
+        SpellControl's scanner identifies a card from a phone camera frame. This page says how its
+        accuracy is measured, shows the numbers, and says what they do not tell you.
+      </p>
+      <p>
+        <strong>The queries are synthetic, and real-camera numbers are pending.</strong> Every query
+        below is a Scryfall card image that was damaged by a program to look like a bad camera shot.
+        None is a photograph. Do not read any figure here as the share of real scans that succeed. A
+        run on photographs taken with real phones has not been done yet, and this page will say so
+        until it has.
+      </p>
+      <p>
+        The method, the card list and the code are in the repository under
+        <code>backend/src/scanner/benchmark/</code>, so anyone can re-run it. The figures were
+        produced on 2026-11-02 on one laptop (darwin-arm64, Node 22.23.2) against an index of 55,725
+        cards.
+      </p>
+
+      <h2>What is tested</h2>
+      <p>
+        The phone finds the card, straightens it, cuts out the art window and sends it to the
+        server, which names the card. The server has two ways of recognizing it, and the scanner
+        uses them together.
+      </p>
+      <ul>
+        <li>
+          <strong>Hash only.</strong> A 64-bit perceptual hash of the picture, compared with the
+          hash of every card in the index. Fast and small; it is also what the scanner falls back to
+          when the phone is offline.
+        </li>
+        <li>
+          <strong>Embedding only.</strong> A neural network (MobileCLIP2-S0) turns the picture into
+          512 numbers, compared with the stored numbers for every card in the index.
+        </li>
+        <li>
+          <strong>Production pipeline.</strong> The server's real matcher, called the way the API
+          calls it: the hash picks 50 candidates, the embedding ranks them, and the score decides
+          whether the scanner answers, asks you to pick from a short list, or gives no answer.
+        </li>
+      </ul>
+      <p>
+        <strong>Top-1</strong> counts a query when the first answer is the right card.
+        <strong>Top-3</strong> counts it when the right card is among the first three answers. For
+        the production pipeline, an answer the scanner is sure of is one card, a pick list is up to
+        five cards, and no answer counts as wrong.
+      </p>
+
+      <h2>The cards</h2>
+      <p>
+        200 cards, drawn from the scanner's index with a seeded random generator (seed 20261102) and
+        published by name and Scryfall id in <code>corpus.json</code>. The draw is random across
+        everything in the index, so the list reflects the index and not a hand-picked set of easy
+        cards. The first 20 of the list are the subset that runs on every change to the code.
+      </p>
+
+      <h2>The synthetic queries</h2>
+      <p>
+        Each card is queried seven ways. Every degradation uses a random generator seeded from the
+        card and the condition, so the same card always gets the same damage. The program is
+        <code>degrade.ts</code>.
+      </p>
+      <ul>
+        <li>
+          <strong>Clean.</strong> The Scryfall art image unchanged. The scanner's index was built
+          from these same images, so this row is a lookup of a known picture and says nothing about
+          cameras. It is there to prove the plumbing works.
+        </li>
+        <li>
+          <strong>Perspective.</strong> A projective warp that moves each corner by up to 6% of the
+          frame, then a JPEG save at quality 90 (the quality the app uploads at). It imitates the
+          error left after the card is straightened.
+        </li>
+        <li>
+          <strong>Blur.</strong> Gaussian blur of 4 pixels on an image about 626 pixels wide, for a
+          shot out of focus or moved.
+        </li>
+        <li>
+          <strong>Glare.</strong> A soft white highlight at a random spot, up to 85% white and about
+          a third of the card's width across, like a light on a sleeve or foil.
+        </li>
+        <li>
+          <strong>Noise and compression.</strong> Random sensor noise plus a hard JPEG save at
+          quality 35, like a dim room and a squeezed upload.
+        </li>
+        <li>
+          <strong>Occlusion.</strong> A dark strip hiding 20% of the picture along one edge, like a
+          thumb or a binder ring.
+        </li>
+        <li><strong>Combined.</strong> A milder dose of all of the above at once.</li>
+      </ul>
+
+      <h2>Results</h2>
+      <p>Top-1, 200 cards per row.</p>
+      <div class="table-scroll">
+        <table>
+          <caption class="visually-hidden">
+            Top-1 accuracy by condition and method
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Condition</th>
+              <th scope="col">Hash only</th>
+              <th scope="col">Embedding only</th>
+              <th scope="col">Production pipeline</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Clean (control)</th>
+              <td>200 of 200 (100.0%)</td>
+              <td>200 of 200 (100.0%)</td>
+              <td>200 of 200 (100.0%)</td>
+            </tr>
+            <tr>
+              <th scope="row">Perspective</th>
+              <td>168 of 200 (84.0%)</td>
+              <td>200 of 200 (100.0%)</td>
+              <td>198 of 200 (99.0%)</td>
+            </tr>
+            <tr>
+              <th scope="row">Blur</th>
+              <td>200 of 200 (100.0%)</td>
+              <td>197 of 200 (98.5%)</td>
+              <td>199 of 200 (99.5%)</td>
+            </tr>
+            <tr>
+              <th scope="row">Glare</th>
+              <td>124 of 200 (62.0%)</td>
+              <td>199 of 200 (99.5%)</td>
+              <td>184 of 200 (92.0%)</td>
+            </tr>
+            <tr>
+              <th scope="row">Noise and compression</th>
+              <td>200 of 200 (100.0%)</td>
+              <td>199 of 200 (99.5%)</td>
+              <td>200 of 200 (100.0%)</td>
+            </tr>
+            <tr>
+              <th scope="row">Occlusion</th>
+              <td>157 of 200 (78.5%)</td>
+              <td>199 of 200 (99.5%)</td>
+              <td>195 of 200 (97.5%)</td>
+            </tr>
+            <tr>
+              <th scope="row">Combined</th>
+              <td>86 of 200 (43.0%)</td>
+              <td>192 of 200 (96.0%)</td>
+              <td>152 of 200 (76.0%)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Top-3, same queries.</p>
+      <div class="table-scroll">
+        <table>
+          <caption class="visually-hidden">
+            Top-3 accuracy by condition and method
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Condition</th>
+              <th scope="col">Hash only</th>
+              <th scope="col">Embedding only</th>
+              <th scope="col">Production pipeline</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Clean (control)</th>
+              <td>200 of 200 (100.0%)</td>
+              <td>200 of 200 (100.0%)</td>
+              <td>200 of 200 (100.0%)</td>
+            </tr>
+            <tr>
+              <th scope="row">Perspective</th>
+              <td>183 of 200 (91.5%)</td>
+              <td>200 of 200 (100.0%)</td>
+              <td>198 of 200 (99.0%)</td>
+            </tr>
+            <tr>
+              <th scope="row">Blur</th>
+              <td>200 of 200 (100.0%)</td>
+              <td>200 of 200 (100.0%)</td>
+              <td>199 of 200 (99.5%)</td>
+            </tr>
+            <tr>
+              <th scope="row">Glare</th>
+              <td>148 of 200 (74.0%)</td>
+              <td>200 of 200 (100.0%)</td>
+              <td>184 of 200 (92.0%)</td>
+            </tr>
+            <tr>
+              <th scope="row">Noise and compression</th>
+              <td>200 of 200 (100.0%)</td>
+              <td>200 of 200 (100.0%)</td>
+              <td>200 of 200 (100.0%)</td>
+            </tr>
+            <tr>
+              <th scope="row">Occlusion</th>
+              <td>176 of 200 (88.0%)</td>
+              <td>200 of 200 (100.0%)</td>
+              <td>195 of 200 (97.5%)</td>
+            </tr>
+            <tr>
+              <th scope="row">Combined</th>
+              <td>111 of 200 (55.5%)</td>
+              <td>194 of 200 (97.0%)</td>
+              <td>152 of 200 (76.0%)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>How the production pipeline answered, in cards out of 200.</p>
+      <div class="table-scroll">
+        <table>
+          <caption class="visually-hidden">
+            How the production pipeline answered
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Condition</th>
+              <th scope="col">Confident</th>
+              <th scope="col">Confident and wrong</th>
+              <th scope="col">Asks you to pick</th>
+              <th scope="col">No answer</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Clean (control)</th>
+              <td>200</td>
+              <td>0</td>
+              <td>0</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <th scope="row">Perspective</th>
+              <td>198</td>
+              <td>0</td>
+              <td>1</td>
+              <td>1</td>
+            </tr>
+            <tr>
+              <th scope="row">Blur</th>
+              <td>200</td>
+              <td>1</td>
+              <td>0</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <th scope="row">Glare</th>
+              <td>184</td>
+              <td>0</td>
+              <td>9</td>
+              <td>7</td>
+            </tr>
+            <tr>
+              <th scope="row">Noise and compression</th>
+              <td>200</td>
+              <td>0</td>
+              <td>0</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <th scope="row">Occlusion</th>
+              <td>195</td>
+              <td>1</td>
+              <td>2</td>
+              <td>3</td>
+            </tr>
+            <tr>
+              <th scope="row">Combined</th>
+              <td>128</td>
+              <td>1</td>
+              <td>41</td>
+              <td>31</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>What the numbers say</h2>
+      <ul>
+        <li>
+          <strong>The hash alone is fragile.</strong> It gets the right card first on 124 of 200
+          glare queries and 86 of 200 combined ones. It is unaffected by blur and noise, which it
+          throws away by design, and weak against anything that changes the layout of light and
+          dark.
+        </li>
+        <li>
+          <strong>The embedding is much more robust.</strong> Its worst row is combined, at 192 of
+          200. Searched across the whole index with no hash shortlist, it is not what the scanner
+          does, but it shows the model holds up where the hash does not.
+        </li>
+        <li>
+          <strong>The production pipeline trades some answers for caution.</strong> Its worst row is
+          also combined: 152 of 200, with 41 pick lists and 31 scans with no answer. The embedding
+          alone gets 192 of 200 on the same queries. The pipeline declines to guess below its score
+          thresholds, and a decline costs a re-scan, not a wrong card. Its hash shortlist can also
+          drop the right card before the embedding sees it.
+        </li>
+        <li>
+          <strong>Wrong confident answers were rare.</strong> Across all 1,400 queries the pipeline
+          was sure and wrong 3 times. That is the number that matters most, because a confident
+          wrong answer adds the wrong card to a collection without asking.
+        </li>
+      </ul>
+
+      <h2>Speed</h2>
+      <p>
+        Wall time per query on the benchmark laptop, with nothing else asked of the server. It is
+        not a production latency: it leaves out the phone's work, the upload and the network.
+      </p>
+      <div class="table-scroll">
+        <table>
+          <caption class="visually-hidden">
+            Time per query on one laptop
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Method</th>
+              <th scope="col">Median</th>
+              <th scope="col">95th percentile</th>
+              <th scope="col">Slowest</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Hash only</th>
+              <td>3.2 ms</td>
+              <td>13.4 ms</td>
+              <td>236.6 ms</td>
+            </tr>
+            <tr>
+              <th scope="row">Embedding only</th>
+              <td>102.7 ms</td>
+              <td>330.6 ms</td>
+              <td>825.4 ms</td>
+            </tr>
+            <tr>
+              <th scope="row">Production pipeline</th>
+              <td>34 ms</td>
+              <td>214.6 ms</td>
+              <td>530.3 ms</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        The pipeline is faster than the embedding alone because a clear hash match skips the neural
+        network.
+      </p>
+
+      <h2>What this does not show</h2>
+      <ul>
+        <li>
+          <strong>No real photographs.</strong> Real cameras add lens distortion, rolling shutter,
+          exposure and white-balance shifts, sleeve and foil texture, and a crop that frames the art
+          a little differently from Scryfall's. The synthetic damage covers a few of these crudely
+          and the rest not at all. Real scans could do better or worse.
+        </li>
+        <li>
+          <strong>The art is the same art.</strong> The index and the queries come from the same
+          Scryfall images, so even the damaged queries start from a perfect copy of the reference.
+        </li>
+        <li>
+          <strong>Printings with the same art.</strong> The index holds one entry per artwork, and a
+          query counts as right only for the exact entry. Picking among reprints with identical art
+          is done later, from the card's info line, and is not scored here.
+        </li>
+        <li>
+          <strong>Small sample.</strong> With 200 cards, a gap of a few cards between two rows is
+          within chance. The 20-card subset that gates changes is smaller still.
+        </li>
+        <li>
+          <strong>One machine.</strong> Other processors and image libraries can move a card or two,
+          and timings differ more than accuracy does.
+        </li>
+        <li>
+          <strong>No comparison with other scanners.</strong> Nothing here measures any other app.
+        </li>
+      </ul>
+
+      <h2>Re-run it</h2>
+      <p>
+        From <code>backend/</code>, <code>npm run scanner:bench -- fetch</code> downloads the art
+        for the listed cards from Scryfall, and <code>npm run scanner:bench -- run</code> scores all
+        three methods (the last two need the large embedding file from Git LFS). The hash method on
+        the 20-card subset also runs on every code change and fails if its accuracy drops. The
+        production pipeline on that subset runs on demand in the repository's
+        <em>Scanner Benchmark</em> workflow, because the embedding file is not available in the
+        everyday checks. The figures on this page are stored in <code>results.json</code>, and a
+        test fails if this page and that file disagree.
+      </p>
+
+      <a class="cta" href="/">Open SpellControl</a>
+      <p class="cta-note">Free, no account required.</p>
+
+      <footer>
+        <p>
+          More guides: <a href="/guides/">All guides</a> ·
+          <a href="/guides/bracket-estimator.html">How the bracket estimate is made and checked</a>
+          ·
+          <a href="/privacy.html">Privacy</a>
+        </p>
+        <p>
+          SpellControl is unofficial Fan Content permitted under the Wizards of the Coast Fan
+          Content Policy. Not approved or endorsed by Wizards. Magic: The Gathering and its logos
+          are trademarks of Wizards of the Coast LLC. Card data and images via Scryfall.
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>
