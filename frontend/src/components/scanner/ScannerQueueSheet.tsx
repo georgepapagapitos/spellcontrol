@@ -294,7 +294,10 @@ export function ScannerQueueSheet({
               <div className="scanner-sheet-empty">
                 <Camera width={32} height={32} strokeWidth={1.6} aria-hidden />
                 <p className="scanner-sheet-empty-title">No cards scanned yet</p>
-                <p className="scanner-sheet-empty-hint">Each card you scan lands here.</p>
+                <p className="scanner-sheet-empty-hint">
+                  Each card you scan lands here, then files itself into your binders when you add
+                  it.
+                </p>
                 <Button
                   icon={<Plus width={14} height={14} strokeWidth={1.8} />}
                   onClick={() => setMode('search')}

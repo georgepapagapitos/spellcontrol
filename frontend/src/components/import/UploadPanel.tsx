@@ -911,6 +911,10 @@ export function UploadPanel({ hideScanButton = false, onSeeFindings }: UploadPan
                 rel="noopener noreferrer"
               >
                 MTGA
+              </a>
+              {' · '}
+              <a href="/guides/switch-from-manabox.html" target="_blank" rel="noopener noreferrer">
+                Moving from ManaBox?
               </a>{' '}
               <InfoTip
                 label="supported import formats"

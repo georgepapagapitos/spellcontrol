@@ -203,6 +203,7 @@ export function WelcomePage() {
         <footer className="welcome-footer">
           <nav className="welcome-footer-links" aria-label="Site links">
             <a href="/guides/organize-your-binder.html">Organize a binder</a>
+            <a href="/guides/switch-from-manabox.html">Switch from ManaBox</a>
             <a href="/guides/">Import guides</a>
             <a href="/guides/compare.html">Compare</a>
             <a href="/privacy.html">Privacy</a>
