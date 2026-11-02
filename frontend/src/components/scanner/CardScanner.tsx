@@ -44,6 +44,7 @@ import { Count } from '@/components/shared/Count';
 import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { detectCardBox } from '@/lib/scanner/scanner-detect';
 import { prewarm, scan } from '@/lib/scanner/scan';
+import { canvasToGray, refinePrinting } from '@/lib/scanner/info-pick';
 import type { Point } from '@/lib/scanner/detect';
 import { ScannerQueueSheet } from './ScannerQueueSheet';
 import { ScannerEditSheet } from './ScannerEditSheet';
@@ -611,14 +612,21 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         }
 
         // Confident: resolve the matcher's UUID to a full ScryfallCard.
-        const card = await getCardById(result.match.scryfallId);
-        if (!card) {
+        const matched = await getCardById(result.match.scryfallId);
+        if (!matched) {
           logger.warn(
             `[scanner] confident match for ${result.match.scryfallId} but card fetch failed`
           );
           showHint("Found a match but couldn't load the card. Try again.", 2200);
           return;
         }
+
+        // Same-art reprints score identically on the art-only match; the
+        // card's info line says which one is on the table. Falls back to the
+        // matcher's card whenever it can't tell.
+        const card = result.warped
+          ? await refinePrinting(matched, canvasToGray(result.warped))
+          : matched;
 
         // A confident read (even a dedupe) clears the sustained-miss streak.
         consecutiveMissRef.current = 0;
