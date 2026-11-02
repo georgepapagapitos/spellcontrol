@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>How the bracket estimate is made and checked</title>
+    <meta
+      name="description"
+      content="How SpellControl estimates a Commander deck's bracket, what it was checked against, the sample sizes, and where it is weak: 62 of 70 precons matched ScrollVault, against 55 for always guessing Core."
+    />
+    <link rel="canonical" href="https://spellcontrol.com/guides/bracket-estimator.html" />
+    <link rel="icon" type="image/svg+xml" href="/sc-icon.svg" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="SpellControl" />
+    <meta property="og:title" content="How the bracket estimate is made and checked" />
+    <meta
+      property="og:description"
+      content="The rules, the test decks, the sample sizes and the weak spots behind SpellControl's Commander bracket estimate."
+    />
+    <meta property="og:url" content="https://spellcontrol.com/guides/bracket-estimator.html" />
+    <meta property="og:image" content="https://spellcontrol.com/og-image.png" />
+    <link rel="stylesheet" href="/guides/guides.css" />
+    <script src="/guides/beacon.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <a href="/">SpellControl</a> › <a href="/guides/">Guides</a> › Bracket estimate
+      </nav>
+
+      <h1>How the bracket estimate is made and checked</h1>
+      <p>
+        SpellControl reads a Commander decklist and says which of the five Commander Brackets it
+        looks like. This page says how, what the estimate was tested against, how many decks that
+        was, and where it is wrong. It is a conversation starter for Rule 0, not a verdict: it sees
+        the card list and nothing about how the deck is piloted.
+      </p>
+      <p>
+        Every figure below is reproduced from the repository by the benchmark in
+        <code>packages/deck-metrics/src/calibration/</code> (run it with
+        <code>npm run calibrate</code> in <code>packages/deck-metrics</code>). The test decks are
+        frozen in <code>calibration/fixtures/corpus.json</code>, built 2026-09-30, so the numbers
+        only move when the estimator does.
+      </p>
+
+      <h2>How the estimate works</h2>
+      <p>The code is <code>packages/deck-metrics/src/index.ts</code>. Two parts, in order.</p>
+      <ol>
+        <li>
+          <strong>Hard floors.</strong> Rules that set a minimum bracket from the cards alone. One
+          to three Game Changers is Bracket 3; four or more is Bracket 4. Mass land denial is
+          Bracket 4. A two-card combo is Bracket 3 if it assembles late and Bracket 4 if Commander
+          Spellbook rates it Ruthless, the deck has enough tutors and fast mana to assemble it
+          early, it is highly redundant, or it uses your commander. Three or more extra-turn spells
+          are Bracket 3. Enough stax pieces are Bracket 3 or 4. With no floor, the deck starts at
+          Core.
+        </li>
+        <li>
+          <strong>Power signal.</strong> A 0 to 100 score from fast mana, tutors, low average mana
+          value, interaction density and combo engines that set no floor. Below a floor of 4, a
+          score of 66 or more moves the deck up one bracket. At a floor of 4, a score of 80 or more
+          with at least four Game Changers reads as Bracket 5.
+        </li>
+      </ol>
+      <p>
+        The Game Changers list is a copy of the official one, dated 2026-02-09
+        (<code>gameChangersDrift.ts</code>); a scheduled check flags when the official list moves.
+        Combo data and ratings come from Commander Spellbook. Where the estimate is a close call
+        between two brackets, the deck page shows both sides and asks you which your table plays.
+      </p>
+
+      <h2>What it was tested against</h2>
+      <p>
+        The benchmark holds 265 labeled decks in three sets, plus a second opinion on 70 of the
+        precons. Labels are defined in <code>calibration/benchmark.ts</code>.
+      </p>
+      <div class="table-scroll">
+        <table>
+          <caption class="visually-hidden">
+            Test decks by source
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Set</th>
+              <th scope="col">Decks</th>
+              <th scope="col">Label</th>
+              <th scope="col">Estimate matched</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Official precons</th>
+              <td>197</td>
+              <td>
+                The higher of Core, the Game Changer floor, and Commander Spellbook's bracket tag
+              </td>
+              <td>197 of 197</td>
+            </tr>
+            <tr>
+              <th scope="row">cEDH top-8 lists</th>
+              <td>48</td>
+              <td>Bracket 5</td>
+              <td>47 of 48</td>
+            </tr>
+            <tr>
+              <th scope="row">Constructed examples</th>
+              <td>20</td>
+              <td>The bracket the official text gives a precon plus real cards</td>
+              <td>20 of 20</td>
+            </tr>
+            <tr>
+              <th scope="row">ScrollVault second opinion</th>
+              <td>70 (precons)</td>
+              <td>ScrollVault's per-precon bracket</td>
+              <td>62 of 70</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Read those rows with care</h2>
+      <p>
+        The first three rows are weaker evidence than they look. The precon label is built from the
+        same kinds of facts the estimator reads (Game Changers and Spellbook's tag), so 197 of 197
+        shows the estimator applies its own rules consistently, not that it agrees with an
+        independent judge. The 20 constructed examples are made to fit the rules, so 20 of 20 is by
+        construction. The cEDH set holds only Bracket 5, so a guesser that always says 5 scores 48
+        of 48 there; the one miss is a list read as Bracket 4 because its power signal sat under 80.
+      </p>
+      <p>
+        The only outside check is ScrollVault, which publishes its own bracket for each precon using
+        its own method. That is the number to weigh:
+      </p>
+      <div class="table-scroll">
+        <table>
+          <caption class="visually-hidden">
+            Agreement with ScrollVault on 70 precons
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Predictor</th>
+              <th scope="col">Exact</th>
+              <th scope="col">Within one bracket</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">SpellControl estimate</th>
+              <td>62 of 70 (88.6%)</td>
+              <td>68 of 70 (97.1%)</td>
+            </tr>
+            <tr>
+              <th scope="row">Always guess Core (Bracket 2)</th>
+              <td>55 of 70 (78.6%)</td>
+              <td>70 of 70 (100%)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        That is seven more exact matches than a guess that never looks at the cards, on 70 decks.
+        The 95% bootstrap interval on 88.6% runs from 80.0% to 95.7%. It sits just above the
+        baseline's 78.6%, but it comes from one outside source and one 70-deck sample, so read the
+        gap as real but small. Where ScrollVault says Core, the estimate agrees on 52 of 55. Where
+        ScrollVault says Bracket 3, it agrees on only 10 of 15 (66.7%; Wilson 95% interval 41.7% to
+        84.8%), and fifteen decks is too few to say more than that.
+      </p>
+
+      <h2>Where it disagrees</h2>
+      <p>
+        The eight ScrollVault misses, grouped by cause (printed by <code>npm run calibrate</code>):
+      </p>
+      <ul>
+        <li>
+          Three decks where we floor Bracket 4 because a combo runs through the commander and
+          ScrollVault does not.
+        </li>
+        <li>
+          Two decks where ScrollVault floors a two-card combo that Spellbook rates Core or
+          Exhibition.
+        </li>
+        <li>One deck where we floor Bracket 4 on a land denial ruling and ScrollVault does not.</li>
+        <li>
+          One deck where we count a combo Spellbook rates S or P and ScrollVault discounts it.
+        </li>
+        <li>
+          One deck ScrollVault lifts on its own optimization score, which we have no floor for.
+        </li>
+      </ul>
+
+      <h2>What the estimate cannot see</h2>
+      <ul>
+        <li>
+          <strong>Intent.</strong> Bracket 1 is a deliberate theme-over-winning build that a card
+          list cannot show, so the estimate never says Bracket 1. A deck with no signals reads as
+          Core. You can state your own bracket, and the page shows it beside the estimate.
+        </li>
+        <li>
+          <strong>How it plays.</strong> A precon that plays above Core with clean contents is
+          labeled Core. The estimate has the same blind spot.
+        </li>
+        <li>
+          <strong>Combos.</strong> They come from Commander Spellbook, so a combo it lacks or rates
+          differently moves the answer. Combo disagreements are most of the misses above.
+        </li>
+        <li>
+          <strong>Speed.</strong> The simulated turn-by-turn clock is shown on the deck page but
+          does not change the bracket: weighting it at 0 to 30 points moved no deck's bracket
+          (2026-10-25), so none ships. A modeled win path exists for only 52 of the 265 test decks.
+        </li>
+        <li>
+          <strong>Thresholds.</strong> The 66 and 80 cutoffs were set by hand on precon and
+          Archidekt samples (comments in <code>index.ts</code>). The highest power signal among the
+          197 precons is 49, so the 66 cutoff has never been tested near a real precon.
+        </li>
+        <li>
+          <strong>No table data.</strong> No deck was labeled by the people who played it. Owners
+          can say whether an estimate looks right; those answers are kept for human review and do
+          not tune the estimate (<code>backend/src/routes/bracket-votes.ts</code>).
+        </li>
+      </ul>
+
+      <h2>How deck generation is evaluated</h2>
+      <p>
+        A cheap mechanical check, <code>frontend/scripts/recall-benchmark.mjs</code>, hides a few
+        cards from each precon and cEDH list in the same test set, gives a ranker the commander and
+        the rest of the deck, and measures how often it brings the hidden cards back near the top of
+        the full legal pool. It compares the generator's pick scoring against baselines such as a
+        random shuffle and EDHREC play rate, with bootstrap intervals. It is not a pass-or-fail gate
+        and no result from it is claimed here. Getting a held-out card back is not the same as
+        building a better deck, so it is a first look, not a verdict.
+      </p>
+
+      <a class="cta" href="/">Open SpellControl</a>
+      <p class="cta-note">Free, no account required.</p>
+
+      <footer>
+        <p>
+          More guides: <a href="/guides/">All guides</a> ·
+          <a href="/guides/compare.html">SpellControl vs Moxfield, ManaBox and Archidekt</a> ·
+          <a href="/privacy.html">Privacy</a>
+        </p>
+        <p>
+          ScrollVault and Commander Spellbook are independent sites and are not affiliated with
+          SpellControl. SpellControl is unofficial Fan Content permitted under the Wizards of the
+          Coast Fan Content Policy. Not approved or endorsed by Wizards. Magic: The Gathering and
+          its logos are trademarks of Wizards of the Coast LLC. Card data and images via Scryfall.
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

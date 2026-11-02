@@ -52,6 +52,9 @@ const {
   cedhMinGameChangers: CEDH_MIN_GAME_CHANGERS,
 } = SOFT_SCORE;
 
+/** The static page that says how the estimate is made and how it was checked. */
+const BRACKET_METHOD_HREF = '/guides/bracket-estimator.html';
+
 const HARD_FLOOR_TIP =
   'A hard floor is the lowest bracket this deck can be. Cut the cards that set it to go lower.';
 // One consolidated explainer for the power signal — intro + every signal —
@@ -859,7 +862,10 @@ export function BracketBreakdown({
         </div>
       )}
       <p className="bracket-breakdown-footnote">
-        Estimated from the card list alone. Use it to start the Rule 0 talk.
+        Estimated from the card list alone. Use it to start the Rule 0 talk.{' '}
+        <a className="text-link" href={BRACKET_METHOD_HREF}>
+          How this is estimated
+        </a>
       </p>
       {tableSlot}
       {isOwner && !combosUncounted && (

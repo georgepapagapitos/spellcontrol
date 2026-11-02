@@ -601,3 +601,11 @@ describe('BracketBreakdown speed read', () => {
     expect(container.querySelector('.bracket-speed')).toBeNull();
   });
 });
+
+describe('BracketBreakdown methodology link', () => {
+  it('links the public page that says how the estimate is made', () => {
+    render(<BracketBreakdown estimation={makeEstimation()} />);
+    const link = screen.getByRole('link', { name: 'How this is estimated' });
+    expect(link.getAttribute('href')).toBe('/guides/bracket-estimator.html');
+  });
+});
