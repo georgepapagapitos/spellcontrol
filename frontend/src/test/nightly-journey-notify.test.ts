@@ -99,7 +99,8 @@ describe('nightly journey failure tracking', () => {
     const harvest = lines.find((l) => l.includes('log=$(sed')) ?? '';
     const pick = lines.find((l) => l.includes('fails=$({')) ?? '';
     const script = [
-      harvest.replace(/\$\(find journey-output [^)]*\)/, '/dev/stdin'),
+      harvest.replace(/\$\(find journey-output [^)]*\)/, ''),
+      // (no file operand: sed reads stdin; node's stdin is a socket on Linux, which /dev/stdin cannot reopen)
       pick,
       'printf "%s\\n" "$fails"',
     ].join('\n');
