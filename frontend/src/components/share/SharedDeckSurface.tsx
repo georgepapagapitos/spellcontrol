@@ -40,6 +40,7 @@ import { DeckHero } from '../deck/DeckHero';
 import { Tabs } from '@/components/overlays/Tabs';
 import { ReportDialog } from './ReportDialog';
 import { CopyDeckButton } from './CopyDeckButton';
+import { PregameCard } from './PregameCard';
 import { useAuth } from '../../store/auth';
 import { useCollectionStore } from '../../store/collection';
 import { useDeckCombos } from '@/lib/deck-analysis/use-deck-combos';
@@ -416,6 +417,21 @@ export function SharedDeckSurface({
         </p>
         {data.forkedFrom && <ForkedFromBadge forkedFrom={data.forkedFrom} />}
       </DeckHero>
+      {/* The shareable pregame card: bracket, Game Changers and speed against
+          the Wizards turn bands. Commander decks with a bracket only; the
+          speed row runs the same seeded clock the owner's Bracket panel does,
+          from the win paths already on this payload. */}
+      {hasCommander && bracketValue != null && bracketHeroText && (
+        <PregameCard
+          deck={deck}
+          library={deckLibrary}
+          bracket={bracketValue}
+          bracketText={bracketHeroText}
+          art={heroArt}
+          url={`${window.location.origin}${basePath}`}
+        />
+      )}
+
       {data.primer && (
         // renderMarkdownLite is escape-then-transform (see lib/util/markdown-lite.ts):
         // the whole string is HTML-entity-escaped before any tag is generated,

@@ -19,7 +19,7 @@ depending on whether it is still a decision:
   grouped by what you have to do, it put the same word on opposite situations
   one row apart.
 - **An open offer is a balance sheet.** Two columns, `You give` and `You
-  get`, side by side once the CARD is at least 36rem wide (a container query,
+get`, side by side once the CARD is at least 36rem wide (a container query,
   because the row is a different width on `/trades` and the friend hub) and
   stacked below that. Each card is one line: art, name (`2× Arcane Signet`),
   the printing (`MSC #211 · Foil`, or `Any printing`) and its own price at the
@@ -105,6 +105,21 @@ dead end (the authRequired state's sign-in CTA is the reference). Other rulings:
 `.shared-table-scroll` (the shell clips `overflow-x`, so an unwrapped table is
 silently cut off at 320px); mana costs render via the `ManaCost` primitive (never
 raw `{1}{W}` text); sort headers use the shared `SortDirArrow`.
+
+### Pregame card (E1096)
+
+A shared Commander deck with a bracket carries one shareable block under its hero
+(`components/share/PregameCard.tsx`): bracket, Game Changers, and a Speed row. Speed is the
+share of simulated games where the win path is in place before the turn Wizards' October 2025
+update gives the bracket (`TURN_EXPECTATIONS`, read through `readSpeed`), always with the
+sample size and the band it was read against. The public page runs the owner's seeded
+assembly clock itself from `winConditions` already on the payload, so the projection carries
+no separate speed field that could go stale. States: the Speed row holds its place with
+"Running the speed read" (`aria-busy` on the list) while the clock runs, and says "No combo or
+alternate win path to time." when the deck has none; Game Changers is left out when the
+estimate never counted them. Sharing uses the existing pattern: `Share` only where
+`canShare()`, plus `Copy summary` and `Copy link` as `CopyButton`s. No image is rendered; the
+link's own `og:image` is the commander art.
 
 ### Visibility is one choice, not a link to manage (board T136)
 

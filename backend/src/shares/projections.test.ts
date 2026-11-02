@@ -236,6 +236,33 @@ describe('projectDeck', () => {
     expect('tags' in slot).toBe(false);
   });
 
+  it('keeps the win path and Game Changer count the pregame card times on the public page', () => {
+    // The public page runs the owner's seeded assembly clock itself, so the
+    // payload must carry exactly what speedPathOf and the card read: the
+    // primary path's assembly options, its tutors, and the estimate's counts.
+    const winConditions = {
+      primary: {
+        category: 'infinite-combo',
+        assembly: [{ names: ['Thassa’s Oracle', 'Demonic Consultation'], need: 2 }],
+      },
+      tutors: ['Demonic Tutor'],
+    };
+    const bracketEstimation = { bracket: 3, breakdown: { gameChangerCount: 2 } };
+    const out = projectDeck(ALICE, {
+      id: 'd1',
+      name: 'X',
+      format: 'commander',
+      commander: { name: 'Edric' },
+      cards: [],
+      sideboard: [],
+      color: '#888',
+      winConditions,
+      bracketEstimation,
+    });
+    expect(out?.winConditions).toEqual(winConditions);
+    expect(out?.bracketEstimation).toEqual(bracketEstimation);
+  });
+
   it('carries a display name when the owner has one set', () => {
     const owner = { username: 'alice', displayName: 'Alice A.' };
     const out = projectDeck(owner, { id: 'd1', name: 'X' });

@@ -102,6 +102,25 @@ describe('SharedDeckSurface', () => {
     expect(screen.getByText(/Shared by/)).toBeTruthy();
   });
 
+  it('shows the shareable pregame card on a commander deck that has a bracket', () => {
+    renderSurface(
+      makeDeck({
+        commander: { name: 'Atraxa, Praetors’ Voice', type_line: 'Legendary Creature', cmc: 4 },
+        bracketEstimation: estimation(3),
+      })
+    );
+    expect(screen.getByRole('heading', { name: 'Before you sit down' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Copy summary' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Copy link' })).toBeTruthy();
+    // No win path on this payload, so the speed row says it was not timed.
+    expect(screen.getByText('No combo or alternate win path to time.')).toBeTruthy();
+  });
+
+  it('shows no pregame card when the deck has no bracket to read', () => {
+    renderSurface(makeDeck({ commander: { name: 'Atraxa', type_line: 'Creature', cmc: 4 } }));
+    expect(screen.queryByRole('heading', { name: 'Before you sit down' })).toBeNull();
+  });
+
   it('exposes no editing affordance anywhere on the page', () => {
     renderSurface();
     // Each of these exists on the owner's deck page and is gated purely on a
