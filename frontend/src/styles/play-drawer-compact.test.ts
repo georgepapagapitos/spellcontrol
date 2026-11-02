@@ -56,7 +56,7 @@ describe('drawer is a compact scrolling row on a short seat', () => {
     for (const query of ['max-width: 300px', 'max-height: 300px']) {
       const b = block(query);
       expect(b).toMatch(/\.seat-menu-editor\s*\{\s*display:\s*none;/);
-      for (const editor of ['name', 'partner', 'color', 'facing', 'counter']) {
+      for (const editor of ['name', 'partner', 'color', 'facing', 'counter', 'dungeon']) {
         expect(b, `${editor} editor swap-in rule missing under ${query}`).toContain(
           `data-active-editor='${editor}']`
         );

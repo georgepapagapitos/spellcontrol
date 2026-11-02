@@ -1,6 +1,6 @@
 import { Count } from '@/components/shared/Count';
 import { Swords, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/store/auth';
 import { type Deck } from '@/store/decks';
 import { usePlayStore, type LocalGameSetup } from '@/store/play';
@@ -9,8 +9,13 @@ import { getPod, listPods, type Pod } from '@/lib/social/pods-client';
 import { formatIdentity } from '@/lib/social/display-name';
 import { toast } from '@/store/toasts';
 import { SelectMenu } from '@/components/overlays/SelectMenu';
-import { FORMAT_OPTIONS, MAX_LOCAL_PLAYERS, MIN_LOCAL_PLAYERS } from '@/lib/play/game-formats';
-import { MAX_COUNTERS_PER_SCOPE, MAX_COUNTER_NAME_LENGTH } from '@spellcontrol/game-core';
+import {
+  FORMAT_OPTIONS,
+  MAX_LOCAL_PLAYERS,
+  MIN_LOCAL_PLAYERS,
+  MIN_TEAM_SEATS,
+} from '@/lib/play/game-formats';
+import { MAX_COUNTERS_PER_SCOPE, MAX_COUNTER_NAME_LENGTH, teamOf } from '@spellcontrol/game-core';
 import { SeatPips, Stepper } from '@/components/play/SetupControls';
 import { SwitchRow } from '@/components/shared/form';
 import { TableProfiles } from '@/components/play/TableProfiles';
@@ -99,7 +104,10 @@ export function LocalSetup({
   const [hordeOverrides, setHordeOverrides] = useState<Partial<HordeSettings>>({});
   const hordeStatus = useHordeGameStore((s) => s.status);
   const hordeLoadError = useHordeGameStore((s) => s.loadError);
-  const minSeats = isHorde ? 1 : MIN_LOCAL_PLAYERS;
+  // Two-Headed Giant seats whole teams: two teams of two at least, and a seat
+  // is only ever added or removed with its teammate.
+  const isTeams = !isHorde && format === '2hg';
+  const minSeats = isHorde ? 1 : isTeams ? MIN_TEAM_SEATS : MIN_LOCAL_PLAYERS;
   const maxSeats = isHorde ? 4 : MAX_LOCAL_PLAYERS;
 
   // The board clock is a device preference (persisted in the play store), not
@@ -333,6 +341,12 @@ export function LocalSetup({
     setFormat(next);
     setStartingLife(cfg.defaultLife);
     setCmdDmg(cfg.cmdDmg);
+    if (next === '2hg') {
+      // Team poison is part of the format (fifteen, shared), and the table
+      // seats whole teams.
+      setPoison(true);
+      setCount((c) => Math.min(MAX_LOCAL_PLAYERS, Math.max(MIN_TEAM_SEATS, c + (c % 2))));
+    }
   }
 
   /** A friend in a seat plays their own deck, so their picker leads with
@@ -350,20 +364,22 @@ export function LocalSetup({
 
   function addPlayer() {
     if (count >= maxSeats) return;
-    setCount((c) => Math.min(c + 1, maxSeats));
+    setCount((c) => Math.min(c + (isTeams ? 2 : 1), maxSeats));
   }
 
   function removePlayer(index: number) {
     if (count <= minSeats) return;
     // Shift names down so the visible seats stay 1..N after the splice,
-    // then drop the last seat.
+    // then drop the last seat. A team goes as a pair.
+    const gone = isTeams ? 2 : 1;
+    const first = isTeams ? teamOf(index) * 2 : index;
     setPlayers((prev) => {
       const next = [...prev];
-      next.splice(index, 1);
-      next.push(blankPlayer(''));
+      next.splice(first, gone);
+      for (let i = 0; i < gone; i++) next.push(blankPlayer(''));
       return next;
     });
-    setCount((c) => Math.max(c - 1, minSeats));
+    setCount((c) => Math.max(c - gone, minSeats));
   }
 
   return (
@@ -468,7 +484,12 @@ export function LocalSetup({
               checked={turnOrder === 'counterclockwise'}
               onChange={(on) => setTurnOrder(on ? 'counterclockwise' : 'clockwise')}
             />
-            <SwitchRow label="Poison counters" checked={poisonEnabled} onChange={setPoison} />
+            <SwitchRow
+              label="Poison counters"
+              hint={isTeams ? 'A team shares its poison and loses at fifteen.' : undefined}
+              checked={poisonEnabled}
+              onChange={setPoison}
+            />
           </div>
         )}
 
@@ -554,77 +575,82 @@ export function LocalSetup({
         )}
         <ul className="list-stack list-stack--snug">
           {players.slice(0, count).map((p, i) => (
-            <li key={i} className="play-setup-seat">
-              <span className="play-setup-seat-num" aria-hidden="true">
-                {i + 1}
-              </span>
-              {me && (
-                <SeatWho
-                  seatIndex={i}
-                  value={p.userId ?? null}
-                  me={me}
-                  friends={friends ?? []}
-                  taken={
-                    new Set(
-                      players
-                        .slice(0, count)
-                        .filter((q, idx) => idx !== i && q.userId)
-                        .map((q) => q.userId as string)
-                    )
-                  }
-                  onChange={(person) =>
+            <Fragment key={i}>
+              {isTeams && i % 2 === 0 && (
+                <li className="play-setup-team-label">Team {teamOf(i) + 1}</li>
+              )}
+              <li className="play-setup-seat">
+                <span className="play-setup-seat-num" aria-hidden="true">
+                  {i + 1}
+                </span>
+                {me && (
+                  <SeatWho
+                    seatIndex={i}
+                    value={p.userId ?? null}
+                    me={me}
+                    friends={friends ?? []}
+                    taken={
+                      new Set(
+                        players
+                          .slice(0, count)
+                          .filter((q, idx) => idx !== i && q.userId)
+                          .map((q) => q.userId as string)
+                      )
+                    }
+                    onChange={(person) =>
+                      setPlayer(i, {
+                        ...(person
+                          ? {
+                              userId: person.id,
+                              username: person.username,
+                              name: formatIdentity(person).primary,
+                            }
+                          : { userId: null, username: null }),
+                        // The deck belonged to whoever sat here before: a new
+                        // person picks from their own shelf.
+                        ...(person?.id !== (p.userId ?? undefined) ? NO_SEAT_DECK : {}),
+                      })
+                    }
+                  />
+                )}
+                <input
+                  className="play-setup-seat-name"
+                  value={p.name}
+                  onChange={(e) => setPlayer(i, { name: e.target.value })}
+                  maxLength={40}
+                  aria-label={`Player ${i + 1} name`}
+                  placeholder={`Player ${i + 1}`}
+                />
+                <SeatPips ci={p.colorIdentity} />
+                <SeatDeck
+                  decks={decks}
+                  value={p.deckId}
+                  deckName={p.deckName}
+                  showStarters={false}
+                  owner={seatOwner(p.userId)}
+                  onChange={(picked) =>
                     setPlayer(i, {
-                      ...(person
-                        ? {
-                            userId: person.id,
-                            username: person.username,
-                            name: formatIdentity(person).primary,
-                          }
-                        : { userId: null, username: null }),
-                      // The deck belonged to whoever sat here before: a new
-                      // person picks from their own shelf.
-                      ...(person?.id !== (p.userId ?? undefined) ? NO_SEAT_DECK : {}),
+                      deckId: picked?.id ?? null,
+                      deckName: picked?.name ?? null,
+                      commander: picked?.commander ?? null,
+                      // Decks already model the second commander, so a Partner
+                      // seat splits its damage counter with no setup step —
+                      // nobody stops mid-game to type in a commander name.
+                      partner: picked?.partner ?? null,
+                      colorIdentity: picked?.colorIdentity ?? [],
                     })
                   }
                 />
-              )}
-              <input
-                className="play-setup-seat-name"
-                value={p.name}
-                onChange={(e) => setPlayer(i, { name: e.target.value })}
-                maxLength={40}
-                aria-label={`Player ${i + 1} name`}
-                placeholder={`Player ${i + 1}`}
-              />
-              <SeatPips ci={p.colorIdentity} />
-              <SeatDeck
-                decks={decks}
-                value={p.deckId}
-                deckName={p.deckName}
-                showStarters={false}
-                owner={seatOwner(p.userId)}
-                onChange={(picked) =>
-                  setPlayer(i, {
-                    deckId: picked?.id ?? null,
-                    deckName: picked?.name ?? null,
-                    commander: picked?.commander ?? null,
-                    // Decks already model the second commander, so a Partner
-                    // seat splits its damage counter with no setup step —
-                    // nobody stops mid-game to type in a commander name.
-                    partner: picked?.partner ?? null,
-                    colorIdentity: picked?.colorIdentity ?? [],
-                  })
-                }
-              />
-              {count > minSeats && (
-                <IconButton
-                  className="play-setup-seat-remove"
-                  label={`Remove ${p.name || `Player ${i + 1}`}`}
-                  onClick={() => removePlayer(i)}
-                  icon={<X width={14} height={14} strokeWidth={1.8} />}
-                />
-              )}
-            </li>
+                {count > minSeats && (
+                  <IconButton
+                    className="play-setup-seat-remove"
+                    label={`Remove ${p.name || `Player ${i + 1}`}`}
+                    onClick={() => removePlayer(i)}
+                    icon={<X width={14} height={14} strokeWidth={1.8} />}
+                  />
+                )}
+              </li>
+            </Fragment>
           ))}
         </ul>
         {count < maxSeats && (
@@ -632,9 +658,9 @@ export function LocalSetup({
             type="button"
             className="play-setup-roster-add"
             onClick={addPlayer}
-            aria-label="Add player"
+            aria-label={isTeams ? 'Add a team' : 'Add player'}
           >
-            + Add player
+            {isTeams ? '+ Add a team' : '+ Add player'}
           </button>
         )}
       </section>

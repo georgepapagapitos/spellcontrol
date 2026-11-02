@@ -19,3 +19,11 @@ describe('gameFormatLabel', () => {
     expect(FORMAT_OPTIONS.some((f) => f.value === 'horde')).toBe(false);
   });
 });
+
+describe('Two-Headed Giant', () => {
+  it('is a format with team life and no commander damage', () => {
+    const hg = FORMAT_OPTIONS.find((f) => f.value === '2hg');
+    expect(hg).toMatchObject({ label: 'Two-Headed Giant', defaultLife: 30, cmdDmg: false });
+    expect(gameFormatLabel('2hg')).toBe('Two-Headed Giant');
+  });
+});

@@ -597,7 +597,10 @@
     .seat-menu-editor[data-editor='facing'],
   .player-panel[data-sideways]
     .seat-menu-body[data-active-editor='counter']
-    .seat-menu-editor[data-editor='counter'] {
+    .seat-menu-editor[data-editor='counter'],
+  .player-panel[data-sideways]
+    .seat-menu-body[data-active-editor='dungeon']
+    .seat-menu-editor[data-editor='dungeon'] {
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
@@ -787,7 +790,10 @@
     .seat-menu-editor[data-editor='facing'],
   .player-panel:not([data-sideways])
     .seat-menu-body[data-active-editor='counter']
-    .seat-menu-editor[data-editor='counter'] {
+    .seat-menu-editor[data-editor='counter'],
+  .player-panel:not([data-sideways])
+    .seat-menu-body[data-active-editor='dungeon']
+    .seat-menu-editor[data-editor='dungeon'] {
     display: flex;
     flex-direction: column;
     gap: var(--space-2);

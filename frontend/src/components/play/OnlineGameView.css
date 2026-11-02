@@ -611,6 +611,17 @@
   border-color: var(--accent);
 }
 
+.ogv-you .pp-dungeon {
+  --dng-ink: var(--text-primary);
+  --dng-muted: var(--text-secondary);
+  --dng-bg: var(--surface);
+  --dng-border: var(--border-strong);
+  --dng-on-active: var(--on-accent);
+  --dng-active: var(--accent);
+  --dng-hover: var(--surface-raised);
+  --dng-focus: var(--accent);
+}
+
 .ogv-designations {
   display: flex;
   gap: var(--space-2);

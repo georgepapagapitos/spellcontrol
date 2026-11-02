@@ -24,7 +24,12 @@ export const FORMAT_OPTIONS: FormatOption[] = [
   { value: 'vintage', label: 'Vintage', defaultLife: 20, cmdDmg: false },
   { value: 'pauper', label: 'Pauper', defaultLife: 20, cmdDmg: false },
   { value: 'casual', label: 'Casual', defaultLife: 20, cmdDmg: false },
+  // Teams of two share life and poison; see game-core's teams.ts.
+  { value: '2hg', label: 'Two-Headed Giant', defaultLife: 30, cmdDmg: false },
 ];
+
+/** Fewest seats a team format can start with: two teams of two. */
+export const MIN_TEAM_SEATS = 4;
 
 /** The local game setup's player-count ceiling (also the "Start game" seed cap). */
 export const MAX_LOCAL_PLAYERS = 10;

@@ -87,7 +87,8 @@ export function OnlineSetup({
   // A team turn has no commander damage; the lobby seeds the actual horde
   // pick once the table exists (OnlineLobby's Format select does the same).
   const commanderDamageEnabled = format === 'horde' ? false : cfg.cmdDmg;
-  const poisonEnabled = false;
+  // Two-Headed Giant teams share fifteen poison, so the format opens with it on.
+  const poisonEnabled = format === '2hg';
 
   function applyFormat(next: GameFormat) {
     setFormat(next);

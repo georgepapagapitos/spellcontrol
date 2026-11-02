@@ -64,7 +64,7 @@ describe('SeatMenu — compact row plumbing', () => {
       expect(screen.getByRole('button', { name: label })).toBeTruthy();
     }
     // The four section triggers that swap the row for one editor on a short seat.
-    for (const label of ['Name', 'Partner', 'Color', 'Facing']) {
+    for (const label of ['Name', 'Partner', 'Color', 'Facing', 'Dungeon']) {
       expect(screen.getByRole('button', { name: label })).toBeTruthy();
     }
     // Poison counter's stepper is present too (game has poisonEnabled: true by default).

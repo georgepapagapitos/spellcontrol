@@ -65,6 +65,8 @@ export function describeGameEvent(
       return { action: `${row.message ?? seatName(row.targetSeat) ?? 'player'} joined` };
     case 'leave':
       return { action: `${row.message ?? seatName(row.targetSeat) ?? 'player'} left` };
+    case 'dungeon':
+      return { target: seatName(row.targetSeat), action: row.message ?? 'ventured' };
     case 'note':
       return { action: row.message ?? 'note' };
     case 'settings':

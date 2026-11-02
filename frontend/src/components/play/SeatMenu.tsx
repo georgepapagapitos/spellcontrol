@@ -1,4 +1,5 @@
 import {
+  Castle,
   Compass,
   Crown,
   FastForward,
@@ -19,6 +20,7 @@ import {
   MAX_COUNTERS_PER_SCOPE,
   MAX_COUNTER_NAME_LENGTH,
   normalizeCounterName,
+  poisonLimit,
   seatCounters,
 } from '@spellcontrol/game-core';
 import { encodeCustomLayout, resolveLayout, turnOrderOf } from '@/lib/play/board-layouts';
@@ -26,6 +28,7 @@ import { paletteForSeat } from '@/lib/play/seat-palette';
 import { useOverlayDismiss } from '@/lib/overlays/use-overlay-dismiss';
 import { useTapAndHold } from '@/lib/play/tap-and-hold';
 import { Button, IconButton } from '../shared/Button';
+import { DungeonControl } from './DungeonControl';
 import { FacingArrow } from './FacingArrow';
 
 // ── Seat drawer ────────────────────────────────────────────────────────────
@@ -45,7 +48,7 @@ const MAX_NAME_LENGTH = 40;
  * (Done/back returns to it). Irrelevant on a tall seat — the full sheet
  * always shows every section inline regardless of this value.
  */
-type EditorKind = 'name' | 'partner' | 'color' | 'facing' | 'counter';
+type EditorKind = 'name' | 'partner' | 'color' | 'facing' | 'counter' | 'dungeon';
 
 /**
  * A seat's drawer: everything about one seat that isn't its life total.
@@ -310,6 +313,16 @@ export function SeatMenu({
                 <button
                   type="button"
                   className="seat-menu-row-trigger"
+                  onClick={() => setActiveEditor('dungeon')}
+                >
+                  <Castle width={14} height={14} strokeWidth={1.8} aria-hidden />
+                  <span>Dungeon</span>
+                </button>
+              )}
+              {canEdit && (
+                <button
+                  type="button"
+                  className="seat-menu-row-trigger"
                   onClick={() => setActiveEditor('name')}
                 >
                   <Pencil width={14} height={14} strokeWidth={1.8} aria-hidden />
@@ -352,6 +365,14 @@ export function SeatMenu({
           {canEdit && (
             <>
               <div className="seat-menu-divider" aria-hidden="true" />
+              <div className="seat-menu-editor" data-editor="dungeon">
+                <DungeonControl
+                  player={player}
+                  disabled={countersDisabled}
+                  dispatch={dispatch}
+                  initiative={isInitiative}
+                />
+              </div>
               <div className="seat-menu-editor" data-editor="name">
                 <form
                   className="seat-menu-form"
@@ -591,7 +612,7 @@ function SeatCounters({
               label="☠ Poison"
               value={player.poison}
               disabled={disabled}
-              lethal={player.poison >= 10}
+              lethal={player.poison >= poisonLimit(game.format)}
               onChange={(d) =>
                 dispatch({ type: 'poison', seat: player.seat, delta: d, actorSeat: player.seat })
               }

@@ -1754,6 +1754,20 @@ describe('actionIsAllowed: own-seat-only life/poison/cmd-dmg (T99)', () => {
     expect(res.body.error).toBe('Can only adjust your own seat.');
   });
 
+  it('a dungeon venture on another participant’s seat is blocked (403)', async () => {
+    const { code, joiners } = await setupTable('games_ownseat_dng403', ['games_ownseat_dng403_j']);
+    const current = await request(app).get(`/api/games/${code}`).set('Cookie', joiners[0]);
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', joiners[0])
+      .send({
+        baseVersion: current.body.game.version,
+        actions: [{ type: 'dungeon', seat: 0, actorSeat: 1, op: 'enter', dungeon: 'tomb' }],
+      });
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('Can only adjust your own seat.');
+  });
+
   it('a guest seat (userId: null) can have its life adjusted by any seated participant, host or not', async () => {
     const { code, host, joiners } = await setupTable('games_ownseat_guest', [
       'games_ownseat_guest_j',
@@ -4577,5 +4591,50 @@ describe('host takeover (E451)', () => {
       .rows[0].state;
     expect(state.players.filter((p: { isHost: boolean }) => p.isHost)).toHaveLength(1);
     expect(await hostColumn(code)).toBe(state.hostUserId);
+  });
+});
+
+describe('dungeon tracking and Two-Headed Giant over the wire', () => {
+  async function host(tag: string, body: object = {}) {
+    const cookie = await registerAndGetCookie(tag);
+    const created = await request(app).post('/api/games').set('Cookie', cookie).send(body);
+    return {
+      cookie,
+      code: created.body.game.code as string,
+      version: created.body.game.version as number,
+    };
+  }
+
+  const patch = (cookie: string, code: string, baseVersion: number, actions: object[]) =>
+    request(app).patch(`/api/games/${code}`).set('Cookie', cookie).send({ baseVersion, actions });
+
+  it('creates a Two-Headed Giant table', async () => {
+    const cookie = await registerAndGetCookie('hg_create');
+    const made = await request(app)
+      .post('/api/games')
+      .set('Cookie', cookie)
+      .send({ format: '2hg', startingLife: 30 });
+    expect(made.status).toBe(201);
+    expect(made.body.game.format).toBe('2hg');
+  });
+
+  it('applies a venture server-side and rejects a room the dungeon does not have', async () => {
+    const { cookie, code, version } = await host('dng_venture');
+    const entered = await patch(cookie, code, version, [
+      { type: 'dungeon', seat: 0, actorSeat: 0, op: 'enter', dungeon: 'undercity' },
+    ]);
+    expect(entered.status).toBe(200);
+    expect(entered.body.game.players[0].dungeon).toEqual({
+      id: 'undercity',
+      room: 'Secret Entrance',
+    });
+    const moved = await patch(cookie, code, entered.body.game.version, [
+      { type: 'dungeon', seat: 0, actorSeat: 0, op: 'room', room: 'Arena' },
+    ]);
+    expect(moved.body.game.players[0].dungeon.room).toBe('Arena');
+    const bad = await patch(cookie, code, moved.body.game.version, [
+      { type: 'dungeon', seat: 0, actorSeat: 0, op: 'room', room: 'Cave Entrance' },
+    ]);
+    expect(bad.status).toBe(400);
   });
 });
