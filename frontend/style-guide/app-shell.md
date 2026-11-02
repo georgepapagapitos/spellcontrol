@@ -565,6 +565,12 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
   footer — additive restructure, never a content purge. The feature grid now
   goes to 4 columns at `≥1024px` (there are exactly four blocks; the wider
   shell fits them in one row).
+- **Public tools link from the footer nav, not the hero or the app nav
+  (2026-11-02).** The no-signup `/bracket` checker is reached from the
+  welcome footer's "Site links" row (a `<Link>`, since it is an app route
+  where its neighbors are static pages) and from the guides index. It gets
+  no hero CTA (the hero's three doors are about starting) and no in-app nav
+  entry.
 - **No exit animation.** The welcome is a one-shot surface that replaces itself
   immediately when any door is chosen. Instant replacement via React state is the
   symmetric exit — it reads as deliberate action, not a vanish.

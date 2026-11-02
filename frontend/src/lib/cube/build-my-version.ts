@@ -44,7 +44,7 @@ function primaryType(typeLine: string): string {
 }
 
 /** The closest cube size we offer to `n`; ties go to the smaller size. */
-function closestCubeSize(n: number): CubeSize {
+export function closestCubeSize(n: number): CubeSize {
   return CUBE_SIZES.reduce((best, s) => {
     const d = Math.abs(s - n);
     const bestD = Math.abs(best - n);
@@ -73,6 +73,46 @@ function substituteReason(sub: CubeCard): string {
   const slot = curveSlotOf(sub.cmc);
   const slotLabel = slot === '7' ? '7+' : slot;
   return `${color.charAt(0).toUpperCase()}${color.slice(1)}, ${slotLabel} mana`;
+}
+
+/** Wrap picks into a GeneratedCube: bucket counts, the size's color targets and
+ *  the shortfall against `size`. Shared by "Build my version" and a saved paste. */
+export function assembleCube(
+  size: CubeSize,
+  picks: Pick[],
+  gaps: GeneratedCube['gaps'],
+  poolSize: number
+): GeneratedCube {
+  const byBucket = {} as Record<ColorBucket, number>;
+  const buckets: ColorBucket[] = ['W', 'U', 'B', 'R', 'G', 'multicolor', 'colorless', 'land'];
+  for (const b of buckets) byBucket[b] = 0;
+  for (const p of picks) byBucket[p.bucket]++;
+
+  const band = targetsForSize(size, 'limited');
+  const shares = {} as Record<ColorBucket, number>;
+  for (const b of buckets) shares[b] = band.color[b].median;
+  const targetByBucket = apportion(shares, size);
+
+  const shortfall = Math.max(0, size - picks.length);
+  return { size, format: 'limited', picks, byBucket, targetByBucket, gaps, shortfall, poolSize };
+}
+
+/** A pasted list as a saveable cube: every matched card, bucketed, in the
+ *  closest cube size we offer. Nothing is dropped; ownership isn't consulted. */
+export function cubeFromImported(imported: ImportedCube): { size: CubeSize; cube: GeneratedCube } {
+  const size = closestCubeSize(imported.cards.length);
+  const picks: Pick[] = imported.cards.map((c) => {
+    const card: CubeCard = {
+      name: c.name,
+      oracleId: c.oracleId,
+      colors: c.colors,
+      cmc: c.cmc,
+      typeLine: c.typeLine,
+      role: cubeRole(c.name),
+    };
+    return { card, bucket: bucketOf(card), reason: 'From your pasted list' };
+  });
+  return { size, cube: assembleCube(size, picks, [], picks.length) };
 }
 
 export function buildMyVersion(
@@ -155,17 +195,6 @@ export function buildMyVersion(
     })),
   ];
 
-  const byBucket = {} as Record<ColorBucket, number>;
-  const buckets: ColorBucket[] = ['W', 'U', 'B', 'R', 'G', 'multicolor', 'colorless', 'land'];
-  for (const b of buckets) byBucket[b] = 0;
-  for (const p of picks) byBucket[p.bucket]++;
-
-  const band = targetsForSize(size, 'limited');
-  const shares = {} as Record<ColorBucket, number>;
-  for (const b of buckets) shares[b] = band.color[b].median;
-  const targetByBucket = apportion(shares, size);
-
-  const shortfall = Math.max(0, size - picks.length);
   const gaps: GeneratedCube['gaps'] =
     missing.length > 0
       ? [
@@ -175,17 +204,7 @@ export function buildMyVersion(
           },
         ]
       : [];
-
-  const cube: GeneratedCube = {
-    size,
-    format: 'limited',
-    picks,
-    byBucket,
-    targetByBucket,
-    gaps,
-    shortfall,
-    poolSize: ownedPool.length,
-  };
+  const cube = assembleCube(size, picks, gaps, ownedPool.length);
 
   return { cube, requestedSize, kept, substituted, missing };
 }

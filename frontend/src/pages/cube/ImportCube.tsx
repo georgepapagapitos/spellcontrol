@@ -1,4 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { NameInputDialog } from '@/components/overlays/NameInputDialog';
+import { useCubeStore } from '../../store/cube';
+import { useToastsStore } from '../../store/toasts';
 import { Tabs } from '@/components/overlays/Tabs';
 import { StackedBar } from '../../components/shared/MeterBar';
 import { CardPreview } from '@/components/card/CardPreview';
@@ -15,6 +19,7 @@ import {
 } from '../../lib/cube/import';
 import {
   buildMyVersion,
+  cubeFromImported,
   type BuildMyVersionResult as BuildMyVersionData,
 } from '../../lib/cube/build-my-version';
 import { importPastedCube } from '../../lib/cube/paste-import';
@@ -35,6 +40,10 @@ type BuildStatus = 'idle' | 'working' | 'done' | 'error';
 
 export function ImportCube() {
   const { ownershipFor, copyFor } = useOwnershipFor();
+  const navigate = useNavigate();
+  const saveDirectly = useCubeStore((s) => s.saveDirectly);
+  const pushToast = useToastsStore((s) => s.push);
+  const [saveOpen, setSaveOpen] = useState(false);
   const [url, setUrl] = useState('');
   const [status, setStatus] = useState<'idle' | 'working' | 'done' | 'error'>('idle');
   const [error, setError] = useState('');
@@ -119,6 +128,23 @@ export function ImportCube() {
       setBuildStatus('error');
     }
   }, [result, loadOwnedPool]);
+
+  // A pasted list saves as a draft cube: every matched card, no copies reserved
+  // (the cube's own page offers "physical" once it exists).
+  const saveAsCube = useCallback(
+    (name: string) => {
+      if (!result) return;
+      const { size, cube } = cubeFromImported(result.cube);
+      const id = saveDirectly(name, size, cube, false, [], {
+        synergyLevel: 0,
+        filters: DEFAULT_POOL_FILTERS,
+      });
+      setSaveOpen(false);
+      pushToast({ message: `Saved "${name}"`, tone: 'success' });
+      navigate(`/decks/cube/${id}`);
+    },
+    [result, saveDirectly, pushToast, navigate]
+  );
 
   const rows = useMemo(() => {
     if (!result) return [];
@@ -338,6 +364,25 @@ export function ImportCube() {
             />
           )}
         </section>
+      )}
+
+      {status === 'done' && result && result.cube.id === 'pasted' && (
+        <div className="cube-build-mine">
+          <Button onClick={() => setSaveOpen(true)}>Save as a new cube</Button>
+          <p className="cube-build-mine-hint">
+            Keeps all {result.cube.cardCount} matched cards as a cube you can edit and draft from.
+          </p>
+        </div>
+      )}
+      {saveOpen && result && (
+        <NameInputDialog
+          title="Save as a new cube"
+          label="Cube name"
+          initialValue="Pasted cube"
+          confirmLabel="Save"
+          onSubmit={saveAsCube}
+          onCancel={() => setSaveOpen(false)}
+        />
       )}
 
       {status === 'done' && result && (

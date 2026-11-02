@@ -84,4 +84,36 @@ describe('ImportCube paste', () => {
     paste('zzz');
     await waitFor(() => expect(screen.getByText(/Couldn't match any cards/)).toBeTruthy());
   });
+
+  it('saves the pasted list as a new cube through the cube store', async () => {
+    hoisted.importDeckText.mockResolvedValue({
+      commander: null,
+      companion: null,
+      cards: [bolt],
+      unresolvedNames: [],
+      fetchErrors: [],
+      detectedFormat: 'plain',
+      cardCount: 1,
+    });
+    paste('Lightning Bolt\n');
+    fireEvent.click(await screen.findByRole('button', { name: 'Save as a new cube' }));
+    const name = screen.getByLabelText('Cube name') as HTMLInputElement;
+    expect(name.value).toBe('Pasted cube');
+    fireEvent.change(name, { target: { value: 'My pile' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const saved = useCubeStore.getState().saved;
+    expect(saved).toHaveLength(1);
+    expect(saved[0].name).toBe('My pile');
+    expect(saved[0].isPhysical).toBe(false);
+    expect(saved[0].cube.picks.map((p) => p.card.name)).toEqual(['Lightning Bolt']);
+  });
+
+  it('offers no save action before a list is imported', () => {
+    render(
+      <MemoryRouter>
+        <ImportCube />
+      </MemoryRouter>
+    );
+    expect(screen.queryByRole('button', { name: 'Save as a new cube' })).toBeNull();
+  });
 });
