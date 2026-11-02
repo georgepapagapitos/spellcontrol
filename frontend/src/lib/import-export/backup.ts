@@ -1,6 +1,7 @@
 import type { BinderDef, EnrichedCard, SortEntry } from '@/types/index';
 import type { StoredCollection } from '@/lib/sync/local-cards';
 import type { Deck } from '@/store/decks';
+import type { SavedCube } from '@/store/cube';
 
 /**
  * Converts a raw sorts value from any version of persisted data into the
@@ -41,12 +42,19 @@ export interface Backup {
    * really has zero decks.
    */
   decks?: Deck[];
+  /**
+   * Saved cubes. Same contract as `decks`: `undefined` (a backup from before
+   * cubes were included, or a binder-scoped export) leaves existing cubes
+   * alone on restore; an explicit `[]` means the backup has zero cubes.
+   */
+  cubes?: SavedCube[];
 }
 
 export function buildBackup(
   collection: StoredCollection | null,
   binders: BinderDef[],
-  decks: Deck[]
+  decks: Deck[],
+  cubes?: SavedCube[]
 ): Backup {
   return {
     format: BACKUP_FORMAT,
@@ -55,6 +63,7 @@ export function buildBackup(
     collection,
     binders,
     decks,
+    ...(cubes ? { cubes } : {}),
   };
 }
 
@@ -199,6 +208,8 @@ export function parseBackup(raw: string): Backup {
   // "leave decks alone" on restore; see the `decks` doc on Backup.
   const decks = Array.isArray(obj.decks) ? (obj.decks as Deck[]) : undefined;
 
+  const cubes = Array.isArray(obj.cubes) ? (obj.cubes as SavedCube[]) : undefined;
+
   return {
     format: BACKUP_FORMAT,
     version: obj.version,
@@ -206,5 +217,6 @@ export function parseBackup(raw: string): Backup {
     collection,
     binders,
     ...(decks ? { decks } : {}),
+    ...(cubes ? { cubes } : {}),
   };
 }

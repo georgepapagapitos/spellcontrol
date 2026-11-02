@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useCollectionStore } from '@/store/collection';
 import { useDecksStore } from '@/store/decks';
+import { useCubeStore } from '@/store/cube';
 import { toast } from '@/store/toasts';
 import { buildBackup, downloadBackup, parseBackup } from '@/lib/import-export/backup';
 import { CollectionExportDialog } from '@/components/collection/CollectionExportDialog';
@@ -21,7 +22,8 @@ export function DataSection() {
   const buildBackupSnapshot = useCollectionStore((s) => s.buildBackupSnapshot);
   const restoreFromBackup = useCollectionStore((s) => s.restoreFromBackup);
   const decks = useDecksStore((s) => s.decks);
-  const hasAnything = cardCount > 0 || binders.length > 0 || decks.length > 0;
+  const cubes = useCubeStore((s) => s.saved);
+  const hasAnything = cardCount > 0 || binders.length > 0 || decks.length > 0 || cubes.length > 0;
 
   const backupInputRef = useRef<HTMLInputElement>(null);
   const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
@@ -31,7 +33,7 @@ export function DataSection() {
 
   function handleDownloadBackup() {
     const snapshot = buildBackupSnapshot();
-    downloadBackup(buildBackup(snapshot.collection, snapshot.binders, decks));
+    downloadBackup(buildBackup(snapshot.collection, snapshot.binders, decks, cubes));
     toast.show({ message: 'Backup downloaded.', tone: 'success' });
   }
 
@@ -60,6 +62,9 @@ export function DataSection() {
       if (backup.decks) {
         parts.push(`${backup.decks.length} deck${backup.decks.length === 1 ? '' : 's'}`);
       }
+      if (backup.cubes) {
+        parts.push(`${backup.cubes.length} cube${backup.cubes.length === 1 ? '' : 's'}`);
+      }
       toast.show({ message: `Backup restored · ${parts.join(' · ')}`, tone: 'success' });
     } catch (err) {
       toast.show({
@@ -80,15 +85,15 @@ export function DataSection() {
   return (
     <>
       {/* A disabled control's hint names what turns it on (STYLE_GUIDE
-          § Voice rule 20). A backup carries binders and decks too, so it is
-          live as soon as any of the three exists. */}
+          § Voice rule 20). A backup carries binders, decks and cubes too, so it
+          is live as soon as any of them exists. */}
       <SettingsSection id="settings-collection-title" title="Backup">
         <SettingsRow
           value="Download backup"
           hint={
             hasAnything
-              ? 'Your cards, binders and decks in one file.'
-              : 'Needs cards, a binder or a deck.'
+              ? 'Your cards, binders, decks and cubes in one file.'
+              : 'Needs cards, a binder, a deck or a cube.'
           }
           actions={
             <Button onClick={handleDownloadBackup} disabled={!hasAnything}>
@@ -166,7 +171,7 @@ export function DataSection() {
       {restoreConfirmOpen && (
         <ConfirmDialog
           title="Restore backup?"
-          body="This replaces your current collection, binders, and decks with the backup's contents. This can't be undone."
+          body="This replaces your current collection, binders, decks, and cubes with the backup's contents. This can't be undone."
           confirmLabel="Restore"
           danger
           onConfirm={() => {
