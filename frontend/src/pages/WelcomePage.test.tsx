@@ -290,6 +290,13 @@ describe('WelcomePage renders', () => {
     );
     expect(screen.getByRole('link', { name: /^terms$/i }).getAttribute('href')).toBe('/terms.html');
   });
+
+  it('links the public bracket checker from the footer', () => {
+    renderWelcome();
+    expect(screen.getByRole('link', { name: /bracket checker/i }).getAttribute('href')).toBe(
+      '/bracket'
+    );
+  });
 });
 
 // ============================================================

@@ -206,6 +206,7 @@ export function WelcomePage() {
             <a href="/guides/switch-from-manabox.html">Switch from ManaBox</a>
             <a href="/guides/">Import guides</a>
             <a href="/guides/compare.html">Compare</a>
+            <Link to="/bracket">Bracket checker</Link>
             <a href="/privacy.html">Privacy</a>
             <a href="/terms.html">Terms</a>
           </nav>

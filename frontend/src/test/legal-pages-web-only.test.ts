@@ -24,3 +24,18 @@ describe('legal pages describe the web app only', () => {
     expect(hits).toEqual([]);
   });
 });
+
+describe('public pages disclose and link the bracket second opinion', () => {
+  const read = (page: string) => readFileSync(resolve(publicDir, page), 'utf8');
+
+  it('privacy.html says deck card names go to Commander Spellbook for a bracket estimate', () => {
+    const text = read('privacy.html').replace(/\s+/g, ' ');
+    expect(text).toMatch(
+      /card names \(no account information\) are sent through our server to Commander Spellbook/
+    );
+  });
+
+  it('the guides index links the public /bracket checker', () => {
+    expect(read('guides/index.html')).toContain('href="/bracket"');
+  });
+});

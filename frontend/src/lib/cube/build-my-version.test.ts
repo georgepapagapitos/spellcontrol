@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { CubeCard } from './core';
 import type { CubeCobraCard, ImportedCube } from './import';
-import { buildMyVersion } from './build-my-version';
+import { buildMyVersion, cubeFromImported } from './build-my-version';
 
 let id = 0;
 function card(p: Partial<CubeCard>): CubeCard {
@@ -125,5 +125,23 @@ describe('buildMyVersion', () => {
     const result = buildMyVersion(importedOf(imported), []);
     expect(result.cube.picks).toHaveLength(0);
     expect(result.cube.shortfall).toBe(result.cube.size);
+  });
+});
+
+describe('cubeFromImported', () => {
+  it('keeps every card as a pick in the closest size, with bucket counts', () => {
+    const cards = [
+      ccCard({ name: 'Bolt', oracleId: 'bolt', colors: ['R'] }),
+      ccCard({ name: 'Counterspell', oracleId: 'cs', colors: ['U'], typeLine: 'Instant' }),
+      ccCard({ name: 'Sol Ring', oracleId: 'sol', colors: [], typeLine: 'Artifact' }),
+    ];
+    const { size, cube } = cubeFromImported(importedOf(cards));
+    expect(size).toBe(180);
+    expect(cube.size).toBe(180);
+    expect(cube.picks.map((p) => p.card.name)).toEqual(['Bolt', 'Counterspell', 'Sol Ring']);
+    expect(cube.byBucket.R).toBe(1);
+    expect(cube.byBucket.U).toBe(1);
+    expect(cube.byBucket.colorless).toBe(1);
+    expect(cube.shortfall).toBe(177);
   });
 });
