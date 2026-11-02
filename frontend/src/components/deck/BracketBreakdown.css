@@ -832,3 +832,13 @@
   font-size: var(--text-xs);
   color: var(--text-secondary);
 }
+
+.spellbook-opinion-ext-icon {
+  margin-inline-start: var(--space-1);
+  vertical-align: -1px;
+}
+
+/* The line is a flex column child; a link button would stretch to its width. */
+.spellbook-opinion .btn-link {
+  align-self: flex-start;
+}
