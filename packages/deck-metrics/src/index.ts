@@ -1,4 +1,5 @@
 export { checkRoleEvidence } from './roleEvidence';
+export { diffGameChangers, GAME_CHANGERS_AS_OF, type GameChangerDrift } from './gameChangersDrift';
 export { isIncidentalRampByTags, isRampByTags } from './rampRole';
 import { isRampByTags } from './rampRole';
 export {
@@ -145,9 +146,8 @@ export function bracketLabel(bracket: number): string {
  * game-changer list moves a HARD bracket floor, so the two apps would disagree
  * about a deck's bracket rather than about a detail.
  *
- * Update when the RC publishes a new list, with the live query reachable to
- * verify. Canonical names must match Scryfall exactly (commas in "Narset,
- * Parter of Veils", apostrophes in "Serra's Sanctum").
+ * Update when the RC publishes a new list (and bump GAME_CHANGERS_AS_OF), with the live
+ * query reachable to verify. Names must match Scryfall exactly ("Narset, Parter of Veils").
  *
  * A double-faced card carries BOTH names, the way the live list is built
  * (`liveGetGameChangerNames` adds the full name and the front face): the full

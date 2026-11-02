@@ -1,0 +1,63 @@
+# Weekly check that the hardcoded Game Changers list still matches Scryfall's
+# live `is:gamechanger` (E1092). The list is the backend's only source (AI
+# check_bracket) and the frontend's offline floor; the Rules Committee changed
+# it Apr 2025, Oct 2025 and Feb 2026, and nothing else noticed. On a difference
+# this opens ONE issue labelled `game-changers-drift` (a later run adds a
+# comment to it instead of a second issue) and goes red. It never edits the
+# list: that moves users' bracket estimates, so it is a product call.
+name: Game Changers drift
+
+on:
+  schedule:
+    - cron: '23 6 * * 1' # Mondays, 06:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: game-changers-drift
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    name: Hardcoded list vs live is:gamechanger
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Build shared packages
+        uses: ./.github/actions/build-shared
+
+      - name: Diff the hardcoded list against Scryfall
+        id: drift
+        continue-on-error: true
+        run: node scripts/check-game-changers-drift.mjs
+
+      # The script writes the report file only on a real difference, so a
+      # Scryfall outage goes red without opening an issue.
+      - name: Open or update the drift issue
+        if: hashFiles('game-changers-drift.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create game-changers-drift --color B60205 --description "Hardcoded Game Changers list differs from Scryfall" || true
+          existing=$(gh issue list --label game-changers-drift --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file game-changers-drift.md
+          else
+            gh issue create --label game-changers-drift --title "Game Changers list drifted from Scryfall" --body-file game-changers-drift.md
+          fi
+
+      - name: Fail if the lists differ or the fetch failed
+        if: steps.drift.outcome == 'failure'
+        run: |
+          echo "::error::Game Changers drift check failed. See the diff step above."
+          exit 1
