@@ -1,6 +1,15 @@
 /* PregameCard — the shareable "before you sit down" block on a public deck
    page. Theme vars + --text-* / --space-* scales only (STYLE_GUIDE). Art sits
-   left at wide widths and stacks on top below the bento breakpoint. */
+   left at wide widths and stacks on top below the bento breakpoint.
+
+   The size container is the frame around the card, not the card: an
+   @container query never styles its own container, so with the container on
+   `.pregame-card` the row layout below never applied and the art stacked on
+   top at every width (found in a real-browser pass, 2026-11-02). */
+
+.pregame-card-frame {
+  container-type: inline-size;
+}
 
 .pregame-card {
   display: flex;
@@ -11,7 +20,6 @@
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);
-  container-type: inline-size;
 }
 
 .pregame-card-art {

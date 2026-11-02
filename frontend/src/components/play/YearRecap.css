@@ -55,6 +55,18 @@
   overflow-x: auto;
 }
 
+.year-recap-kind {
+  margin: var(--space-2) 0 var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* A record like 4–3 breaks at its en dash in a narrow column. */
+.year-recap-nowrap {
+  white-space: nowrap;
+}
+
 .year-recap-list {
   display: flex;
   flex-direction: column;

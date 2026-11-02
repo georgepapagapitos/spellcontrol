@@ -36,7 +36,16 @@ describe('YearRecap', () => {
     const games = [0, 0, 0, 1, 0].map((w, i) => game(`g${i}`, '2026-02-01T12:00:00', w, 60 + i));
     render(<YearRecap games={games} capNote="Counts the pod's 200 most recent games." />);
     const best = screen.getByRole('region', { name: 'Best win rates' });
-    expect(within(best).getAllByText(/80% over 5/).length).toBeGreaterThan(0);
+    // A deck and a player can share a name or a rate, so the two lists are
+    // named: nothing in the block reads as a deck when it is a player.
+    const decks = within(best).getByRole('list', { name: 'Best deck win rates' });
+    const players = within(best).getByRole('list', { name: 'Best player win rates' });
+    expect(within(decks).getByText('Atraxa')).toBeTruthy();
+    expect(within(players).getByText('Ann')).toBeTruthy();
+    expect(within(decks).queryByText('Ann')).toBeNull();
+    expect(within(best).getByRole('heading', { name: 'Decks' })).toBeTruthy();
+    expect(within(best).getByRole('heading', { name: 'Players' })).toBeTruthy();
+    expect(within(decks).getAllByText(/80% over 5/).length).toBeGreaterThan(0);
     expect(screen.getByRole('region', { name: 'Longest games' }).textContent).toContain('1h 4m');
     expect(screen.getByText(/200 most recent games/)).toBeTruthy();
   });
@@ -51,5 +60,13 @@ describe('YearRecap', () => {
     fireEvent.click(screen.getByRole('button', { name: /year/i }));
     fireEvent.click(screen.getByRole('option', { name: '2025' }));
     expect(screen.getByRole('region', { name: 'Year in review 2025' })).toBeTruthy();
+  });
+
+  it('keeps a W-L record on one line', () => {
+    const games = [0, 0, 0, 1, 0].map((w, i) => game(`g${i}`, '2026-02-01T12:00:00', w, 60 + i));
+    render(<YearRecap games={games} />);
+    const most = screen.getByRole('region', { name: 'Most played decks' });
+    const cell = within(most).getByText('4–1');
+    expect(cell.className).toContain('year-recap-nowrap');
   });
 });

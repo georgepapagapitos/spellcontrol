@@ -76,9 +76,18 @@ export function SeatBadges({
       )}
       {dungeon && (
         <Chip
-          className="pp-counter-badge is-custom"
-          labelClassName="pp-counter-badge-name"
-          trailing={dungeon.value}
+          className={`pp-counter-badge is-custom${player.dungeon ? ' is-dungeon' : ''}`}
+          labelClassName={`pp-counter-badge-name${player.dungeon ? ' card-name-chip-text' : ''}`}
+          labelTitle={dungeon.label}
+          trailing={
+            player.dungeon ? (
+              <span className="pp-counter-badge-room card-name-chip-text" title={dungeon.value}>
+                {dungeon.value}
+              </span>
+            ) : (
+              dungeon.value
+            )
+          }
         >
           {dungeon.label}
         </Chip>

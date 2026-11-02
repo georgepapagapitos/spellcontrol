@@ -89,10 +89,10 @@ export function YearRecap({
                   <tr key={d.deckId}>
                     <td>{d.deckName}</td>
                     <td>{d.played}</td>
-                    <td>
+                    <td className="year-recap-nowrap">
                       {d.wins}–{d.losses}
                     </td>
-                    <td>{formatRate(d.wins, d.losses)}</td>
+                    <td className="year-recap-nowrap">{formatRate(d.wins, d.losses)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -108,24 +108,38 @@ export function YearRecap({
             A win rate shows once a deck or player has {DECK_RATE_MIN_GAMES} games with a winner.
           </p>
         ) : (
-          <ul className="year-recap-list">
-            {recap.bestRates.map((d) => (
-              <li key={d.deckId}>
-                <span className="year-recap-list-name">{d.deckName}</span>
-                <span className="year-recap-list-value">
-                  {formatRate(d.wins, d.losses)} over {d.wins + d.losses}
-                </span>
-              </li>
-            ))}
-            {recap.playerRates.map((p) => (
-              <li key={`p:${p.name}`}>
-                <span className="year-recap-list-name">{p.name}</span>
-                <span className="year-recap-list-value">
-                  {formatRate(p.wins, p.losses)} over {p.wins + p.losses}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <>
+            {recap.bestRates.length > 0 && (
+              <>
+                <h4 className="year-recap-kind">Decks</h4>
+                <ul className="year-recap-list" aria-label="Best deck win rates">
+                  {recap.bestRates.map((d) => (
+                    <li key={d.deckId}>
+                      <span className="year-recap-list-name">{d.deckName}</span>
+                      <span className="year-recap-list-value">
+                        {formatRate(d.wins, d.losses)} over {d.wins + d.losses}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {recap.playerRates.length > 0 && (
+              <>
+                <h4 className="year-recap-kind">Players</h4>
+                <ul className="year-recap-list" aria-label="Best player win rates">
+                  {recap.playerRates.map((p) => (
+                    <li key={`p:${p.name}`}>
+                      <span className="year-recap-list-name">{p.name}</span>
+                      <span className="year-recap-list-value">
+                        {formatRate(p.wins, p.losses)} over {p.wins + p.losses}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </>
         )}
       </section>
 

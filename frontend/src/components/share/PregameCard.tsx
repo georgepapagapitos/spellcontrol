@@ -58,63 +58,72 @@ export function PregameCard({
   });
 
   return (
-    <section className="pregame-card" aria-labelledby="pregame-card-title">
-      {art && (
-        <img className="pregame-card-art" src={art} alt="" width={120} height={88} loading="lazy" />
-      )}
-      <div className="pregame-card-body">
-        <h2 className="pregame-card-title" id="pregame-card-title">
-          Before you sit down
-        </h2>
-        {commander && <p className="pregame-card-commander">{commander}</p>}
-        <dl className="pregame-card-facts" aria-busy={pending}>
-          <div className="pregame-card-fact">
-            <dt>Bracket</dt>
-            <dd>{bracketText.replace(/^Bracket\s+/, '')}</dd>
-          </div>
-          {gameChangers !== null && (
-            <div className="pregame-card-fact">
-              <dt>Game Changers</dt>
-              <dd>{gameChangers}</dd>
-            </div>
-          )}
-          <div className="pregame-card-fact pregame-card-fact--speed">
-            <dt>Speed</dt>
-            {pending ? (
-              <dd className="pregame-card-sub">Running the speed read</dd>
-            ) : speed ? (
-              <>
-                <dd>
-                  {speed.when}: {speed.value}
-                </dd>
-                <dd className="pregame-card-sub">
-                  {speed.band}. From {speed.sample}.
-                </dd>
-              </>
-            ) : (
-              <dd className="pregame-card-sub">No combo or alternate win path to time.</dd>
-            )}
-          </div>
-        </dl>
-        <div className="pregame-card-actions">
-          {canShare() && (
-            <Button
-              variant="primary"
-              icon={<Share2 width={16} height={16} strokeWidth={2} />}
-              onClick={() => void openShareSheet({ title: deck.name, text, url })}
-            >
-              Share
-            </Button>
-          )}
-          <CopyButton
-            value={text}
-            what="the pregame card"
-            label="Copy summary"
-            variant={canShare() ? 'secondary' : 'primary'}
+    <div className="pregame-card-frame">
+      <section className="pregame-card" aria-labelledby="pregame-card-title">
+        {art && (
+          <img
+            className="pregame-card-art"
+            src={art}
+            alt=""
+            width={120}
+            height={88}
+            loading="lazy"
           />
-          <CopyButton value={url} what="the link" label="Copy link" />
+        )}
+        <div className="pregame-card-body">
+          <h2 className="pregame-card-title" id="pregame-card-title">
+            Before you sit down
+          </h2>
+          {commander && <p className="pregame-card-commander">{commander}</p>}
+          <dl className="pregame-card-facts" aria-busy={pending}>
+            <div className="pregame-card-fact">
+              <dt>Bracket</dt>
+              <dd>{bracketText.replace(/^Bracket\s+/, '')}</dd>
+            </div>
+            {gameChangers !== null && (
+              <div className="pregame-card-fact">
+                <dt>Game Changers</dt>
+                <dd>{gameChangers}</dd>
+              </div>
+            )}
+            <div className="pregame-card-fact pregame-card-fact--speed">
+              <dt>Speed</dt>
+              {pending ? (
+                <dd className="pregame-card-sub">Running the speed read</dd>
+              ) : speed ? (
+                <>
+                  <dd>
+                    {speed.when}: {speed.value}
+                  </dd>
+                  <dd className="pregame-card-sub">
+                    {speed.band}. From {speed.sample}.
+                  </dd>
+                </>
+              ) : (
+                <dd className="pregame-card-sub">No combo or alternate win path to time.</dd>
+              )}
+            </div>
+          </dl>
+          <div className="pregame-card-actions">
+            {canShare() && (
+              <Button
+                variant="primary"
+                icon={<Share2 width={16} height={16} strokeWidth={2} />}
+                onClick={() => void openShareSheet({ title: deck.name, text, url })}
+              >
+                Share
+              </Button>
+            )}
+            <CopyButton
+              value={text}
+              what="the pregame card"
+              label="Copy summary"
+              variant={canShare() ? 'secondary' : 'primary'}
+            />
+            <CopyButton value={url} what="the link" label="Copy link" />
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }
