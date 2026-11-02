@@ -18,6 +18,8 @@ import { TableRecordPanel } from '@/components/deck/TableRecordPanel';
 import { BracketTableRead } from '@/components/deck/BracketTableRead';
 import { BracketVote } from '@/components/deck/BracketVote';
 import { deckListText } from '@/lib/deck-analysis/bracket-vote';
+import { SpellbookSecondOpinion } from '@/components/deck/SpellbookSecondOpinion';
+import { buildSpellbookRequest } from '@/lib/deck-analysis/spellbook-bracket';
 import { CoachFeed } from '@/components/deck/CoachFeed';
 import { EnginePanel } from '@/components/deck/EnginePanel';
 import { WinConditionPanel } from '@/components/deck/WinConditionPanel';
@@ -328,6 +330,14 @@ export function DeckEditorLayout({
             speedPath={speedPath}
             bracketTableSlot={
               <>
+                {isCommander && deck.cards.length > 0 && (
+                  <SpellbookSecondOpinion
+                    request={buildSpellbookRequest(
+                      [deck.commander?.name, deck.partnerCommander?.name],
+                      deck.cards.map((c) => c.card.name)
+                    )}
+                  />
+                )}
                 <BracketTableRead deckId={deck.id} />
                 {deck.bracketEstimation && !bracketAnalysis.missesCombos && (
                   <BracketVote
