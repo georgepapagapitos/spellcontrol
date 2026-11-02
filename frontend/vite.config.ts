@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
+import { welcomeHeroPreloadScript } from './scripts/welcome-hero-preload.mjs';
 
 // Build identifier baked in at build time, so a bundle can identify itself.
 // Honor VITE_BUILD_ID if the CI/release pipeline sets one (stable, reproducible);
@@ -37,7 +39,27 @@ export default defineConfig({
       },
     },
   },
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      // E1105: name the welcome hero's art in the initial HTML (see the script).
+      name: 'welcome-hero-preload',
+      transformIndexHtml() {
+        const art = JSON.parse(
+          readFileSync(path.resolve(__dirname, 'src/lib/home/welcome-hero-art.json'), 'utf8')
+        );
+        // JSON key order is the picker's pool order (a test pins it).
+        const names = Object.keys(art);
+        return [
+          {
+            tag: 'script',
+            children: welcomeHeroPreloadScript(names, art),
+            injectTo: 'head-prepend',
+          },
+        ];
+      },
+    },
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

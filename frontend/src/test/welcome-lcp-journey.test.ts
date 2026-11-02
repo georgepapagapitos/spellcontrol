@@ -42,6 +42,9 @@ describe('welcome route LCP nightly check', () => {
     expect(lcp).toContain('export function discoveredInHtml');
     expect(lcp).toContain('LCP_DISCOVERY_ENFORCED');
   });
+  it('enforces HTML discoverability of the LCP image (E1105)', () => {
+    expect(lcp).toContain('export const LCP_DISCOVERY_ENFORCED = true;');
+  });
   it('is wired into journey.mjs as --lcp and into the nightly workflow', () => {
     expect(journey).toContain("argv.includes('--lcp')");
     expect(journey).toContain("from './journey-lcp.mjs'");
