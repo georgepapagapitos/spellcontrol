@@ -47,6 +47,7 @@ const EVENT_KINDS: ReadonlySet<string> = new Set<GameEvent['kind']>([
   'designation',
   'phase',
   'counter',
+  'dungeon',
   'clock',
 ]);
 

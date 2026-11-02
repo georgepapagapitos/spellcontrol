@@ -6,7 +6,7 @@ import { VisibilityChoice } from '@/components/share/VisibilityChoice';
 import { DeckPicker, SeatPips, Stepper } from './SetupControls';
 import type { PickedDeck } from './DeckPickerDialog';
 import { deckBoardPath, starterFileName } from '@/lib/play/starter-decks';
-import { FORMAT_OPTIONS } from '@/lib/play/game-formats';
+import { FORMAT_OPTIONS, MIN_TEAM_SEATS } from '@/lib/play/game-formats';
 import { pickFirstPlayer } from '@/lib/play/game-tools';
 import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { effectiveBracket, type Deck } from '../../store/decks';
@@ -174,6 +174,10 @@ export function OnlineLobby({
   // them vouches for it, so it never holds the count up.
   const readyCount = game.players.filter((p) => p.ready === true || p.userId === null).length;
   const allReady = readyCount === game.players.length;
+  // Two-Headed Giant seats whole teams: an even count, two teams at least.
+  const teamsUnfilled =
+    game.format === '2hg' &&
+    (game.players.length < MIN_TEAM_SEATS || game.players.length % 2 !== 0);
   const myDeck = mySeat.deckId ? (decks.find((d) => d.id === mySeat.deckId) ?? null) : null;
 
   // ── Horde: the host's pick, synced as table state (design point 2) ────────
@@ -474,15 +478,24 @@ export function OnlineLobby({
                   they reached for it. The slot holds its width; the warning
                   comes and goes inside it. */}
               <span className="lobby-ready-slot">
-                {!allReady && (
+                {teamsUnfilled ? (
                   <span className="lobby-ready-count" aria-live="polite">
-                    {readyCount} of {game.players.length} ready
+                    Two-Headed Giant needs an even number of players, four or more
                   </span>
+                ) : (
+                  !allReady && (
+                    <span className="lobby-ready-count" aria-live="polite">
+                      {readyCount} of {game.players.length} ready
+                    </span>
+                  )
                 )}
               </span>
               <Button
                 variant="primary"
-                disabled={isHordeFormat && (hordeDeck.status !== 'loaded' || seatedCount < 1)}
+                disabled={
+                  (isHordeFormat && (hordeDeck.status !== 'loaded' || seatedCount < 1)) ||
+                  teamsUnfilled
+                }
                 onClick={() => {
                   if (isHordeFormat) {
                     if (hordeDeck.status !== 'loaded') return;
@@ -923,6 +936,7 @@ function LobbyRail({
                     format: cfg.value,
                     startingLife: cfg.defaultLife,
                     commanderDamageEnabled: cfg.cmdDmg,
+                    ...(cfg.value === '2hg' ? { poisonEnabled: true } : {}),
                   },
                 });
               }}

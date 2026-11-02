@@ -4579,3 +4579,48 @@ describe('host takeover (E451)', () => {
     expect(await hostColumn(code)).toBe(state.hostUserId);
   });
 });
+
+describe('dungeon tracking and Two-Headed Giant over the wire', () => {
+  async function host(tag: string, body: object = {}) {
+    const cookie = await registerAndGetCookie(tag);
+    const created = await request(app).post('/api/games').set('Cookie', cookie).send(body);
+    return {
+      cookie,
+      code: created.body.game.code as string,
+      version: created.body.game.version as number,
+    };
+  }
+
+  const patch = (cookie: string, code: string, baseVersion: number, actions: object[]) =>
+    request(app).patch(`/api/games/${code}`).set('Cookie', cookie).send({ baseVersion, actions });
+
+  it('creates a Two-Headed Giant table', async () => {
+    const cookie = await registerAndGetCookie('hg_create');
+    const made = await request(app)
+      .post('/api/games')
+      .set('Cookie', cookie)
+      .send({ format: '2hg', startingLife: 30 });
+    expect(made.status).toBe(201);
+    expect(made.body.game.format).toBe('2hg');
+  });
+
+  it('applies a venture server-side and rejects a room the dungeon does not have', async () => {
+    const { cookie, code, version } = await host('dng_venture');
+    const entered = await patch(cookie, code, version, [
+      { type: 'dungeon', seat: 0, actorSeat: 0, op: 'enter', dungeon: 'undercity' },
+    ]);
+    expect(entered.status).toBe(200);
+    expect(entered.body.game.players[0].dungeon).toEqual({
+      id: 'undercity',
+      room: 'Secret Entrance',
+    });
+    const moved = await patch(cookie, code, entered.body.game.version, [
+      { type: 'dungeon', seat: 0, actorSeat: 0, op: 'room', room: 'Arena' },
+    ]);
+    expect(moved.body.game.players[0].dungeon.room).toBe('Arena');
+    const bad = await patch(cookie, code, moved.body.game.version, [
+      { type: 'dungeon', seat: 0, actorSeat: 0, op: 'room', room: 'Cave Entrance' },
+    ]);
+    expect(bad.status).toBe(400);
+  });
+});

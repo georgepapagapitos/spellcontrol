@@ -1,9 +1,17 @@
 import { endTableBody, GAME_OVER_NO_WINNER } from '@/lib/play/shared-copy';
-import { Clock, Compass, Crown, Hand, Headphones, Trophy, Undo2 } from 'lucide-react';
+import { Castle, Clock, Compass, Crown, Hand, Headphones, Trophy, Undo2 } from 'lucide-react';
 import { DiscordMark } from '@/components/shared/DiscordMark';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DesignationKind, GameAction, GamePlayer, GameState } from '@spellcontrol/game-core';
-import { cmdDamageKey, nextHostSeat } from '@spellcontrol/game-core';
+import {
+  cmdDamageKey,
+  dungeonDef,
+  isWinningSeat,
+  nextHostSeat,
+  poisonLimit,
+  teamOf,
+} from '@spellcontrol/game-core';
+import { winnerOf } from '@/lib/play/winners';
 import type { GameRequest } from '@/lib/play/games-api';
 import { paletteForIndex } from '@/lib/play/seat-palette';
 import { useAnimatedNumber } from '@/lib/util/use-animated-number';
@@ -21,6 +29,8 @@ import { measureHordeRect } from '../../playtest/lib/horde-view';
 import type { Rect } from '../../playtest/lib/auto-place';
 import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
 import { coopResultLabel } from '@/lib/horde/horde-records';
+import { Chip } from '../shared/Chip';
+import { DungeonControl } from './DungeonControl';
 import { GameRecap } from './GameRecap';
 import { PhaseChip } from './PhaseChip';
 import './OnlineGameView.css';
@@ -489,7 +499,7 @@ function useLethalFlash(player: GamePlayer, game: GameState): boolean {
   useEffect(() => {
     const isLethal =
       player.life <= 0 ||
-      (game.poisonEnabled && player.poison >= 10) ||
+      (game.poisonEnabled && player.poison >= poisonLimit(game.format)) ||
       (game.commanderDamageEnabled && Object.values(player.commanderDamage).some((v) => v >= 21));
     if (isLethal && !prevRef.current && !player.eliminated) {
       setFlashing(true);
@@ -660,7 +670,7 @@ function OpponentTile({
   const cmdDmgValues = Object.values(player.commanderDamage);
   const maxCmdDmg = cmdDmgValues.length > 0 ? Math.max(...cmdDmgValues) : 0;
   const isCmdLethal = game.commanderDamageEnabled && maxCmdDmg >= 21;
-  const isPoisonLethal = game.poisonEnabled && player.poison >= 10;
+  const isPoisonLethal = game.poisonEnabled && player.poison >= poisonLimit(game.format);
   const lethal = player.life <= 0 || isCmdLethal || isPoisonLethal;
   const flashing = useLethalFlash(player, game);
   const designations = game.designations ?? { monarch: null, initiative: null };
@@ -672,7 +682,7 @@ function OpponentTile({
     isActiveTurn && "this player's turn",
     !player.connected && 'disconnected',
     player.eliminated && 'eliminated',
-    game.winnerSeat === player.seat && 'winner',
+    isWinningSeat(game, player.seat) && 'winner',
   ]
     .filter(Boolean)
     .join(', ');
@@ -681,7 +691,7 @@ function OpponentTile({
     <li
       className={`ogv-opp ${player.eliminated ? 'is-eliminated' : ''} ${
         isActiveTurn ? 'is-active-turn' : ''
-      } ${flashing ? 'is-lethal-flash' : ''} ${game.winnerSeat === player.seat ? 'is-winner' : ''}`}
+      } ${flashing ? 'is-lethal-flash' : ''} ${isWinningSeat(game, player.seat) ? 'is-winner' : ''}`}
       style={{ ['--ogv-base' as never]: palette.base, ['--ogv-edge' as never]: palette.edge }}
       aria-label={ariaLabel}
     >
@@ -725,6 +735,17 @@ function OpponentTile({
             <span aria-hidden="true">⚔</span> {maxCmdDmg}
           </span>
         )}
+        {game.format === '2hg' && (
+          <Chip className="ogv-chip">{`Team ${teamOf(player.seat) + 1}`}</Chip>
+        )}
+        {player.dungeon && (
+          <Chip
+            className="ogv-chip"
+            icon={<Castle width={12} height={12} strokeWidth={2} aria-hidden="true" />}
+          >
+            {player.dungeon.room}
+          </Chip>
+        )}
         {designations.monarch === player.seat && (
           <span className="ogv-chip" title="Monarch" role="img" aria-label="Monarch">
             <Crown width={12} height={12} strokeWidth={2} aria-hidden="true" />
@@ -737,8 +758,8 @@ function OpponentTile({
         )}
       </div>
 
-      {game.winnerSeat === player.seat && <span className="ogv-opp-tag">Winner</span>}
-      {player.eliminated && game.winnerSeat !== player.seat && (
+      {isWinningSeat(game, player.seat) && <span className="ogv-opp-tag">Winner</span>}
+      {player.eliminated && !isWinningSeat(game, player.seat) && (
         <span className="ogv-opp-tag ogv-opp-tag-out">Out</span>
       )}
     </li>
@@ -776,6 +797,7 @@ function YourPanel({
   undoLabel: string | null;
 }) {
   const [cmdOpen, setCmdOpen] = useState(false);
+  const [dungeonOpen, setDungeonOpen] = useState(false);
   const disabled = game.status === 'finished' || player.eliminated;
   const designations = game.designations ?? { monarch: null, initiative: null };
   const isMonarch = designations.monarch === player.seat;
@@ -805,6 +827,9 @@ function YourPanel({
         <span className="ogv-you-name" title={player.name}>
           {player.name}
         </span>
+        {game.format === '2hg' && (
+          <Chip className="ogv-badge">{`Team ${teamOf(player.seat) + 1}`}</Chip>
+        )}
         {!player.connected && (
           <span className="ogv-badge ogv-badge-offline" title="Disconnected">
             Offline
@@ -888,7 +913,9 @@ function YourPanel({
               >
                 −
               </button>
-              <span className={`ogv-stepper-value ${player.poison >= 10 ? 'is-lethal' : ''}`}>
+              <span
+                className={`ogv-stepper-value ${player.poison >= poisonLimit(game.format) ? 'is-lethal' : ''}`}
+              >
                 {player.poison}
               </span>
               <button
@@ -905,6 +932,29 @@ function YourPanel({
             </div>
           </div>
         )}
+
+        <div className="ogv-tool">
+          <button
+            type="button"
+            className={`ogv-chip-btn ${player.dungeon ? 'is-active' : ''}`}
+            aria-expanded={dungeonOpen}
+            disabled={disabled}
+            onClick={() => setDungeonOpen((v) => !v)}
+          >
+            <Castle width={14} height={14} strokeWidth={1.8} aria-hidden />{' '}
+            {player.dungeon
+              ? `${dungeonDef(player.dungeon.id)?.name ?? 'Dungeon'} · ${player.dungeon.room}`
+              : 'Dungeon'}
+          </button>
+          {dungeonOpen && (
+            <DungeonControl
+              player={player}
+              disabled={disabled}
+              dispatch={dispatch}
+              initiative={isInitiative}
+            />
+          )}
+        </div>
 
         {game.status === 'active' && !player.eliminated && (
           <div className="ogv-designations">
@@ -1105,7 +1155,7 @@ function FinishedPanel({
   onLeave?: () => void;
 }) {
   const isDraw = game.winnerSeat == null;
-  const winner = isDraw ? undefined : game.players.find((p) => p.seat === game.winnerSeat);
+  const winner = isDraw ? undefined : (winnerOf(game) ?? undefined);
   // A co-op Horde game has no winning seat, so it read "No winner" won or
   // lost (E446). Its line is the one Play history prints for it.
   const coop = coopResultLabel(game);
@@ -1121,7 +1171,9 @@ function FinishedPanel({
               <Trophy />
             </span>
             <span className="ogv-finished-name">{winner.name}</span>
-            <span className="ogv-finished-sub">wins the game</span>
+            <span className="ogv-finished-sub">
+              {winner.plural ? 'win the game' : 'wins the game'}
+            </span>
           </>
         ) : (
           <span className="ogv-finished-sub">{GAME_OVER_NO_WINNER}</span>

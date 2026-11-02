@@ -42,12 +42,14 @@ import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { scryfallArtCrop } from '../../lib/offline/slim-to-scryfall';
 import { cmdDamageFillRatio, cmdDamageToLethal } from '@/lib/play/cmd-damage';
 import { highRoll as rollHighRoll, type HighRollResult } from '@/lib/play/game-tools';
-import { seatCounters } from '@spellcontrol/game-core';
+import { isWinningSeat, poisonLimit } from '@spellcontrol/game-core';
 import { usePlayStore } from '../../store/play';
 import { HOLD_JUMP } from '@/lib/play/hold-ramp';
 import { useTapAndHold } from '@/lib/play/tap-and-hold';
 import { LifeKeypad } from './LifeKeypad';
 import { SeatMenu } from './SeatMenu';
+import { SeatBadges, seatHasBadges } from './SeatBadges';
+import { winnerOf } from '@/lib/play/winners';
 import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
 import { hasSeenBoardGestures } from '@/lib/play/board-gestures-seen';
 import { BoardGestureHint } from './BoardGestureHint';
@@ -1030,7 +1032,7 @@ function PlayerPanel({
   useEffect(() => {
     const isLethal =
       player.life <= 0 ||
-      (game.poisonEnabled && player.poison >= 10) ||
+      (game.poisonEnabled && player.poison >= poisonLimit(game.format)) ||
       (game.commanderDamageEnabled && Object.values(player.commanderDamage).some((v) => v >= 21));
     if (isLethal && !prevLethalRef.current && !player.eliminated) {
       setLethalFlash(true);
@@ -1132,7 +1134,6 @@ function PlayerPanel({
   // that actually matters (lethal at 21 from one commander).
   const cmdDmgValues = Object.values(player.commanderDamage);
   const maxCmdDmg = cmdDmgValues.length > 0 ? Math.max(...cmdDmgValues) : 0;
-  const customCounters = Object.entries(seatCounters(player)).filter(([, v]) => v !== 0);
   return (
     <div
       className="player-panel-cell"
@@ -1147,7 +1148,7 @@ function PlayerPanel({
           colorKey ? `pp-color-${colorKey}` : `pp-seat pp-ink-${seatPalette.ink}`
         } ${
           player.eliminated ? 'is-eliminated' : ''
-        } ${game.winnerSeat === player.seat ? 'is-winner' : ''} ${canEdit ? 'is-mine' : ''} ${
+        } ${isWinningSeat(game, player.seat) ? 'is-winner' : ''} ${canEdit ? 'is-mine' : ''} ${
           lethalFlash ? 'is-lethal-flash' : ''
         } ${isLowLife ? 'is-low-life' : ''} ${elimBeat ? 'is-elim-beat' : ''} ${
           isActiveTurn ? 'is-active-turn' : ''
@@ -1378,37 +1379,9 @@ function PlayerPanel({
           {/* What this seat is carrying, read-only: the board shows state and
               the drawer changes it. Only non-zero counts appear, so a fresh
               seat is just its number. */}
-          {!cmdFocus &&
-            ((game.poisonEnabled && player.poison > 0) ||
-              maxCmdDmg > 0 ||
-              customCounters.length > 0) && (
-              <div className="player-panel-counters">
-                {game.poisonEnabled && player.poison > 0 && (
-                  <span
-                    className={`pp-counter-badge ${player.poison >= 10 ? 'is-lethal' : ''}`}
-                    role="img"
-                    aria-label={`Poison ${player.poison}`}
-                  >
-                    ☠ {player.poison}
-                  </span>
-                )}
-                {maxCmdDmg > 0 && (
-                  <span
-                    className={`pp-counter-badge ${maxCmdDmg >= 21 ? 'is-lethal' : ''}`}
-                    role="img"
-                    aria-label={`Commander damage, highest ${maxCmdDmg}`}
-                  >
-                    ⚔ {maxCmdDmg}
-                  </span>
-                )}
-                {customCounters.map(([name, value]) => (
-                  <span key={name} className="pp-counter-badge is-custom">
-                    <span className="pp-counter-badge-name">{name}</span>
-                    {value}
-                  </span>
-                ))}
-              </div>
-            )}
+          {!cmdFocus && seatHasBadges(game, player, maxCmdDmg) && (
+            <SeatBadges game={game} player={player} maxCmdDmg={maxCmdDmg} />
+          )}
 
           {/* Designations read on the seat that holds them, rotated to face
               that player. Marks only: the drawer is where they change hands.
@@ -1563,8 +1536,8 @@ function PlayerPanel({
           />
         )}
 
-        {game.winnerSeat === player.seat && <div className="player-panel-winner-tag">Winner</div>}
-        {player.eliminated && game.winnerSeat !== player.seat && (
+        {isWinningSeat(game, player.seat) && <div className="player-panel-winner-tag">Winner</div>}
+        {player.eliminated && !isWinningSeat(game, player.seat) && (
           <div className="player-panel-eliminated-tag">Out</div>
         )}
       </section>
@@ -1775,7 +1748,7 @@ function WinCelebration({
     setDismissedState(next);
   };
   const isDraw = game.winnerSeat == null;
-  const winner = isDraw ? undefined : game.players.find((p) => p.seat === game.winnerSeat);
+  const winner = isDraw ? undefined : (winnerOf(game) ?? undefined);
   const palette = useMemo(
     () => (game.winnerSeat != null ? paletteForSeat(game.id, game.winnerSeat) : null),
     [game.id, game.winnerSeat]
@@ -1837,7 +1810,9 @@ function WinCelebration({
         className="win-celebration-card"
         role="dialog"
         aria-modal="true"
-        aria-label={winner ? `${winner.name} wins` : GAME_OVER_NO_WINNER}
+        aria-label={
+          winner ? `${winner.name} ${winner.plural ? 'win' : 'wins'}` : GAME_OVER_NO_WINNER
+        }
         style={palette ? { ['--win-accent' as never]: palette.edge } : undefined}
       >
         {winner ? (
@@ -1846,7 +1821,9 @@ function WinCelebration({
               <Trophy />
             </span>
             <span className="win-celebration-name">{winner.name}</span>
-            <span className="win-celebration-sub">wins the game</span>
+            <span className="win-celebration-sub">
+              {winner.plural ? 'win the game' : 'wins the game'}
+            </span>
           </>
         ) : (
           <span className="win-celebration-sub">{GAME_OVER_NO_WINNER}</span>

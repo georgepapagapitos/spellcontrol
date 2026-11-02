@@ -1,0 +1,98 @@
+/* One seat's dungeon tracker. Used in two skins, so every colour is a
+   variable: the dark seat drawer sets them from the table tokens below, the
+   themed online "your seat" panel sets them from the app tokens
+   (OnlineGameView.css). */
+.pp-dungeon {
+  --dng-ink: var(--table-ink);
+  --dng-muted: var(--table-ink-muted);
+  --dng-bg: rgba(255, 255, 255, 0.08);
+  --dng-border: rgba(255, 255, 255, 0.15);
+  --dng-on-active: var(--table-ink-inverse);
+  --dng-active: var(--table-ink);
+  --dng-hover: rgba(255, 255, 255, 0.15);
+  --dng-focus: var(--table-focus-ring);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  color: var(--dng-ink);
+}
+
+.pp-dungeon-name {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.pp-dungeon-levels {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.pp-dungeon-level,
+.pp-dungeon-enter,
+.pp-dungeon-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.pp-dungeon-btn,
+.pp-dungeon-room {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 var(--space-2-5);
+  font-size: var(--text-sm);
+  color: var(--dng-ink);
+  background: var(--dng-bg);
+  border: 1px solid var(--dng-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: start;
+}
+
+.pp-dungeon-btn.is-primary,
+.pp-dungeon-room:has(input:checked) {
+  color: var(--dng-on-active);
+  background: var(--dng-active);
+  border-color: var(--dng-active);
+}
+
+.pp-dungeon-btn:disabled,
+.pp-dungeon-room:has(input:disabled) {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pp-dungeon-hint,
+.pp-dungeon-done {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--dng-muted);
+}
+
+.pp-dungeon-done {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pp-dungeon-btn:not(:disabled, .is-primary):hover,
+  .pp-dungeon-room:not(:has(input:disabled, input:checked)):hover {
+    background: var(--dng-hover);
+  }
+}
+
+.pp-dungeon-btn:focus-visible,
+.pp-dungeon-room:has(input:focus-visible) {
+  outline: 2px solid var(--dng-focus);
+  outline-offset: 2px;
+}

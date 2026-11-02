@@ -192,7 +192,7 @@ const ALLOWED: Record<Shape, Record<string, Entry>> = {
     'components/overlays/Tabs.tsx': { count: 1, why: SHOWS_ZERO },
     'components/deck/DeckCustomizer.tsx': { count: 1, why: SHOWS_ZERO },
     'components/deck/VerdictBadge.tsx': { count: 1, why: LAYOUT_WRAPPER },
-    'components/play/GameBoard.tsx': { count: 5, why: BOARD_CHROME },
+    'components/play/GameBoard.tsx': { count: 2, why: BOARD_CHROME },
     'components/play/OnlineGameView.tsx': { count: 6, why: BOARD_CHROME },
     'playtest/components/LifeStrip.tsx': { count: 6, why: BOARD_CHROME },
     'playtest/components/OpeningHandSheet.tsx': { count: 1, why: BOARD_CHROME },

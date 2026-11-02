@@ -36,7 +36,7 @@ const CEILINGS: Record<string, number> = {
   'components/deck/CommanderSearch.tsx': 1300,
   'components/deck/DeckCustomizer.tsx': 1400,
   'components/deck/ImportDeckDialog.tsx': 1300,
-  'components/play/GameBoard.tsx': 1900,
+  'components/play/GameBoard.tsx': 1877,
   'components/play/GameNights.tsx': 1800,
   'components/play/OnlineGameView.tsx': 1200,
   'components/play/OnlineLobby.tsx': 1300,

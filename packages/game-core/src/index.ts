@@ -36,6 +36,11 @@ export type GameLayout = string;
 // Runtime dependency runs one way only: this module imports from `./summary`,
 // which imports nothing but *types* back from here (erased at compile time).
 import { summarizeGame, type GameSummary } from './summary';
+import { stepDungeon, type DungeonId, type DungeonProgress } from './dungeons';
+import { poisonLimit, teamOf } from './teams';
+
+export * from './dungeons';
+export * from './teams';
 
 export type TapOrientation = 'horizontal' | 'vertical';
 
@@ -92,6 +97,11 @@ export type GameFormat =
   | 'pauper'
   | 'brawl'
   | 'casual'
+  /**
+   * Two-Headed Giant: teams of two (seats 0+1, 2+3, ...) share one life total
+   * and one poison total, and a team wins or loses as one. See `teams.ts`.
+   */
+  | '2hg'
   /**
    * Co-op: 1-4 survivors sharing one life total against a self-running horde
    * deck. There is no winning seat — `winnerSeat` stays null and the outcome
@@ -200,6 +210,15 @@ export interface GamePlayer {
    * a free-text label.
    */
   counters?: Record<string, number>;
+  /**
+   * The dungeon this seat is in and the room it stands in; null or absent when
+   * it is in none. OPTIONAL by design: every row written before dungeon
+   * tracking reads `undefined`, which means exactly what `null` means.
+   * Cleared by `reset`.
+   */
+  dungeon?: DungeonProgress | null;
+  /** Dungeons this seat has completed, oldest first (a repeat is listed again). Absent reads as none. */
+  dungeonsCompleted?: DungeonId[];
   eliminated: boolean;
   isHost: boolean;
   /** Server-set presence flag for online games. Local games leave this true. */
@@ -238,6 +257,7 @@ export interface GameEvent {
     | 'designation'
     | 'phase'
     | 'counter'
+    | 'dungeon'
     | 'clock';
   actorSeat: number | null;
   targetSeat: number | null;
@@ -297,13 +317,7 @@ export type {
   HordePhase,
   HordeTable,
 } from './horde-types';
-import type {
-  HordeLevel,
-  HordeSettings,
-  HordeStep,
-  HordeLogEntry,
-  HordeTable,
-} from './horde-types';
+import type { HordeLogEntry, HordeTable } from './horde-types';
 
 /** Bound on `HordeTable.steps` — same storage-bound reasoning as
  *  `MAX_COUNTERS_PER_SCOPE`: an online game's whole state is one JSONB row. */
@@ -455,261 +469,8 @@ export interface GameState {
   version: number;
 }
 
-export type GameAction =
-  | { type: 'start'; ts?: number }
-  /** Start the game clock by hand, for a table that does not wait for its first action. */
-  | { type: 'clock-start'; ts?: number }
-  /**
-   * `coopOutcome` is meaningful only for `format === 'horde'`: when given, it
-   * sets `GameState.coopOutcome` and forces `winnerSeat` to null regardless of
-   * what was passed. Every other format ignores it and keeps today's
-   * behavior.
-   */
-  | { type: 'end'; winnerSeat: number | null; coopOutcome?: 'won' | 'lost'; ts?: number }
-  /**
-   * Back to the lobby for a new game at the same table. `id` is the NEW
-   * game's id, supplied by the caller (the reducer stays pure, the way the
-   * horde's seed is rolled on the host's device): a finished game's result is
-   * recorded once per `id`, so a rematch that kept the old id had its own
-   * result silently dropped. Optional so a legacy dispatch keeps its meaning.
-   */
-  | { type: 'reset'; id?: string; ts?: number }
-  | { type: 'add-player'; player: GamePlayer; ts?: number }
-  | { type: 'remove-player'; seat: number; ts?: number }
-  /**
-   * Reseat the table: `order` is every seated player's id, in the seat order
-   * they should take (`order[0]` sits in seat 0). Lobby only — seat numbers
-   * key commander damage, designations and the turn marker, all of which are
-   * empty before a game starts and would be silently rewired after it.
-   *
-   * The caller supplies the order rather than the reducer rolling one, so the
-   * reducer stays pure and the server and every client land on the same
-   * seating (the same split the random-first-player control already uses).
-   */
-  | { type: 'reseat'; order: string[]; ts?: number }
-  /**
-   * Hand the table to another seat: its account becomes the host, with every
-   * host-only power (start, reset, settings, add/remove players, reseat,
-   * horde-setup). The leave route applies it when the host leaves (E430,
-   * successor from `nextHostSeat`); as a PATCH action it is host-only. A
-   * guest seat has no account and cannot host.
-   */
-  | { type: 'transfer-host'; seat: number; ts?: number }
-  | {
-      type: 'update-player';
-      seat: number;
-      patch: Partial<
-        Pick<
-          GamePlayer,
-          | 'name'
-          | 'deckId'
-          | 'deckName'
-          | 'commander'
-          | 'partner'
-          | 'colorIdentity'
-          | 'panelColorKey'
-          | 'bracket'
-          | 'deckFacts'
-          | 'deckVersion'
-          | 'connected'
-        >
-      >;
-      ts?: number;
-    }
-  // The five undoable kinds accept `undoOf`: the id of the last event that
-  // stands. Undo dispatches ordinary compensating actions (the reducer has no
-  // "undo" — it is shared with the server), and this is how the log learns
-  // that everything after `undoOf` was taken back: the reducer flags those
-  // events `undone` and the compensating event itself `undo`. Optional, so
-  // every existing dispatch and every persisted online action is untouched.
-  | {
-      type: 'life';
-      seat: number;
-      delta: number;
-      actorSeat: number | null;
-      ts?: number;
-      undoOf?: string;
-    }
-  | {
-      type: 'set-life';
-      seat: number;
-      value: number;
-      actorSeat: number | null;
-      ts?: number;
-      undoOf?: string;
-    }
-  | {
-      type: 'poison';
-      seat: number;
-      delta: number;
-      actorSeat: number | null;
-      ts?: number;
-      undoOf?: string;
-    }
-  | {
-      type: 'cmd-dmg';
-      seat: number;
-      fromSeat: number;
-      /**
-       * True when the damage came from that seat's PARTNER rather than its
-       * primary commander. Optional and false-by-default so every existing
-       * dispatch (and every persisted online action) keeps its meaning.
-       */
-      fromPartner?: boolean;
-      delta: number;
-      actorSeat: number | null;
-      ts?: number;
-      undoOf?: string;
-    }
-  | { type: 'eliminate'; seat: number; eliminated: boolean; ts?: number; undoOf?: string }
-  | { type: 'note'; actorSeat: number | null; message: string; ts?: number }
-  /**
-   * Flip the actor's own lobby-ready flag. `actorSeat` is deliberately the
-   * ONLY seat this can touch — readiness is a statement about yourself, so
-   * there is no `seat` field for one player to mark another ready (the route
-   * enforces the same rule against a forged `actorSeat`).
-   *
-   * Announces itself into the log as a system note (`actorSeat: null`), the
-   * same shape the table tools use, so the lobby chat shows it as a system
-   * line rather than as something the player typed.
-   */
-  | { type: 'set-ready'; actorSeat: number; ready: boolean; ts?: number }
-  | {
-      type: 'settings';
-      patch: Partial<
-        Pick<
-          GameState,
-          | 'startingLife'
-          | 'commanderDamageEnabled'
-          | 'poisonEnabled'
-          | 'mulliganType'
-          | 'turnTimerEnabled'
-          | 'format'
-          | 'layout'
-          | 'tapOrientation'
-          | 'turnOrder'
-          | 'startingSeat'
-          | 'visibility'
-          | 'voiceUrl'
-          | 'name'
-        >
-      >;
-      ts?: number;
-    }
-  /**
-   * Move the turn marker. Without `toSeat`: advance the active seat to the
-   * next non-eliminated player in seat order (wraps; from null starts at the
-   * lowest-seat non-eliminated player). With `toSeat`: set the marker
-   * directly to that seat ("start/take the turn here") — ignored if that
-   * seat is eliminated/unknown, falling back to the advance behavior.
-   * Safe to call at any game status — the UI gates it to active games.
-   */
-  | { type: 'pass-turn'; actorSeat: number | null; toSeat?: number | null; ts?: number }
-  /**
-   * Claim or clear a table designation (Monarch / Initiative).
-   * Setting `seat` to null explicitly clears the designation.
-   * Claiming automatically removes it from the previous holder.
-   */
-  | {
-      type: 'set-designation';
-      designation: DesignationKind;
-      seat: number | null;
-      actorSeat: number | null;
-      ts?: number;
-    }
-  /**
-   * Set the advisory phase clock verbatim. No "must advance in order"
-   * validation — a table correcting itself (combat back to main1) is a
-   * normal use, and advisory means the reducer never says no.
-   */
-  | { type: 'phase'; phase: GamePhase; actorSeat: number | null; ts?: number }
-  /**
-   * Pause or resume the derived table clock (`lib/game-clock.ts`'s
-   * `gameElapsed`/`turnElapsed`/`seatTurnTotals` all subtract paused
-   * stretches). Recorded as an ordinary log EVENT, never a `GameState`
-   * field — `isClockPaused` folds the log for "is it paused right now",
-   * exactly like `activeSeat`'s history is a fold over `turn` events, so a
-   * pause survives resume/reconnect the same way the rest of the log does
-   * with no separate field to keep in sync.
-   *
-   * A no-op (state unchanged, no event, no version bump) when the game isn't
-   * `active` — nothing runs before a start or after a finish to pause — or
-   * when `paused` already matches the current state (a double-tap, or two
-   * devices racing the same toggle). Deliberately NOT one of the five
-   * undoable kinds: pausing is a table decision a player makes on purpose,
-   * not a value a misclick corrupts, so Undo does not reach it (see
-   * `isUndoable` in the frontend's `undo-stack.ts`).
-   */
-  | { type: 'clock'; paused: boolean; actorSeat: number | null; ts?: number }
-  /**
-   * Adjust a free-form counter. `seat` is the owning seat, or `null` for a
-   * table-level counter. A counter springs into existence on its first
-   * `counter` action (delta 0 creates it at zero), so there is no separate
-   * "add" action to keep in step with this one.
-   *
-   * The name is normalized (`normalizeCounterName`) before it is used as a
-   * key, so "  Energy " and "Energy" are the same counter rather than two
-   * rows that look identical in the UI.
-   */
-  | {
-      type: 'counter';
-      seat: number | null;
-      name: string;
-      delta: number;
-      actorSeat: number | null;
-      ts?: number;
-    }
-  /** Delete a free-form counter outright. Distinct from decrementing it to
-   *  zero, which is a legitimate value a table may want to keep on the board. */
-  | {
-      type: 'counter-remove';
-      seat: number | null;
-      name: string;
-      actorSeat: number | null;
-      ts?: number;
-    }
-  /**
-   * Set up the horde table for a lobby about to start a `'horde'` game.
-   * Lobby + format-gated: a no-op (`return prev`) unless `status === 'lobby'`
-   * and `format === 'horde'`. The host's device resolves `settings`/`seed`
-   * once, before `start`, so every device that later replays the step log
-   * lands on the identical horde.
-   */
-  | {
-      type: 'horde-setup';
-      hordeId: string;
-      level: HordeLevel;
-      settings: HordeSettings;
-      seed: number;
-      deckRev: string;
-      ts?: number;
-    }
-  /**
-   * Mark (or un-mark) a survivor's team turn as done. Once every ACTIVE
-   * survivor (not eliminated, connected) is done: advances the setup-turn
-   * counter, or — once setup is over — appends the log's next `reveal` step
-   * and starts the horde's turn.
-   *
-   * `force` is "Start without them": a survivor who is done ends the team
-   * turn without waiting for the rest (a teammate who is connected but away).
-   * Only meaningful with `done: true`; it is the one way to move a setup turn
-   * on without everyone, since `horde-step reveal` is for the horde's turn.
-   */
-  | { type: 'horde-done'; actorSeat: number; done: boolean; force?: boolean; ts?: number }
-  /**
-   * Append one step to the horde's replayable log. `at` is the index this
-   * step expects to land at (`horde.steps.length` when it was dispatched) —
-   * a mismatch means another device already moved the horde, and the action
-   * is a silent no-op (`return prev` UNCHANGED) rather than an error, since
-   * two devices racing the same tap is the expected case, not a bug.
-   */
-  | { type: 'horde-step'; step: HordeStep; at: number; actorSeat: number; ts?: number }
-  /**
-   * Undo the horde's last logged step, reversing its table effect. Only
-   * valid when `at` matches the current log length (the same staleness guard
-   * as `horde-step`).
-   */
-  | { type: 'horde-undo'; at: number; actorSeat: number; ts?: number };
+export type { GameAction } from './actions';
+import type { GameAction } from './actions';
 
 const MAX_EVENTS = 500;
 
@@ -779,6 +540,29 @@ function updatePlayer(
 /** Horde mode shares one life total: set every seat to the same value. */
 function mirrorLife(players: GamePlayer[], life: number): GamePlayer[] {
   return players.map((p) => ({ ...p, life }));
+}
+
+/**
+ * Apply `patch` to `seat` and to every seat that shares its totals: the whole
+ * table in a horde, the teammate in Two-Headed Giant, just the seat otherwise.
+ * Life always shares; poison shares in 2HG only (a horde seat keeps its own).
+ */
+function applyShared(
+  state: GameState,
+  seat: number,
+  patch: Pick<GamePlayer, 'life'> | Pick<GamePlayer, 'poison'>
+): GamePlayer[] {
+  const sharing =
+    state.format === 'horde'
+      ? () => true
+      : state.format === '2hg'
+        ? (p: GamePlayer) => teamOf(p.seat) === teamOf(seat)
+        : (p: GamePlayer) => p.seat === seat;
+  return state.players.map((p) => {
+    if (!sharing(p)) return p;
+    if ('poison' in patch && state.format === 'horde' && p.seat !== seat) return p;
+    return { ...p, ...patch };
+  });
 }
 
 /**
@@ -931,7 +715,7 @@ function withoutCounter(map: Record<string, number>, name: string): Record<strin
 function checkLossConditions(player: GamePlayer, state: GameState): boolean {
   if (player.eliminated) return true;
   if (player.life <= 0) return true;
-  if (state.poisonEnabled && player.poison >= 10) return true;
+  if (state.poisonEnabled && player.poison >= poisonLimit(state.format)) return true;
   if (state.commanderDamageEnabled) {
     // Per-VALUE, never a sum: rule 903.10a is 21 from *the same commander*, so
     // 11 from one partner plus 10 from the other kills nobody. This loop was
@@ -974,7 +758,19 @@ function maybeAutoWin(state: GameState): GameState {
     }
     return state;
   }
-  if (alive.length === 1 && state.players.length > 1) {
+  if (state.format === '2hg') {
+    // One team left standing wins; its lowest seat stands for it as `winnerSeat`
+    // (`isWinningSeat` credits the teammate).
+    const teams = new Set(alive.map((p) => teamOf(p.seat)));
+    if (teams.size === 1) {
+      return {
+        ...state,
+        status: 'finished',
+        winnerSeat: Math.min(...alive.map((p) => p.seat)),
+        endedAt: state.endedAt ?? Date.now(),
+      };
+    }
+  } else if (alive.length === 1 && state.players.length > 1) {
     return {
       ...state,
       status: 'finished',
@@ -1138,6 +934,7 @@ const CLOCK_STARTING_ACTIONS: ReadonlySet<GameAction['type']> = new Set([
   'cmd-dmg',
   'counter',
   'counter-remove',
+  'dungeon',
   'eliminate',
   'set-designation',
   'horde-step',
@@ -1259,6 +1056,8 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
           // A reset is a fresh game at the same table: last game's energy /
           // experience / storm count is stale, exactly like its poison.
           counters: {},
+          dungeon: null,
+          dungeonsCompleted: [],
           eliminated: false,
           ready: false,
         })),
@@ -1361,10 +1160,7 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       const newLife = target.life + action.delta;
       next = {
         ...next,
-        players:
-          prev.format === 'horde'
-            ? mirrorLife(next.players, newLife)
-            : updatePlayer(next, action.seat, (p) => ({ ...p, life: newLife })),
+        players: applyShared(next, action.seat, { life: newLife }),
         events: pushEvent(next, {
           kind: 'life',
           actorSeat: action.actorSeat,
@@ -1379,10 +1175,7 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       requireSeat(prev.players, action.seat);
       next = {
         ...next,
-        players:
-          prev.format === 'horde'
-            ? mirrorLife(next.players, action.value)
-            : updatePlayer(next, action.seat, (p) => ({ ...p, life: action.value })),
+        players: applyShared(next, action.seat, { life: action.value }),
         events: pushEvent(next, {
           kind: 'set-life',
           actorSeat: action.actorSeat,
@@ -1394,13 +1187,12 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       break;
     }
     case 'poison': {
-      requireSeat(prev.players, action.seat);
+      const target = requireSeat(prev.players, action.seat);
       next = {
         ...next,
-        players: updatePlayer(next, action.seat, (p) => ({
-          ...p,
-          poison: Math.max(0, p.poison + action.delta),
-        })),
+        players: applyShared(next, action.seat, {
+          poison: Math.max(0, target.poison + action.delta),
+        }),
         events: pushEvent(next, {
           kind: 'poison',
           actorSeat: action.actorSeat,
@@ -1444,9 +1236,12 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
     }
     case 'eliminate': {
       requireSeat(prev.players, action.seat);
+      // A 2HG team goes out, and comes back, together.
+      const out = (p: GamePlayer) =>
+        p.seat === action.seat || (prev.format === '2hg' && teamOf(p.seat) === teamOf(action.seat));
       next = {
         ...next,
-        players: updatePlayer(next, action.seat, (p) => ({ ...p, eliminated: action.eliminated })),
+        players: next.players.map((p) => (out(p) ? { ...p, eliminated: action.eliminated } : p)),
         events: pushEvent(next, {
           kind: action.eliminated ? 'eliminate' : 'revive',
           actorSeat: null,
@@ -1584,6 +1379,25 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
           targetSeat: action.seat,
           delta: action.delta,
           message: name,
+          ts,
+        }),
+      };
+      break;
+    }
+    case 'dungeon': {
+      const target = requireSeat(prev.players, action.seat);
+      const step = stepDungeon(
+        { dungeon: target.dungeon ?? null, dungeonsCompleted: target.dungeonsCompleted ?? [] },
+        action
+      );
+      next = {
+        ...next,
+        players: updatePlayer(next, action.seat, (p) => ({ ...p, ...step.next })),
+        events: pushEvent(next, {
+          kind: 'dungeon',
+          actorSeat: action.actorSeat,
+          targetSeat: action.seat,
+          message: step.text,
           ts,
         }),
       };

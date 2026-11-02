@@ -21,6 +21,7 @@ export const VALID_FORMATS: ReadonlyArray<GameFormat> = [
   'pauper',
   'brawl',
   'casual',
+  '2hg',
   // Co-op, local-only for now; see local-result.ts's horde-specific parse rules.
   'horde',
 ];

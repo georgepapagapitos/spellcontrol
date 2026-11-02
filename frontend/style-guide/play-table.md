@@ -1633,3 +1633,25 @@ seat upright. We do not maintain a separate desktop layout.
   shows guesses used and streaks, never guesses.
 - **Solve fires the seal** in the card's colors, once, beside the "Solved in
   N" heading that says it in words.
+
+## Play board: dungeons and Two-Headed Giant (2026-11-02, E1100)
+
+- **A dungeon is a seat's state, so it follows the drawer rule.** The board
+  shows it as a read-only badge (`SeatBadges`: dungeon name and room, or
+  "Dungeons N" once one is completed); the seat drawer changes it. The
+  drawer's "Dungeon" trigger is one more swappable editor
+  (`data-editor="dungeon"`), and the online "your seat" panel reuses the same
+  `DungeonControl`, so the two cannot drift.
+- **Bookkeeping, not a rules engine.** Any room of the dungeon the seat is in
+  can be marked (the branch is the player's choice); the reducer checks only
+  that the dungeon and room exist. The room is a native radio group, because
+  where a seat stands is one choice. "Take back last" undoes a mis-tapped
+  completion.
+- **Two-Headed Giant is a format, with fixed teams.** Seats 0+1, 2+3, and so on
+  are teams, so a reseat re-teams the table. Life and poison are shared, a team
+  loses at fifteen poison, and it goes out and returns together. Setup adds and
+  removes whole teams, a "Team N" label heads each pair, and the online lobby
+  holds Start until the count is even and at least four. The board shows a
+  "Team N" badge on every seat and the finish names both teammates.
+- **Commander-damage discoverability: unchanged.** No measured problem; the
+  board keeps the Lotus model (swipe away from the player, or the drawer).
