@@ -96,7 +96,7 @@ export function SpellbookSecondOpinion({ request }: { request: SpellbookRequest 
           href={SPELLBOOK_SITE_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="card-preview-ext-link"
+          className="text-link"
         >
           Commander Spellbook
           <ExternalLink
@@ -104,7 +104,7 @@ export function SpellbookSecondOpinion({ request }: { request: SpellbookRequest 
             height={12}
             strokeWidth={2}
             aria-hidden
-            className="card-preview-ext-link-icon"
+            className="spellbook-opinion-ext-icon"
           />
         </a>
       </p>
