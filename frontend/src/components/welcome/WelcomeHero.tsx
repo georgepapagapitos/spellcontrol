@@ -77,9 +77,12 @@ export function WelcomeHero({ onTrySamples, samplesLoading }: WelcomeHeroProps) 
           <span className="welcome-hero-wordmark">SpellControl</span>
         </div>
 
-        <h1 className="welcome-hero-headline">Plan your Magic collection.</h1>
+        <h1 className="welcome-hero-headline">
+          Scan or import your collection. It files itself into your binders.
+        </h1>
         <p className="welcome-hero-tagline">
-          Import what you own, build decks around it, and track every game. No account required.
+          Rules put each card on the right page. Build decks around what you own and track every
+          game. Free, no ads, no third-party trackers, and no account required.
         </p>
 
         <form className="welcome-hero-search" role="search" onSubmit={handleSubmit}>

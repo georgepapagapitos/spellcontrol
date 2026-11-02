@@ -39,7 +39,7 @@ describe('WelcomeHero', () => {
     expect(screen.getByRole('banner')).toBeTruthy();
     expect(screen.getByText('SpellControl')).toBeTruthy();
     expect(
-      screen.getByRole('heading', { level: 1, name: /plan your magic collection/i })
+      screen.getByRole('heading', { level: 1, name: /scan or import your collection/i })
     ).toBeTruthy();
   });
 

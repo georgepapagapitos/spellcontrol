@@ -300,7 +300,7 @@ const CASES: RouteCase[] = [
     bare: true,
     guest: true,
     routes: <Route path="/" element={<WelcomePage />} />,
-    ready: /Plan your Magic/,
+    ready: /Scan or import your collection/,
   },
   {
     path: '/d/some-deck',
