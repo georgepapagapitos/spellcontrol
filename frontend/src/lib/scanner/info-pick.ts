@@ -70,27 +70,41 @@ async function loadGrayFromUrl(url: string): Promise<GrayImage> {
 /**
  * A scanning session meets the same cards again and again, and the printings
  * route is rate limited, so both lookups are remembered for the session. A
- * failed lookup is forgotten so the next scan retries it.
+ * failed lookup is forgotten so the next scan retries it. Bounded (least
+ * recently used goes first): a decoded reference image is about 330 KB, and a
+ * bulk session must not grow without limit on a phone.
  */
-function memoize<A, T>(fn: (key: string, ...rest: A[]) => Promise<T>) {
+export function memoize<A, T>(fn: (key: string, ...rest: A[]) => Promise<T>, max: number) {
   const seen = new Map<string, Promise<T>>();
   return (key: string, ...rest: A[]): Promise<T> => {
     let hit = seen.get(key);
-    if (!hit) {
-      hit = fn(key, ...rest);
+    if (hit) {
+      seen.delete(key);
       seen.set(key, hit);
-      hit.catch(() => seen.delete(key));
+      return hit;
     }
-    return hit;
+    const pending = fn(key, ...rest);
+    hit = pending;
+    seen.set(key, pending);
+    pending.catch(() => {
+      if (seen.get(key) === pending) seen.delete(key);
+    });
+    if (seen.size > max) seen.delete(seen.keys().next().value as string);
+    return pending;
   };
 }
 
-const printingsByName = memoize((name: string, set?: string, oracleId?: string) =>
-  fetchPrintings(name, set, oracleId)
+/** Reference images kept: 40 x ~330 KB. Printings are small objects. */
+const GRAY_CACHE_MAX = 40;
+const PRINTINGS_CACHE_MAX = 100;
+
+const printingsByName = memoize(
+  (name: string, set?: string, oracleId?: string) => fetchPrintings(name, set, oracleId),
+  PRINTINGS_CACHE_MAX
 );
 const defaultDeps: RefineDeps = {
   fetchPrintings: (name, set, oracleId) => printingsByName(oracleId ?? name, set, oracleId),
-  loadGray: memoize(loadGrayFromUrl),
+  loadGray: memoize(loadGrayFromUrl, GRAY_CACHE_MAX),
 };
 
 /**

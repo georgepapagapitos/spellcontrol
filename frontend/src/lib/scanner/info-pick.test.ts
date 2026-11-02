@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { MAX_SAME_ART, refinePrinting, sameArtPrintings, type RefineDeps } from './info-pick';
+import {
+  MAX_SAME_ART,
+  memoize,
+  refinePrinting,
+  sameArtPrintings,
+  type RefineDeps,
+} from './info-pick';
 import type { GrayImage } from './info-strip';
 
 vi.mock('@/lib/api', () => ({ fetchPrintings: vi.fn() }));
@@ -85,5 +91,29 @@ describe('refinePrinting', () => {
     expect(await refinePrinting(A, ref(1), d)).toBe(B);
     // And when it shows a's band the matcher's pick stands.
     expect(await refinePrinting(B, ref(0), d)).toBe(A);
+  });
+});
+
+describe('memoize', () => {
+  it('remembers lookups but holds at most max, dropping the least recently used', async () => {
+    const fn = vi.fn((k: string) => Promise.resolve(k));
+    const m = memoize(fn, 2);
+    await m('a');
+    await m('b');
+    await m('a'); // a is now the most recent
+    await m('c'); // evicts b
+    expect(fn).toHaveBeenCalledTimes(3);
+    await m('a');
+    expect(fn).toHaveBeenCalledTimes(3);
+    await m('b');
+    expect(fn).toHaveBeenCalledTimes(4);
+  });
+
+  it('forgets a failed lookup so the next call retries', async () => {
+    const fn = vi.fn().mockRejectedValueOnce(new Error('x')).mockResolvedValue('ok');
+    const m = memoize(fn, 2);
+    await expect(m('a')).rejects.toThrow();
+    await Promise.resolve();
+    expect(await m('a')).toBe('ok');
   });
 });
