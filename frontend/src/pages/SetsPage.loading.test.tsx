@@ -6,12 +6,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SetsPage } from './SetsPage';
 import { useCollectionStore } from '../store/collection';
 import { useAuth } from '../store/auth';
+import { pending } from '@/test/pending';
 
 let mapState: 'pending' | 'ready' = 'ready';
 vi.mock('@/lib/api', async (orig) => ({
   ...(await orig<typeof import('@/lib/api')>()),
   useSetMap: () => (mapState === 'ready' ? SET_MAP : undefined),
-  getSetMap: () => (mapState === 'ready' ? Promise.resolve(SET_MAP) : new Promise(() => {})),
+  getSetMap: () => (mapState === 'ready' ? Promise.resolve(SET_MAP) : pending(SET_MAP)),
 }));
 const SET_MAP = {};
 
