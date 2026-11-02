@@ -5,7 +5,7 @@
  * the top-3 head-to-head truncation + opponent-side win/loss swap.
  */
 import 'fake-indexeddb/auto';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import type { GameRecord } from '@spellcontrol/game-core';
@@ -92,7 +92,9 @@ describe('TableRecordPanel', () => {
     renderPanel();
     expect(screen.getByText(/1 game/)).toBeTruthy();
     expect(screen.getByText(/1W–0L/)).toBeTruthy();
-    expect(screen.getByText(/100% win rate/)).toBeTruthy();
+    // One game is not a rate: the percentage waits for the sample floor.
+    expect(screen.queryByText(/100%/)).toBeNull();
+    expect(screen.getByText(/win rate after 5 games with a winner/)).toBeTruthy();
     expect(screen.getByText('Opp Deck')).toBeTruthy();
   });
 
@@ -175,5 +177,52 @@ describe('TableRecordPanel', () => {
     expect(screen.queryByText('Deck deck-5')).toBeNull();
     // deck-1 (B-side, lexicographically after deck-2..5) went 4-0 vs deck-2.
     expect(screen.getByText('4–0')).toBeTruthy();
+  });
+
+  it('shows the win rate at the floor and splits the record by pilot', () => {
+    const seat = (n: number, name: string, deckId: string, userId: string | null) => ({
+      seat: n,
+      userId,
+      name,
+      deckId,
+      deckName: deckId,
+      commander: null,
+      finalLife: 1,
+      eliminated: false,
+    });
+    // deck-1 piloted by Sam for four games and by Jo for one; seat 0 wins four of five.
+    history = [0, 0, 0, 0, 1].map((w, i) =>
+      mkGame({
+        players: [seat(0, i < 4 ? 'Sam' : 'Jo', 'deck-1', null), seat(1, 'Opp', 'deck-2', null)],
+        winnerSeat: w,
+      })
+    );
+    renderPanel();
+    expect(screen.getByText(/80% win rate/)).toBeTruthy();
+    const pilots = screen.getByRole('list', { name: 'Who piloted this deck' });
+    expect(within(pilots).getByText('Sam')).toBeTruthy();
+    expect(within(pilots).getByText('Jo')).toBeTruthy();
+  });
+
+  it('leaves the pilot list out when one guest piloted everything', () => {
+    history = [
+      mkGame({
+        players: [
+          {
+            seat: 0,
+            userId: null,
+            name: 'Sam',
+            deckId: 'deck-1',
+            deckName: 'My Deck',
+            commander: null,
+            finalLife: 1,
+            eliminated: false,
+          },
+        ],
+        winnerSeat: 0,
+      }),
+    ];
+    renderPanel();
+    expect(screen.queryByRole('list', { name: 'Who piloted this deck' })).toBeNull();
   });
 });

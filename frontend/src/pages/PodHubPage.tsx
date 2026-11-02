@@ -23,6 +23,7 @@ import {
   declinePodInvite,
   deletePod,
   fetchPodGames,
+  POD_GAMES_CAP,
   fetchPodLeaderboard,
   getPod,
   invitePodMembers,
@@ -43,6 +44,8 @@ import { InlineRename } from '@/components/shared/InlineRename';
 import { Surface } from '@/components/shared/Surface';
 import { PodRule0Notes } from '@/components/social/PodRule0Notes';
 import { SectionHeader } from '@/components/shared/SectionHeader';
+import { YearRecap } from '@/components/play/YearRecap';
+import type { RecapGame } from '@/lib/play/year-recap';
 const POD_NAME_MAX = 60;
 
 type GamesFetch =
@@ -167,6 +170,25 @@ export function PodHubPage() {
 
   const [gamesFetch, setGamesFetch] = useState<GamesFetch>({ status: 'loading' });
   const [leaderboardFetch, setLeaderboardFetch] = useState<LeaderboardFetch>({ status: 'loading' });
+  const recapGames = useMemo<RecapGame[]>(
+    () =>
+      gamesFetch.status === 'ready'
+        ? gamesFetch.games.map((g) => ({
+            id: g.sessionId,
+            format: g.format,
+            endedAt: g.endedAt,
+            durationMs: g.durationMs,
+            winnerSeat: g.winnerSeat,
+            seats: g.participants.map((p) => ({
+              seat: p.seat,
+              name: p.name,
+              deckId: p.deckId,
+              deckName: p.deckName,
+            })),
+          }))
+        : [],
+    [gamesFetch]
+  );
 
   const [friends, setFriends] = useState<Friend[] | null>(null);
   // Only ever holds RESOLVED per-member deck shares — the 'loading' and
@@ -694,6 +716,24 @@ export function PodHubPage() {
               )}
             </Surface>
           </div>
+
+          {gamesFetch.status === 'loading' ? (
+            <div
+              className="pod-hub-table-skeleton"
+              role="status"
+              aria-label="Loading the year in review"
+              aria-busy="true"
+            />
+          ) : gamesFetch.status === 'ready' ? (
+            <YearRecap
+              games={recapGames}
+              capNote={
+                gamesFetch.games.length >= POD_GAMES_CAP
+                  ? `Counts the pod's ${POD_GAMES_CAP} most recent games.`
+                  : undefined
+              }
+            />
+          ) : null}
 
           <PodRule0Notes podId={pod.id} />
 

@@ -10,6 +10,9 @@ import { Tabs } from '@/components/overlays/Tabs';
 import { StackedBar } from '@/components/shared/MeterBar';
 import { FriendsLeaderboard } from '@/components/play/FriendsLeaderboard';
 import { aggregateMatchupRecords } from '@/lib/play/matchup-records';
+import { formatRate } from '@/lib/play/deck-stats';
+import { YearRecap } from '@/components/play/YearRecap';
+import type { RecapGame } from '@/lib/play/year-recap';
 import type { GameRecord } from '@spellcontrol/game-core';
 import { coopResultLabel } from '@/lib/horde/horde-records';
 import { Button, IconButton } from '@/components/shared/Button';
@@ -137,6 +140,23 @@ export function HistoryTab({
   );
   const deckRows = useMemo(() => aggregateDeckRecords(shown, userId), [shown, userId]);
   const matchupRows = useMemo(() => aggregateMatchupRecords(shown, userId), [shown, userId]);
+  const recapGames = useMemo<RecapGame[]>(
+    () =>
+      shown.map((r) => ({
+        id: r.id,
+        format: r.format,
+        endedAt: r.endedAt,
+        durationMs: r.durationMs,
+        winnerSeat: r.winnerSeat,
+        seats: r.players.map((p) => ({
+          seat: p.seat,
+          name: p.name,
+          deckId: p.deckId,
+          deckName: p.deckName,
+        })),
+      })),
+    [shown]
+  );
   const hasBothModes =
     history.some((r) => r.mode === 'local') && history.some((r) => r.mode === 'online');
   const droppable = useMemo(() => shown.filter((r) => canDropRecord(r, userId)), [shown, userId]);
@@ -199,6 +219,7 @@ export function HistoryTab({
           ]}
         />
       )}
+      <YearRecap games={recapGames} title="Your year" />
       {deckRows.length > 0 && (
         <section className="play-records">
           <h2 className="play-records-title">Deck win-loss</h2>
@@ -220,7 +241,7 @@ export function HistoryTab({
                   <td>{row.played}</td>
                   <td>{row.wins}</td>
                   <td>{row.losses}</td>
-                  <td>{(row.winRate * 100).toFixed(0)}%</td>
+                  <td>{formatRate(row.wins, row.losses)}</td>
                   <td>{new Date(row.lastPlayedAt).toLocaleDateString()}</td>
                 </tr>
               ))}
@@ -265,7 +286,7 @@ export function HistoryTab({
                       max={row.played}
                     />
                   </td>
-                  <td>{(row.winRate * 100).toFixed(0)}%</td>
+                  <td>{formatRate(row.wins, row.losses)}</td>
                   <td>{new Date(row.lastPlayedAt).toLocaleDateString()}</td>
                 </tr>
               ))}
