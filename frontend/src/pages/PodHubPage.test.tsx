@@ -47,6 +47,7 @@ vi.mock('@/lib/social/pods-client', () => {
     acceptPodInvite: vi.fn(() => Promise.resolve()),
     declinePodInvite: vi.fn(() => Promise.resolve()),
     invitePodMembers: vi.fn(() => Promise.resolve({ invited: [] })),
+    POD_GAMES_CAP: 200,
     fetchPodGames: vi.fn(() => Promise.resolve([])),
     fetchPodRule0: vi.fn(() => Promise.resolve([])),
     addPodDeck: vi.fn(() => Promise.resolve()),
@@ -429,6 +430,17 @@ describe('PodHubPage — shared history', () => {
     expect(screen.getByText('Commander')).toBeTruthy();
     // Winner resolved via winnerSeat against participants, not winnerUserId.
     expect(screen.getByText('Alice')).toBeTruthy();
+    // The year in review is built from the same fetch: one game, no rate yet.
+    const recap = screen.getByRole('region', { name: 'Year in review 2023' });
+    expect(within(recap).getByText(/once a deck or player has 5 games/)).toBeTruthy();
+  });
+
+  it('has no year in review when the pod has no games', async () => {
+    vi.mocked(getPod).mockResolvedValue(podDetail());
+    vi.mocked(fetchPodGames).mockResolvedValue([]);
+    renderPage();
+    await screen.findByText('No games yet.');
+    expect(screen.queryByRole('region', { name: /Year in review/ })).toBeNull();
   });
 
   it('shows the empty state for zero games', async () => {

@@ -1655,3 +1655,25 @@ seat upright. We do not maintain a separate desktop layout.
   "Team N" badge on every seat and the finish names both teammates.
 - **Commander-damage discoverability: unchanged.** No measured problem; the
   board keeps the Lotus model (swipe away from the player, or the drawer).
+
+## Game stats: a win rate waits for a sample (2026-11-02, E1099)
+
+A win rate is not shown until a deck or player has `DECK_RATE_MIN_GAMES` (5)
+games with a winner (`lib/play/deck-stats.ts`). Below it the record still shows
+(`3W–1L`), the percentage column reads `—`, and the Table record panel says
+"win rate after 5 games with a winner". One win in one game is "100%", and at
+four games a single result moves the figure 25 points. This is a different gate
+from the Bracket panel's verdict floor (`TABLE_READ_MIN_GAMES`, 10), which makes
+a stronger claim (above or below an even share) and keeps its own.
+
+Group-local only. The Year in review (`YearRecap`, on a pod's hub and on the
+History tab as "Your year") reads the games handed to it and nothing wider: no
+cross-user corpus. It renders nothing when there is no game to recap, since the
+caller's own empty state already says so. A pod's list stops at its 200 most
+recent games, and the card says so when it reaches that count.
+
+The pilot of a deck is the seat's player. A borrowed deck is a deck in someone
+else's seat, so the Table record panel splits a deck's record by the seat's
+player (`deckPilots`) instead of storing a second "pilot" field that would
+always equal the seat's name. The split shows only when more than one person
+piloted the deck, or a signed-in account sees a deck only others piloted.

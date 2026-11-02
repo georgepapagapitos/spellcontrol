@@ -214,6 +214,10 @@ export interface PodGameResult {
   participants: PodGameParticipant[];
 }
 
+/** GET /api/pods/:id/games returns at most this many, newest first (LIMIT in
+ *  backend/src/routes/pod-stats.ts). Keep the two in step. */
+export const POD_GAMES_CAP = 200;
+
 export async function fetchPodGames(id: string): Promise<PodGameResult[]> {
   const res = await fetch(apiUrl(`/api/pods/${encodeURIComponent(id)}/games`), {
     credentials: 'include',

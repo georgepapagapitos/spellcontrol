@@ -3,6 +3,7 @@ import { type JSX, useMemo } from 'react';
 import { useAuth } from '../../store/auth';
 import { aggregateDeckRecords, usePlayStore } from '../../store/play';
 import { aggregateMatchupRecords } from '@/lib/play/matchup-records';
+import { DECK_RATE_MIN_GAMES, deckPilots, formatRate } from '@/lib/play/deck-stats';
 import { StackedBar } from '../shared/MeterBar';
 import { Button } from '@/components/shared/Button';
 import type { Deck } from '@/store/decks';
@@ -42,6 +43,12 @@ export function TableRecordPanel({ deckId, outcome }: TableRecordPanelProps): JS
     [history, userId, deckId]
   );
 
+  const pilots = useMemo(() => deckPilots(history, deckId, userId), [history, deckId, userId]);
+
+  // A lone pilot is the record above, said twice, unless that pilot is
+  // someone else's: a signed-in deck that only ever sat in a borrower's seat.
+  const showPilots = pilots.length > 1 || (userId !== null && pilots.some((p) => !p.isYou));
+
   if (!deckRow) {
     return (
       // A sub-panel placeholder, not a page's empty state (§ Empty states): one
@@ -72,11 +79,32 @@ export function TableRecordPanel({ deckId, outcome }: TableRecordPanelProps): JS
       />
       <p className="table-record-summary">
         {deckRow.played} {deckRow.played === 1 ? 'game' : 'games'} · {deckRow.wins}W–
-        {deckRow.losses}L{undecided > 0 ? ` · ${undecided} no winner` : ''} ·{' '}
-        {(deckRow.winRate * 100).toFixed(0)}% win rate
+        {deckRow.losses}L{undecided > 0 ? ` · ${undecided} no winner` : ''}
+        {' · '}
+        {deckRow.wins + deckRow.losses >= DECK_RATE_MIN_GAMES
+          ? `${formatRate(deckRow.wins, deckRow.losses)} win rate`
+          : `win rate after ${DECK_RATE_MIN_GAMES} games with a winner`}
         <br />
         Last played {new Date(deckRow.lastPlayedAt).toLocaleDateString()}
       </p>
+
+      {/* Only when someone besides you sat behind it: a lone pilot is the
+          record above, said twice. */}
+      {showPilots && (
+        <ul className="table-record-matchups" aria-label="Who piloted this deck">
+          {pilots.map((p) => (
+            <li key={p.key} className="table-record-matchup-row">
+              <span className="table-record-matchup-opponent">{p.isYou ? 'You' : p.name}</span>
+              <span className="table-record-matchup-score">
+                {p.played} {p.played === 1 ? 'game' : 'games'} · {p.wins}–{p.losses}
+                {p.wins + p.losses >= DECK_RATE_MIN_GAMES
+                  ? ` · ${formatRate(p.wins, p.losses)}`
+                  : ''}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {matchups.length > 0 && (
         <ul className="table-record-matchups">
