@@ -108,13 +108,13 @@ describe('buildShareHeadTags', () => {
       title: 'Atraxa Superfriends — shared by george',
       description: 'A Commander deck shared by george on SpellControl.',
       url: 'https://spellcontrol.com/s/abc123',
-      image: 'https://cards.scryfall.io/art_crop/atraxa.jpg?a=1&b=2',
+      image: 'https://cards.scryfall.io/normal/atraxa.jpg?a=1&b=2',
     });
     expect(out).toContain(
-      '<meta property="og:image" content="https://cards.scryfall.io/art_crop/atraxa.jpg?a=1&amp;b=2"'
+      '<meta property="og:image" content="https://cards.scryfall.io/normal/atraxa.jpg?a=1&amp;b=2"'
     );
     expect(out).toContain(
-      '<meta name="twitter:image" content="https://cards.scryfall.io/art_crop/atraxa.jpg?a=1&amp;b=2"'
+      '<meta name="twitter:image" content="https://cards.scryfall.io/normal/atraxa.jpg?a=1&amp;b=2"'
     );
   });
 
@@ -375,13 +375,51 @@ describe('og:image stays a JPEG', () => {
     expect(out).not.toContain('.webp');
   });
 
-  it('leaves a JPEG image URL alone', () => {
+  it('leaves the normal JPEG alone', () => {
     const out = buildShareHeadTags({
       title: 't',
       description: 'd',
       url: 'https://spellcontrol.com/d/x',
-      image: 'https://cards.scryfall.io/art_crop/front/a/b/x.jpg?1',
+      image: 'https://cards.scryfall.io/normal/front/a/b/x.jpg?1',
     });
-    expect(out).toContain('content="https://cards.scryfall.io/art_crop/front/a/b/x.jpg?1"');
+    expect(out).toContain('content="https://cards.scryfall.io/normal/front/a/b/x.jpg?1"');
+  });
+
+  // The deprecated JPEG segments 404 after 2027-01-01 (E1088). Stored
+  // deck_publications.og_art_crop rows still hold the legacy art_crop URL, so
+  // the builder rewrites on read; new rows hold the WebP art key.
+  it.each([
+    ['a legacy art_crop row', 'https://cards.scryfall.io/art_crop/front/a/b/x.jpg?1'],
+    ['a legacy large row', 'https://cards.scryfall.io/large/front/a/b/x.jpg?1'],
+    ['a new-keys art row', 'https://cards.scryfall.io/art/front/a/b/x.webp?1'],
+    ['a new-keys display row', 'https://cards.scryfall.io/display/front/a/b/x.webp?1'],
+  ])('emits a surviving, non-WebP og:image and twitter:image for %s', (_label, image) => {
+    const out = buildShareHeadTags({
+      title: 't',
+      description: 'd',
+      url: 'https://x.test/d/x',
+      image,
+    });
+    const urls = [
+      /property="og:image" content="([^"]+)"/.exec(out)?.[1],
+      /name="twitter:image" content="([^"]+)"/.exec(out)?.[1],
+    ];
+    for (const u of urls) {
+      expect(u).toBeDefined();
+      expect(u).not.toMatch(/\.webp(\?|$)/);
+      const segment = new URL(u!).pathname.split('/')[1];
+      expect([
+        'small',
+        'large',
+        'border_crop',
+        'art_crop',
+        'thumb',
+        'grid',
+        'display',
+        'crop',
+        'art',
+      ]).not.toContain(segment);
+      expect(u).toMatch(/\.jpg(\?|$)/);
+    }
   });
 });
