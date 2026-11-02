@@ -11,6 +11,7 @@ import { pickFirstPlayer } from '@/lib/play/game-tools';
 import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { effectiveBracket, type Deck } from '../../store/decks';
 import { signatureMissesCombos } from '@/lib/deck-analysis/bracket-signature';
+import { bracketSpread, combosLabel, gameChangersLabel, winTurnLabel } from '@/lib/play/pod-sheet';
 import { bracketTextWithEstimate } from '@/lib/deck-analysis/format-bracket-label';
 import type {
   GameAction,
@@ -236,10 +237,17 @@ export function OnlineLobby({
     hordeDeckRev,
   ]);
 
-  const pickDeck = (picked: PickedDeck | null) =>
+  // The latest table, for the win turn that lands after the seat was published.
+  const gameRef = useRef(game);
+  useEffect(() => {
+    gameRef.current = game;
+  }, [game]);
+
+  /** Seat a deck: the seat's card first, then its facts again once the win path is timed. */
+  const seatDeck = (seat: number, picked: PickedDeck | null) => {
     dispatch({
       type: 'update-player',
-      seat: mySeat.seat,
+      seat,
       patch: {
         deckId: picked?.id ?? null,
         deckName: picked?.name ?? null,
@@ -247,9 +255,36 @@ export function OnlineLobby({
         partner: picked?.partner ?? null,
         colorIdentity: picked?.colorIdentity ?? [],
         bracket: picked?.bracket ?? null,
+        deckFacts: picked?.facts ?? null,
         deckVersion: picked?.version ?? null,
       },
     });
+    const facts = picked?.facts;
+    if (!picked || !facts || !picked.resolveWinTurn) return;
+    void picked
+      .resolveWinTurn()
+      .then((winTurn) => {
+        const still = gameRef.current.players.find((p) => p.seat === seat);
+        if (winTurn == null || still?.deckId !== picked.id) return;
+        dispatch({
+          type: 'update-player',
+          seat,
+          patch: { deckFacts: { ...facts, winTurn } },
+        });
+      })
+      .catch(() => {
+        // The clock is a nicety; a seat without a win turn just omits that line.
+      });
+  };
+  const pickDeck = (picked: PickedDeck | null) => seatDeck(mySeat.seat, picked);
+
+  // Seats more than one bracket apart. Your own seat reads your deck, the rest
+  // read what their owners published.
+  const spread = bracketSpread(
+    game.players.map((p) =>
+      p.seat === mySeat.seat && myDeck ? effectiveBracket(myDeck) : p.bracket
+    )
+  );
 
   return (
     <div className="lobby">
@@ -299,6 +334,13 @@ export function OnlineLobby({
             </section>
           )}
 
+          {spread && (
+            <p className="lobby-spread" role="note">
+              Brackets {spread.low} to {spread.high} at this table. Decks more than one bracket
+              apart often play different games.
+            </p>
+          )}
+
           <ul className="lobby-seats" role="list" aria-label="Seats">
             {seats.map((player, i) =>
               player ? (
@@ -325,7 +367,11 @@ export function OnlineLobby({
                   }
                   // A guest seat is the host's to manage: it has no device of
                   // its own, so its deck and its removal both happen here.
-                  manage={isHost && player.userId === null ? { decks, dispatch } : undefined}
+                  manage={
+                    isHost && player.userId === null
+                      ? { decks, dispatch, onPick: (picked) => seatDeck(player.seat, picked) }
+                      : undefined
+                  }
                 />
               ) : (
                 <OpenSeat
@@ -672,13 +718,19 @@ function SeatCard({
   /** True when `bracket` is the owner's stated bracket rather than Auto. */
   bracketOverridden?: boolean;
   /** Set when the viewer is the host and this is a guest seat they manage. */
-  manage?: { decks: Deck[]; dispatch: (action: GameAction) => void };
+  manage?: {
+    decks: Deck[];
+    dispatch: (action: GameAction) => void;
+    onPick: (picked: PickedDeck | null) => void;
+  };
 }) {
   // Board E370: every seat publishes its own computed bracket (the device that
   // owns the deck ran the estimator and sent the number with deckId/commander),
   // so another player's seat shows theirs too. Your own seat reads your deck
   // directly. Null/absent means "no known bracket": never guessed.
   const bracket = ownBracket ?? player.bracket ?? undefined;
+  // What the seat's owner published about the deck; absent reads as nothing.
+  const facts = player.deckId ? player.deckFacts : null;
   const art = useCardThumb(player.commander ?? undefined, 'art_crop');
   const ready = player.ready === true;
   const isGuest = player.userId === null;
@@ -709,21 +761,7 @@ function SeatCard({
               decks={manage.decks}
               value={player.deckId}
               valueName={player.deckName}
-              onChange={(picked) =>
-                manage.dispatch({
-                  type: 'update-player',
-                  seat: player.seat,
-                  patch: {
-                    deckId: picked?.id ?? null,
-                    deckName: picked?.name ?? null,
-                    commander: picked?.commander ?? null,
-                    partner: picked?.partner ?? null,
-                    colorIdentity: picked?.colorIdentity ?? [],
-                    bracket: picked?.bracket ?? null,
-                    deckVersion: picked?.version ?? null,
-                  },
-                })
-              }
+              onChange={manage.onPick}
             />
           </div>
         ) : (
@@ -752,6 +790,13 @@ function SeatCard({
             </span>
           )}
         </div>
+        {facts && (
+          <ul className="lobby-seat-facts" role="list" aria-label={`${player.name}'s deck`}>
+            <li>{gameChangersLabel(facts.gameChangers)}</li>
+            <li>{combosLabel(facts.combos)}</li>
+            {facts.winTurn != null && <li>{winTurnLabel(facts.winTurn)}</li>}
+          </ul>
+        )}
       </div>
     </li>
   );

@@ -99,6 +99,22 @@ export type GameFormat =
    */
   | 'horde';
 
+/**
+ * What a seat tells the pod about its deck beyond the bracket number: the
+ * counts a pod argues about before shuffling. Computed CLIENT-SIDE by the
+ * device that owns the deck (the server never sees a card list) and sent when
+ * the deck is seated, so it carries only these three numbers, never a card name.
+ */
+export interface PlayerDeckFacts {
+  /** Game Changers in the list. */
+  gameChangers: number;
+  /** Two-card combos the list completes. */
+  combos: number;
+  /** The median turn the deck's win path comes online (the assembly clock),
+   *  or null when the deck has no win path to time or the clock has not landed. */
+  winTurn: number | null;
+}
+
 export interface GamePlayer {
   /** Stable id; for online games this is the user id when authed, else a guest token. */
   id: string;
@@ -137,6 +153,13 @@ export interface GamePlayer {
    * nothing needed migrating.
    */
   bracket?: 1 | 2 | 3 | 4 | 5 | null;
+  /**
+   * The seated deck's Game Changers, combos and win turn, published by the
+   * deck's owner with the bracket. Null/absent means "not known" (no deck, a
+   * friend's or starter deck, or a row from before this existed) and renders
+   * as nothing, never as zero. Display only.
+   */
+  deckFacts?: PlayerDeckFacts | null;
   /**
    * Which version of the seated deck is playing: `<card count>:<hash of the
    * list>`, computed CLIENT-SIDE by the device that owns the deck (the server
@@ -551,6 +574,7 @@ export type GameAction =
           | 'colorIdentity'
           | 'panelColorKey'
           | 'bracket'
+          | 'deckFacts'
           | 'deckVersion'
           | 'connected'
         >

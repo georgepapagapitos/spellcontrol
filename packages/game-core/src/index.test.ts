@@ -177,6 +177,20 @@ describe('applyAction', () => {
     expect(gameToRecord(s, 9999).turnOrder).toBeUndefined();
   });
 
+  it('update-player carries a seat’s published deck facts, and null clears them', () => {
+    let s = lobby(2);
+    expect(s.players[1].deckFacts).toBeUndefined();
+    const facts = { gameChangers: 2, combos: 1, winTurn: 7 };
+    s = applyAction(s, { type: 'update-player', seat: 1, patch: { deckFacts: facts } });
+    expect(s.players[1].deckFacts).toEqual(facts);
+    expect(s.players[0].deckFacts).toBeUndefined();
+    s = applyAction(s, { type: 'update-player', seat: 1, patch: { deckFacts: null } });
+    expect(s.players[1].deckFacts).toBeNull();
+    // Facts are a lobby read, never part of the finished-game record.
+    s = applyAction(s, { type: 'end', winnerSeat: null });
+    expect(JSON.stringify(gameToRecord(s, 9999))).not.toContain('deckFacts');
+  });
+
   it('gameToRecord carries the rule toggles and each seat is partner + colorIdentity', () => {
     let s = lobby(2, { commanderDamageEnabled: false, poisonEnabled: true });
     s = applyAction(s, {
