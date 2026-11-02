@@ -1,0 +1,148 @@
+/* BracketCheckerPage.css — the public Commander bracket checker (/bracket,
+   E1090). One stylesheet, loaded by the page's lazy chunk. */
+
+.bracket-check {
+  container: bracket-check / inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding-block-end: var(--space-6);
+}
+
+.bracket-check-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.bracket-check-label {
+  font-weight: 500;
+}
+
+.bracket-check-textarea {
+  min-height: 12rem;
+  margin-top: 0;
+}
+
+.bracket-check-hint,
+.bracket-check-lead,
+.bracket-check-count {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.bracket-check-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.bracket-check-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+}
+
+.bracket-check-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.bracket-check-result,
+.bracket-check-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.bracket-check-note {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.bracket-check-pickers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.bracket-check-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.bracket-check-hero-label {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.bracket-check-hero-bracket {
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  font-weight: 500;
+}
+
+.bracket-check-reasons {
+  margin: 0;
+  padding-inline-start: var(--space-4);
+}
+
+.bracket-check-hero-actions {
+  margin-top: var(--space-2);
+}
+
+/* Game Changers: names as a wrapping list, a flowing grid on wide screens. */
+.bracket-check-gc {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.bracket-check-gc .is-in-deck {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.bracket-check-gc-mark {
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.bracket-check-faq details {
+  border-block-end: 0.5px solid var(--border-strong);
+}
+
+.bracket-check-faq summary {
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.bracket-check-faq summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.bracket-check-faq details p {
+  margin: 0 0 var(--space-3);
+  color: var(--text-secondary);
+}

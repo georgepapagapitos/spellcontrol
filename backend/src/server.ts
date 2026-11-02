@@ -36,7 +36,7 @@ import { aggregatesRouter } from './routes/aggregates';
 import { edhrecRouter } from './routes/edhrec';
 import { sharesRouter } from './routes/shares';
 import { feedbackRouter } from './routes/feedback';
-import { createShareLandingHandler } from './shares/og';
+import { createShareLandingHandler, createStaticLandingHandler } from './shares/og';
 import { offlineRouter } from './routes/offline';
 import { scannerRouter } from './routes/scanner';
 import { friendsRouter } from './routes/friends';
@@ -61,6 +61,7 @@ import { reportsRouter } from './routes/reports';
 import { discoverRouter } from './routes/discover';
 import { eventsRouter, recentErrorCount, ERROR_BURST_DEFAULT_THRESHOLD } from './routes/events';
 import { sitemapHandler } from './sitemap';
+import { BRACKET_PATH, bracketLandingMeta } from './bracket-landing';
 import { isSpaRoute } from './spa-routes';
 import { redirectLegacyApiHost } from './legacy-host';
 import { activityRouter } from './routes/activity';
@@ -1122,6 +1123,7 @@ if (existsSync(SPA_DIR)) {
   // before express.static so the dynamic response wins over the static
   // index.html, but after every /api/* route so nothing here can shadow
   // the API surface.
+  app.get(BRACKET_PATH, createStaticLandingHandler(SPA_DIR, bracketLandingMeta()));
   app.get('/s/:token', createShareLandingHandler(SPA_DIR));
   app.get('/d/:token', createShareLandingHandler(SPA_DIR, lookupPublicDeckLandingMeta));
   app.get('/u/:token', createShareLandingHandler(SPA_DIR, lookupPublicUserLandingMeta));

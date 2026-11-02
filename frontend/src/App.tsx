@@ -100,6 +100,10 @@ const RulesWalkthroughPage = lazyPage(
   () => import('./pages/RulesWalkthroughPage'),
   'RulesWalkthroughPage'
 );
+const BracketCheckerPage = lazyPage(
+  () => import('./pages/BracketCheckerPage'),
+  'BracketCheckerPage'
+);
 const DailyPage = lazyPage(() => import('./pages/DailyPage'), 'DailyPage');
 const AdminPage = lazyPage(() => import('./pages/AdminPage'), 'AdminPage');
 const SharedView = lazyPage(() => import('./pages/SharedView'), 'SharedView');
@@ -308,6 +312,7 @@ export default function App() {
             <Route path="/l/:slug" element={<PublicListPage />} />
             <Route path="/s/:token/playtest" element={<PublicDeckPlaytestPage />} />
             <Route path="/d/:slug/playtest" element={<PublicDeckPlaytestPage />} />
+            <Route path="/bracket" element={<BracketCheckerPage />} />
           </Route>
           <Route path="/gn/s/:token" element={<GameNightSeriesView />} />
           <Route path="/gn/i/:token" element={<GameNightInviteView />} />
@@ -376,6 +381,8 @@ export default function App() {
             <Route path="/l/:slug" element={<PublicListPage />} />
             <Route path="/s/:token/playtest" element={<PublicDeckPlaytestPage />} />
             <Route path="/d/:slug/playtest" element={<PublicDeckPlaytestPage />} />
+            {/* Public tool, no sign-in: paste a list, read its bracket (E1090). */}
+            <Route path="/bracket" element={<BracketCheckerPage />} />
             {/* The default landing for authed users (w3-nav-activation) — the "/"
               and catch-all routes below send them here. Still reachable by
               direct URL for guests, who are never auto-routed here. */}
