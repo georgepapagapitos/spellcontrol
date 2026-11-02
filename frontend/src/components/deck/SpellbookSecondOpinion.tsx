@@ -84,12 +84,12 @@ export function SpellbookSecondOpinion({ request }: { request: SpellbookRequest 
         {state.status === 'failed' && (
           <span className="spellbook-opinion-muted">Couldn't reach Commander Spellbook.</span>
         )}
-        {(state.status === 'unavailable' || state.status === 'failed') && (
-          <Button variant="link" onClick={() => setAttempt((n) => n + 1)}>
-            Retry
-          </Button>
-        )}
       </p>
+      {(state.status === 'unavailable' || state.status === 'failed') && (
+        <Button variant="link" onClick={() => setAttempt((n) => n + 1)}>
+          Retry
+        </Button>
+      )}
       <p className="spellbook-opinion-note">
         Their tags are their own and don't line up one to one with Brackets 1 to 5.{' '}
         <a
