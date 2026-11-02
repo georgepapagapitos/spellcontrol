@@ -251,8 +251,11 @@ export function checkScryfallCard(card) {
   }
   if (!isObj(card.prices) || !('usd' in card.prices)) failures.push('prices.usd key is missing');
   if (!Array.isArray(card.finishes)) failures.push('finishes is missing');
-  if (!isObj(card.image_uris) || !isStr(card.image_uris.normal)) {
-    failures.push('image_uris.normal is missing');
+  // Scryfall retires the small/large/border_crop/art_crop JPEGs on 2027-01-01
+  // and renames the normal JPEG; the app reads either generation (E1088).
+  const uris = isObj(card.image_uris) ? card.image_uris : {};
+  if (!isStr(uris.normal) && !isStr(uris.grid)) {
+    failures.push('image_uris.grid (or the legacy image_uris.normal) is missing');
   }
   return { failures, notes: [] };
 }

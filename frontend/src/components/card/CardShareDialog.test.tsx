@@ -39,6 +39,17 @@ describe('CardShareDialog', () => {
     expect(screen.getByText('Downloads sol-ring.jpg')).toBeTruthy();
   });
 
+  it('names a WebP download .webp, not .jpg', () => {
+    render(
+      <CardShareDialog
+        name="Sol Ring"
+        imageUrl="https://cards.scryfall.io/display/front/a/b/ab.webp?1"
+        onClose={vi.fn()}
+      />
+    );
+    expect(screen.getByText('Downloads sol-ring.webp')).toBeTruthy();
+  });
+
   it('hides Copy image where the browser cannot write images to the clipboard', () => {
     // No ClipboardItem (older Firefox) — offering a dead action is worse than
     // not offering it.

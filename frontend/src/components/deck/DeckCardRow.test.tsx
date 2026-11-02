@@ -59,7 +59,7 @@ describe('DeckCardRow', () => {
       />
     );
     expect(container.querySelector('.deck-card-row-art--crop img')?.getAttribute('src')).toBe(
-      'https://cards.scryfall.io/art_crop/front/a/b/sol.jpg'
+      'https://cards.scryfall.io/art/front/a/b/sol.webp'
     );
   });
 
@@ -244,7 +244,7 @@ describe('DeckCardRow thumbnail printing', () => {
       />
     );
     expect(container.querySelector('.deck-card-row-art img')?.getAttribute('src')).toBe(
-      'https://cards.scryfall.io/art_crop/front/a/b/ab12cd34.jpg?1'
+      'https://cards.scryfall.io/art/front/a/b/ab12cd34.webp?1'
     );
     // The carousel resolves through the same function, so it opens on this copy.
     expect(bestOwnedCopyByName('Tireless Provisioner')?.scryfallId).toBe(sld.scryfallId);
@@ -254,7 +254,7 @@ describe('DeckCardRow thumbnail printing', () => {
     useCollectionStore.setState({ cards: [{ ...sld, imageNormal: undefined }] });
     const { container } = render(<DeckCardRow change={add({ name: 'Tireless Provisioner' })} />);
     expect(container.querySelector('.deck-card-row-art img')?.getAttribute('src')).toBe(
-      `https://cards.scryfall.io/normal/front/a/b/${sld.scryfallId}.jpg`
+      `https://cards.scryfall.io/grid/front/a/b/${sld.scryfallId}.webp`
     );
   });
 

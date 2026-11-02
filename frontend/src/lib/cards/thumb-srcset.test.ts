@@ -2,10 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { thumbSrcSet } from './thumb-srcset';
 
 describe('thumbSrcSet', () => {
-  it('offers the small Scryfall image beside the normal one', () => {
-    const normal = 'https://cards.scryfall.io/normal/front/6/8/68dad9ea.jpg?1790743605';
-    expect(thumbSrcSet(normal)).toBe(
-      'https://cards.scryfall.io/small/front/6/8/68dad9ea.jpg?1790743605 146w, ' + `${normal} 488w`
+  it('offers the thumb WebP beside the grid one', () => {
+    const grid = 'https://cards.scryfall.io/grid/front/6/8/68dad9ea.webp?1790743605';
+    expect(thumbSrcSet(grid)).toBe(
+      'https://cards.scryfall.io/thumb/front/6/8/68dad9ea.webp?1790743605 146w, ' + `${grid} 488w`
+    );
+  });
+
+  it('reads a stored normal JPEG URL as its WebP twin', () => {
+    const stored = 'https://cards.scryfall.io/normal/front/6/8/68dad9ea.jpg?1790743605';
+    expect(thumbSrcSet(stored)).toBe(
+      'https://cards.scryfall.io/thumb/front/6/8/68dad9ea.webp?1790743605 146w, ' +
+        'https://cards.scryfall.io/grid/front/6/8/68dad9ea.webp?1790743605 488w'
     );
   });
 

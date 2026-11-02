@@ -84,18 +84,25 @@ describe('slimToScryfall', () => {
     };
     const card = slimToScryfall(slim);
     expect(card.image_uris?.art_crop).toBe(
-      'https://cards.scryfall.io/art_crop/front/d/f/dfe7b8bf.jpg?1'
+      'https://cards.scryfall.io/art/front/d/f/dfe7b8bf.webp?1'
     );
-    // normal stays the full-card image
+    // normal stays the full-card image, now the grid WebP (E1088)
     expect(card.image_uris?.normal).toBe(
-      'https://cards.scryfall.io/normal/front/d/f/dfe7b8bf.jpg?1'
+      'https://cards.scryfall.io/grid/front/d/f/dfe7b8bf.webp?1'
     );
   });
 
   it('scryfallArtCrop swaps any JPEG card size, so a small image never fills an art box', () => {
     const at = (size: string) => `https://cards.scryfall.io/${size}/front/d/8/d8f8.jpg?1`;
     for (const size of ['small', 'normal', 'large']) {
-      expect(scryfallArtCrop(at(size))).toBe(at('art_crop'));
+      expect(scryfallArtCrop(at(size))).toBe('https://cards.scryfall.io/art/front/d/8/d8f8.webp?1');
+    }
+  });
+
+  it('scryfallArtCrop swaps any WebP card size too', () => {
+    const at = (size: string) => `https://cards.scryfall.io/${size}/front/d/8/d8f8.webp?1`;
+    for (const size of ['thumb', 'grid', 'display', 'crop', 'art']) {
+      expect(scryfallArtCrop(at(size))).toBe(at('art'));
     }
   });
 

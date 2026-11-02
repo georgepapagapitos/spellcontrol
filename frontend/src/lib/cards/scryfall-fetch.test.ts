@@ -311,6 +311,37 @@ describe('scryfall stats', () => {
   });
 });
 
+describe('scryfallFetch image ingress (E1088)', () => {
+  it('gives a card that carries only the WebP keys the image_uris the app reads', async () => {
+    const id = 'fc817e07-c1f3-469f-9cf7-0945dea7400f';
+    const webp = (seg: string) => `https://cards.scryfall.io/${seg}/front/f/c/${id}.webp?1`;
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      ok({
+        object: 'list',
+        data: [
+          {
+            id,
+            image_uris: {
+              thumb: webp('thumb'),
+              grid: webp('grid'),
+              display: webp('display'),
+              art: webp('art'),
+              crop: webp('crop'),
+            },
+          },
+        ],
+      })
+    );
+    const res = await scryfallFetch<{ data: Array<{ image_uris: Record<string, string> }> }>(
+      '/cards/search?q=sol'
+    );
+    expect(res.data[0].image_uris.small).toBe(webp('thumb'));
+    expect(res.data[0].image_uris.normal).toBe(webp('grid'));
+    expect(res.data[0].image_uris.large).toBe(webp('display'));
+    expect(res.data[0].image_uris.art_crop).toBe(webp('art'));
+  });
+});
+
 describe('scryfallFetch', () => {
   it('maps a 404 from /cards/search to an empty result set, not an error', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('not found', { status: 404 }));

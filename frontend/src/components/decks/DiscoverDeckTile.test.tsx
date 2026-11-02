@@ -78,7 +78,7 @@ describe('DiscoverDeckTile — grid art banner', () => {
     });
 
     const img = container.querySelector('.discover-tile-banner .decks-index-card-art');
-    expect(img?.getAttribute('src')).toBe('https://cards.scryfall.io/art_crop/sld.jpg');
+    expect(img?.getAttribute('src')).toBe('https://cards.scryfall.io/art/sld.webp');
     expect(useCardThumbMock).toHaveBeenLastCalledWith(undefined, 'art_crop');
   });
 

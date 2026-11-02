@@ -10,6 +10,7 @@ import { getPartnerType, getPartnerWithName } from '@/deck-builder/lib/partnerUt
 import { isPlayableCard, resolveReversiblePrinting } from '@/deck-builder/lib/printingLayouts';
 export { isPlayableCard };
 import { freshenScryfallCard } from '@/lib/cards/card-image-versions';
+import { normalizeCardImages } from '@/lib/cards/normalize-card-images';
 import { offlineGetCardByName, offlineGetCardsByNames, offlineSearchCards } from '@/lib/offline';
 import { offlineDataAvailable, useOfflineStore } from '@/store/offline';
 import { frontFaceName } from '@/lib/cards/card-text';
@@ -749,7 +750,7 @@ async function postCollection(
   }
 
   if (response.ok) {
-    return (await response.json()) as {
+    return normalizeCardImages(await response.json()) as {
       data: ScryfallCard[];
       not_found: Array<{ name?: string; set?: string }>;
     };
@@ -864,7 +865,7 @@ async function fetchCheapestPrintingByName(
     );
 
     if (response.ok) {
-      const searchResult = (await response.json()) as ScryfallSearchResponse;
+      const searchResult = normalizeCardImages(await response.json()) as ScryfallSearchResponse;
       // Scryfall's `!"name"` also matches a card whose SECOND face carries
       // the name: `!"Brainstorm"` returns Harmonized Trio // Brainstorm, and
       // when its printing was the cheapest, decks shipped it in place of
@@ -899,7 +900,7 @@ async function fetchCheapestPrintingByName(
     if (response.status === 404) {
       const namedResponse = await scryfallRequest(`/cards/named?exact=${encodeURIComponent(name)}`);
       if (!namedResponse.ok) return null;
-      const card = (await namedResponse.json()) as ScryfallCard;
+      const card = normalizeCardImages(await namedResponse.json()) as ScryfallCard;
       if (!isPlayableCard(card)) return null;
       cardCache.set(card.name, card);
       return card;
@@ -937,7 +938,7 @@ async function fetchCheapestArenaPrintings(names: string[]): Promise<Map<string,
         `/cards/search?q=${encodeURIComponent(q)}&unique=prints&order=usd&dir=asc&page=${page}`
       );
       if (!response.ok) break;
-      const body = (await response.json()) as ScryfallSearchResponse;
+      const body = normalizeCardImages(await response.json()) as ScryfallSearchResponse;
       for (const card of body.data) {
         if (!isPlayableCard(card)) continue;
         for (const key of [card.name, frontFaceName(card.name)]) {
@@ -1400,7 +1401,7 @@ async function liveUpgradeCardPrintingsResolve(
 
     try {
       if (response.ok) {
-        const data = (await response.json()) as ScryfallSearchResponse;
+        const data = normalizeCardImages(await response.json()) as ScryfallSearchResponse;
         // Build a name -> first matching card map (most recent printing first due to order=released desc).
         // Skip art-series and other non-playable layouts — `unique=prints` includes them,
         // and they often match treatment filters like is:full-art / frame:extendedart.
@@ -1435,7 +1436,7 @@ async function liveUpgradeCardPrintingsResolve(
               `/cards/search?q=${encodedQuery}&unique=prints&order=released&dir=desc&page=${page}`
             );
             if (!next.ok) break;
-            const nextData = (await next.json()) as ScryfallSearchResponse;
+            const nextData = normalizeCardImages(await next.json()) as ScryfallSearchResponse;
             addMatches(nextData.data);
             more = nextData.has_more === true;
           } catch {
@@ -1670,7 +1671,7 @@ export function getCardImageUrl(
   }
 
   // Fallback placeholder
-  return 'https://cards.scryfall.io/normal/front/0/0/00000000-0000-0000-0000-000000000000.jpg';
+  return 'https://cards.scryfall.io/grid/front/0/0/00000000-0000-0000-0000-000000000000.webp';
 }
 
 /**

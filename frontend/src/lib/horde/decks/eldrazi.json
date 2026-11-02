@@ -9,7 +9,7 @@
     {
       "name": "Eldrazi Scion",
       "scryfallId": "c6ee5e2c-d98b-434e-9175-d20f7f713b88",
-      "imageUrl": "https://cards.scryfall.io/normal/front/c/6/c6ee5e2c-d98b-434e-9175-d20f7f713b88.jpg?1783911127",
+      "imageUrl": "https://cards.scryfall.io/grid/front/c/6/c6ee5e2c-d98b-434e-9175-d20f7f713b88.webp?1783911127",
       "typeLine": "Token Creature \u2014 Eldrazi Scion",
       "power": "1",
       "toughness": "1",
@@ -18,7 +18,7 @@
     {
       "name": "Eldrazi Spawn",
       "scryfallId": "96b0ffdf-351e-4b89-92f2-79b20420b3bc",
-      "imageUrl": "https://cards.scryfall.io/normal/front/9/6/96b0ffdf-351e-4b89-92f2-79b20420b3bc.jpg?1783903577",
+      "imageUrl": "https://cards.scryfall.io/grid/front/9/6/96b0ffdf-351e-4b89-92f2-79b20420b3bc.webp?1783903577",
       "typeLine": "Token Creature \u2014 Eldrazi Spawn",
       "power": "0",
       "toughness": "1",
@@ -29,7 +29,7 @@
     {
       "name": "Sifter of Skulls",
       "scryfallId": "be57a5aa-44f1-483f-9274-aa68f5a2bf1f",
-      "imageUrl": "https://cards.scryfall.io/normal/front/b/e/be57a5aa-44f1-483f-9274-aa68f5a2bf1f.jpg?1783937914",
+      "imageUrl": "https://cards.scryfall.io/grid/front/b/e/be57a5aa-44f1-483f-9274-aa68f5a2bf1f.webp?1783937914",
       "typeLine": "Creature \u2014 Eldrazi",
       "power": "4",
       "toughness": "3",
@@ -39,7 +39,7 @@
     {
       "name": "Vestige of Emrakul",
       "scryfallId": "a5d84986-64a1-4bd1-a4f6-3eb147aca357",
-      "imageUrl": "https://cards.scryfall.io/normal/front/a/5/a5d84986-64a1-4bd1-a4f6-3eb147aca357.jpg?1783938196",
+      "imageUrl": "https://cards.scryfall.io/grid/front/a/5/a5d84986-64a1-4bd1-a4f6-3eb147aca357.webp?1783938196",
       "typeLine": "Creature \u2014 Eldrazi Drone",
       "power": "3",
       "toughness": "4",
@@ -49,7 +49,7 @@
     {
       "name": "Eldrazi Devastator",
       "scryfallId": "04b13e32-01b9-4a86-a3df-ca8b784c6a6c",
-      "imageUrl": "https://cards.scryfall.io/normal/front/0/4/04b13e32-01b9-4a86-a3df-ca8b784c6a6c.jpg?1783938225",
+      "imageUrl": "https://cards.scryfall.io/grid/front/0/4/04b13e32-01b9-4a86-a3df-ca8b784c6a6c.webp?1783938225",
       "typeLine": "Creature \u2014 Eldrazi",
       "power": "8",
       "toughness": "9",
@@ -59,7 +59,7 @@
     {
       "name": "Eyeless Watcher",
       "scryfallId": "4d949d0e-baf7-4573-bb15-7e30e3e9b202",
-      "imageUrl": "https://cards.scryfall.io/normal/front/4/d/4d949d0e-baf7-4573-bb15-7e30e3e9b202.jpg?1783938189",
+      "imageUrl": "https://cards.scryfall.io/grid/front/4/d/4d949d0e-baf7-4573-bb15-7e30e3e9b202.webp?1783938189",
       "typeLine": "Creature \u2014 Eldrazi Drone",
       "power": "1",
       "toughness": "1",
@@ -69,7 +69,7 @@
     {
       "name": "Pathrazer of Ulamog",
       "scryfallId": "c9b1d4d8-7df9-41e0-b2d9-dbca9c9f6994",
-      "imageUrl": "https://cards.scryfall.io/normal/front/c/9/c9b1d4d8-7df9-41e0-b2d9-dbca9c9f6994.jpg?1783915731",
+      "imageUrl": "https://cards.scryfall.io/grid/front/c/9/c9b1d4d8-7df9-41e0-b2d9-dbca9c9f6994.webp?1783915731",
       "typeLine": "Creature \u2014 Eldrazi",
       "power": "9",
       "toughness": "9",
@@ -79,7 +79,7 @@
     {
       "name": "Ulamog's Crusher",
       "scryfallId": "699c0f6f-b26b-4741-8140-8a6030cad127",
-      "imageUrl": "https://cards.scryfall.io/normal/front/6/9/699c0f6f-b26b-4741-8140-8a6030cad127.jpg?1783915730",
+      "imageUrl": "https://cards.scryfall.io/grid/front/6/9/699c0f6f-b26b-4741-8140-8a6030cad127.webp?1783915730",
       "typeLine": "Creature \u2014 Eldrazi",
       "power": "8",
       "toughness": "8",
@@ -89,7 +89,7 @@
     {
       "name": "Kozilek's Predator",
       "scryfallId": "fa828bc7-0f5a-45de-9608-da42dda8f3f9",
-      "imageUrl": "https://cards.scryfall.io/normal/front/f/a/fa828bc7-0f5a-45de-9608-da42dda8f3f9.jpg?1783915627",
+      "imageUrl": "https://cards.scryfall.io/grid/front/f/a/fa828bc7-0f5a-45de-9608-da42dda8f3f9.webp?1783915627",
       "typeLine": "Creature \u2014 Eldrazi Drone",
       "power": "3",
       "toughness": "3",
@@ -99,7 +99,7 @@
     {
       "name": "Eldrazi Mimic",
       "scryfallId": "311a05b1-042d-47e7-9fd7-6e8abe8fc578",
-      "imageUrl": "https://cards.scryfall.io/normal/front/3/1/311a05b1-042d-47e7-9fd7-6e8abe8fc578.jpg?1783937930",
+      "imageUrl": "https://cards.scryfall.io/grid/front/3/1/311a05b1-042d-47e7-9fd7-6e8abe8fc578.webp?1783937930",
       "typeLine": "Creature \u2014 Eldrazi",
       "power": "2",
       "toughness": "1",
@@ -109,7 +109,7 @@
     {
       "name": "Eldrazi Skyspawner",
       "scryfallId": "9c9c1a10-446e-492a-95cc-a459dc6c08a0",
-      "imageUrl": "https://cards.scryfall.io/normal/front/9/c/9c9c1a10-446e-492a-95cc-a459dc6c08a0.jpg?1783938213",
+      "imageUrl": "https://cards.scryfall.io/grid/front/9/c/9c9c1a10-446e-492a-95cc-a459dc6c08a0.webp?1783938213",
       "typeLine": "Creature \u2014 Eldrazi Drone",
       "power": "2",
       "toughness": "1",
@@ -119,7 +119,7 @@
     {
       "name": "Drowner of Hope",
       "scryfallId": "0fd5b48c-6850-47d4-8106-297be6c8f708",
-      "imageUrl": "https://cards.scryfall.io/normal/front/0/f/0fd5b48c-6850-47d4-8106-297be6c8f708.jpg?1783938213",
+      "imageUrl": "https://cards.scryfall.io/grid/front/0/f/0fd5b48c-6850-47d4-8106-297be6c8f708.webp?1783938213",
       "typeLine": "Creature \u2014 Eldrazi",
       "power": "5",
       "toughness": "5",
@@ -131,7 +131,7 @@
     {
       "name": "Kozilek, Butcher of Truth",
       "scryfallId": "d27cf7b7-7982-46bd-a559-7789c0e74bae",
-      "imageUrl": "https://cards.scryfall.io/normal/front/d/2/d27cf7b7-7982-46bd-a559-7789c0e74bae.jpg?1783921940",
+      "imageUrl": "https://cards.scryfall.io/grid/front/d/2/d27cf7b7-7982-46bd-a559-7789c0e74bae.webp?1783921940",
       "typeLine": "Legendary Creature \u2014 Eldrazi",
       "power": "12",
       "toughness": "12",
@@ -140,7 +140,7 @@
     {
       "name": "Ulamog, the Ceaseless Hunger",
       "scryfallId": "c74ae706-b3b3-4097-a387-6f6c38a9b603",
-      "imageUrl": "https://cards.scryfall.io/normal/front/c/7/c74ae706-b3b3-4097-a387-6f6c38a9b603.jpg?1783915730",
+      "imageUrl": "https://cards.scryfall.io/grid/front/c/7/c74ae706-b3b3-4097-a387-6f6c38a9b603.webp?1783915730",
       "typeLine": "Legendary Creature \u2014 Eldrazi",
       "power": "10",
       "toughness": "10",
@@ -149,7 +149,7 @@
     {
       "name": "It That Betrays",
       "scryfallId": "ca08b369-783d-4fe4-8fc8-9cd595638550",
-      "imageUrl": "https://cards.scryfall.io/normal/front/c/a/ca08b369-783d-4fe4-8fc8-9cd595638550.jpg?1783915458",
+      "imageUrl": "https://cards.scryfall.io/grid/front/c/a/ca08b369-783d-4fe4-8fc8-9cd595638550.webp?1783915458",
       "typeLine": "Creature \u2014 Eldrazi",
       "power": "11",
       "toughness": "11",

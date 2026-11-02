@@ -312,6 +312,30 @@ describe('CardPreview share', () => {
     expect(artFetches()[1]).toBe('https://img/back-normal.jpg');
   });
 
+  // Scryfall serves WebP from 2027-01-01 (E1088): the shared file is named and
+  // typed for what it is, not assumed to be a JPEG.
+  it('names and types a shared WebP image as WebP', async () => {
+    fetchMock.mockResolvedValue({ blob: async () => new Blob(['art'], { type: '' }) });
+    const shared: File[] = [];
+    vi.stubGlobal('navigator', navigator);
+    Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true });
+    Object.defineProperty(navigator, 'share', {
+      value: async (d: { files: File[] }) => shared.push(...d.files),
+      configurable: true,
+    });
+    renderPreview(
+      mk({
+        name: 'Sol Ring',
+        imageNormal: 'https://cards.scryfall.io/grid/front/a/b/ab.webp?1',
+        imageLarge: 'https://cards.scryfall.io/display/front/a/b/ab.webp?1',
+      })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Share card image' }));
+    await waitFor(() => expect(shared).toHaveLength(1));
+    expect(shared[0].name).toBe('sol-ring.webp');
+    expect(shared[0].type).toBe('image/webp');
+  });
+
   it('renders no Share button for a card with no art', () => {
     renderPreview(mk({}));
     expect(screen.queryByRole('button', { name: 'Share card image' })).toBeNull();

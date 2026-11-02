@@ -517,7 +517,7 @@ describe('Commander art backdrop', () => {
     const art = container.querySelector<HTMLImageElement>('.player-panel-art');
     expect(art).not.toBeNull();
     // normal -> art_crop is a pure CDN path-segment swap (scryfallArtCrop).
-    expect(art?.src).toBe('https://cards.scryfall.io/art_crop/front/a/b/atraxa.jpg');
+    expect(art?.src).toBe('https://cards.scryfall.io/art/front/a/b/atraxa.webp');
     // Decorative only — never announced, never blocks a screen reader.
     expect(art?.getAttribute('alt')).toBe('');
     expect(art?.getAttribute('aria-hidden')).toBe('true');

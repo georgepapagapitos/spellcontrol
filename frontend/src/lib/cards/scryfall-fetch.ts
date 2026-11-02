@@ -12,6 +12,7 @@
  * `RateLimiter.cooldown()` is the fix: one 429 parks the entire queue.
  */
 import { logger } from '@/lib/util/logger';
+import { normalizeCardImages } from './normalize-card-images';
 
 export const SCRYFALL_BASE_URL = import.meta.env.DEV ? '/scryfall-api' : 'https://api.scryfall.com';
 
@@ -392,5 +393,5 @@ export async function scryfallFetch<T>(endpoint: string): Promise<T> {
     throw new Error(scryfallErrorMessage(response.status, response.statusText));
   }
 
-  return response.json();
+  return normalizeCardImages(await response.json()) as T;
 }

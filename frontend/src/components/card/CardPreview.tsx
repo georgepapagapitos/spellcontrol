@@ -50,6 +50,7 @@ import type { CopyBreakdown } from '@/lib/collection/copy-locations';
 import { CardName } from '@/components/shared/CardName';
 import { PreviewContextLine } from './CardPreviewContext';
 import { IconButton } from '@/components/shared/Button';
+import { cardImageFilename, imageMimeType } from '@/lib/cards/image-file';
 
 // Lazy on purpose: the section opens a commander in a preview of its own, so
 // it imports this module back (through useCardCarousel). A dynamic import is
@@ -205,7 +206,7 @@ interface Props {
  */
 function canShareFiles(): boolean {
   try {
-    const probe = new File([], 'card.jpg', { type: 'image/jpeg' });
+    const probe = new File([], 'card.webp', { type: 'image/webp' });
     return navigator.canShare?.({ files: [probe] }) ?? false;
   } catch {
     return false;
@@ -584,9 +585,9 @@ export function CardPreview({
   const systemShare = async () => {
     setSharing(true);
     try {
-      const filename = `${current.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.jpg`;
+      const filename = cardImageFilename(current.name, faceSrc);
       const blob = await (await fetch(faceSrc!)).blob();
-      const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+      const file = new File([blob], filename, { type: blob.type || imageMimeType(faceSrc) });
       await navigator.share({ files: [file], title: current.name });
     } catch (err) {
       // Dismissing the system sheet rejects (AbortError) — a cancel is a

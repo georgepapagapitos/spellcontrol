@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { modernScryfallImage } from '@spellcontrol/deck-metrics';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   _resetForTests,
@@ -17,6 +18,8 @@ import type { Deck } from '@/store/decks';
 const CHIMERA = '81cea94d-e8a2-4c88-b121-9806eb7cc210';
 const url = (size: string, stamp?: number, face = 'front') =>
   `https://cards.scryfall.io/${size}/${face}/8/1/${CHIMERA}.jpg${stamp ? `?${stamp}` : ''}`;
+// What a stored URL reads as once Scryfall's JPEGs are gone (E1088).
+const want = (...a: Parameters<typeof url>) => modernScryfallImage(url(...a));
 const OLD = 1790000000;
 const NEW = 1791120518;
 
@@ -28,27 +31,27 @@ beforeEach(() => {
 describe('freshImageUrl', () => {
   it('moves a stored URL onto a newer stamp', () => {
     setImageVersions({ [CHIMERA]: String(NEW) });
-    expect(freshImageUrl(url('normal', OLD))).toBe(url('normal', NEW));
-    expect(freshImageUrl(url('art_crop', OLD))).toBe(url('art_crop', NEW));
+    expect(freshImageUrl(url('normal', OLD))).toBe(want('normal', NEW));
+    expect(freshImageUrl(url('art_crop', OLD))).toBe(want('art_crop', NEW));
   });
 
   it('adds a stamp to a URL stored without one', () => {
     setImageVersions({ [CHIMERA]: String(NEW) });
-    expect(freshImageUrl(url('small'))).toBe(url('small', NEW));
+    expect(freshImageUrl(url('small'))).toBe(want('small', NEW));
   });
 
   // A card resolved after the swap already carries the newest stamp; an older
   // entry in the map must never pull it back onto the photo.
   it('never moves a URL backward', () => {
     setImageVersions({ [CHIMERA]: String(OLD) });
-    const current = url('normal', NEW);
+    const current = want('normal', NEW);
     expect(freshImageUrl(current)).toBe(current);
   });
 
   it('leaves unknown printings, other hosts and empty values alone', () => {
     setImageVersions({ [CHIMERA]: String(NEW) });
     const other =
-      'https://cards.scryfall.io/normal/front/0/0/00000000-0000-0000-0000-000000000001.jpg?1';
+      'https://cards.scryfall.io/grid/front/0/0/00000000-0000-0000-0000-000000000001.webp?1';
     expect(freshImageUrl(other)).toBe(other);
     const elsewhere = `https://example.com/${CHIMERA}.jpg?1`;
     expect(freshImageUrl(elsewhere)).toBe(elsewhere);
@@ -67,21 +70,21 @@ describe('setImageVersions', () => {
 
     _resetForTests();
     loadImageVersions();
-    expect(freshImageUrl(url('normal', OLD))).toBe(url('normal', NEW));
+    expect(freshImageUrl(url('normal', OLD))).toBe(want('normal', NEW));
   });
 
   it('survives a corrupt stored map', () => {
     localStorage.setItem('spellcontrol:card-image-versions', '{not json');
     loadImageVersions();
-    expect(freshImageUrl(url('normal', OLD))).toBe(url('normal', OLD));
+    expect(freshImageUrl(url('normal', OLD))).toBe(want('normal', OLD));
   });
 });
 
 describe('freshenCollectionImages', () => {
   it('rewrites every image field and keeps the array when nothing moved', () => {
     const cards = [
-      { scryfallId: CHIMERA, imageSmall: url('small', OLD), imageNormal: url('normal', OLD) },
-      { scryfallId: 'other', imageNormal: 'https://cards.scryfall.io/normal/front/a/b/x.jpg?1' },
+      { scryfallId: CHIMERA, imageSmall: want('small', OLD), imageNormal: want('normal', OLD) },
+      { scryfallId: 'other', imageNormal: 'https://cards.scryfall.io/grid/front/a/b/x.webp?1' },
     ];
     expect(freshenCollectionImages(cards)).toBe(cards);
 
@@ -89,11 +92,34 @@ describe('freshenCollectionImages', () => {
     const out = freshenCollectionImages(cards);
     expect(out[0]).toEqual({
       scryfallId: CHIMERA,
-      imageSmall: url('small', NEW),
-      imageNormal: url('normal', NEW),
+      imageSmall: want('small', NEW),
+      imageNormal: want('normal', NEW),
     });
     expect(out[1]).toBe(cards[1]);
     expect(freshenCollectionImages(out)).toBe(out);
+  });
+});
+
+describe('rows persisted with JPEG URLs (E1088)', () => {
+  it('rewrites a stored JPEG URL to WebP even when no stamp is known', () => {
+    expect(freshImageUrl(url('normal', OLD))).toBe(want('normal', OLD));
+    expect(freshImageUrl(url('art_crop'))).toContain('/art/');
+    expect(freshImageUrl(url('art_crop'))).toMatch(/\.webp$/);
+  });
+
+  it('rewrites collection rows and deck cards with no stamp map at all', () => {
+    const cards = [{ scryfallId: CHIMERA, imageSmall: url('small', OLD) }];
+    expect(freshenCollectionImages(cards)[0].imageSmall).toBe(want('small', OLD));
+    const card = { id: CHIMERA, image_uris: { normal: url('normal', OLD) } };
+    expect(freshenScryfallCard(card)?.image_uris?.normal).toBe(want('normal', OLD));
+  });
+
+  it('fills a legacy image_uris key from its WebP twin', () => {
+    const card = {
+      id: CHIMERA,
+      image_uris: { grid: want('normal', OLD) } as Record<string, string>,
+    };
+    expect(freshenScryfallCard(card)?.image_uris?.normal).toBe(want('normal', OLD));
   });
 });
 
@@ -105,7 +131,7 @@ describe('freshenScryfallCard', () => {
       image_uris: { normal: url('normal', OLD), large: url('large', OLD) },
     };
     const out = freshenScryfallCard(card);
-    expect(out.image_uris).toEqual({ normal: url('normal', NEW), large: url('large', NEW) });
+    expect(out.image_uris).toEqual({ normal: want('normal', NEW), large: want('large', NEW) });
     expect('card_faces' in out).toBe(false);
     expect(freshenScryfallCard(out)).toBe(out);
     expect(freshenScryfallCard(null)).toBeNull();
@@ -122,8 +148,8 @@ describe('freshenScryfallCard', () => {
     };
     const out = freshenScryfallCard(card);
     expect(out.card_faces?.map((f) => f.image_uris?.normal)).toEqual([
-      url('normal', NEW),
-      url('normal', NEW, 'back'),
+      want('normal', NEW),
+      want('normal', NEW, 'back'),
     ]);
     expect('image_uris' in out).toBe(false);
   });
@@ -133,9 +159,9 @@ describe('freshenDeckImages', () => {
   const deck = (): Deck =>
     ({
       id: 'd1',
-      commander: { id: CHIMERA, image_uris: { normal: url('normal', OLD) } },
+      commander: { id: CHIMERA, image_uris: { normal: want('normal', OLD) } },
       partnerCommander: null,
-      cards: [{ slotId: 's1', card: { id: CHIMERA, image_uris: { normal: url('normal', OLD) } } }],
+      cards: [{ slotId: 's1', card: { id: CHIMERA, image_uris: { normal: want('normal', OLD) } } }],
       sideboard: [],
       considering: [],
     }) as unknown as Deck;
@@ -146,8 +172,8 @@ describe('freshenDeckImages', () => {
 
     setImageVersions({ [CHIMERA]: String(NEW) });
     const out = freshenDeckImages(decks);
-    expect(out[0].commander?.image_uris?.normal).toBe(url('normal', NEW));
-    expect(out[0].cards[0].card.image_uris?.normal).toBe(url('normal', NEW));
+    expect(out[0].commander?.image_uris?.normal).toBe(want('normal', NEW));
+    expect(out[0].cards[0].card.image_uris?.normal).toBe(want('normal', NEW));
     expect(out[0].cards[0].slotId).toBe('s1');
     expect(out[0].sideboard).toBe(decks[0].sideboard);
     expect(freshenDeckImages(out)).toBe(out);

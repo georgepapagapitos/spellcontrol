@@ -359,7 +359,7 @@ describe('SharedDeckSurface', () => {
       ['Kinnan, Bonder Prodigy', 'kinnan'],
     ]) {
       const tile = screen.getByRole('button', { name: `Preview ${name}` });
-      expect(tile.querySelector('img')?.getAttribute('src')).toContain(`${slug}.jpg`);
+      expect(tile.querySelector('img')?.getAttribute('src')).toContain(`${slug}.webp`);
     }
   });
 

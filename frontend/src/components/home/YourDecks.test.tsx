@@ -202,7 +202,7 @@ describe('YourDecks', () => {
     ]);
     const { container } = renderSection();
     const img = container.querySelector('.decks-index-card-art') as HTMLImageElement | null;
-    expect(img?.getAttribute('src')).toContain('art_crop');
+    expect(img?.getAttribute('src')).toContain('/art/');
     expect(mockUseCardThumb).toHaveBeenCalledWith(undefined, 'art_crop');
     expect(screen.getByText("Atraxa, Praetors' Voice")).toBeTruthy();
   });
