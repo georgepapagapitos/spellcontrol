@@ -486,6 +486,23 @@ describe('pull', () => {
     expect(row).toMatchObject({ rev: 0, syncedRev: 7, data: { name: 'edited' } });
   });
 
+  it('a same-rev row with different data still converges the stamped local deck (edit made after the send)', async () => {
+    // applyPushResult stamped the acked rev onto a row that was edited after the
+    // payload was sent: same rev, different data. Dropping the server row would
+    // leave the two apart with nothing to repair them.
+    await estore.putMany('deck', [
+      { id: 'd-1', data: { id: 'd-1', name: 'edited' }, rev: 7, syncedRev: 7, deletedAt: null },
+    ]);
+    mockPull.mockResolvedValueOnce({
+      rows: [{ kind: 'deck', id: 'd-1', data: { id: 'd-1', name: 'A' }, rev: 7, deletedAt: null }],
+      cursor: 7,
+      hasMore: false,
+    });
+    await startSync('user-1');
+    const row = await estore.getById('deck', 'd-1');
+    expect(row).toMatchObject({ rev: 7, syncedRev: 7, data: { name: 'A' } });
+  });
+
   it('does not bump the local-mutation token (E177) for a server-applied deck row', async () => {
     const { useDecksStore, getLocalMutationToken } = await import('@/store/decks');
 

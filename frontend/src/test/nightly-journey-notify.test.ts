@@ -3,7 +3,7 @@
 // that opens or updates one labelled issue on failure and closes it on green.
 // If this fails, restore the `notify` job in .github/workflows/nightly-journey.yml
 // (needs: journey, issues: write, if: always(), gh issue create/comment/close).
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -36,38 +36,41 @@ describe('nightly journey failure tracking', () => {
   });
   it('sanitizes the harvested FAIL lines before they reach the issue body', () => {
     // The lines carry console text from the pages under test: a backtick would
-    // close the code fence and an @ would mention someone.
-    const harvest = notify.split('\n').find((l) => l.includes('fails=$(gh run view')) ?? '';
-    expect(harvest).toContain("grep -E '^(FAIL |assert failed on |- [a-z0-9-]+ /)'");
+    // close the code fence and an @ would mention someone. Sanitizing happens
+    // before any line is selected.
+    const harvest = notify.split('\n').find((l) => l.includes('log=$(gh run view')) ?? '';
     expect(harvest).toContain("tr -d '`@'");
     expect(harvest).toMatch(/tr -cd '\[:print:\]\\n'/);
+    expect(harvest).toContain('cut -c1-300');
   });
-  it('harvests every line shape a failed run prints, not only FAIL lines', () => {
+  it('takes the FAIL and assert lines first, then the route summary, each capped on its own', () => {
+    const fails = notify.split('\n').find((l) => l.includes('fails=$({')) ?? '';
+    expect(fails).toContain("grep -E '^(FAIL |assert failed on )' | sort -u | head -20");
+    expect(fails).toContain("grep -E '^- [a-z0-9-]+ /' | sort -u | head -20");
+    expect(fails.indexOf('assert failed on')).toBeLessThan(fails.indexOf('- [a-z0-9-]+ /'));
+    expect(fails).not.toContain('head -40');
+  });
+  it('the harvest patterns keep every line shape a failed run prints', () => {
     // #3166 read "none found in the log" for a run whose log held an
     // `assert failed on ...` line and a `- phone /route: ...` summary line.
-    // Run the real harvest filter over the log as the job sees it: tab-separated
-    // job, step and timestamped text, the timestamp then stripped by the sed.
-    const harvest = notify.split('\n').find((l) => l.includes('fails=$(gh run view')) ?? '';
-    const filter = /\|\s*(grep -E '[^']*')\s*\|/.exec(harvest)?.[1] ?? '';
-    expect(filter).not.toBe('');
-    const stamp = '2026-11-02T17:57:09.6100246Z';
+    // The patterns are asserted as literals above; run them with no shell over
+    // a log as the job sees it after the timestamp strip.
     const log = [
-      `j\ts\t${stamp} FAIL chrome  phone   /decks/{deck} (card preview)  overflow=0`,
-      `j\ts\t${stamp}         assert failed on /decks/{deck} (card preview) — card preview opens from a deck row: expected ".card-preview-panel", got null`,
-      `j\ts\t${stamp}   - phone /decks/{deck} (card preview): assert failed on /decks/{deck} (card preview) — x`,
-      `j\ts\t${stamp} chrome: 188 screens, 1 failed`,
-      `j\ts\t${stamp} - not a failure line`,
-      `j\ts\t${stamp} Run node scripts/journey.mjs --base http://localhost:3737`,
+      'FAIL chrome  phone   /decks/{deck} (card preview)  overflow=0',
+      'assert failed on /decks/{deck} (card preview) - card preview opens from a deck row',
+      '- phone /decks/{deck} (card preview): assert failed on /decks/{deck} (card preview) - x',
+      'chrome: 188 screens, 1 failed',
+      '- not a failure line',
+      'Run node scripts/journey.mjs --base http://localhost:3737',
     ].join('\n');
-    const out = execSync(`cut -f3- | sed -E 's/^[0-9TZ:.-]+[[:space:]]+//' | ${filter} | sort -u`, {
-      input: log,
-      encoding: 'utf8',
-    })
-      .trim()
-      .split('\n');
-    expect(out).toHaveLength(3);
-    expect(out.some((l) => l.startsWith('FAIL chrome'))).toBe(true);
-    expect(out.some((l) => l.startsWith('assert failed on /decks'))).toBe(true);
-    expect(out.some((l) => l.startsWith('- phone /decks'))).toBe(true);
+    const pick = (pattern: string) =>
+      execFileSync('grep', ['-E', pattern], { input: log, encoding: 'utf8' }).trim().split('\n');
+    const first = pick('^(FAIL |assert failed on )');
+    expect(first).toHaveLength(2);
+    expect(first[0]).toMatch(/^FAIL chrome/);
+    expect(first[1]).toMatch(/^assert failed on \/decks/);
+    expect(pick('^- [a-z0-9-]+ /')).toEqual([
+      '- phone /decks/{deck} (card preview): assert failed on /decks/{deck} (card preview) - x',
+    ]);
   });
 });
