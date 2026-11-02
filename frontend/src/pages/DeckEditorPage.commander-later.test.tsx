@@ -249,7 +249,9 @@ vi.mock('@/lib/binder/use-binder-layout-inputs', () => ({
     setMap: undefined,
   }),
 }));
-vi.mock('@/lib/binder/use-binder-by-copy', () => ({ useBinderByCopyId: () => new Map() }));
+vi.mock('@/lib/binder/use-binder-by-copy', () => ({
+  useBinderByCopyIdAfterPaint: () => new Map(),
+}));
 vi.mock('@/lib/collection/allocations', () => ({
   buildAllocationMap: () => new Map(),
   pickCollectionCopy: () => null,
