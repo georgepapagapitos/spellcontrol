@@ -236,7 +236,9 @@ vi.mock('@/lib/binder/use-binder-layout-inputs', () => ({
     setMap: undefined,
   }),
 }));
-vi.mock('@/lib/binder/use-binder-by-copy', () => ({ useBinderByCopyId: () => new Map() }));
+vi.mock('@/lib/binder/use-binder-by-copy', () => ({
+  useBinderByCopyIdAfterPaint: () => new Map(),
+}));
 // Owned-copy claiming: the add path must ask for a copy of the EXACT printing.
 const mockPlanCardAdd = vi.fn((_name: string, _id?: string) => ({
   kind: 'bind' as const,

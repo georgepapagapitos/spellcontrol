@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { useBinderByCopyId } from '@/lib/binder/use-binder-by-copy';
+import { useBinderByCopyIdAfterPaint } from '@/lib/binder/use-binder-by-copy';
 import { useDecksStore, type Deck } from '@/store/decks';
 import { useCubeStore } from '@/store/cube';
 import type { BinderInfo } from '@/lib/binder/binder-refs';
@@ -152,7 +152,7 @@ export function useDeckOwnership({
 
   // Which binder each collection copy lives in, laid out from BinderPage's
   // own inputs, so the deck grid's badge names the binder the card is in.
-  const binderByCopyId = useBinderByCopyId();
+  const binderByCopyId = useBinderByCopyIdAfterPaint();
 
   // Re-key binderByCopyId by card name — zero extra materializeBinders calls,
   // and reuses the same canonical routing computation the review queue uses,

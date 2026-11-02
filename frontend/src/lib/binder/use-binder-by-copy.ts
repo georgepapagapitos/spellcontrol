@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { materializeBinders } from './materialize';
 import { useBinderLayoutInputs } from './use-binder-layout-inputs';
 import type { BinderDef, EnrichedCard } from '@/types/index';
@@ -73,4 +73,30 @@ export function useBinderByCopyId(): Map<string, BinderRef[]> {
     () => buildBinderByCopyId(cards, binders, allocatedCopyIds, setMap),
     [cards, binders, allocatedCopyIds, setMap]
   );
+}
+
+const EMPTY_BY_COPY: Map<string, BinderRef[]> = new Map();
+
+/**
+ * {@link useBinderByCopyId} for a surface that paints without it: the same map,
+ * but the materialize pass runs from an idle callback after first paint, not
+ * inside the render. The deck editor's badge and the add-cards binder chip fill
+ * in a beat later; until then the map is empty, and while inputs change the
+ * previous map stays put instead of flashing empty. On a ~10k-card collection
+ * the pass is about a second of phone-class main thread that otherwise sat in
+ * front of the deck's first paint (E1049, O16).
+ */
+export function useBinderByCopyIdAfterPaint(): Map<string, BinderRef[]> {
+  const { cards, binders, allocatedCopyIds, setMap } = useBinderLayoutInputs();
+  const [byCopy, setByCopy] = useState(EMPTY_BY_COPY);
+  useEffect(() => {
+    const compute = () => setByCopy(buildBinderByCopyId(cards, binders, allocatedCopyIds, setMap));
+    if (typeof window.requestIdleCallback === 'function') {
+      const handle = window.requestIdleCallback(compute);
+      return () => window.cancelIdleCallback(handle);
+    }
+    const t = window.setTimeout(compute, 0);
+    return () => window.clearTimeout(t);
+  }, [cards, binders, allocatedCopyIds, setMap]);
+  return byCopy;
 }
