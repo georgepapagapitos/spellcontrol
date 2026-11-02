@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Deck xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<NetDeckID>0</NetDeckID>
+<PreconstructedDeckID>0</PreconstructedDeckID>
+<Cards CatID="0" Quantity="1" Sideboard="false" Name="Kaalia of the Vast"/>
+<Cards CatID="0" Quantity="1" Sideboard="false" Name="Atraxa's Fall &amp; Rise"/>
+<Cards CatID="0" Quantity="2" Sideboard="false" Name="Sol Ring"/>
+<Cards CatID="0" Quantity="1" Sideboard="true" Name="Gaea's Cradle"/>
+</Deck>

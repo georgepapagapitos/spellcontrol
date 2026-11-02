@@ -736,7 +736,7 @@ export function UploadPanel({ hideScanButton = false, onSeeFindings }: UploadPan
             <input
               type="file"
               ref={fileInputRef}
-              accept=".csv,.tsv,.txt"
+              accept=".csv,.tsv,.txt,.dek"
               multiple
               style={{ display: 'none' }}
               onChange={handleFileChange}

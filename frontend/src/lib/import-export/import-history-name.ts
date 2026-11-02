@@ -19,6 +19,8 @@ export function prettyImportName(name: string, format: string): string {
   switch ((format || '').toLowerCase()) {
     case 'mtga':
       return 'Pasted MTGA list';
+    case 'mtgo':
+      return 'Pasted MTGO deck';
     case 'plain':
       return 'Pasted text';
     case 'manabox':

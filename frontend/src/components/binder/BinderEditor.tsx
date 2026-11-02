@@ -1633,7 +1633,7 @@ export function BinderEditor() {
                   <input
                     type="file"
                     ref={importFileRef}
-                    accept=".csv,.tsv,.txt"
+                    accept=".csv,.tsv,.txt,.dek"
                     multiple
                     style={{ display: 'none' }}
                     onChange={(e) => {

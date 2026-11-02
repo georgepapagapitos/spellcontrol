@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import {
   formatLine,
@@ -330,6 +332,33 @@ describe('mtgo export (.dek XML)', () => {
     );
     expect(result).toContain('Name="Who/What/When/Where/Why &lt;Foo&gt; &amp; &quot;Bar&quot;"');
     expect(result).not.toContain('<Foo>');
+  });
+});
+
+/**
+ * `backend/src/parsers/fixtures/mtgo-deck-export-sample.dek` is this exporter's
+ * own output for the deck below; the backend parser test reads it back. If this
+ * drifts, regenerate the fixture from `buildExport` rather than hand-editing it.
+ */
+describe('mtgo backend round-trip fixture', () => {
+  it('matches the checked-in fixture the backend parser test reads', () => {
+    const out = buildExport(
+      {
+        commander: card({ name: 'Kaalia of the Vast' }),
+        cards: [
+          { card: card({ name: 'Sol Ring' }) },
+          { card: card({ name: 'Sol Ring' }) },
+          { card: card({ name: "Atraxa's Fall & Rise" }) },
+        ],
+        sideboard: [{ card: card({ name: "Gaea's Cradle", set: 'usg', collector_number: '321' }) }],
+      },
+      'mtgo'
+    );
+    const fixture = readFileSync(
+      join(__dirname, '../../../../backend/src/parsers/fixtures/mtgo-deck-export-sample.dek'),
+      'utf-8'
+    );
+    expect(fixture.trimEnd()).toBe(out);
   });
 });
 
