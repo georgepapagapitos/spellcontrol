@@ -39,7 +39,7 @@ export function coverHasArt(raw: unknown): boolean {
   const card = rec(raw);
   if (!card) return false;
   const images = rec(card.image_uris) ?? rec(frontFace(card)?.image_uris);
-  return !!(str(images?.art_crop) ?? str(images?.normal));
+  return !!(str(images?.art_crop) ?? str(images?.art) ?? str(images?.normal) ?? str(images?.grid));
 }
 
 // The front face decides: a spell with a land on its back is still a spell.

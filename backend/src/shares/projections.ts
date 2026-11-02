@@ -27,6 +27,7 @@ import {
   type SetMap,
 } from '@spellcontrol/binder-routing';
 import type { GameEvent } from '@spellcontrol/game-core';
+import { modernScryfallImage } from '@spellcontrol/deck-metrics';
 import { signatureMissesCombos } from './bracket-floor';
 import { anyBinderUsesTagRules, decorateCardsWithTags } from './card-tags';
 import { anyBinderUsesSetSorts, decorateCardsWithSldDrops } from './card-sld-drops';
@@ -456,9 +457,10 @@ export function projectCard(raw: unknown): PublicCard | null {
     typeLine: asString(r.typeLine),
     colorIdentity: asStringArray(r.colorIdentity),
     colors: asStringArray(r.colors),
-    imageSmall: asString(r.imageSmall),
-    imageNormal: asString(r.imageNormal),
-    imageNormalBack: asString(r.imageNormalBack),
+    // Stored rows still carry the JPEG URLs Scryfall retires on 2027-01-01.
+    imageSmall: modernScryfallImage(asString(r.imageSmall)),
+    imageNormal: modernScryfallImage(asString(r.imageNormal)),
+    imageNormalBack: modernScryfallImage(asString(r.imageNormalBack)),
     layout: asString(r.layout),
     manaCost: asString(r.manaCost),
     oracleText: asString(r.oracleText),

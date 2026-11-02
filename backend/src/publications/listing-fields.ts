@@ -53,10 +53,14 @@ function asFiniteNumber(x: unknown): number | undefined {
 function normalImageUrl(raw: unknown): string | undefined {
   const card = asRecord(raw);
   if (!card) return undefined;
-  const direct = asString(asRecord(card.image_uris)?.normal);
+  const normal = (uris: unknown) => {
+    const u = asRecord(uris);
+    return asString(u?.normal) ?? asString(u?.grid);
+  };
+  const direct = normal(card.image_uris);
   if (direct) return direct;
   const face = Array.isArray(card.card_faces) ? asRecord(card.card_faces[0]) : null;
-  return asString(asRecord(face?.image_uris)?.normal);
+  return normal(face?.image_uris);
 }
 
 const WUBRG = ['W', 'U', 'B', 'R', 'G'];

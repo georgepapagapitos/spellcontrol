@@ -247,7 +247,9 @@ describe('PATCH /api/auth/profile', () => {
       bio: 'Commander enjoyer',
       avatarCardId: avatar.cardId,
       avatarCardName: avatar.cardName,
-      avatarImageUrl: avatar.imageUrl,
+      // Stored as the client sent it (JPEG), served as WebP.
+      avatarImageUrl:
+        'https://cards.scryfall.io/art/front/5/6/56ebc372-aabd-4174-a943-c7bf59e5049f.webp',
       pinnedDeckSlug: null,
       showGameRecord: false,
     });

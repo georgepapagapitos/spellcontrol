@@ -2,6 +2,7 @@ import { getPool } from '../db';
 import { getScryfallCache, pickUsdForFinish } from '../scryfall-cache';
 import { asRecord, asString, projectDeck, type PublicDeck } from '../shares/projections';
 import type { ScryfallCard } from '../types';
+import { storedImageUrl } from '../scryfall-images';
 
 /**
  * Batch-hydrates a page of `deck_publications` listing rows with live
@@ -254,10 +255,10 @@ export async function hydratePublicationRows(
       name: row.name,
       ownerUsername: row.ownerUsername,
       ownerDisplayName: row.ownerDisplayName,
-      ownerAvatarUrl: row.ownerAvatarUrl,
+      ownerAvatarUrl: storedImageUrl(row.ownerAvatarUrl),
       format: row.format,
       commanderName: row.commanderName,
-      commanderImageNormal: row.commanderImageNormal,
+      commanderImageNormal: storedImageUrl(row.commanderImageNormal),
       colorIdentity: row.colorIdentity,
       bracket: row.bracket,
       estimatedBracket: row.estimatedBracket,
@@ -270,7 +271,7 @@ export async function hydratePublicationRows(
       cardOracleIds: oracleIds,
       likedByViewer: likedSlugs.has(row.slug),
       bookmarkedByViewer: bookmarkedSlugs.has(row.slug),
-      ogArtCrop: row.ogArtCrop,
+      ogArtCrop: storedImageUrl(row.ogArtCrop),
     };
   });
 }

@@ -142,7 +142,7 @@ export function buildPriceRefreshPayload(
 
 /**
  * The version stamp on a printing's Scryfall image URL: the `?1791120518` in
- * `cards.scryfall.io/normal/front/8/1/<id>.jpg?1791120518`. Scryfall bumps it
+ * `…/front/8/1/<id>.jpg?1791120518` on the image CDN. Scryfall bumps it
  * when it replaces an image, most often a preview-season phone photo swapped
  * for the real scan, and the CDN serves the newest file under any stamp. But
  * the CDN tells browsers to cache an image for a year, keyed by the full URL,

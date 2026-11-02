@@ -240,3 +240,22 @@ describe('extractListingFields', () => {
     expect(fields?.ogArtCrop).toBeNull();
   });
 });
+
+describe('extractListingFields image keys', () => {
+  it('reads the WebP keys when the commander has no legacy ones', () => {
+    const fields = extractListingFields(
+      baseDeck({
+        commander: {
+          id: 'x',
+          name: 'X',
+          image_uris: {
+            grid: 'https://cards.scryfall.io/grid/front/a/b/x.webp?1',
+            art: 'https://cards.scryfall.io/art/front/a/b/x.webp?1',
+          },
+        },
+      })
+    );
+    expect(fields?.commanderImageNormal).toBe('https://cards.scryfall.io/grid/front/a/b/x.webp?1');
+    expect(fields?.ogArtCrop).toBe('https://cards.scryfall.io/art/front/a/b/x.webp?1');
+  });
+});

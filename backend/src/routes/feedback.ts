@@ -8,6 +8,7 @@ import { areFriends } from '../friends/relations';
 import { loadShareContext } from '../shares/context';
 import { findDeckById } from '../shares/projections';
 import { testAwareLimiter } from '../route-utils';
+import { modernFeedbackSuggestions } from '../scryfall-images';
 
 /**
  * The Feedback Tool (BlueprintMTG-style). A deck owner mints a kind='feedback'
@@ -209,7 +210,7 @@ feedbackRouter.get(
         authorUserId: r.authorUserId,
         comment: r.comment,
         bracketSuggestion: r.bracketSuggestion,
-        suggestions: r.suggestions,
+        suggestions: modernFeedbackSuggestions(r.suggestions),
         createdAt: r.createdAt,
       })),
     });

@@ -56,6 +56,7 @@ import { authIdentities, authTokens, users } from '../db/schema';
 import { purgeUserPublicCaches } from '../publications/purge';
 import { resolveLivePin } from '../brewers/profile-stats';
 import { sendMail } from '../mail';
+import { storedImageUrl } from '../scryfall-images';
 
 /**
  * The web app's own origin — used to build links that land back in the app
@@ -800,7 +801,7 @@ authRouter.get('/me', sessionLimiter, async (req: Request, res: Response) => {
       bio: row[0]?.bio ?? null,
       avatarCardId: row[0]?.avatarCardId ?? null,
       avatarCardName: row[0]?.avatarCardName ?? null,
-      avatarImageUrl: row[0]?.avatarImageUrl ?? null,
+      avatarImageUrl: storedImageUrl(row[0]?.avatarImageUrl),
       pinnedDeckSlug: await resolveLivePin(user.id, row[0]?.pinnedDeckSlug ?? null),
       showGameRecord: row[0]?.showGameRecord ?? false,
     },
@@ -937,7 +938,7 @@ authRouter.patch('/profile', profileLimiter, requireAuth, async (req: Request, r
       bio: rows[0]?.bio ?? null,
       avatarCardId: rows[0]?.avatarCardId ?? null,
       avatarCardName: rows[0]?.avatarCardName ?? null,
-      avatarImageUrl: rows[0]?.avatarImageUrl ?? null,
+      avatarImageUrl: storedImageUrl(rows[0]?.avatarImageUrl),
       pinnedDeckSlug: await resolveLivePin(req.user!.id, rows[0]?.pinnedDeckSlug ?? null),
       showGameRecord: rows[0]?.showGameRecord ?? false,
     },

@@ -25,6 +25,7 @@ import {
   type PublicDeckSummary,
   type PublicUserProfile,
 } from '../publications/cache';
+import { storedImageUrl } from '../scryfall-images';
 
 /**
  * Anonymous, rate-limited, cached public reads for published decks and
@@ -234,7 +235,7 @@ function toDeckSummary(
     // Direct column read — resolved via cardArtUrl at publish/refresh time
     // (see publications/listing-fields.ts). No deriveArtCrop helper, no
     // /normal/ -> /art_crop/ string-replace here.
-    commanderImage: row.og_art_crop,
+    commanderImage: storedImageUrl(row.og_art_crop),
     colorIdentity: row.color_identity,
     cardCount: row.card_count,
     bracket: row.bracket,
@@ -324,7 +325,7 @@ async function loadPublicUserProfile(username: string): Promise<PublicUserProfil
     displayName: user.display_name,
     bio: user.bio,
     avatarCardName: user.avatar_card_name,
-    avatarImageUrl: user.avatar_image_url,
+    avatarImageUrl: storedImageUrl(user.avatar_image_url),
     memberSince: Number(user.created_at),
     profileHiddenAt: user.profile_hidden_at === null ? null : Number(user.profile_hidden_at),
     collectionVisibility: storedCollectionVisibility(user.collection_visibility),

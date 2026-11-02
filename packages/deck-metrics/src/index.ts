@@ -1123,8 +1123,8 @@ export {
   type TemplateResolution,
 } from './template-query.js';
 
-// ── Deck cover art ──────────────────────────────────────────────────────────
-export { pickDeckCover, coverHasArt, type DeckCoverInput } from './cover.js';
+export * from './cover.js';
+export * from './scryfall-images.js';
 
 /**
  * Bumped whenever the estimator's rules or weights change, so a bracket

@@ -356,3 +356,32 @@ describe('injectShareHead', () => {
     expect(out).toContain("<!-- looks like </head> but isn't -->");
   });
 });
+
+describe('og:image stays a JPEG', () => {
+  it('cardArtUrl falls back to the WebP art key', () => {
+    expect(
+      cardArtUrl({ image_uris: { art: 'https://cards.scryfall.io/art/front/a/b/x.webp?1' } })
+    ).toBe('https://cards.scryfall.io/art/front/a/b/x.webp?1');
+  });
+
+  it('maps a WebP-generation card image to the card JPEG for crawlers', () => {
+    const out = buildShareHeadTags({
+      title: 't',
+      description: 'd',
+      url: 'https://spellcontrol.com/d/x',
+      image: 'https://cards.scryfall.io/art/front/a/b/x.webp?1',
+    });
+    expect(out).toContain('content="https://cards.scryfall.io/normal/front/a/b/x.jpg?1"');
+    expect(out).not.toContain('.webp');
+  });
+
+  it('leaves a JPEG image URL alone', () => {
+    const out = buildShareHeadTags({
+      title: 't',
+      description: 'd',
+      url: 'https://spellcontrol.com/d/x',
+      image: 'https://cards.scryfall.io/art_crop/front/a/b/x.jpg?1',
+    });
+    expect(out).toContain('content="https://cards.scryfall.io/art_crop/front/a/b/x.jpg?1"');
+  });
+});

@@ -30,7 +30,11 @@ import { createGunzip } from 'node:zlib';
 import { createInterface } from 'node:readline';
 import { Readable } from 'node:stream';
 import { dirname, resolve } from 'node:path';
+import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+// The package's ESM build is plain .js with no "type": "module", which plain Node cannot
+// load, so take the CJS build through require.
+const { modernScryfallImage } = createRequire(import.meta.url)('@spellcontrol/deck-metrics');
 
 const BULK_URL = 'https://api.scryfall.com/bulk-data';
 const UA = 'SpellControl-DailyRefresh/1.0';
@@ -89,8 +93,11 @@ function flavorOf(c) {
   return c.flavor_text ?? faces(c).find((f) => f.flavor_text)?.flavor_text ?? '';
 }
 
+// Scryfall retires the art_crop JPEG on 2027-01-01 and keeps the WebP `art`; the
+// committed pool stores the WebP URL either way.
 function artOf(c) {
-  return c.image_uris?.art_crop ?? faces(c)[0]?.image_uris?.art_crop ?? '';
+  const uris = c.image_uris ?? faces(c)[0]?.image_uris;
+  return modernScryfallImage(uris?.art_crop ?? uris?.art ?? '');
 }
 
 /**

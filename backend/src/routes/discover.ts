@@ -4,6 +4,7 @@ import { requireAuth, optionalAuth } from '../auth';
 import { getPool } from '../db';
 import { parseColorMatchMode, type ColorMatchMode } from '@spellcontrol/binder-routing';
 import { hydratePublicationRows, type PublicationListingRow } from '../discover/hydrate';
+import { storedImageUrl } from '../scryfall-images';
 
 /**
  * Public, unauthenticated, filtered/sorted/paginated deck browse for
@@ -127,10 +128,10 @@ function toListingRow(row: PublicationSqlRow): PublicationListingRow {
     name: row.deck_name,
     ownerUsername: row.owner_username,
     ownerDisplayName: row.owner_display_name,
-    ownerAvatarUrl: row.owner_avatar_url,
+    ownerAvatarUrl: storedImageUrl(row.owner_avatar_url),
     format: row.format,
     commanderName: row.commander_name,
-    commanderImageNormal: row.commander_image_normal,
+    commanderImageNormal: storedImageUrl(row.commander_image_normal),
     colorIdentity: row.color_identity,
     bracket: row.bracket,
     estimatedBracket: row.estimated_bracket,
@@ -139,7 +140,7 @@ function toListingRow(row: PublicationSqlRow): PublicationListingRow {
     copyCount: row.copy_count,
     likeCount: row.like_count,
     publishedAt: Number(row.published_at),
-    ogArtCrop: row.og_art_crop,
+    ogArtCrop: storedImageUrl(row.og_art_crop),
   };
 }
 

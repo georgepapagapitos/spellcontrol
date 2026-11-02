@@ -8,6 +8,7 @@ import {
   SCRYFALL_PAGED_FETCH_TIMEOUT_MS,
   SCRYFALL_USER_AGENT,
 } from './scryfall';
+import { normalizeImageUris } from '@spellcontrol/deck-metrics';
 
 interface ScryfallSet {
   code: string;
@@ -89,6 +90,16 @@ async function fetchSetMap(): Promise<SetMap> {
 
 // Scryfall-shaped subset — field names stay snake_case so the frontend can
 // treat rows as ScryfallCard without a mapping layer.
+/** Legacy JPEG-era names (filled from the WebP keys) plus the WebP keys. */
+export interface SetImageUris {
+  small?: string;
+  normal?: string;
+  large?: string;
+  thumb?: string;
+  grid?: string;
+  display?: string;
+}
+
 export interface SetCard {
   id: string;
   oracle_id?: string;
@@ -112,14 +123,14 @@ export interface SetCard {
   border_color?: string;
   legalities?: Record<string, string>;
   prices?: { usd?: string | null; usd_foil?: string | null; usd_etched?: string | null };
-  image_uris?: { small?: string; normal?: string; large?: string };
+  image_uris?: SetImageUris;
   card_faces?: Array<{
     name?: string;
     type_line?: string;
     mana_cost?: string;
     oracle_text?: string;
     colors?: string[];
-    image_uris?: { small?: string; normal?: string; large?: string };
+    image_uris?: SetImageUris;
   }>;
 }
 
@@ -134,9 +145,19 @@ const MAX_SET_PAGES = 30;
 const setCardsCache = new Map<string, { at: number; cards: SetCard[] }>();
 const setCardsInFlight = new Map<string, Promise<SetCard[]>>();
 
-function trimImageUris(u?: SetCard['image_uris']): SetCard['image_uris'] | undefined {
-  if (!u) return undefined;
-  return { small: u.small, normal: u.normal, large: u.large };
+function trimImageUris(raw?: SetCard['image_uris']): SetCard['image_uris'] | undefined {
+  if (!raw) return undefined;
+  // Legacy keys filled from the WebP ones (Scryfall drops the JPEG keys on
+  // 2027-01-01) and the WebP keys kept alongside.
+  const u = normalizeImageUris(raw);
+  return {
+    small: u.small,
+    normal: u.normal,
+    large: u.large,
+    thumb: u.thumb,
+    grid: u.grid,
+    display: u.display,
+  };
 }
 
 function trimSetCard(raw: SetCard): SetCard {

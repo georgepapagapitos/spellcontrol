@@ -219,3 +219,27 @@ describe('server snapshots', () => {
     expect(buildNames(idx, 'now')).toEqual({ version: 1, generatedAt: 'now', names: ['A', 'B'] });
   });
 });
+
+describe('foldPrinting art URL', () => {
+  const ID = 'fc817e07-c1f3-469f-9cf7-0945dea7400f';
+
+  it('stores the WebP art URL for a card that still has the art_crop JPEG', () => {
+    const map = new Map();
+    foldPrinting(
+      map,
+      printing({
+        image_uris: { art_crop: `https://cards.scryfall.io/art_crop/front/f/c/${ID}.jpg?1` },
+      })
+    );
+    expect(map.get('o-bolt').art).toBe(`https://cards.scryfall.io/art/front/f/c/${ID}.webp?1`);
+  });
+
+  it('still finds the art once Scryfall drops the art_crop key', () => {
+    const map = new Map();
+    foldPrinting(
+      map,
+      printing({ image_uris: { art: `https://cards.scryfall.io/art/front/f/c/${ID}.webp?1` } })
+    );
+    expect(map.get('o-bolt').art).toBe(`https://cards.scryfall.io/art/front/f/c/${ID}.webp?1`);
+  });
+});

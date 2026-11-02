@@ -10,6 +10,7 @@ import type { SlimCard } from './types';
 // Shared with the SQLite card cache's own projection — see card-tokens.ts
 // for why this lives in its own module rather than in either caller.
 import { tokensFromParts } from '../card-tokens';
+import { normalizeImageUris } from '@spellcontrol/deck-metrics';
 import { SCRYFALL_USER_AGENT } from '../scryfall';
 import { NON_PLAYABLE_LAYOUTS, fetchScryfallBulkEntry } from '../scryfall-bulk';
 import { pipeForwardingErrors } from '../stream-utils';
@@ -42,14 +43,14 @@ interface ScryfallBulkCard {
   collector_number?: string;
   released_at?: string;
   games?: string[];
-  image_uris?: { small?: string; normal?: string; large?: string };
+  image_uris?: BulkImageUris;
   card_faces?: Array<{
     name: string;
     mana_cost?: string;
     type_line?: string;
     oracle_text?: string;
     colors?: string[];
-    image_uris?: { small?: string; normal?: string; large?: string };
+    image_uris?: BulkImageUris;
   }>;
   prices?: {
     usd?: string | null;
@@ -61,6 +62,11 @@ interface ScryfallBulkCard {
   /** Related-card relationships — tokens, meld parts, combo pieces, etc. */
   all_parts?: Array<{ component?: string; name?: string; type_line?: string }>;
 }
+
+/** Scryfall's JPEG keys and the WebP keys that replace them on 2027-01-01. */
+type BulkImageUris = Partial<
+  Record<'small' | 'normal' | 'large' | 'thumb' | 'grid' | 'display', string>
+>;
 
 const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
 
@@ -77,8 +83,10 @@ const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
  *       `is:gamechanger` search operator returns results (E108).
  *   6 — carry `eurPrice` (Cardmarket) for the EUR display-currency setting,
  *       so offline-inflated cards have an EUR price too (E141).
+ *   7 — image URLs are WebP (legacy small/normal/large filled from
+ *       thumb/grid/display), ahead of Scryfall's 2027-01-01 JPEG removal.
  */
-const BUILDER_VERSION = 6;
+const BUILDER_VERSION = 7;
 
 const SCRYFALL_SEARCH_URL = 'https://api.scryfall.com/cards/search';
 
@@ -170,6 +178,7 @@ function slimCard(card: ScryfallBulkCard, gameChangerNames: ReadonlySet<string>)
     // Keep arena-only commanders (e.g. Brawl-only) out of offline lookups.
     return null;
   }
+  const images = normalizeImageUris(card.image_uris);
   return {
     oracleId: card.oracle_id,
     scryfallId: card.id,
@@ -190,19 +199,22 @@ function slimCard(card: ScryfallBulkCard, gameChangerNames: ReadonlySet<string>)
     setName: card.set_name,
     collectorNumber: card.collector_number,
     releasedAt: card.released_at,
-    imageSmall: card.image_uris?.small,
-    imageNormal: card.image_uris?.normal,
-    imageLarge: card.image_uris?.large,
-    faces: card.card_faces?.map((f) => ({
-      name: f.name,
-      manaCost: f.mana_cost || undefined,
-      typeLine: f.type_line || undefined,
-      oracleText: f.oracle_text || undefined,
-      colors: f.colors,
-      imageSmall: f.image_uris?.small,
-      imageNormal: f.image_uris?.normal,
-      imageLarge: f.image_uris?.large,
-    })),
+    imageSmall: images?.small,
+    imageNormal: images?.normal,
+    imageLarge: images?.large,
+    faces: card.card_faces?.map((f) => {
+      const faceImages = normalizeImageUris(f.image_uris);
+      return {
+        name: f.name,
+        manaCost: f.mana_cost || undefined,
+        typeLine: f.type_line || undefined,
+        oracleText: f.oracle_text || undefined,
+        colors: f.colors,
+        imageSmall: faceImages?.small,
+        imageNormal: faceImages?.normal,
+        imageLarge: faceImages?.large,
+      };
+    }),
     usdPrice: card.prices?.usd ?? card.prices?.usd_foil ?? card.prices?.usd_etched ?? undefined,
     eurPrice: card.prices?.eur ?? card.prices?.eur_foil ?? undefined,
     isGameChanger: gameChangerNames.has(card.name) || undefined,

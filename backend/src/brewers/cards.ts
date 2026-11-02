@@ -1,4 +1,5 @@
 import { getPool } from '../db';
+import { storedImageUrl } from '../scryfall-images';
 
 /**
  * A brewer as one tile: who they are, a banner, and the few numbers that say
@@ -100,8 +101,8 @@ export async function loadBrewerCardMap(ids: string[]): Promise<Map<string, Brew
     cards.set(id, {
       username: u.username,
       displayName: u.display_name,
-      avatarImageUrl: u.avatar_image_url,
-      bannerImage: pickBanner(mine, u.pinned_deck_slug),
+      avatarImageUrl: storedImageUrl(u.avatar_image_url),
+      bannerImage: storedImageUrl(pickBanner(mine, u.pinned_deck_slug)),
       deckCount: mine.length,
       followerCount: Number(u.follower_count),
       topColors: topColors(mine),

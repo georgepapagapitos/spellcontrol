@@ -397,3 +397,42 @@ describe('bulk-cache isGameChanger flag (E108)', () => {
     expect(slims.find((c) => c.name === tergrid)?.isGameChanger).toBe(true);
   });
 });
+
+describe('bulk-cache image URLs', () => {
+  it('serves WebP under imageSmall/Normal/Large for a card with only the new keys', async () => {
+    const webp = (seg: string) => `https://cards.scryfall.io/${seg}/front/a/b/x.webp?1`;
+    const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'bulk-cache-img-'));
+    const prev = process.env.OFFLINE_DATA_DIR;
+    process.env.OFFLINE_DATA_DIR = dir;
+    try {
+      await __resetOracleBulkForTesting();
+      mockScryfallFetch([
+        {
+          ...DEFAULT_BULK_CARD,
+          id: 's-img',
+          oracle_id: 'o-img',
+          name: 'Sol Ring',
+          image_uris: { thumb: webp('thumb'), grid: webp('grid'), display: webp('display') },
+          card_faces: [{ name: 'Front', image_uris: { grid: webp('grid') } }],
+        },
+      ]);
+      const bulk = await getOracleBulk();
+      const [slim] = JSON.parse(gunzipSync(bulk.gzipped).toString('utf8')) as Array<{
+        imageSmall?: string;
+        imageNormal?: string;
+        imageLarge?: string;
+        faces?: Array<{ imageNormal?: string }>;
+      }>;
+      expect(slim.imageSmall).toBe(webp('thumb'));
+      expect(slim.imageNormal).toBe(webp('grid'));
+      expect(slim.imageLarge).toBe(webp('display'));
+      expect(slim.faces?.[0]?.imageNormal).toBe(webp('grid'));
+    } finally {
+      vi.restoreAllMocks();
+      await __resetOracleBulkForTesting();
+      if (prev === undefined) delete process.env.OFFLINE_DATA_DIR;
+      else process.env.OFFLINE_DATA_DIR = prev;
+      await fs.promises.rm(dir, { recursive: true, force: true });
+    }
+  });
+});

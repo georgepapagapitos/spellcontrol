@@ -3,6 +3,7 @@ import type { ScryfallCard, Ruling } from './types';
 import type { ScryfallCache } from './cache';
 import type { ImportRow } from './parsers/types';
 import { printingsWithFlavorName } from '@spellcontrol/binder-routing';
+import { normalizeCardsImages } from './scryfall-images';
 
 export const SCRYFALL_USER_AGENT = 'spellcontrol/1.0';
 
@@ -414,7 +415,9 @@ async function fetchBatchWithRetry(
       });
 
       if (response.ok) {
-        return (await response.json()) as CollectionResponse;
+        const body = (await response.json()) as CollectionResponse;
+        if (Array.isArray(body.data)) normalizeCardsImages(body.data);
+        return body;
       }
 
       if (response.status === 429) {
@@ -606,7 +609,9 @@ async function fetchSearchPageWithRetry(url: string): Promise<SearchResponse | n
       });
 
       if (response.ok) {
-        return (await response.json()) as SearchResponse;
+        const body = (await response.json()) as SearchResponse;
+        if (Array.isArray(body.data)) normalizeCardsImages(body.data);
+        return body;
       }
 
       if (response.status === 404) {
