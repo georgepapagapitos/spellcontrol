@@ -62,6 +62,20 @@ describe('refinePrinting', () => {
     expect(d.loadGray).not.toHaveBeenCalled();
   });
 
+  // A basic land's print run is hundreds of printings across several Scryfall
+  // pages. The lookup must not happen at all, not merely be discarded after.
+  it.each([
+    ['a basic land', printing('l', { type_line: 'Basic Land \u2014 Forest' })],
+    ['a card with no illustration id', printing('n', { illustration_id: undefined })],
+    ['a transform card', printing('t', { layout: 'transform' })],
+    ['a modal double-faced card', printing('m', { layout: 'modal_dfc' })],
+  ])('never looks up printings for %s', async (_label, card) => {
+    const d = deps([card, printing('x')]);
+    expect(await refinePrinting(card, gray, d)).toBe(card);
+    expect(d.fetchPrintings).not.toHaveBeenCalled();
+    expect(d.loadGray).not.toHaveBeenCalled();
+  });
+
   it('keeps the matcher card when the printings cannot load', async () => {
     const d = deps([]);
     d.fetchPrintings = vi.fn().mockRejectedValue(new Error('offline'));

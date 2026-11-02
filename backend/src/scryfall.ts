@@ -544,6 +544,14 @@ function buildIdentifier(row: ImportRow): Identifier | null {
  * sanity-check before claiming a match.
  */
 /**
+ * Safety bound on one lookup, above the longest real print run (Forest and
+ * Island are about 900) so the printing picker still offers every printing of
+ * a basic. It only stops a runaway result from paging forever; the scanner
+ * never asks for a basic's printings at all.
+ */
+export const MAX_PRINTINGS = 1200;
+
+/**
  * Fetches all paper printings of a card via Scryfall's search endpoint.
  * Returns an array of ScryfallCards sorted by release date (newest first).
  * Handles pagination — Scryfall caps search results at 175 per page.
@@ -581,11 +589,12 @@ export async function fetchPrintings(
     const result = await fetchSearchPageWithRetry(url);
     if (!result) break;
     all.push(...result.data);
+    if (all.length >= MAX_PRINTINGS) break;
     url = result.has_more && result.next_page ? result.next_page : null;
     if (url) await sleep(REQUEST_DELAY_MS);
   }
 
-  return all;
+  return all.slice(0, MAX_PRINTINGS);
 }
 
 interface SearchResponse {
