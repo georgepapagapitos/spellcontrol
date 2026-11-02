@@ -149,6 +149,39 @@ describe('POST /api/combos/bracket-tags', () => {
   });
 });
 
+describe('POST /api/combos/by-commander', () => {
+  it('returns combos that use the commander and fit its identity, signed out', async () => {
+    const res = await request(app)
+      .post('/api/combos/by-commander')
+      .send({ name: "Thassa's Oracle", colorIdentity: ['U', 'B'] });
+    expect(res.status).toBe(200);
+    expect(res.body.combos.map((c: { id: string }) => c.id)).toEqual([
+      'combo-thoracle',
+      'combo-labman',
+    ]);
+    expect(res.body.combos[0].cards.map((c: { name: string }) => c.name)).toEqual([
+      "Thassa's Oracle",
+      'Demonic Consultation',
+    ]);
+  });
+
+  it('drops a combo whose identity falls outside the deck identity', async () => {
+    const res = await request(app)
+      .post('/api/combos/by-commander')
+      .send({ name: "Thassa's Oracle", colorIdentity: ['U'] });
+    expect(res.body.combos).toEqual([]);
+  });
+
+  it('answers empty for an unknown commander and 400s a malformed body', async () => {
+    const none = await request(app)
+      .post('/api/combos/by-commander')
+      .send({ name: 'Nobody', colorIdentity: ['U'] });
+    expect(none.body).toEqual({ combos: [] });
+    const bad = await request(app).post('/api/combos/by-commander').send({ colorIdentity: 'U' });
+    expect(bad.status).toBe(400);
+  });
+});
+
 describe('POST /api/combos/match', () => {
   it('answers a signed-out visitor: the dataset is public and the browser no longer holds it (E560)', async () => {
     const res = await request(app)

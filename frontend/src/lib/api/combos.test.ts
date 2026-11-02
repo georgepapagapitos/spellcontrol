@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { matchCombos, getCombo, fetchOracleIds, fetchComboBracketTags } from './combos';
+import {
+  matchCombos,
+  getCombo,
+  fetchOracleIds,
+  fetchComboBracketTags,
+  fetchCombosByCommander,
+} from './combos';
 import { ensureCombosCached, matchCombosLocal } from '../offline';
 
 // matchCombos prefers client-side matching; mock the offline layer so we can
@@ -181,6 +187,26 @@ describe('fetchComboBracketTags', () => {
     );
     expect(tags.get('1-2')).toBe('R');
     expect(tags.get('3-4')).toBeNull();
+  });
+});
+
+describe('fetchCombosByCommander', () => {
+  it('POSTs the commander and identity and returns the rows', async () => {
+    const rows = [
+      { id: '1-2', cards: [], produces: [], popularity: 3, bracket: null, bracketTag: null },
+    ];
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ combos: rows }));
+
+    expect(await fetchCombosByCommander('Tymna', ['W', 'B'])).toEqual(rows);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/combos/by-commander',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ name: 'Tymna', colorIdentity: ['W', 'B'] }),
+      })
+    );
   });
 });
 

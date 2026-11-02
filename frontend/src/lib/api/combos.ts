@@ -98,6 +98,33 @@ export async function fetchComboBracketTags(ids: string[]): Promise<Map<string, 
   return new Map(Object.entries(data.tags));
 }
 
+/** A Spellbook combo for one commander, as `/api/combos/by-commander` returns it. */
+export interface CommanderComboRow {
+  id: string;
+  cards: { name: string; oracleId: string }[];
+  produces: string[];
+  popularity: number;
+  bracket: number | null;
+  bracketTag: string | null;
+}
+
+/**
+ * Combos that use a commander and fit its colour identity, from our Spellbook
+ * dataset. Deck generation reaches for this only when EDHREC's per-commander
+ * combo list could not be fetched (E1060).
+ */
+export async function fetchCombosByCommander(
+  name: string,
+  colorIdentity: string[]
+): Promise<CommanderComboRow[]> {
+  const data = await fetchJson<{ combos: CommanderComboRow[] }>('/api/combos/by-commander', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, colorIdentity }),
+  });
+  return data.combos;
+}
+
 export async function getCombo(id: string): Promise<ComboDetail> {
   return fetchJson<ComboDetail>(`/api/combos/${encodeURIComponent(id)}`, { method: 'GET' });
 }

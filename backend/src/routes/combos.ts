@@ -309,6 +309,71 @@ combosRouter.post('/bracket-tags', matchLimiter, async (req: Request, res: Respo
   res.json({ tags });
 });
 
+// Combos for one commander, for deck generation when EDHREC's per-commander
+// combo page is unreachable (E1060). A combo qualifies when it uses the
+// commander's card and its colour identity fits inside the deck's. Public for
+// the same reason as /match; bounded by MAX_COMMANDER_COMBOS rows.
+const MAX_COMMANDER_COMBOS = 100;
+// Over-fetch before the identity cut, which runs in JS because Spellbook's
+// identity string is not canonically ordered ("ub" vs "bu").
+const COMMANDER_COMBO_SCAN = 600;
+combosRouter.post('/by-commander', matchLimiter, async (req: Request, res: Response) => {
+  const body = req.body as { name?: unknown; colorIdentity?: unknown };
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  const identityList = asStringArray(body.colorIdentity, 5);
+  if (!name || name.length > 200 || !identityList) {
+    return res.status(400).json({ error: 'name and colorIdentity are required.' });
+  }
+  const allowed = new Set(identityList.map((c) => c.toLowerCase()));
+  // A double-faced commander is listed under its front face in Spellbook.
+  const names = Array.from(new Set([name, name.split(' // ')[0]]));
+  const db = getDb();
+  const withCommander = db
+    .select({ comboId: comboCards.comboId })
+    .from(comboCards)
+    .where(inArray(comboCards.cardName, names));
+  const rows = await db
+    .select()
+    .from(combos)
+    .where(inArray(combos.id, withCommander))
+    .orderBy(desc(combos.popularity), asc(combos.id))
+    .limit(COMMANDER_COMBO_SCAN);
+  const fits = rows
+    .filter(
+      (r) =>
+        r.legalities?.commander === 'legal' &&
+        Array.from(r.identity).every((c) => c === 'c' || allowed.has(c))
+    )
+    .slice(0, MAX_COMMANDER_COMBOS);
+  if (fits.length === 0) return res.json({ combos: [] });
+  const cardRows = await db
+    .select()
+    .from(comboCards)
+    .where(
+      inArray(
+        comboCards.comboId,
+        fits.map((r) => r.id)
+      )
+    )
+    .orderBy(comboCards.position);
+  const cardsByCombo = new Map<string, { name: string; oracleId: string }[]>();
+  for (const c of cardRows) {
+    const list = cardsByCombo.get(c.comboId) ?? [];
+    list.push({ name: c.cardName, oracleId: c.oracleId });
+    cardsByCombo.set(c.comboId, list);
+  }
+  res.json({
+    combos: fits.map((r) => ({
+      id: r.id,
+      cards: cardsByCombo.get(r.id) ?? [],
+      produces: r.produces,
+      popularity: r.popularity,
+      bracket: r.bracket,
+      bracketTag: r.bracketTag ?? null,
+    })),
+  });
+});
+
 combosRouter.get('/:id', requireAuth, detailLimiter, async (req: Request, res: Response) => {
   const id = req.params.id;
   if (typeof id !== 'string' || id.length === 0) {

@@ -34,6 +34,12 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   isExtraTurn: () => false,
 }));
 
+const fetchCombosByCommanderMock = vi.fn();
+vi.mock('@/lib/api/combos', async (orig) => ({
+  ...(await orig<typeof import('@/lib/api/combos')>()),
+  fetchCombosByCommander: (...args: unknown[]) => fetchCombosByCommanderMock(...args),
+}));
+
 const offlineCombosCachedMock = vi.fn();
 const offlineGetCombosByIdsMock = vi.fn();
 vi.mock('@/lib/offline', () => ({
@@ -241,6 +247,7 @@ describe('acquireCommanderDataPhase', () => {
     prefetchBasicLandsMock.mockResolvedValue(undefined);
     getGameChangerNamesMock.mockResolvedValue(new Set(['Sol Ring']));
     fetchCommanderCombosRawMock.mockResolvedValue([]);
+    fetchCombosByCommanderMock.mockRejectedValue(new Error('no backend'));
     loadTaggerDataMock.mockResolvedValue({});
     hasTaggerDataMock.mockReturnValue(true);
     loadCardSimilarMock.mockResolvedValue({});
@@ -297,6 +304,91 @@ describe('acquireCommanderDataPhase', () => {
 // live 2026-09-24 that EDHREC's comboId IS the Commander Spellbook variant id
 // verbatim (e.g. "1529-1887" for both), which is what makes this id lookup
 // against the local Spellbook dataset (lib/offline) possible.
+// E1060: Commander Spellbook stands in for EDHREC's per-commander combo list,
+// on the failure path only.
+describe('acquireCommanderDataPhase — Spellbook combo fallback', () => {
+  const spellbookRow = {
+    id: '9-9',
+    cards: [
+      { name: 'Card A', oracleId: 'oa' },
+      { name: 'Card B', oracleId: 'ob' },
+    ],
+    produces: ['Infinite mana'],
+    popularity: 321,
+    bracket: 4,
+    bracketTag: 'R',
+  };
+
+  beforeEach(() => {
+    clearGenerationCache();
+    vi.clearAllMocks();
+    prefetchBasicLandsMock.mockResolvedValue(undefined);
+    getGameChangerNamesMock.mockResolvedValue(new Set());
+    loadTaggerDataMock.mockResolvedValue({});
+    hasTaggerDataMock.mockReturnValue(true);
+    loadCardSimilarMock.mockResolvedValue({});
+    hasCardSimilarMock.mockReturnValue(true);
+    offlineCombosCachedMock.mockResolvedValue(false);
+    offlineGetCombosByIdsMock.mockResolvedValue(new Map());
+  });
+
+  it('uses Spellbook combos, mapped to the EDHREC shape, when the EDHREC combo fetch rejects', async () => {
+    fetchCommanderCombosRawMock.mockRejectedValue(new Error('EDHREC down'));
+    fetchCombosByCommanderMock.mockResolvedValue([spellbookRow]);
+    const state = makeState();
+    state.cfg.comboCountSetting = 1;
+    const result = await acquireCommanderDataPhase(state);
+
+    expect(fetchCombosByCommanderMock).toHaveBeenCalledWith(
+      state.context.commander.name,
+      state.context.colorIdentity
+    );
+    expect(state.combos).toEqual([
+      {
+        comboId: '9-9',
+        cards: [
+          { name: 'Card A', id: 'oa' },
+          { name: 'Card B', id: 'ob' },
+        ],
+        results: ['Infinite mana'],
+        deckCount: 321,
+        rank: 1,
+        bracket: 4,
+        bracketTag: 'R',
+        prereqCount: 0,
+        cardCount: 2,
+        href: null,
+      },
+    ]);
+    expect(result.cacheableIntegrityNotes).toEqual([
+      'Combos came from Commander Spellbook, as EDHREC was unavailable.',
+    ]);
+  });
+
+  it('still reports combo detection as skipped when the Spellbook fallback fails too', async () => {
+    fetchCommanderCombosRawMock.mockRejectedValue(new Error('EDHREC down'));
+    fetchCombosByCommanderMock.mockRejectedValue(new Error('backend down'));
+    const state = makeState();
+    state.cfg.comboCountSetting = 1;
+    const result = await acquireCommanderDataPhase(state);
+    expect(state.combos).toEqual([]);
+    expect(result.cacheableIntegrityNotes).toEqual(['Combo detection was skipped.']);
+  });
+
+  it('never calls the backend fallback, and leaves the result untouched, when EDHREC succeeds', async () => {
+    const combo = edhrecCombo('1-2', ['Card A', 'Card B']);
+    fetchCommanderCombosRawMock.mockResolvedValue([combo]);
+    fetchCombosByCommanderMock.mockResolvedValue([spellbookRow]);
+    const state = makeState();
+    state.cfg.comboCountSetting = 1;
+    const result = await acquireCommanderDataPhase(state);
+
+    expect(fetchCombosByCommanderMock).not.toHaveBeenCalled();
+    expect(state.combos).toEqual([combo]);
+    expect(result.cacheableIntegrityNotes).toEqual([]);
+  });
+});
+
 describe('acquireCommanderDataPhase — combo bracketTag enrichment', () => {
   beforeEach(() => {
     clearGenerationCache();

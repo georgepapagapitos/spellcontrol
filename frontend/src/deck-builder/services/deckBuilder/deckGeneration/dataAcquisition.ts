@@ -20,7 +20,11 @@ import {
 import { prefetchBasicLands, getGameChangerNames } from '@/deck-builder/services/scryfall/client';
 import { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
 import { offlineCombosCached, offlineGetCombosByIds } from '@/lib/offline';
-import { fetchComboBracketTags } from '@/lib/api/combos';
+import {
+  fetchComboBracketTags,
+  fetchCombosByCommander,
+  type CommanderComboRow,
+} from '@/lib/api/combos';
 import { bracketLabel } from '../bracketEstimator';
 import { loadCardSimilar, hasCardSimilar } from '../cardSimilar';
 import { buildAlternatePool, type AlternatePoolResult } from '../phaseAlternatePool';
@@ -195,9 +199,11 @@ export function buildTaggerIntegrityNote(taggerAvailable: boolean): string | und
  *  the combo boost/floor system were both silently skipped this build. */
 export function buildComboIntegrityNote(
   fetchFailed: boolean,
-  comboCountSetting: number
+  comboCountSetting: number,
+  usedSpellbook = false
 ): string | undefined {
   if (!fetchFailed || comboCountSetting <= 0) return undefined;
+  if (usedSpellbook) return 'Combos came from Commander Spellbook, as EDHREC was unavailable.';
   return 'Combo detection was skipped.';
 }
 
@@ -345,6 +351,24 @@ async function enrichCombosWithBracketTags(combos: EDHRECCombo[]): Promise<EDHRE
   }
 }
 
+/** Map a Spellbook row to the shape EDHREC's combo feed produces, so every
+ *  downstream phase reads it unchanged. `deckCount` carries Spellbook's own
+ *  popularity count; the id is the Spellbook variant id, as EDHREC's is. */
+function spellbookRowToCombo(row: CommanderComboRow, index: number): EDHRECCombo {
+  return {
+    comboId: row.id,
+    cards: row.cards.map((c) => ({ name: c.name, id: c.oracleId })),
+    results: row.produces,
+    deckCount: row.popularity,
+    rank: index + 1,
+    bracket: row.bracket,
+    bracketTag: row.bracketTag,
+    prereqCount: 0,
+    cardCount: row.cards.length,
+    href: null,
+  };
+}
+
 export interface AcquireCommanderDataResult {
   usingCache: boolean;
   integrityNotes: string[];
@@ -387,12 +411,24 @@ export async function acquireCommanderDataPhase(
     // FULL PATH: Pre-fetch basic lands, game changer list, combo data, and tagger data in parallel
     onProgress?.('Opening the archives…', 5);
     let combosFetchFailed = false;
+    let combosFromSpellbook = false;
     const [, fetchedGCNames, fetchedCombos] = await Promise.all([
       prefetchBasicLands(state.cfg.arenaOnly),
       getGameChangerNames(),
-      retryOnce(() => fetchCommanderCombosRaw(commander.name)).catch(() => {
+      retryOnce(() => fetchCommanderCombosRaw(commander.name)).catch(async () => {
         combosFetchFailed = true;
-        return [] as EDHRECCombo[];
+        // Failure path only (E1060): a never-cached EDHREC page during an
+        // outage. Our Spellbook dataset stands in; if it fails too, combo
+        // detection is skipped as before.
+        try {
+          const rows = await fetchCombosByCommander(commander.name, state.context.colorIdentity);
+          if (rows.length === 0) return [] as EDHRECCombo[];
+          combosFromSpellbook = true;
+          return rows.map(spellbookRowToCombo);
+        } catch (error) {
+          logger.warn('[DeckGen] Spellbook combo fallback failed —', error);
+          return [] as EDHRECCombo[];
+        }
       }),
       retryOnce(loadTaggerData, (d) => d !== null),
       retryOnce(loadCardSimilar, (d) => d !== null), // EDHREC substitute index for shortage-fill ranking
@@ -404,7 +440,11 @@ export async function acquireCommanderDataPhase(
     logger.debug(
       `[DeckGen] Tagger data: ${hasTaggerData() ? 'loaded' : 'unavailable (role detection disabled)'}`
     );
-    const comboNote = buildComboIntegrityNote(combosFetchFailed, state.cfg.comboCountSetting);
+    const comboNote = buildComboIntegrityNote(
+      combosFetchFailed,
+      state.cfg.comboCountSetting,
+      combosFromSpellbook
+    );
     if (comboNote) cacheableIntegrityNotes.push(comboNote);
     const substituteNote = buildSubstituteIntegrityNote(hasCardSimilar(), !!collectionNames);
     if (substituteNote) cacheableIntegrityNotes.push(substituteNote);
