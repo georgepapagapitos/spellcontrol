@@ -46,4 +46,11 @@ describe('public bracket checker landing (E1090)', () => {
     expect(isSpaRoute(BRACKET_PATH)).toBe(true);
     expect(STATIC_URLS.map((u) => u.path)).toContain(BRACKET_PATH);
   });
+
+  it('is registered in server.ts with the static landing handler', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'server.ts'), 'utf8');
+    expect(src).toContain(
+      'app.get(BRACKET_PATH, createStaticLandingHandler(SPA_DIR, bracketLandingMeta()))'
+    );
+  });
 });
