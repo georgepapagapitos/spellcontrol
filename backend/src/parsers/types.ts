@@ -57,6 +57,8 @@ export type ImportFormat =
   | 'deckbox'
   | 'generic-csv'
   | 'mtga'
+  /** MTGO `.dek` XML deck file. */
+  | 'mtgo'
   | 'plain'
   /** Cards materialized from an MTGJSON preconstructed-product decklist (T17). */
   | 'mtgjson';

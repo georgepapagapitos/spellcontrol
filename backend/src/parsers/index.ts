@@ -1,6 +1,7 @@
 import type { ParseResult } from './types';
 import { looksLikeManabox, parseManabox } from './manabox';
 import { detectCsvFormat, detectDelimiter, parseCsvAuto } from './csv';
+import { looksLikeMtgo, parseMtgo } from './mtgo';
 import { parseTextList } from './text';
 
 /**
@@ -8,8 +9,9 @@ import { parseTextList } from './text';
  *
  * Detection order:
  *   1. ManaBox TSV (most specific signature)
- *   2. Generic CSV with detected headers (Archidekt, Moxfield, Deckbox, etc.)
- *   3. Text list (MTGA-style or plain card names)
+ *   2. MTGO .dek XML (`<Deck>` with `<Cards .../>` tags)
+ *   3. Generic CSV with detected headers (Archidekt, Moxfield, Deckbox, etc.)
+ *   4. Text list (MTGA-style or plain card names)
  *
  * The parsers all produce normalized ImportRow[] regardless of source.
  */
@@ -20,6 +22,10 @@ export function parseImport(text: string): ParseResult {
 
   if (looksLikeManabox(text)) {
     return parseManabox(text);
+  }
+
+  if (looksLikeMtgo(text)) {
+    return parseMtgo(text);
   }
 
   // Try CSV detection — if the first line has multiple delimiter-separated tokens

@@ -884,7 +884,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
             <input
               type="file"
               ref={fileInputRef}
-              accept=".csv,.tsv,.txt"
+              accept=".csv,.tsv,.txt,.dek"
               multiple
               style={{ display: 'none' }}
               onChange={handleFileChange}
