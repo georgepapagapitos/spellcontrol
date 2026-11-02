@@ -150,3 +150,22 @@ describe('normalizeImageUris', () => {
     expect(normalizeImageUris(uris)).toBe(uris);
   });
 });
+
+describe('URL patterns stay linear on hostile input (CodeQL js/polynomial-redos)', () => {
+  // CodeQL's counterexample (the CDN prefix, then "a.jpg?" repeated), ending in
+  // a newline so `$` fails and the old `(.+)…(\?.*)?$` backtracks: ~540 ms there.
+  const hostile = 'https://cards.scryfall.io/small/' + 'a.jpg?'.repeat(5000) + '\n';
+  it.each([
+    ['modernScryfallImage', () => modernScryfallImage(hostile)],
+    ['scryfallJpegImage', () => scryfallJpegImage(hostile)],
+    ['isLegacyScryfallImage', () => isLegacyScryfallImage(hostile)],
+  ])('%s answers a 30k-character hostile URL in under 50 ms', (_name, run) => {
+    const t0 = performance.now();
+    run();
+    expect(performance.now() - t0).toBeLessThan(50);
+  });
+
+  it('still rewrites a real URL with its stamp', () => {
+    expect(scryfallJpegImage(modern('art'))).toBe(legacy('normal'));
+  });
+});

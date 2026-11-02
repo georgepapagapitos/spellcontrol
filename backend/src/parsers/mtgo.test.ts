@@ -46,3 +46,15 @@ describe('MTGO .dek import', () => {
     expect(result.unparsedLines).toHaveLength(1);
   });
 });
+
+describe('MTGO .dek comments', () => {
+  it('a card hidden in a comment that one stripping pass would reopen is not imported', () => {
+    const text =
+      '<?xml version="1.0"?>\n<Deck>\n' +
+      '<Cards CatID="1" Quantity="1" Sideboard="false" Name="Sol Ring"/>\n' +
+      '<!-<!---->- <Cards CatID="2" Quantity="4" Sideboard="false" Name="Black Lotus"/> -->\n' +
+      '</Deck>';
+    const result = parseImport(text);
+    expect(result.rows.map((r) => r.name)).toEqual(['Sol Ring']);
+  });
+});

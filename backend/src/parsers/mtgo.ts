@@ -32,10 +32,26 @@ function decodeEntities(s: string): string {
   });
 }
 
+/**
+ * Drop XML comments until none are left. One pass is not enough: removing an
+ * inner `<!---->` can join the text around it into a new comment opener, and a
+ * `<Cards>` tag hidden in that comment would then be imported (CodeQL
+ * js/incomplete-multi-character-sanitization).
+ */
+export function stripComments(text: string): string {
+  let prev: string;
+  let out = text;
+  do {
+    prev = out;
+    out = out.replace(/<!--[\s\S]*?-->/g, '');
+  } while (out !== prev);
+  return out;
+}
+
 export function parseMtgo(text: string): ParseResult {
   const rows: ImportRow[] = [];
   const unparsedLines: string[] = [];
-  const body = text.replace(/<!--[\s\S]*?-->/g, '');
+  const body = stripComments(text);
 
   for (const tag of body.matchAll(CARDS_TAG)) {
     const attrs: Record<string, string> = {};

@@ -35,10 +35,13 @@ const MODERN_TO_LEGACY: Record<ModernKey, LegacyKey> = {
 };
 
 const HOST = 'https://cards.scryfall.io/';
+// The path and query are matched with negated classes, never `.+` / `.*`, so a
+// long hostile string (a stored URL is user data) cannot backtrack
+// polynomially (CodeQL js/polynomial-redos: 60 KB took 2 s with the old form).
 const LEGACY_URL =
-  /^https:\/\/cards\.scryfall\.io\/(small|normal|large|border_crop|art_crop)\/(.+)\.jpg(\?.*)?$/;
+  /^https:\/\/cards\.scryfall\.io\/(small|normal|large|border_crop|art_crop)\/([^?#]+)\.jpg(\?[^#]*)?$/;
 const MODERN_URL =
-  /^https:\/\/cards\.scryfall\.io\/(thumb|grid|display|crop|art)\/(.+)\.webp(\?.*)?$/;
+  /^https:\/\/cards\.scryfall\.io\/(thumb|grid|display|crop|art)\/([^?#]+)\.webp(\?[^#]*)?$/;
 
 /**
  * The WebP URL for a legacy Scryfall JPEG URL. Idempotent; a URL that is
