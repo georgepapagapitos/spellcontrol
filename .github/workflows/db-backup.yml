@@ -1,0 +1,313 @@
+# Nightly encrypted logical backup of the production Postgres (E1064).
+#
+# Neon's own point-in-time recovery on the free tier covers 24 hours. This adds
+# a pg_dump kept for 30 days in a Cloudflare R2 bucket, encrypted before it
+# leaves the runner, plus the two checks that make a backup trustworthy: an
+# alert when the newest dump is stale, and a weekly drill that restores the
+# newest dump into a throwaway local Postgres and counts rows.
+#
+# INERT UNTIL CONFIGURED. Until all six repository secrets below exist, every
+# job logs a ::warning:: naming the missing ones and exits green. Nothing fails
+# and nothing is contacted.
+#   BACKUP_DATABASE_URL   read-only connection string for the production DB
+#   R2_ACCESS_KEY_ID      R2 API token, Object Read & Write on the one bucket
+#   R2_SECRET_ACCESS_KEY
+#   R2_ENDPOINT           https://<account id>.r2.cloudflarestorage.com
+#   R2_BUCKET             bucket name
+#   BACKUP_PASSPHRASE     symmetric gpg passphrase (keep a copy in 1Password;
+#                         without it the dumps cannot be read)
+#
+# Jobs and their schedules (all UTC):
+#   backup     daily 03:41  pg_dump -> gpg AES256 -> R2, then prune past 30 days
+#   freshness  daily 15:23  fails if the newest dump is older than 36 hours
+#   drill      weekly Sun 05:11  restore the newest dump into a local throwaway
+#   notify     keeps one issue per label open while a job is red
+#
+# Guard: frontend/src/test/db-backup-workflow.test.ts.
+name: DB backup
+
+on:
+  schedule:
+    - cron: '41 3 * * *'
+    - cron: '23 15 * * *'
+    - cron: '11 5 * * 0'
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Which job to run
+        type: choice
+        options: [all, backup, freshness, drill]
+        default: all
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Dump, encrypt, upload
+    if: ${{ (github.event_name == 'workflow_dispatch' && contains(fromJSON('["all","backup"]'), inputs.job)) || github.event.schedule == '41 3 * * *' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+      # pg_dump must be at least the server's major. Raise this with Neon.
+      PG_CLIENT_MAJOR: '17'
+      RETENTION_DAYS: '30'
+      AWS_DEFAULT_REGION: auto
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check the secrets are configured
+        id: cfg
+        run: |
+          missing=""
+          for v in BACKUP_DATABASE_URL R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_ENDPOINT R2_BUCKET BACKUP_PASSPHRASE; do
+            [ -n "${!v:-}" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::warning::DB backup is not configured; skipping. Missing secrets:$missing"
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Mask the secrets
+        if: ${{ steps.cfg.outputs.configured == 'true' }}
+        run: |
+          for v in BACKUP_DATABASE_URL R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_ENDPOINT R2_BUCKET BACKUP_PASSPHRASE; do
+            echo "::add-mask::${!v}"
+          done
+
+      - name: Install the PostgreSQL ${{ env.PG_CLIENT_MAJOR }} client
+        if: ${{ steps.cfg.outputs.configured == 'true' }}
+        run: scripts/ci-install-pg-client.sh "$PG_CLIENT_MAJOR"
+
+      - name: Check the server major against the client
+        if: ${{ steps.cfg.outputs.configured == 'true' }}
+        run: |
+          server=$(psql "$BACKUP_DATABASE_URL" -tAc 'SHOW server_version')
+          num=$(psql "$BACKUP_DATABASE_URL" -tAc 'SHOW server_version_num')
+          echo "server_version: $server"
+          if [ "$((num / 10000))" -gt "$PG_CLIENT_MAJOR" ]; then
+            echo "::error::the server is PostgreSQL $((num / 10000)) but the client is $PG_CLIENT_MAJOR; raise PG_CLIENT_MAJOR in .github/workflows/db-backup.yml"
+            exit 1
+          fi
+
+      # The plaintext dump never touches the disk: pg_dump streams into gpg.
+      - name: Dump and encrypt
+        if: ${{ steps.cfg.outputs.configured == 'true' }}
+        run: |
+          set -euo pipefail
+          now=$(date -u +%Y%m%dT%H%M%SZ)
+          echo "OBJECT_KEY=pg/$(date -u +%Y/%m/%d)/spellcontrol-$now.dump.gpg" >> "$GITHUB_ENV"
+          pg_dump --format=custom --no-owner --no-acl "$BACKUP_DATABASE_URL" \
+            | gpg --batch --yes --quiet --symmetric --cipher-algo AES256 --pinentry-mode loopback \
+                --passphrase-fd 3 --output backup.dump.gpg 3<<<"$BACKUP_PASSPHRASE"
+          size=$(wc -c < backup.dump.gpg)
+          echo "encrypted dump: $size bytes"
+          if [ "$size" -lt 4096 ]; then
+            echo "::error::the dump is implausibly small"
+            exit 1
+          fi
+
+      - name: Verify the dump decrypts and lists
+        if: ${{ steps.cfg.outputs.configured == 'true' }}
+        run: |
+          set -euo pipefail
+          gpg --batch --quiet --pinentry-mode loopback --passphrase-fd 3 --decrypt backup.dump.gpg 3<<<"$BACKUP_PASSPHRASE" \
+            | pg_restore --list > /dev/null
+
+      - name: Upload to R2
+        if: ${{ steps.cfg.outputs.configured == 'true' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          aws s3 cp --endpoint-url "$R2_ENDPOINT" --only-show-errors backup.dump.gpg "s3://$R2_BUCKET/$OBJECT_KEY"
+          echo "uploaded $OBJECT_KEY"
+
+      - name: Delete backups older than the retention window
+        if: ${{ steps.cfg.outputs.configured == 'true' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          cutoff=$(date -u -d "$RETENTION_DAYS days ago" +%Y-%m-%dT%H:%M:%S)
+          old=$(aws s3api list-objects-v2 --endpoint-url "$R2_ENDPOINT" --bucket "$R2_BUCKET" --prefix pg/ \
+            --query "Contents[?LastModified<'$cutoff'].Key" --output text)
+          for key in $old; do
+            [ "$key" = "None" ] && continue
+            aws s3api delete-object --endpoint-url "$R2_ENDPOINT" --bucket "$R2_BUCKET" --key "$key"
+            echo "deleted $key"
+          done
+
+  freshness:
+    name: Newest backup is under 36 hours old
+    needs: backup
+    if: ${{ !cancelled() && ((github.event_name == 'workflow_dispatch' && contains(fromJSON('["all","freshness"]'), inputs.job)) || github.event.schedule == '23 15 * * *') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      MAX_AGE_HOURS: '36'
+      AWS_DEFAULT_REGION: auto
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+    steps:
+      - name: Check the secrets are configured
+        id: cfg
+        run: |
+          missing=""
+          for v in R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_ENDPOINT R2_BUCKET; do
+            [ -n "${!v:-}" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::warning::DB backup freshness check is not configured; skipping. Missing secrets:$missing"
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fail if the newest backup is stale
+        if: ${{ steps.cfg.outputs.configured == 'true' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          newest=$(aws s3api list-objects-v2 --endpoint-url "$R2_ENDPOINT" --bucket "$R2_BUCKET" --prefix pg/ \
+            --query 'sort_by(Contents,&LastModified)[-1].LastModified' --output text)
+          if [ -z "$newest" ] || [ "$newest" = "None" ]; then
+            echo "::error::no backup exists under pg/ in the bucket"
+            exit 1
+          fi
+          age_hours=$(( ( $(date -u +%s) - $(date -u -d "$newest" +%s) ) / 3600 ))
+          echo "newest backup: $newest ($age_hours h old, limit $MAX_AGE_HOURS h)"
+          if [ "$age_hours" -ge "$MAX_AGE_HOURS" ]; then
+            echo "::error::the newest backup is $age_hours hours old (limit $MAX_AGE_HOURS)"
+            exit 1
+          fi
+
+  drill:
+    name: Restore drill into a throwaway Postgres
+    if: ${{ (github.event_name == 'workflow_dispatch' && contains(fromJSON('["all","drill"]'), inputs.job)) || github.event.schedule == '11 5 * * 0' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+      PG_CLIENT_MAJOR: '17'
+      # The only restore target the drill has: the server started below, on
+      # this runner. The production URL is not in this job's environment.
+      DRILL_DATABASE_URL: postgres://spellcontrol:spellcontrol@localhost:5432/spellcontrol
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check the secrets are configured
+        id: cfg
+        run: |
+          missing=""
+          for v in R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_ENDPOINT R2_BUCKET BACKUP_PASSPHRASE; do
+            [ -n "${!v:-}" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::warning::DB restore drill is not configured; skipping. Missing secrets:$missing"
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Mask the secrets
+        if: ${{ steps.cfg.outputs.configured == 'true' }}
+        run: |
+          for v in R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_ENDPOINT R2_BUCKET BACKUP_PASSPHRASE; do
+            echo "::add-mask::${!v}"
+          done
+
+      # A throwaway server on the runner itself (the repo does not pull Postgres
+      # images; see the action). Major 17 so it can read a 17 dump.
+      - name: Start a throwaway PostgreSQL
+        if: ${{ steps.cfg.outputs.configured == 'true' }}
+        uses: ./.github/actions/postgres
+        with:
+          version: '17'
+
+      - name: Install the PostgreSQL ${{ env.PG_CLIENT_MAJOR }} client
+        if: ${{ steps.cfg.outputs.configured == 'true' }}
+        run: scripts/ci-install-pg-client.sh "$PG_CLIENT_MAJOR"
+
+      - name: Restore the newest backup and count rows
+        if: ${{ steps.cfg.outputs.configured == 'true' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+        run: scripts/db-restore-drill.sh
+
+  # Keeps one issue per label open while a job is red, closes it on green. Same
+  # shape as the nightly journey's notify job, and the same rule: the issue body
+  # carries job names, results and the run URL only, never log text.
+  notify:
+    name: Track the result in an issue
+    needs: [backup, freshness, drill]
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      BACKUP_RESULT: ${{ needs.backup.result }}
+      FRESHNESS_RESULT: ${{ needs.freshness.result }}
+      DRILL_RESULT: ${{ needs.drill.result }}
+    steps:
+      - name: Open, update or close the tracking issues
+        run: |
+          # track <label> <title> <results...>: failure in any result opens or
+          # updates the label's issue; a success with no failure closes it.
+          track() {
+            label="$1"; title="$2"; shift 2
+            failed=0; ok=0
+            for r in "$@"; do
+              [ "$r" = "failure" ] && failed=1
+              [ "$r" = "success" ] && ok=1
+            done
+            gh label create "$label" --color D93F0B --description "$title" 2>/dev/null || true
+            open=$(gh issue list --label "$label" --state open --json number --jq '.[0].number // empty')
+            if [ "$failed" = "1" ]; then
+              printf '%s.\n\nRun: %s\n\nbackup: %s\nfreshness: %s\ndrill: %s\n\nThe job logs are in the run.\n' \
+                "$title" "$RUN_URL" "$BACKUP_RESULT" "$FRESHNESS_RESULT" "$DRILL_RESULT" > body.md
+              if [ -n "$open" ]; then
+                gh issue comment "$open" --body-file body.md
+              else
+                gh issue create --label "$label" --title "$title" --body-file body.md
+              fi
+            elif [ "$ok" = "1" ] && [ -n "$open" ]; then
+              gh issue close "$open" --comment "Green again: $RUN_URL"
+            fi
+          }
+          track db-backup 'DB backup is failing or stale' "$BACKUP_RESULT" "$FRESHNESS_RESULT"
+          track db-restore-drill 'DB restore drill is failing' "$DRILL_RESULT"
