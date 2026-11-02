@@ -1610,6 +1610,15 @@ async function applyServerRows(rows: SyncRow[], notifyForeignDeckEdits = false):
     for (const u of deckUpserts) {
       priorDeckRevs.set(u.id, baseRevFor(await estore.getById('deck', u.id)));
     }
+    // A pull that was already in flight when our own push committed delivers
+    // the row at the OLDER rev. Writing it would roll IDB's rev and data back
+    // under the stamp the push just wrote, so the next edit goes out with a
+    // stale clientRev and the server rejects it as another device's change:
+    // the "changed on another device" panel, opened by this device alone.
+    // A row at or below the rev we already hold is nothing new either way.
+    const fresher = deckUpserts.filter((u) => u.rev > (priorDeckRevs.get(u.id) ?? 0));
+    if (fresher.length === 0) upsertsByKind.delete('deck');
+    else upsertsByKind.set('deck', fresher);
   }
 
   for (const [kind, rows] of upsertsByKind) {

@@ -453,6 +453,39 @@ describe('pull', () => {
     expect(useDeckHistoryStore.getState().canUndo('d-1')).toBe(false);
   });
 
+  it('a pull that lands at an older rev than our own push stamped does not roll the deck back', async () => {
+    // The pull's GET was answered before our push committed, so it carries the
+    // deck at rev 7; the push's ack has since stamped rev 8 and the newer data.
+    // Applying the rev-7 row would put syncedRev back to 7, and the next edit
+    // would go out with clientRev 7 against a server at 8: a conflict panel
+    // from one device (nightly journey, card preview blocked by the modal).
+    await estore.putMany('deck', [
+      { id: 'd-1', data: { id: 'd-1', name: 'B' }, rev: 8, syncedRev: 8, deletedAt: null },
+    ]);
+    mockPull.mockResolvedValueOnce({
+      rows: [{ kind: 'deck', id: 'd-1', data: { id: 'd-1', name: 'A' }, rev: 7, deletedAt: null }],
+      cursor: 7,
+      hasMore: false,
+    });
+    await startSync('user-1');
+    const row = await estore.getById('deck', 'd-1');
+    expect(row).toMatchObject({ rev: 8, syncedRev: 8, data: { name: 'B' } });
+  });
+
+  it('a same-rev re-delivery keeps an unpushed local edit to the deck', async () => {
+    await estore.putMany('deck', [
+      { id: 'd-1', data: { id: 'd-1', name: 'edited' }, rev: 0, syncedRev: 7, deletedAt: null },
+    ]);
+    mockPull.mockResolvedValueOnce({
+      rows: [{ kind: 'deck', id: 'd-1', data: { id: 'd-1', name: 'A' }, rev: 7, deletedAt: null }],
+      cursor: 7,
+      hasMore: false,
+    });
+    await startSync('user-1');
+    const row = await estore.getById('deck', 'd-1');
+    expect(row).toMatchObject({ rev: 0, syncedRev: 7, data: { name: 'edited' } });
+  });
+
   it('does not bump the local-mutation token (E177) for a server-applied deck row', async () => {
     const { useDecksStore, getLocalMutationToken } = await import('@/store/decks');
 
