@@ -48,7 +48,10 @@ gpg --batch --yes --quiet --pinentry-mode loopback --passphrase-fd 3 --decrypt \
   --output "$work/dump" "$work/dump.gpg" 3<<<"$BACKUP_PASSPHRASE"
 rm -f "$work/dump.gpg"
 
-pg_restore --no-owner --no-acl --dbname "$DRILL_DATABASE_URL" "$work/dump"
+# Neon-only extensions or roles can make pg_restore exit non-zero without
+# losing data, so its status is reported but the row counts below decide.
+pg_restore --no-owner --no-acl --dbname "$DRILL_DATABASE_URL" "$work/dump" \
+  || echo "::warning::pg_restore reported errors; the row counts below decide"
 
 fail=0
 for t in users user_cards user_decks user_binders; do

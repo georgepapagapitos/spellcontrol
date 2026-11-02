@@ -106,7 +106,7 @@ describe('db backup freshness alert', () => {
   const fresh = job('freshness');
 
   it('runs on its own daily schedule and fails past 36 hours', () => {
-    expect(yml).toContain("cron: '23 15 * * *'");
+    expect(yml).toContain("cron: '30 16 * * *'");
     expect(fresh).toContain("MAX_AGE_HOURS: '36'");
     expect(fresh).toMatch(/-ge "\$MAX_AGE_HOURS"/);
     expect(fresh).toContain('exit 1');

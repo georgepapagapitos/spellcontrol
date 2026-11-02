@@ -9,7 +9,9 @@
 # INERT UNTIL CONFIGURED. Until all six repository secrets below exist, every
 # job logs a ::warning:: naming the missing ones and exits green. Nothing fails
 # and nothing is contacted.
-#   BACKUP_DATABASE_URL   read-only connection string for the production DB
+#   BACKUP_DATABASE_URL   read-only connection string for the production DB.
+#                         Use Neon's DIRECT endpoint, not the -pooler host:
+#                         pg_dump does not work through the pooler.
 #   R2_ACCESS_KEY_ID      R2 API token, Object Read & Write on the one bucket
 #   R2_SECRET_ACCESS_KEY
 #   R2_ENDPOINT           https://<account id>.r2.cloudflarestorage.com
@@ -19,7 +21,7 @@
 #
 # Jobs and their schedules (all UTC):
 #   backup     daily 03:41  pg_dump -> gpg AES256 -> R2, then prune past 30 days
-#   freshness  daily 15:23  fails if the newest dump is older than 36 hours
+#   freshness  daily 16:30  fails if the newest dump is older than 36 hours
 #   drill      weekly Sun 05:11  restore the newest dump into a local throwaway
 #   notify     keeps one issue per label open while a job is red
 #
@@ -29,7 +31,7 @@ name: DB backup
 on:
   schedule:
     - cron: '41 3 * * *'
-    - cron: '23 15 * * *'
+    - cron: '30 16 * * *'
     - cron: '11 5 * * 0'
   workflow_dispatch:
     inputs:
@@ -43,7 +45,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: db-backup
+  # one group per schedule so a long drill cannot displace the nightly backup
+  group: db-backup-${{ github.event.schedule || github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -156,7 +159,7 @@ jobs:
   freshness:
     name: Newest backup is under 36 hours old
     needs: backup
-    if: ${{ !cancelled() && ((github.event_name == 'workflow_dispatch' && contains(fromJSON('["all","freshness"]'), inputs.job)) || github.event.schedule == '23 15 * * *') }}
+    if: ${{ !cancelled() && ((github.event_name == 'workflow_dispatch' && contains(fromJSON('["all","freshness"]'), inputs.job)) || github.event.schedule == '30 16 * * *') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
