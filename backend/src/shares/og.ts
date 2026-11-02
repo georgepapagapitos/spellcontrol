@@ -374,3 +374,18 @@ export function createShareLandingHandler(
     res.type('html').send(html);
   };
 }
+
+/**
+ * A fixed public page (no token) served with its own indexable head: the same
+ * injection as {@link createShareLandingHandler}, with one constant meta. For a
+ * signed-out SPA route that wants a real title, description and canonical in
+ * the HTML a crawler fetches (`/bracket`).
+ */
+export function createStaticLandingHandler(spaDir: string, meta: ShareLandingMeta): RequestHandler {
+  const inner = createShareLandingHandler(spaDir, async () => meta);
+  return (req, res, next) => {
+    // The share handler keys on a token param; a fixed page has none, so it gets a constant.
+    req.params.token = 'page';
+    return inner(req, res, next);
+  };
+}

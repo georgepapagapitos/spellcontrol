@@ -11,6 +11,7 @@ const SPA_ROOTS = new Set([
   'admin',
   'auth',
   'b',
+  'bracket',
   'collection',
   'daily',
   'd',

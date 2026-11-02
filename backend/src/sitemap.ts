@@ -6,6 +6,7 @@ import { ORIGIN } from './shares/og';
 /** Hand-maintained static pages; public decks and profiles are appended live. */
 export const STATIC_URLS: ReadonlyArray<{ path: string; priority: number }> = [
   { path: '/', priority: 1.0 },
+  { path: '/bracket', priority: 0.8 },
   { path: '/guides/', priority: 0.6 },
   { path: '/guides/organize-your-binder.html', priority: 0.6 },
   { path: '/guides/compare.html', priority: 0.6 },
