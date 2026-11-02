@@ -544,11 +544,12 @@ function buildIdentifier(row: ImportRow): Identifier | null {
  * sanity-check before claiming a match.
  */
 /**
- * Most printings one lookup returns (two full Scryfall pages). The longest
- * non-basic print runs are under 150, so a picker never notices; a basic land's
- * 800+ is cut to its newest MAX_PRINTINGS rather than paged out in full.
+ * Safety bound on one lookup, above the longest real print run (Forest and
+ * Island are about 900) so the printing picker still offers every printing of
+ * a basic. It only stops a runaway result from paging forever; the scanner
+ * never asks for a basic's printings at all.
  */
-export const MAX_PRINTINGS = 350;
+export const MAX_PRINTINGS = 1200;
 
 /**
  * Fetches all paper printings of a card via Scryfall's search endpoint.
