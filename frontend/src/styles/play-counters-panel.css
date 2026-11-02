@@ -10,8 +10,13 @@
   position: absolute;
   bottom: var(--space-2);
   left: 0.65rem;
+  /* Bound on the right so a badge can be at most the seat's width: a room
+     name in a dungeon badge truncates inside it instead of overflowing. */
+  right: 0.65rem;
   z-index: 3;
   display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
   gap: var(--space-1-5);
   pointer-events: none;
 }
@@ -101,6 +106,19 @@
   font-size: var(--text-sm);
   gap: var(--space-1);
   max-width: 9rem;
+}
+
+/* A dungeon badge carries two long names (the dungeon and the room). Side by
+   side the room, which cannot shrink, squeezed the dungeon's name to nothing
+   inside the 9rem cap (a 0px label on the board, 2026-11-02), so they stack,
+   and each truncates on its own against the seat width (the
+   `card-name-chip-text` class on both). */
+.pp-counter-badge.is-dungeon {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .pp-counter-badge-name {

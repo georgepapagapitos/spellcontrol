@@ -59,7 +59,9 @@ describe('DungeonControl', () => {
     render(<Harness initial={active()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Undercity' }));
     // On the board the seat now carries a read-only badge naming the room.
-    expect(screen.getByText('Secret Entrance', { selector: '.pp-counter-badge' })).toBeTruthy();
+    expect(
+      screen.getByText('Secret Entrance', { selector: '.pp-counter-badge-room' })
+    ).toBeTruthy();
     expect(
       (screen.getByRole('radio', { name: 'Secret Entrance' }) as HTMLInputElement).checked
     ).toBe(true);
@@ -114,5 +116,31 @@ describe('SeatBadges', () => {
     const { container } = render(<SeatBadges game={game} player={done} maxCmdDmg={0} />);
     expect(container.textContent).toContain('Team2');
     expect(container.textContent).toContain('Dungeons1');
+  });
+
+  it('marks a seat inside a dungeon so the badge can stack its two names', () => {
+    const game = active('2hg');
+    const inside = {
+      ...game.players[0],
+      dungeon: { id: 'tomb' as const, room: 'Cradle of the Death God' },
+    };
+    const { container } = render(<SeatBadges game={game} player={inside} maxCmdDmg={0} />);
+    const chip = container.querySelector('.pp-counter-badge.is-dungeon');
+    expect(chip).not.toBeNull();
+    expect(chip?.querySelector('.chip-label')?.textContent).toBe('Tomb of Annihilation');
+    expect(chip?.querySelector('.chip-label')?.getAttribute('title')).toBe('Tomb of Annihilation');
+    // Both names truncate on their own through the shared ellipsis class.
+    expect(chip?.querySelector('.chip-label')?.className).toContain('card-name-chip-text');
+    const room = chip?.querySelector('.pp-counter-badge-room');
+    expect(room?.className).toContain('card-name-chip-text');
+    expect(room?.textContent).toBe('Cradle of the Death God');
+    expect(room?.getAttribute('title')).toBe('Cradle of the Death God');
+  });
+
+  it('keeps the completed-dungeon count as a one-line badge', () => {
+    const game = active('2hg');
+    const done = { ...game.players[0], dungeonsCompleted: ['tomb' as const] };
+    const { container } = render(<SeatBadges game={game} player={done} maxCmdDmg={0} />);
+    expect(container.querySelector('.is-dungeon')).toBeNull();
   });
 });
