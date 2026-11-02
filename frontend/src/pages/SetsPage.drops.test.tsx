@@ -26,9 +26,11 @@ vi.mock('@/lib/cards/sld-drops', async (orig) => ({
   ...(await orig<typeof import('@/lib/cards/sld-drops')>()),
   useSldDrops: () => INDEX,
 }));
+const NO_SETS = {};
 vi.mock('@/lib/api', async (orig) => ({
   ...(await orig<typeof import('@/lib/api')>()),
-  useSetMap: () => undefined,
+  // An empty map, not undefined: the hub holds its loader until the map is here.
+  useSetMap: () => NO_SETS,
   getSetCards: () => Promise.resolve([]),
 }));
 
