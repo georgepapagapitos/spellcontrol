@@ -83,6 +83,14 @@ export interface ScryfallCard {
     normal?: string;
     large?: string;
     art_crop?: string;
+    border_crop?: string;
+    // The WebP keys that replace the JPEG ones on 2027-01-01. Ingress
+    // (scryfall-images.ts) fills small/normal/large/art_crop from these.
+    thumb?: string;
+    grid?: string;
+    display?: string;
+    crop?: string;
+    art?: string;
   };
   /**
    * Scryfall's market-price snapshot. Strings (or null) keyed by finish.
@@ -109,6 +117,12 @@ export interface ScryfallCard {
       normal?: string;
       large?: string;
       art_crop?: string;
+      border_crop?: string;
+      thumb?: string;
+      grid?: string;
+      display?: string;
+      crop?: string;
+      art?: string;
     };
   }>;
 }

@@ -195,7 +195,8 @@ describe('hydratePublicationRows', () => {
     ];
     const [result] = await hydratePublicationRows(rows);
     expect(result.ownerDisplayName).toBe('Hyd Display Name');
-    expect(result.ownerAvatarUrl).toBe('https://cards.scryfall.io/art_crop/x.jpg');
+    // A stored JPEG URL is served as WebP (Scryfall retires the JPEG on 2027-01-01).
+    expect(result.ownerAvatarUrl).toBe('https://cards.scryfall.io/art/x.webp');
 
     const [unset] = await hydratePublicationRows([
       listingRow({

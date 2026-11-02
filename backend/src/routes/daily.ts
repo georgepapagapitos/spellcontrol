@@ -14,6 +14,7 @@ import {
 import { getPuzzle, todayUtc } from '../daily/puzzle';
 import { computeStreak } from '../daily/streak';
 import { testAwareLimiter } from '../route-utils';
+import { storedImageUrl } from '../scryfall-images';
 
 /**
  * The daily card puzzle. The server picks each day's answer, scores guesses and
@@ -259,7 +260,7 @@ dailyRouter.get('/friends', requireAuth, readLimiter, async (req: Request, res: 
       userId: u.id,
       username: u.username,
       displayName: u.display_name,
-      avatarImageUrl: u.avatar_image_url,
+      avatarImageUrl: storedImageUrl(u.avatar_image_url),
       result: today ? { solved: today.solved, guesses: today.guesses } : null,
       streak: computeStreak(
         rows.map((r) => ({ date: r.puzzle_date, solved: r.solved })),

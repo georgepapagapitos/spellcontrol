@@ -10,6 +10,7 @@ import type { ScryfallCard } from './types';
 import type { ScryfallCache } from './cache';
 import { cardAliasKeys, SCRYFALL_USER_AGENT } from './scryfall';
 import { pipeForwardingErrors } from './stream-utils';
+import { normalizeCardImages } from './scryfall-images';
 
 /**
  * Ingests Scryfall's daily `default_cards` bulk dump into the SQLite card cache so
@@ -301,7 +302,7 @@ export function projectBulkCard(card: BulkCard): ScryfallCard | null {
   // only bloat the cache / shadow real printings.
   if (Array.isArray(card.games) && !card.games.includes('paper')) return null;
   if (card.set_type === 'alchemy') return null;
-  return {
+  return normalizeCardImages({
     id: card.id,
     oracle_id: card.oracle_id,
     name: card.name,
@@ -354,7 +355,7 @@ export function projectBulkCard(card: BulkCard): ScryfallCard | null {
     image_uris: card.image_uris,
     prices: card.prices,
     card_faces: card.card_faces,
-  };
+  });
 }
 
 export interface BulkIngestResult {

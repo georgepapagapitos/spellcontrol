@@ -18,6 +18,7 @@ import { projectWithSignals } from '../shares/project-with-signals';
 import { testAwareLimiter } from '../route-utils';
 import { notifyUser } from '../notify';
 import { priceStoredDecks } from '../discover/hydrate';
+import { storedImageUrl } from '../scryfall-images';
 
 export const friendsRouter: Router = Router();
 
@@ -1075,7 +1076,7 @@ async function loadFriendDeckShelf(ownerId: string): Promise<FriendDeckSummary[]
       name: r.deck_name,
       format: r.format,
       commanderName: r.commander_name,
-      commanderImage: r.og_art_crop,
+      commanderImage: storedImageUrl(r.og_art_crop),
       colorIdentity: Array.isArray(r.color_identity) ? r.color_identity : [],
       cardCount: r.card_count,
       bracket: r.bracket,
@@ -1096,7 +1097,7 @@ async function loadFriendDeckShelf(ownerId: string): Promise<FriendDeckSummary[]
       name: fields.name,
       format: fields.format,
       commanderName: fields.commanderName,
-      commanderImage: fields.ogArtCrop,
+      commanderImage: storedImageUrl(fields.ogArtCrop),
       colorIdentity: fields.colorIdentity,
       cardCount: fields.cardCount,
       bracket: fields.bracket,

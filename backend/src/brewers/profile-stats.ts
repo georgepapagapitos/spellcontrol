@@ -1,5 +1,6 @@
 import { getPool } from '../db';
 import { deckColors } from './cards';
+import { storedImageUrl } from '../scryfall-images';
 
 export interface ProfileStats {
   /** DISTINCT accounts other than the owner that liked any of their live decks. */
@@ -92,7 +93,7 @@ export async function loadProfileExtras(user: {
     stats: { likesReceived: Number(likes.rows[0].n), copiesReceived },
     topCommanders: commanders.rows.map((r) => ({
       name: r.name,
-      image: r.image,
+      image: storedImageUrl(r.image),
       deckCount: Number(r.deck_count),
     })),
     colorSpread,

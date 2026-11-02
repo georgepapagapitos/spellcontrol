@@ -1126,6 +1126,16 @@ export {
 // ── Deck cover art ──────────────────────────────────────────────────────────
 export { pickDeckCover, coverHasArt, type DeckCoverInput } from './cover.js';
 
+// ── Scryfall image URLs (WebP migration, 2027-01-01 JPEG removal) ───────────
+export {
+  isLegacyScryfallImage,
+  modernScryfallImage,
+  normalizeImageUris,
+  scryfallJpegImage,
+  withLegacyImageKeys,
+  withModernImageKeys,
+} from './scryfall-images.js';
+
 /**
  * Bumped whenever the estimator's rules or weights change, so a bracket
  * feedback label (E418) names the version that made the estimate it judges.

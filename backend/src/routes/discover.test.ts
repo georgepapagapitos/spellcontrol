@@ -246,7 +246,7 @@ describe('GET /api/discover/decks', () => {
     const entry = res.body.decks.find((d: { slug: string }) => d.slug === slug);
     expect(entry).toBeTruthy();
     expect(entry.commanderName).toBeNull();
-    expect(entry.ogArtCrop).toBe('https://cards.scryfall.io/art_crop/bolt.jpg');
+    expect(entry.ogArtCrop).toBe('https://cards.scryfall.io/art/bolt.webp');
   });
 
   it("exclude=mine drops the viewer's own decks and nobody else's", async () => {
@@ -704,7 +704,7 @@ describe('GET /api/discover/decks', () => {
       expect(res.status).toBe(200);
       return res.body.decks.find((d: { slug: string }) => d.slug === deck.slug)!;
     };
-    expect((await listed()).commanderImageNormal).toBe('https://cards.scryfall.io/normal/cn2.jpg');
+    expect((await listed()).commanderImageNormal).toBe('https://cards.scryfall.io/grid/cn2.webp');
 
     // The owner swaps to the Secret Lair printing: the tile must follow it,
     // not a by-name lookup that lands on Scryfall's default printing.
@@ -717,7 +717,7 @@ describe('GET /api/discover/decks', () => {
     });
     // The publication refresh is fire-and-forget after the sync response.
     await vi.waitFor(async () =>
-      expect((await listed()).commanderImageNormal).toBe('https://cards.scryfall.io/normal/sld.jpg')
+      expect((await listed()).commanderImageNormal).toBe('https://cards.scryfall.io/grid/sld.webp')
     );
   });
 
@@ -754,7 +754,7 @@ describe('GET /api/discover/decks', () => {
     const withoutAvatarEntry = res.body.decks.find(
       (d: { slug: string }) => d.slug === withoutAvatar.slug
     )!;
-    expect(withAvatarEntry.ownerAvatarUrl).toBe('https://cards.scryfall.io/art_crop/front/x.jpg');
+    expect(withAvatarEntry.ownerAvatarUrl).toBe('https://cards.scryfall.io/art/front/x.webp');
     expect(withoutAvatarEntry.ownerAvatarUrl).toBeNull();
   });
 
@@ -767,7 +767,7 @@ describe('GET /api/discover/decks', () => {
 
     const res = await request(app).get('/api/discover/bookmarks').set('Cookie', saverCookie);
     expect(res.status).toBe(200);
-    expect(res.body.decks[0].ownerAvatarUrl).toBe('https://cards.scryfall.io/art_crop/front/y.jpg');
+    expect(res.body.decks[0].ownerAvatarUrl).toBe('https://cards.scryfall.io/art/front/y.webp');
     expect(res.body.decks[0].ownerDisplayName).toEqual(
       expect.stringContaining('Disco Display Name')
     );

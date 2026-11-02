@@ -5,6 +5,7 @@ import path from 'path';
 import fs from 'fs';
 import type { ScryfallCard, Ruling } from './types';
 import { cardFaceText } from './card-text';
+import { normalizeCardImages } from './scryfall-images';
 
 const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -399,7 +400,7 @@ export class ScryfallCache {
       for (const row of rows) {
         if (!allowStale && now - row.cached_at > maxAgeMs) continue;
         try {
-          result.set(row.scryfall_id, JSON.parse(row.data));
+          result.set(row.scryfall_id, normalizeCardImages(JSON.parse(row.data)));
         } catch {
           /* skip malformed */
         }
@@ -444,7 +445,7 @@ export class ScryfallCache {
         if (!allowStale && now - row.lookup_cached_at > TTL_MS) continue;
         if (!allowStale && now - row.card_cached_at > TTL_MS) continue;
         try {
-          result.set(row.lookup_key, JSON.parse(row.data));
+          result.set(row.lookup_key, normalizeCardImages(JSON.parse(row.data)));
         } catch {
           /* skip malformed */
         }
@@ -512,7 +513,7 @@ export class ScryfallCache {
         if (now - row.lookup_cached_at > maxAgeMs) continue;
         if (now - row.card_cached_at > maxAgeMs) continue;
         try {
-          cards.push(JSON.parse(row.data));
+          cards.push(normalizeCardImages(JSON.parse(row.data)));
         } catch {
           /* skip malformed */
         }

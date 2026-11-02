@@ -161,3 +161,27 @@ describe('getSetCards', () => {
     expect(cards).toHaveLength(1);
   });
 });
+
+describe('getSetCards image keys', () => {
+  it('keeps the WebP keys and fills the legacy ones when only the WebP keys arrive', async () => {
+    const webp = (seg: string) => `https://cards.scryfall.io/${seg}/front/a/b/abc.webp?1`;
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      searchPage([
+        {
+          ...RAW_CARD,
+          image_uris: { thumb: webp('thumb'), grid: webp('grid'), display: webp('display') },
+        },
+      ])
+    );
+    const { getSetCards } = await freshModule();
+    const [card] = await getSetCards('lea');
+    expect(card.image_uris).toEqual({
+      small: webp('thumb'),
+      normal: webp('grid'),
+      large: webp('display'),
+      thumb: webp('thumb'),
+      grid: webp('grid'),
+      display: webp('display'),
+    });
+  });
+});

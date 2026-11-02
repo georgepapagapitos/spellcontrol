@@ -254,7 +254,7 @@ describe('GET /api/public/users/:username', () => {
     expect(res.body.deckCount).toBe(2);
     expect(res.body.decks).toHaveLength(2);
     expect(res.body.decks[0].name).toBe('Second Deck');
-    expect(res.body.decks[0].commanderImage).toBe('https://cards.scryfall.io/art_crop/atraxa.jpg');
+    expect(res.body.decks[0].commanderImage).toBe('https://cards.scryfall.io/art/atraxa.webp');
   });
 
   it('resolves a profile with no public decks for a stranger: click an author, see their page (T136)', async () => {

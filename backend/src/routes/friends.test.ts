@@ -1802,7 +1802,7 @@ describe('GET /api/friends/:friendId/decks', () => {
     });
     // The art crop specifically — `cardArtUrl` reads `image_uris.art_crop`
     // and never derives one from the normal-res URL.
-    expect(res.body.decks[0].commanderImage).toContain('art_crop');
+    expect(res.body.decks[0].commanderImage).toContain('/art/');
   });
 
   it('carries the raw estimate for a friends-rung deck too, via the same extractor', async () => {

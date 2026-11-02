@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pickDeckCover } from './cover';
+import { coverHasArt, pickDeckCover } from './cover';
 
 interface Card {
   name: string;
@@ -104,5 +104,13 @@ describe('pickDeckCover', () => {
     const good = card('Good');
     const deck = { cards: [null, { card: 'x' }, { card: good }], commander: 7 } as never;
     expect(pickDeckCover(deck)).toBe(good);
+  });
+});
+
+describe('coverHasArt', () => {
+  it('counts the WebP keys, so a card with no legacy keys still has art', () => {
+    expect(coverHasArt({ image_uris: { art: 'a.webp' } })).toBe(true);
+    expect(coverHasArt({ card_faces: [{ image_uris: { grid: 'g.webp' } }] })).toBe(true);
+    expect(coverHasArt({ image_uris: {} })).toBe(false);
   });
 });

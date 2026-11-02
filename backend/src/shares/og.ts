@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
-import { pickDeckCover, type DeckCoverInput } from '@spellcontrol/deck-metrics';
+import { pickDeckCover, scryfallJpegImage, type DeckCoverInput } from '@spellcontrol/deck-metrics';
 import { logger } from '../logger';
 import { loadShareContext } from './context';
 import {
@@ -83,7 +83,8 @@ export function buildShareHeadTags(meta: ShareLandingMeta | null): string {
     const title = escapeHtmlAttr(meta.title);
     const description = escapeHtmlAttr(meta.description);
     const url = escapeHtmlAttr(meta.url);
-    const image = escapeHtmlAttr(meta.image ?? OG_IMAGE_URL);
+    // Crawlers get a JPEG: a WebP-generation URL maps to the card's JPEG scan.
+    const image = escapeHtmlAttr(scryfallJpegImage(meta.image) ?? OG_IMAGE_URL);
     lines.push(
       `<meta name="description" content="${description}" />`,
       `<meta property="og:type" content="website" />`,
@@ -196,10 +197,14 @@ function plural(n: number, one: string, many: string): string {
 export function cardArtUrl(raw: unknown): string | undefined {
   const card = asRecord(raw);
   if (!card) return undefined;
-  const direct = asString(asRecord(card.image_uris)?.art_crop);
+  const art = (uris: unknown) => {
+    const u = asRecord(uris);
+    return asString(u?.art_crop) ?? asString(u?.art);
+  };
+  const direct = art(card.image_uris);
   if (direct) return direct;
   const face = Array.isArray(card.card_faces) ? asRecord(card.card_faces[0]) : null;
-  return asString(asRecord(face?.image_uris)?.art_crop);
+  return art(face?.image_uris);
 }
 
 /**
