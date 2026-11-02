@@ -50,6 +50,10 @@ vi.mock('@/lib/collection/price-alerts', () => ({
 }));
 
 import { WaitingOnYou } from './WaitingOnYou';
+import {
+  _resetOwnedAlertsForTests,
+  saveOwnedAlertResult,
+} from '@/lib/collection/owned-price-alerts';
 import { readHomeShape } from '@/lib/home/home-shape';
 
 function tradeOffer(overrides: Partial<Extract<ActionRequiredItem, { type: 'trade_offer' }>> = {}) {
@@ -148,6 +152,7 @@ beforeEach(() => {
   awaiting.value = false;
   review.value = { count: 0, binderCount: 0 };
   priceHits.value = [];
+  _resetOwnedAlertsForTests();
   daily.value = { loading: false, reminder: null };
 });
 
@@ -262,6 +267,39 @@ describe('WaitingOnYou', () => {
     renderWaiting();
     const link = screen.getByRole('link', { name: '2 cards under your target price' });
     expect(link.getAttribute('href')).toBe('/collection/lists');
+  });
+
+  it('shows owned cards that moved past the price alert, and nothing once it is stale', () => {
+    const hit = {
+      scryfallId: 'a',
+      finish: 'nonfoil',
+      name: 'Sol Ring',
+      setCode: 't',
+      before: 2,
+      after: 6,
+      copies: 1,
+    };
+    saveOwnedAlertResult([hit], 'USD', Date.now());
+    renderWaiting();
+    const link = screen.getByRole('link', { name: 'Sol Ring spiked from $2.00 to $6.00' });
+    expect(link.getAttribute('href')).toBe('/collection?stats');
+  });
+
+  it('names a count when several owned cards moved', () => {
+    const hit = {
+      scryfallId: 'a',
+      finish: 'nonfoil',
+      name: 'Sol Ring',
+      setCode: 't',
+      before: 6,
+      after: 2,
+      copies: 1,
+    };
+    saveOwnedAlertResult([hit, { ...hit, scryfallId: 'b', name: 'Mana Crypt' }], 'USD', Date.now());
+    renderWaiting();
+    expect(
+      screen.getByRole('link', { name: '2 cards you own moved past your price alert' })
+    ).toBeTruthy();
   });
 
   it('suggests a first binder when the collection has cards but no binders', () => {

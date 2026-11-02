@@ -63,6 +63,12 @@ import { buildAllocationMap } from '@/lib/collection/allocations-core';
 import { remapAllAllocations } from '@/lib/cube/remap-cube-allocations';
 import { appNavigate } from '@/lib/util/navigate-bridge';
 import { findPriceTargetHits, filterNewPriceTargetHits } from '@/lib/collection/price-alerts';
+import {
+  findOwnedPriceAlerts,
+  saveOwnedAlertResult,
+  useOwnedAlertStore,
+  type OwnedPriceHit,
+} from '@/lib/collection/owned-price-alerts';
 import { MAX_VISIBLE_TOASTS } from '@/lib/overlays/toast-stack';
 import { clampListName, entryToCards, makeListEntry } from '@/lib/collection/lists';
 import {
@@ -537,6 +543,23 @@ function notifyPriceTargetHits(hits: ReturnType<typeof findPriceTargetHits>): vo
     tone: 'info',
     actionLabel: 'View',
     onAction: () => appNavigate(dest),
+  });
+}
+
+/**
+ * E1102 owned-card price alerts: one toast for the cards you hold that moved
+ * past your spike / dip threshold this refresh, and the result kept so Home's
+ * "Waiting on you" shows it on the next open too.
+ */
+function notifyOwnedPriceAlerts(hits: OwnedPriceHit[]): void {
+  if (hits.length === 0) return;
+  saveOwnedAlertResult(hits, getCurrency(), Date.now());
+  const noun = hits.length === 1 ? 'card you own' : 'cards you own';
+  toast.show({
+    message: `${hits.length} ${noun} moved past your price alert.`,
+    tone: 'info',
+    actionLabel: 'View',
+    onAction: () => appNavigate('/collection?stats'),
   });
 }
 
@@ -1148,6 +1171,10 @@ export const useCollectionStore = create<CollectionState>()(
           // T117 price-target alerts: same tick — prices just landed in the
           // cache, so this is the one place a crossing can be detected.
           notifyPriceTargetHits(filterNewPriceTargetHits(findPriceTargetHits(get().lists)));
+          // E1102: owned-card spike / dip alerts, off until switched on in Settings.
+          notifyOwnedPriceAlerts(
+            findOwnedPriceAlerts(beforeCards, afterCards, useOwnedAlertStore.getState().settings)
+          );
         } catch (err) {
           const msg = userMessage(err, "Couldn't refresh prices. Try again in a moment.");
           logger.warn('[store] refreshPrices failed:', err);

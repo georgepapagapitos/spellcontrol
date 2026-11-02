@@ -5,7 +5,14 @@ import { formatPricedDate, newestPricedAt } from '@/lib/collection/price-freshne
 import { useCurrencyStore, type Currency } from '@/lib/collection/currency';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsRow } from '@/components/settings/SettingsRow';
-import { SegmentedControl } from '@/components/shared/form';
+import { Field, SegmentedControl, SwitchRow } from '@/components/shared/form';
+import { formatMoney } from '@/lib/collection/format-money';
+import {
+  AMOUNT_CHOICES,
+  PERCENT_CHOICES,
+  useOwnedAlertStore,
+  type AlertDirection,
+} from '@/lib/collection/owned-price-alerts';
 import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { NEEDS_CARDS } from './sections';
@@ -20,6 +27,8 @@ export function PricesSection() {
   const reapplyCardPrices = useCollectionStore((s) => s.reapplyCardPrices);
   const currency = useCurrencyStore((s) => s.currency);
   const setCurrency = useCurrencyStore((s) => s.setCurrency);
+  const alerts = useOwnedAlertStore((s) => s.settings);
+  const updateAlerts = useOwnedAlertStore((s) => s.update);
 
   function handleCurrencyChange(next: Currency) {
     if (next === currency) return;
@@ -70,6 +79,53 @@ export function PricesSection() {
             label: c === 'USD' ? '$ USD' : '€ EUR',
           }))}
         />
+      </SettingsSection>
+
+      <SettingsSection
+        id="settings-owned-alerts-title"
+        title="Price alerts"
+        hint="Checked each time prices refresh, on this device. Your want-list target prices alert separately."
+      >
+        <SwitchRow
+          label="Alert on cards you own"
+          hint={
+            alerts.enabled ? 'On. Cards that move past both limits show in Waiting on you.' : 'Off.'
+          }
+          checked={alerts.enabled}
+          onChange={(enabled) => updateAlerts({ enabled })}
+        />
+        {alerts.enabled && (
+          <>
+            <Field label="Alert me when a price" hint="Spikes are rises, dips are drops.">
+              <SegmentedControl<AlertDirection>
+                ariaLabel="Price direction"
+                value={alerts.direction}
+                onChange={(direction) => updateAlerts({ direction })}
+                options={[
+                  { value: 'up', label: 'Spikes' },
+                  { value: 'down', label: 'Dips' },
+                  { value: 'both', label: 'Either' },
+                ]}
+              />
+            </Field>
+            <Field label="By at least" hint="A share of the old price.">
+              <SegmentedControl<number>
+                ariaLabel="Minimum percent move"
+                value={alerts.minPercent}
+                onChange={(minPercent) => updateAlerts({ minPercent })}
+                options={PERCENT_CHOICES.map((p) => ({ value: p, label: `${p}%` }))}
+              />
+            </Field>
+            <Field label="And at least" hint="Per copy, so cheap cards stay quiet.">
+              <SegmentedControl<number>
+                ariaLabel="Minimum amount per copy"
+                value={alerts.minAmount}
+                onChange={(minAmount) => updateAlerts({ minAmount })}
+                options={AMOUNT_CHOICES.map((a) => ({ value: a, label: formatMoney(a) }))}
+              />
+            </Field>
+          </>
+        )}
       </SettingsSection>
 
       <SettingsSection id="settings-card-prices-title" title="Card prices">
