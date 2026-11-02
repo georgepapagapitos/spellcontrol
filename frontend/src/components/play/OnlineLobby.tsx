@@ -1,5 +1,5 @@
 import { Check, Copy, Crown, Shuffle, UserRound, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
 import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { VisibilityChoice } from '@/components/share/VisibilityChoice';
@@ -11,7 +11,14 @@ import { pickFirstPlayer } from '@/lib/play/game-tools';
 import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { effectiveBracket, type Deck } from '../../store/decks';
 import { signatureMissesCombos } from '@/lib/deck-analysis/bracket-signature';
-import { bracketSpread, combosLabel, gameChangersLabel, winTurnLabel } from '@/lib/play/pod-sheet';
+import {
+  bracketSpread,
+  combosLabel,
+  deckFactsOf,
+  gameChangersLabel,
+  winTurnLabel,
+  winTurnOf,
+} from '@/lib/play/pod-sheet';
 import { bracketTextWithEstimate } from '@/lib/deck-analysis/format-bracket-label';
 import type {
   GameAction,
@@ -19,6 +26,7 @@ import type {
   GameFormat,
   GamePlayer,
   GameState,
+  PlayerDeckFacts,
   HordeTable as HordeTableState,
   MulliganType,
 } from '@spellcontrol/game-core';
@@ -259,23 +267,45 @@ export function OnlineLobby({
         deckVersion: picked?.version ?? null,
       },
     });
-    const facts = picked?.facts;
-    if (!picked || !facts || !picked.resolveWinTurn) return;
-    void picked
-      .resolveWinTurn()
-      .then((winTurn) => {
-        const still = gameRef.current.players.find((p) => p.seat === seat);
-        if (winTurn == null || still?.deckId !== picked.id) return;
-        dispatch({
-          type: 'update-player',
-          seat,
-          patch: { deckFacts: { ...facts, winTurn } },
-        });
-      })
-      .catch(() => {
-        // The clock is a nicety; a seat without a win turn just omits that line.
-      });
+    if (picked) publishWinTurn(seat, picked.id, picked.facts, picked.resolveWinTurn);
   };
+  /** Times the win path and republishes the facts with it, while that deck still holds the seat. */
+  const publishWinTurn = useCallback(
+    (
+      seat: number,
+      deckId: string,
+      facts: PlayerDeckFacts | null | undefined,
+      resolve: (() => Promise<number | null>) | undefined
+    ) => {
+      if (!facts || !resolve) return;
+      void resolve()
+        .then((winTurn) => {
+          const still = gameRef.current.players.find((p) => p.seat === seat);
+          if (winTurn == null || still?.deckId !== deckId) return;
+          dispatch({
+            type: 'update-player',
+            seat,
+            patch: { deckFacts: { ...facts, winTurn } },
+          });
+        })
+        .catch(() => {
+          // The clock is a nicety; a seat without a win turn just omits that line.
+        });
+    },
+    [dispatch]
+  );
+
+  // A deck seated from the setup screen (host, join, board door) never went
+  // through the picker above, so publish its facts once when the lobby opens.
+  const backfilled = useRef<string | null>(null);
+  useEffect(() => {
+    if (!myDeck || mySeat.deckFacts || backfilled.current === myDeck.id) return;
+    const facts = deckFactsOf(myDeck);
+    if (!facts) return;
+    backfilled.current = myDeck.id;
+    dispatch({ type: 'update-player', seat: mySeat.seat, patch: { deckFacts: facts } });
+    publishWinTurn(mySeat.seat, myDeck.id, facts, () => winTurnOf(myDeck));
+  }, [myDeck, mySeat.deckFacts, mySeat.seat, dispatch, publishWinTurn]);
   const pickDeck = (picked: PickedDeck | null) => seatDeck(mySeat.seat, picked);
 
   // Seats more than one bracket apart. Your own seat reads your deck, the rest

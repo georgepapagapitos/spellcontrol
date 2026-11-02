@@ -10,6 +10,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { createGameState, makePlayer } from '@spellcontrol/game-core';
 import type { GameAction, GameState } from '@spellcontrol/game-core';
 import type { PickedDeck } from './DeckPickerDialog';
+import type { Deck } from '@/store/decks';
 
 vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
 vi.mock('@/lib/play/games-api', () => ({
@@ -70,12 +71,16 @@ function deckPick(over: Partial<PickedDeck> = {}): PickedDeck {
   };
 }
 
-function mount(game: GameState, dispatch: (a: GameAction | GameAction[]) => void) {
+function mount(
+  game: GameState,
+  dispatch: (a: GameAction | GameAction[]) => void,
+  decks: Deck[] = []
+) {
   return render(
     <MemoryRouter>
       <OnlineLobby
         game={game}
-        decks={[]}
+        decks={decks}
         userId="u0"
         mySeat={game.players[0]}
         dispatch={dispatch}
@@ -120,5 +125,32 @@ describe('seating a deck publishes the pod-sheet facts', () => {
     expect(dispatch).toHaveBeenCalledTimes(1);
     const only = dispatch.mock.calls[0][0] as Extract<GameAction, { type: 'update-player' }>;
     expect(only.patch.deckFacts).toBeNull();
+  });
+});
+
+describe('a deck seated from the setup screen', () => {
+  const setupDeck = {
+    id: 'd1',
+    name: 'Atraxa',
+    cards: [],
+    bracketEstimation: { bracket: 4, breakdown: { gameChangerCount: 2, twoCardComboCount: 1 } },
+  } as unknown as Deck;
+
+  it('publishes its facts once when the lobby opens', async () => {
+    const dispatch = vi.fn();
+    const view = mount(table('d1'), dispatch, [setupDeck]);
+    await waitFor(() => expect(dispatch).toHaveBeenCalledTimes(1));
+    const call = dispatch.mock.calls[0][0] as Extract<GameAction, { type: 'update-player' }>;
+    expect(call.patch).toEqual({ deckFacts: { gameChangers: 2, combos: 1, winTurn: null } });
+    view.rerender(<span />);
+  });
+
+  it('does not republish when the seat already carries facts', async () => {
+    const dispatch = vi.fn();
+    const game = table('d1');
+    game.players[0] = { ...game.players[0], deckFacts: { gameChangers: 2, combos: 1, winTurn: 5 } };
+    mount(game, dispatch, [setupDeck]);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(dispatch).not.toHaveBeenCalled();
   });
 });
