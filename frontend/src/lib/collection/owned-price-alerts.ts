@@ -2,7 +2,7 @@
  * Owned-card price alerts (E1102): a spike / dip threshold on cards you hold,
  * evaluated at the same client-side price-refresh tick the want-list target
  * alerts use (`price-alerts.ts`). There is deliberately no server price cron
- * (see `project_price_refresh`): the server keeps no per-user price history
+ * (see `project_offline_and_price_caches`): the server keeps no per-user price history
  * and would have to read every user's synced collection to evaluate this, so
  * the check runs on the device, against the before/after pair the refresh
  * already holds.
