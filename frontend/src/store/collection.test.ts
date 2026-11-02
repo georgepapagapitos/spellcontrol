@@ -22,6 +22,11 @@ import { useToastsStore } from './toasts';
 import { useScannerSettings } from '@/lib/scanner/scanner-settings';
 import { saveCollection, loadCollection, clearCollection } from '@/lib/sync/local-cards';
 import { _resetForTests as resetPriceCache } from '@/lib/collection/card-prices';
+import {
+  _resetOwnedAlertsForTests,
+  readOwnedAlertResult,
+  useOwnedAlertStore,
+} from '@/lib/collection/owned-price-alerts';
 import { useCurrencyStore } from '@/lib/collection/currency';
 import { captureCollectionSnapshot } from '@/lib/collection/collection-snapshot';
 import { materializeBinders } from '@/lib/binder/materialize';
@@ -565,6 +570,31 @@ describe('refreshPrices', () => {
     expect(useCollectionStore.getState().isRefreshingPrices).toBe(false);
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.scryfallIds.sort()).toEqual(['sf-hit', 'sf-miss']);
+  });
+
+  it('raises the owned-card alert only once it is switched on (E1102)', async () => {
+    const prices = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ prices: { sf1: { usd: 20, pricedAt: 9000 } } }),
+    });
+    const run = async () => {
+      vi.stubGlobal('fetch', prices);
+      useToastsStore.setState({ toasts: [] });
+      useCollectionStore.setState({
+        cards: [enriched({ copyId: 'c1', scryfallId: 'sf1', purchasePrice: 10 })],
+      });
+      await useCollectionStore.getState().refreshPrices();
+      return useToastsStore.getState().toasts.map((t) => t.message);
+    };
+    _resetOwnedAlertsForTests();
+    expect(await run()).not.toContain('1 card you own moved past your price alert.');
+    useOwnedAlertStore.getState().update({ enabled: true });
+    expect(await run()).toContain('1 card you own moved past your price alert.');
+    expect(readOwnedAlertResult('USD', Date.now())?.hits[0]).toMatchObject({
+      before: 10,
+      after: 20,
+    });
+    _resetOwnedAlertsForTests();
   });
 
   it('stamps a foil copy with the foil price, not the non-foil one', async () => {

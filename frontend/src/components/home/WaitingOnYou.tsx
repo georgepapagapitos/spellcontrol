@@ -9,6 +9,7 @@ import {
   Layers,
   Puzzle,
   Target,
+  TrendingUp,
   UserPlus,
   type LucideIcon,
 } from 'lucide-react';
@@ -16,6 +17,9 @@ import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
 import { findPriceTargetHits } from '@/lib/collection/price-alerts';
+import { readOwnedAlertResult } from '@/lib/collection/owned-price-alerts';
+import { useCurrency } from '@/lib/collection/currency';
+import { formatMoney } from '@/lib/collection/format-money';
 import { formatIdentity } from '@/lib/social/display-name';
 import { MAX_GUESSES } from '@/lib/daily/stats';
 import { upcomingGameNights } from '@/lib/home/home-signals';
@@ -75,6 +79,8 @@ export function WaitingOnYou({ actionRequired, activityLoading, nights, nightsLo
   const review = useBinderReviewCount();
   const daily = useDailyReminder();
   const [remembered] = useState(() => readHomeShape()[SHAPE_SLOT]);
+  const currency = useCurrency();
+  const [nowMs] = useState(() => Date.now());
 
   const loading =
     activityLoading ||
@@ -201,6 +207,34 @@ export function WaitingOnYou({ actionRequired, activityLoading, nights, nightsLo
       });
     }
 
+    // E1102: owned cards that moved past the user's spike / dip alert at the
+    // last refresh. Read when Home opens: a refresh while Home is already
+    // open raises the toast, and this row is the second chance on next open.
+    const owned = readOwnedAlertResult(currency, nowMs);
+    if (owned) {
+      const top = owned.hits[0];
+      const up = top.after > top.before;
+      const count = owned.hits.length;
+      out.push({
+        key: 'owned-alerts',
+        to: '/collection?stats',
+        icon: TrendingUp,
+        title:
+          count === 1 ? `${top.name} ${up ? 'spiked' : 'dipped'}` : `${count} cards you own moved`,
+        detail:
+          count === 1
+            ? `${formatMoney(top.before)} to ${formatMoney(top.after)}`
+            : owned.hits
+                .slice(0, 2)
+                .map((h) => h.name)
+                .join(', '),
+        ariaLabel:
+          count === 1
+            ? `${top.name} ${up ? 'spiked' : 'dipped'} from ${formatMoney(top.before)} to ${formatMoney(top.after)}`
+            : `${count} cards you own moved past your price alert`,
+      });
+    }
+
     // Setup the hero's checklist no longer covers: it shows the steps only
     // while the collection is empty.
     if (cardCount > 0 && binderCount === 0) {
@@ -224,7 +258,18 @@ export function WaitingOnYou({ actionRequired, activityLoading, nights, nightsLo
       });
     }
     return out;
-  }, [actionRequired, nights, daily.reminder, review, lists, cardCount, binderCount, deckCount]);
+  }, [
+    actionRequired,
+    nights,
+    daily.reminder,
+    review,
+    lists,
+    cardCount,
+    binderCount,
+    deckCount,
+    currency,
+    nowMs,
+  ]);
 
   useEffect(() => {
     if (!loading) rememberHomeShape(SHAPE_SLOT, tasks.length > 0 ? 1 : 0);
