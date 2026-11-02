@@ -19,7 +19,9 @@ const css = readFileSync(join(dir, '../components/shared/form.css'), 'utf8').rep
   ''
 );
 const rule = (sel: string) =>
-  new RegExp(`(?:^|\\})\\s*${sel.replace(/[.]/g, '\\.')}\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? '';
+  new RegExp(`(?:^|\\})\\s*${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`).exec(
+    css
+  )?.[1] ?? '';
 
 describe('.segmented reflows at narrow widths', () => {
   it('the track wraps its options instead of overflowing', () => {

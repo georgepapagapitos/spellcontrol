@@ -23,5 +23,16 @@ export function redirectLegacyApiHost(req: Request, res: Response, next: NextFun
   if (req.method !== 'GET' && req.method !== 'HEAD') return next();
   if (!LEGACY_API_HOSTS.has(req.hostname.toLowerCase())) return next();
   if (isApiSurface(req.path)) return next();
-  res.redirect(301, CANONICAL_ORIGIN + req.originalUrl);
+  res.redirect(301, canonicalTarget(req.originalUrl));
+}
+
+/**
+ * The apex URL for a request path. Leading slashes collapse to one so
+ * `//evil.example` cannot read as a protocol-relative host, and the result is
+ * checked to be on the canonical origin before it is used (CodeQL
+ * js/server-side-unvalidated-url-redirection); anything else goes to the root.
+ */
+export function canonicalTarget(originalUrl: string): string {
+  const target = new URL('/' + originalUrl.replace(/^[/\\]+/, ''), CANONICAL_ORIGIN);
+  return target.origin === CANONICAL_ORIGIN ? target.href : CANONICAL_ORIGIN + '/';
 }

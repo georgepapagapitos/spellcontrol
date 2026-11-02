@@ -3,7 +3,7 @@ import path from 'node:path';
 import express from 'express';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
-import { redirectLegacyApiHost } from './legacy-host';
+import { canonicalTarget, redirectLegacyApiHost } from './legacy-host';
 
 // Mirrors server.ts's order: api routes, then the host check, then the SPA.
 function makeApp() {
@@ -58,5 +58,17 @@ describe('redirectLegacyApiHost', () => {
     expect(mount).toBeGreaterThan(-1);
     expect(mount).toBeLessThan(src.indexOf("app.get('/s/:token'"));
     expect(mount).toBeLessThan(src.indexOf('express.static(SPA_DIR'));
+  });
+});
+
+describe('canonicalTarget (CodeQL js/server-side-unvalidated-url-redirection)', () => {
+  it.each([
+    ['/decks?x=1', 'https://spellcontrol.com/decks?x=1'],
+    ['//evil.example/x', 'https://spellcontrol.com/evil.example/x'],
+    ['/\\evil.example', 'https://spellcontrol.com/evil.example'],
+    ['/', 'https://spellcontrol.com/'],
+  ])('%s stays on the apex as %s', (input, expected) => {
+    expect(canonicalTarget(input)).toBe(expected);
+    expect(new URL(canonicalTarget(input)).origin).toBe('https://spellcontrol.com');
   });
 });
