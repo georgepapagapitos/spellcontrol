@@ -8,6 +8,11 @@
 
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { Archetype } from '@/deck-builder/types';
+import {
+  averageNonlandMv,
+  isTopHeavyAvgMv,
+  LOW_CURVE_AVG_MV,
+} from '@/lib/deck-analysis/average-mana-value';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { computeAutoLandCount } from '@/deck-builder/services/deckBuilder/targetCounts';
 import { getCardRole, getAllCardRoles, type RoleKey } from '@/deck-builder/services/tagger/client';
@@ -43,6 +48,9 @@ export interface CurveBucket {
 export interface CurveAnalysis {
   buckets: CurveBucket[];
   averageCmc: number;
+  /** Average of the rounded, capped-at-7 buckets. Only the AI prompt reads it, so its
+   *  value stays what it was before E1078; screens use `averageCmc`. */
+  promptAverageCmc: number;
   /** Max non-land CMC; informs the verdict. */
   peak: number;
   verdict: 'top-heavy' | 'curve-ok' | 'low-curve';
@@ -209,32 +217,34 @@ function curveCmc(card: ScryfallCard): number | null {
 
 function buildCurve(cards: ScryfallCard[]): CurveAnalysis {
   const buckets: CurveBucket[] = Array.from({ length: 8 }, (_, cmc) => ({ cmc, count: 0 }));
-  let total = 0;
-  let weighted = 0;
   let peak = 0;
+  let bucketTotal = 0;
+  let bucketWeighted = 0;
   for (const card of cards) {
     const cmc = curveCmc(card);
     if (cmc == null) continue;
     buckets[cmc].count += 1;
-    total += 1;
-    weighted += cmc;
+    bucketTotal += 1;
+    bucketWeighted += cmc;
     if (cmc > peak) peak = cmc;
   }
-  const averageCmc = total > 0 ? weighted / total : 0;
+  // Uncapped and unrounded (E1078): the buckets above are display-only.
+  const averageCmc = averageNonlandMv(cards.filter((c) => !isLand(c)));
   // Verdict: bucket the average against rough thresholds. These match the
   // common rule of thumb that EDH curves should average ~3.0–3.5; below
   // ~2.5 suggests a fast deck (or a misclassified land base), above ~3.8
   // suggests a top-heavy deck likely to brick on opening hands.
   let verdict: CurveAnalysis['verdict'] = 'curve-ok';
   let message = `Average mana value ${averageCmc.toFixed(2)}: comfortable middle.`;
-  if (averageCmc >= 3.8) {
+  if (isTopHeavyAvgMv(averageCmc)) {
     verdict = 'top-heavy';
     message = `Average mana value ${averageCmc.toFixed(2)}: top-heavy. Expect slow starts.`;
-  } else if (averageCmc > 0 && averageCmc < 2.5) {
+  } else if (averageCmc > 0 && averageCmc < LOW_CURVE_AVG_MV) {
     verdict = 'low-curve';
     message = `Average mana value ${averageCmc.toFixed(2)}: fast deck. Make sure threats stay relevant late.`;
   }
-  return { buckets, averageCmc, peak, verdict, message };
+  const promptAverageCmc = bucketTotal > 0 ? bucketWeighted / bucketTotal : 0;
+  return { buckets, averageCmc, promptAverageCmc, peak, verdict, message };
 }
 
 function buildTypes(cards: ScryfallCard[]): TypeBreakdown {

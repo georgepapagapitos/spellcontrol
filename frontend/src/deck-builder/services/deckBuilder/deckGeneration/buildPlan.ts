@@ -123,6 +123,8 @@ export function resolveBuildPlan(input: BuildPlanInput): BuildPlan {
   ) {
     const manaCurve = edhrecData.stats?.manaCurve ?? {};
     const curveTotal = Object.values(manaCurve).reduce((s, v) => s + v, 0);
+    // E1078: the EDHREC curve average that sizes generation. Stays on its own
+    // computation so generated decks do not change (pinned in landCount tests).
     const avgCmc =
       curveTotal > 0
         ? Object.entries(manaCurve).reduce((s, [cmc, count]) => s + Number(cmc) * count, 0) /

@@ -68,6 +68,8 @@ export function buildUpgradePlanTools(input: UpgradePlanToolsInput): UpgradePlan
   const { deckCards, commanderNames, combos, roleCounts } = input;
   const isGameChanger = (name: string) => GAME_CHANGERS.has(name);
   const nonLand = deckCards.filter((c) => !/\bLand\b/.test(c.type_line ?? ''));
+  // E1078: left on its own computation on purpose. It feeds the bracket
+  // estimator's curveThreshold, whose numbers must not move.
   const averageCmc =
     nonLand.length > 0 ? nonLand.reduce((s, c) => s + (c.cmc ?? 0), 0) / nonLand.length : 0;
 

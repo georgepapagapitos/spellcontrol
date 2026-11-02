@@ -143,7 +143,9 @@ export function toAiAnalysis(
       battles: analysis.types.battles,
     },
     curve: {
-      averageCmc: analysis.curve.averageCmc,
+      // E1078: the prompt keeps the average of the capped, rounded buckets it
+      // always got (promptAverageCmc), though the screens read the uncapped one.
+      averageCmc: analysis.curve.promptAverageCmc,
       buckets: analysis.curve.buckets.map((b) => ({ cmc: b.cmc, count: b.count })),
     },
     roles: analysis.roles.map((r) => ({ label: r.label, count: r.count })),

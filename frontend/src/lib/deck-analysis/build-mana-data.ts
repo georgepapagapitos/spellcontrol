@@ -10,6 +10,7 @@
  * editor for the same deck. Pure: depends only on the card array + commanders.
  */
 import type { ScryfallCard } from '@/deck-builder/types';
+import { averageNonlandMv } from '@/lib/deck-analysis/average-mana-value';
 import type { CardTally } from '@/lib/deck-analysis/card-tally';
 import type { DeckManaData } from '@/lib/deck-analysis/deck-mana-types';
 import type { CurveColorBucket } from '@/lib/deck-analysis/deck-mana-types';
@@ -131,8 +132,7 @@ export function buildManaData(
     const bucket = (curveByColor[cmc] ??= { W: 0, U: 0, B: 0, R: 0, G: 0, gold: 0, colorless: 0 });
     bucket[key] += 1;
   }
-  const averageCmc =
-    nonLand.length === 0 ? 0 : nonLand.reduce((s, c) => s + (c.cmc ?? 0), 0) / nonLand.length;
+  const averageCmc = averageNonlandMv(nonLand);
 
   // Color demand — nonland cards counted per color in their identity.
   const colorCounts: Record<string, number> = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };

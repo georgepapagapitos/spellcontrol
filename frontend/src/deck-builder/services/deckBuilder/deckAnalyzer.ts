@@ -32,6 +32,11 @@ import { frontFaceName } from '@/lib/cards/card-text';
 import { getEdhrecCardPrice } from '@/deck-builder/lib/edhrecUtils';
 import { isBasicLandName } from '@/lib/collection/allocations';
 import { producedManaColors } from '@/lib/deck-analysis/mana-sources';
+import {
+  averageNonlandMv,
+  isTopHeavyAvgMv,
+  LOW_CURVE_AVG_MV,
+} from '@/lib/deck-analysis/average-mana-value';
 
 export interface RoleDeficit {
   role: string;
@@ -228,6 +233,8 @@ export interface DeckAnalysis {
   rolesGrade: GradeResult;
   manaGrade: GradeResult;
   curveGrade: GradeResult;
+  /** Average nonland mana value, uncapped: the one number every curve screen reads (E1078). */
+  averageMv: number;
   pacing: Pacing;
   pacingLabel: string;
 }
@@ -527,11 +534,9 @@ function getFlexGradeLetter(count: number): string {
 // sitting at a normal average (Isshin, 3.3) get labeled "top-heavy" the same
 // way (E78 item 2). Returns null when avgCmc doesn't clearly support either
 // word — callers fall back to a neutral descriptor in that case.
-const TOP_HEAVY_AVG_CMC = 3.8;
-const LOW_CURVE_AVG_CMC = 2.5;
 export function curveShapeFromAvgCmc(avgCmc: number): 'top-heavy' | 'bottom-heavy' | null {
-  if (avgCmc >= TOP_HEAVY_AVG_CMC) return 'top-heavy';
-  if (avgCmc > 0 && avgCmc < LOW_CURVE_AVG_CMC) return 'bottom-heavy';
+  if (isTopHeavyAvgMv(avgCmc)) return 'top-heavy';
+  if (avgCmc > 0 && avgCmc < LOW_CURVE_AVG_MV) return 'bottom-heavy';
   return null;
 }
 
@@ -539,7 +544,7 @@ export function curveShapeFromAvgCmc(avgCmc: number): 'top-heavy' | 'bottom-heav
 // by continuousCurvePhaseScore below (E129) so the two never drift apart.
 const CURVE_PHASE_WEIGHTS: Record<string, number> = { early: 0.3, mid: 0.4, late: 0.3 };
 
-export function getCurveGrade(phases: CurvePhaseAnalysis[]): GradeResult {
+export function getCurveGrade(phases: CurvePhaseAnalysis[], averageMv?: number): GradeResult {
   if (phases.length === 0) return { letter: 'F', message: 'No non-land cards to evaluate.' };
 
   // Weighted average of phase grades: early 30%, mid 40%, late 30%
@@ -555,7 +560,8 @@ export function getCurveGrade(phases: CurvePhaseAnalysis[]): GradeResult {
   // getDeckSummaryData's own avgCmc so the shape word never contradicts it.
   const totalCards = phases.reduce((s, p) => s + p.current, 0);
   const avgCmc =
-    totalCards > 0 ? phases.reduce((s, p) => s + p.avgCmc * p.current, 0) / totalCards : 0;
+    averageMv ??
+    (totalCards > 0 ? phases.reduce((s, p) => s + p.avgCmc * p.current, 0) / totalCards : 0);
   const shape = curveShapeFromAvgCmc(avgCmc) ?? 'uneven';
 
   const messages: Record<string, string> = {
@@ -949,9 +955,7 @@ export function getDeckSummaryData(analysis: DeckAnalysis, deckExcess?: number):
       continuousCurvePhaseScore(analysis.curvePhases)) /
     3;
 
-  const totalCards = analysis.curveAnalysis.reduce((s, c) => s + c.current, 0);
-  const weightedCmc = analysis.curveAnalysis.reduce((s, c) => s + c.cmc * c.current, 0);
-  const avgCmc = totalCards > 0 ? weightedCmc / totalCards : 0;
+  const avgCmc = analysis.averageMv;
 
   const totalRoles = analysis.roleDeficits.length;
 
@@ -2925,7 +2929,8 @@ export function analyzeDeck(
     pacing,
     roleTargets
   );
-  const curveGrade = getCurveGrade(curvePhases);
+  const averageMv = averageNonlandMv(nonLandCards);
+  const curveGrade = getCurveGrade(curvePhases, averageMv);
   const manaTrajectory = getManaTrajectory(
     deckSize,
     currentLands,
@@ -2980,6 +2985,7 @@ export function analyzeDeck(
     rolesGrade,
     manaGrade,
     curveGrade,
+    averageMv,
     pacing,
     pacingLabel,
   };
