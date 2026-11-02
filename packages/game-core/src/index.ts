@@ -37,7 +37,7 @@ export type GameLayout = string;
 // which imports nothing but *types* back from here (erased at compile time).
 import { summarizeGame, type GameSummary } from './summary';
 import { stepDungeon, type DungeonId, type DungeonProgress } from './dungeons';
-import { poisonLimit, teamOf } from './teams';
+import { hasWholeTeams, poisonLimit, teamOf } from './teams';
 
 export * from './dungeons';
 export * from './teams';
@@ -986,11 +986,7 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'start': {
       if (prev.status !== 'lobby') return prev;
-      // Two-Headed Giant needs whole teams: an odd table or a single team would
-      // finish on the first win check. The UI holds Start; this holds the API.
-      if (prev.format === '2hg' && (prev.players.length < 4 || prev.players.length % 2 !== 0)) {
-        return prev;
-      }
+      if (prev.format === '2hg' && !hasWholeTeams(prev.players.length)) return prev;
       next = {
         ...next,
         status: 'active',

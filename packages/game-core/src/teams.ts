@@ -21,6 +21,11 @@ export function teamOf(seat: number): number {
   return Math.floor(seat / 2);
 }
 
+/** Two-Headed Giant needs whole teams: an even seat count of at least four. */
+export function hasWholeTeams(seats: number): boolean {
+  return seats >= 4 && seats % 2 === 0;
+}
+
 /** Whether a seat is on the winning side: the winner, or in 2HG its teammate. */
 export function isWinningSeat(
   state: { format: string; winnerSeat: number | null },
