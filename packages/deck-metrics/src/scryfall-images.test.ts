@@ -56,8 +56,15 @@ describe('scryfallJpegImage', () => {
     expect(scryfallJpegImage(modern(seg))).toBe(legacy('normal'));
   });
 
-  it('leaves legacy JPEGs, other hosts and empties alone', () => {
-    expect(scryfallJpegImage(legacy('art_crop'))).toBe(legacy('art_crop'));
+  it.each(['small', 'large', 'border_crop', 'art_crop'])(
+    'maps the legacy %s JPEG to the normal JPEG, which survives the cutoff',
+    (seg) => {
+      expect(scryfallJpegImage(legacy(seg))).toBe(legacy('normal'));
+    }
+  );
+
+  it('leaves the normal JPEG, other hosts and empties alone', () => {
+    expect(scryfallJpegImage(legacy('normal'))).toBe(legacy('normal'));
     expect(scryfallJpegImage('https://example.com/art/x.webp')).toBe(
       'https://example.com/art/x.webp'
     );

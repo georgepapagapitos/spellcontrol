@@ -55,13 +55,16 @@ export function modernScryfallImage(url: string | null | undefined): string | nu
 }
 
 /**
- * A JPEG URL for contexts that cannot take WebP (link-preview crawlers). A
- * WebP-generation URL maps to the `/normal/…jpg` file (the `jpeg` key, which
- * Scryfall keeps); a legacy JPEG or any other URL comes back unchanged.
+ * A JPEG URL that still exists after 2027-01-01, for contexts that cannot take
+ * WebP (link-preview crawlers). Both generations map to the `/normal/…jpg` file
+ * (the `jpeg` key, which Scryfall keeps): a WebP-generation URL, and a legacy
+ * small / large / border_crop / art_crop JPEG, which is what stored
+ * `deck_publications.og_art_crop` rows still hold and which 404s after the
+ * cutoff. A legacy `normal` URL and any other URL come back unchanged.
  */
 export function scryfallJpegImage<T extends string | null | undefined>(url: T): T {
   if (!url) return url;
-  const m = MODERN_URL.exec(url);
+  const m = MODERN_URL.exec(url) ?? LEGACY_URL.exec(url);
   if (!m) return url;
   return `${HOST}normal/${m[2]}.jpg${m[3] ?? ''}` as T;
 }
