@@ -90,7 +90,13 @@ export function useBinderByCopyIdAfterPaint(): Map<string, BinderRef[]> {
   const { cards, binders, allocatedCopyIds, setMap } = useBinderLayoutInputs();
   const [byCopy, setByCopy] = useState(EMPTY_BY_COPY);
   useEffect(() => {
-    const compute = () => setByCopy(buildBinderByCopyId(cards, binders, allocatedCopyIds, setMap));
+    // An empty result over an empty map keeps the same reference, so a qty edit
+    // that moves nothing doesn't cost the editor a second render.
+    const compute = () =>
+      setByCopy((prev) => {
+        const next = buildBinderByCopyId(cards, binders, allocatedCopyIds, setMap);
+        return next.size === 0 && prev.size === 0 ? prev : next;
+      });
     if (typeof window.requestIdleCallback === 'function') {
       const handle = window.requestIdleCallback(compute);
       return () => window.cancelIdleCallback(handle);
