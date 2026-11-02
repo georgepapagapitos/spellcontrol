@@ -105,8 +105,28 @@ describe('your own decks', () => {
       bracket: null,
       // The list as it stands: <cards>:<hash>, so a finished game can say which list played.
       version: expect.stringMatching(/^\d+:[0-9a-f]{8}$/),
+      // No estimate yet, so no facts to publish; the win turn is timed on demand.
+      facts: null,
+      resolveWinTurn: expect.any(Function),
     });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('carries Game Changers and combos from the deck’s estimate for the pod sheet', () => {
+    const { onPick } = open({
+      decks: [
+        deck({
+          bracketEstimation: {
+            bracket: 3,
+            breakdown: { gameChangerCount: 2, twoCardComboCount: 1 },
+          } as Deck['bracketEstimation'],
+        }),
+      ],
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Atraxa/ }));
+    expect(onPick).toHaveBeenCalledWith(
+      expect.objectContaining({ facts: { gameChangers: 2, combos: 1, winTurn: null } })
+    );
   });
 
   it("carries the deck's known bracket (board E370)", () => {

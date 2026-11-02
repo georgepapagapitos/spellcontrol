@@ -5,6 +5,7 @@ import {
   type GameAction,
   type GamePlayer,
   type GameState,
+  type PlayerDeckFacts,
   type HordeRevealMode,
   type HordeSettings,
   type HordeStep,
@@ -43,6 +44,28 @@ const VALID_BRACKETS = new Set([1, 2, 3, 4, 5]);
 export function sanitizeBracket(raw: unknown): 1 | 2 | 3 | 4 | 5 | null {
   if (typeof raw !== 'number' || !VALID_BRACKETS.has(raw)) return null;
   return raw as 1 | 2 | 3 | 4 | 5;
+}
+
+const MAX_FACT = 99;
+function sanitizeCount(raw: unknown): number | null {
+  return typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 && raw <= MAX_FACT
+    ? raw
+    : null;
+}
+
+/**
+ * Whitelist a seat's published deck facts (`GamePlayer.deckFacts`): three
+ * small numbers the server cannot verify, so it holds only their shape. A
+ * missing or malformed object is null ("not known"); a bad win turn alone is
+ * null inside an otherwise valid object.
+ */
+export function sanitizeDeckFacts(raw: unknown): PlayerDeckFacts | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+  const gameChangers = sanitizeCount(r.gameChangers);
+  const combos = sanitizeCount(r.combos);
+  if (gameChangers === null || combos === null) return null;
+  return { gameChangers, combos, winTurn: sanitizeCount(r.winTurn) };
 }
 
 /**
@@ -87,6 +110,7 @@ function sanitizeAddedPlayer(raw: GamePlayer): GamePlayer {
     colorIdentity: sanitizeColorIdentity(r.colorIdentity),
     panelColorKey: sanitizePanelColorKey(r.panelColorKey),
     bracket: sanitizeBracket(r.bracket),
+    deckFacts: sanitizeDeckFacts(r.deckFacts),
     deckVersion: sanitizeDeckVersion(r.deckVersion),
     life: raw.life,
     poison: 0,
@@ -333,6 +357,7 @@ export function sanitizeAction(action: GameAction): GameAction {
     if ('colorIdentity' in raw) patch.colorIdentity = sanitizeColorIdentity(raw.colorIdentity);
     if ('panelColorKey' in raw) patch.panelColorKey = sanitizePanelColorKey(raw.panelColorKey);
     if ('bracket' in raw) patch.bracket = sanitizeBracket(raw.bracket);
+    if ('deckFacts' in raw) patch.deckFacts = sanitizeDeckFacts(raw.deckFacts);
     if ('deckVersion' in raw) patch.deckVersion = sanitizeDeckVersion(raw.deckVersion);
     if ('connected' in raw) patch.connected = raw.connected === true;
     return { ...action, patch };

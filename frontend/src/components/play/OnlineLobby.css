@@ -577,6 +577,36 @@
   border-color: var(--art-scrim-success);
 }
 
+.lobby-seat-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.lobby-seat[data-art='on'] .lobby-seat-facts {
+  color: var(--art-scrim-text);
+}
+
+/* The bracket-spread note sits above the seats it is about. It is a note, not
+   an alert: nothing is wrong, the pod just may want to talk before shuffling. */
+.lobby-spread {
+  /* The seats' own cap, so the note lines up with the cards it is about. */
+  width: 100%;
+  max-width: 54rem;
+  margin: 0 auto;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
 .lobby-hint {
   margin: 0;
   text-align: center;

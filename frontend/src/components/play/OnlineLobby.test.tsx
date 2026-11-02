@@ -217,6 +217,64 @@ describe('OnlineLobby', () => {
     expect(within(seats[0]).queryByText(/^Bracket /)).toBeNull();
   });
 
+  it('lists each seat’s published Game Changers, combos and win turn', () => {
+    const game = table(2);
+    game.players[1] = seat(1, {
+      deckId: 'd1',
+      deckName: 'Fast one',
+      bracket: 4,
+      deckFacts: { gameChangers: 3, combos: 1, winTurn: 6 },
+    });
+    renderLobby(game, 'u0');
+    const seats = Array.from(screen.getByRole('list', { name: 'Seats' }).children) as HTMLElement[];
+    const facts = within(seats[1]).getByRole('list', { name: "P1's deck" });
+    expect(within(facts).getByText('3 Game Changers')).toBeTruthy();
+    expect(within(facts).getByText('1 combo')).toBeTruthy();
+    expect(within(facts).getByText('Win path by turn 6')).toBeTruthy();
+  });
+
+  it('omits the win turn until it is known and draws nothing for a seat with no facts', () => {
+    const game = table(3);
+    game.players[1] = seat(1, {
+      deckId: 'd1',
+      deckName: 'Slow one',
+      deckFacts: { gameChangers: 0, combos: 2, winTurn: null },
+    });
+    game.players[2] = seat(2, { deckId: 'd2', deckName: 'Friend deck', deckFacts: null });
+    renderLobby(game, 'u0');
+    const seats = Array.from(screen.getByRole('list', { name: 'Seats' }).children) as HTMLElement[];
+    expect(within(seats[1]).getByText('0 Game Changers')).toBeTruthy();
+    expect(within(seats[1]).getByText('2 combos')).toBeTruthy();
+    expect(within(seats[1]).queryByText(/Win path/)).toBeNull();
+    expect(within(seats[2]).queryByText(/Game Changer/)).toBeNull();
+    expect(within(seats[2]).queryByText(/combo/)).toBeNull();
+  });
+
+  it('does not show facts for a seat that has since cleared its deck', () => {
+    const game = table(2);
+    game.players[1] = seat(1, {
+      deckId: null,
+      deckFacts: { gameChangers: 1, combos: 1, winTurn: 5 },
+    });
+    renderLobby(game, 'u0');
+    expect(screen.queryByText('1 Game Changer')).toBeNull();
+  });
+
+  it('flags seats more than one bracket apart, and only those', () => {
+    const wide = table(3);
+    wide.players[1] = seat(1, { bracket: 2 });
+    wide.players[2] = seat(2, { bracket: 4 });
+    renderLobby(wide, 'u0');
+    expect(screen.getByRole('note').textContent).toMatch(/Brackets 2 to 4 at this table/);
+    cleanup();
+
+    const near = table(3);
+    near.players[1] = seat(1, { bracket: 3 });
+    near.players[2] = seat(2, { bracket: 4 });
+    renderLobby(near, 'u0');
+    expect(screen.queryByRole('note')).toBeNull();
+  });
+
   it('states readiness in words, not only in color', () => {
     const game = applyAction(table(2), { type: 'set-ready', actorSeat: 0, ready: true });
     renderLobby(game);

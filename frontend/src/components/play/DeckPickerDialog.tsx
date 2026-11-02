@@ -15,6 +15,8 @@ import {
 import { userMessage } from '@/lib/util/user-error';
 import { fetchFriendDecks, type FriendDeck } from '@/lib/social/friend-decks-client';
 import { effectiveBracket, type Deck } from '../../store/decks';
+import type { PlayerDeckFacts } from '@spellcontrol/game-core';
+import { deckFactsOf, winTurnOf } from '@/lib/play/pod-sheet';
 import { signatureMissesCombos } from '@/lib/deck-analysis/bracket-signature';
 import { bracketTextWithEstimate } from '@/lib/deck-analysis/format-bracket-label';
 import type { ProductSummary } from '../../types';
@@ -50,6 +52,18 @@ export interface PickedDeck {
    * device does not hold (a friend's, a starter).
    */
   version: string | null;
+  /**
+   * Game Changers, combos and win turn from the deck's last bracket estimate,
+   * for the pod sheet. Absent for a deck this device holds no estimate for
+   * (a friend's, a starter): the seat then shows nothing rather than zeros.
+   */
+  facts?: PlayerDeckFacts | null;
+  /**
+   * Times the deck's win path, which takes a moment. Absent when this device
+   * does not hold the cards. The lobby publishes the seat first, then the
+   * facts again with this turn once it lands.
+   */
+  resolveWinTurn?: () => Promise<number | null>;
 }
 
 function pickedFromDeck(deck: Deck): PickedDeck {
@@ -62,6 +76,8 @@ function pickedFromDeck(deck: Deck): PickedDeck {
     colorIdentity: deck.commander?.color_identity ?? [],
     bracket: (effectiveBracket(deck) as 1 | 2 | 3 | 4 | 5 | undefined) ?? null,
     version: deckVersionOf(deck),
+    facts: deckFactsOf(deck),
+    resolveWinTurn: () => winTurnOf(deck),
   };
 }
 

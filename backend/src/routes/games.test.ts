@@ -2140,6 +2140,68 @@ describe('miscellaneous', () => {
     expect(seat1After.bracket).toBeNull();
   });
 
+  it('PATCH sanitizes deckFacts on update-player (three small counts, nothing else lands)', async () => {
+    const host = await registerAndGetCookie('games_df_h');
+    const joiner = await registerAndGetCookie('games_df_j');
+    const created = await request(app).post('/api/games').set('Cookie', host).send({});
+    const code = created.body.game.code as string;
+    const joined = await request(app)
+      .post(`/api/games/${code}/join`)
+      .set('Cookie', joiner)
+      .send({});
+
+    const valid = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', joiner)
+      .send({
+        baseVersion: joined.body.game.version,
+        actions: [
+          {
+            type: 'update-player',
+            seat: 1,
+            patch: { deckFacts: { gameChangers: 3, combos: 1, winTurn: 6, cards: ['Sol Ring'] } },
+          },
+        ],
+      });
+    const seat1 = valid.body.game.players.find((p: { seat: number }) => p.seat === 1);
+    expect(seat1.deckFacts).toEqual({ gameChangers: 3, combos: 1, winTurn: 6 });
+
+    // A bad win turn drops alone; a bad count drops the whole object.
+    const badTurn = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', joiner)
+      .send({
+        baseVersion: valid.body.game.version,
+        actions: [
+          {
+            type: 'update-player',
+            seat: 1,
+            patch: { deckFacts: { gameChangers: 2, combos: 0, winTurn: 'soon' } },
+          },
+        ],
+      });
+    expect(badTurn.body.game.players.find((p: { seat: number }) => p.seat === 1).deckFacts).toEqual(
+      { gameChangers: 2, combos: 0, winTurn: null }
+    );
+
+    const badCount = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', joiner)
+      .send({
+        baseVersion: badTurn.body.game.version,
+        actions: [
+          {
+            type: 'update-player',
+            seat: 1,
+            patch: { deckFacts: { gameChangers: -1, combos: 1e9, winTurn: 4 } },
+          },
+        ],
+      });
+    expect(
+      badCount.body.game.players.find((p: { seat: number }) => p.seat === 1).deckFacts
+    ).toBeNull();
+  });
+
   it('PATCH whitelists update-player patch (F1: no forged userId/isHost/life)', async () => {
     const host = await registerAndGetCookie('games_wl_h');
     const joiner = await registerAndGetCookie('games_wl_j');

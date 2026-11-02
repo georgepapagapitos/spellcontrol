@@ -458,6 +458,16 @@ the live board with a Start button in its header. Two regions at >=1024px
   board" made Start feel like it had not started anything, and put a second
   set of life / commander-damage / monarch controls in front of the ones the
   board already carries.
+- **The pod sheet is the seat card, not a second table.** Under the chip row a
+  seat lists the counts a pod argues about: Game Changers, combos (two-card)
+  and the turn its win path comes online (`.lobby-seat-facts`). They are what
+  the seat's owner published when seating the deck (`GamePlayer.deckFacts`, three
+  numbers, no card names), so a friend's or starter deck shows nothing rather
+  than zeros, and the win-turn line appears only once the clock has landed. When
+  the known brackets sit more than one apart a `role="note"` line above the
+  seats says so (`.lobby-spread`). It is a note, not an alert: nothing is wrong,
+  the pod may just want to talk first. A 3 and a 4 is a normal table and draws
+  nothing.
 - **A comparison needs someone to compare with.** The board-door's "N of M
   boards open" and its seat chips are hidden at a one-seat table, where they
   read as a count of yourself.
