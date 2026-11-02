@@ -30,6 +30,11 @@
 // 320 CSS px reflow and a 24px browser font size, failing on clipped text, text
 // or controls past the edge, overlapping lines and px-sized text.
 //
+// --lcp swaps the walk for the welcome-route lab check (journey-lcp.mjs, E1094):
+// a signed-out cold visit of / at phone and desktop, LCP over 3 runs, the LCP
+// element, and whether its image is discoverable from the initial HTML. A median
+// over the ceiling fails the run; lcp.json lands in --out.
+//
 // Any of the first six fails the run, and so does an a11y finding under --a11y. Screenshots + report.json land in
 // --out. Run by .github/workflows/nightly-journey.yml against a production
 // build served by the backend; locally:
@@ -46,6 +51,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import puppeteer from 'puppeteer-core';
 import { TIERS, executable } from './journey-browser.mjs';
+import { lcpCheck, writeLcpReport } from './journey-lcp.mjs';
 import { overlayWalk } from './journey-overlays.mjs';
 import { ZOOM_BY_DESIGN, ZOOM_TIERS, launchPrefs, zoomProbe } from './journey-zoom.mjs';
 
@@ -949,6 +955,19 @@ function printZoomTotals() {
 }
 
 async function main() {
+  if (argv.includes('--lcp')) {
+    const result = await lcpCheck({ base: BASE, browserName: BROWSER });
+    await writeLcpReport(OUT, result);
+    for (const [tier, t] of Object.entries(result.tiers))
+      console.log(
+        `welcome ${tier}: median LCP ${Math.round(t.medianLcp)} ms (ceiling ${t.ceilingMs}), runs ${t.runs
+          .map((r) => `${Math.round(r.lcp)} ${r.tag ?? '-'}/${r.format ?? '-'}`)
+          .join(', ')}`
+      );
+    for (const a of result.advisories) console.log(`advisory: ${a}`);
+    for (const f of result.failures) console.error(`FAIL ${f}`);
+    process.exit(result.failures.length ? 1 : 0);
+  }
   if (!argv.includes('--skip-card-cache-check')) await assertCardCache();
   await mkdir(OUT, { recursive: true });
   // One Chrome per large-text tier: the browser's font size is a profile setting.

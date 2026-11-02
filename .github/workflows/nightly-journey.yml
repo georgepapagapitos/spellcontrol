@@ -192,6 +192,15 @@ jobs:
         if: ${{ !cancelled() && steps.seed.outcome == 'success' }}
         run: node scripts/journey.mjs --base http://localhost:3737 --browser chrome --viewports zoom,reflow,text,phone-text --username journeyadmin --out journey-zoom
 
+      # Welcome-route lab check (E1094, scripts/journey-lcp.mjs): a signed-out cold
+      # visit of / at phone and desktop, LCP over 3 runs (median), the LCP element,
+      # its image format, and whether the image is findable in the initial HTML.
+      # Fails on a median over the ceiling named in that file. Lab numbers from one
+      # runner; the vitals beacon is the field source.
+      - name: Welcome route LCP (Chrome)
+        if: ${{ !cancelled() && steps.seed.outcome == 'success' }}
+        run: node scripts/journey.mjs --base http://localhost:3737 --browser chrome --lcp --out journey-lcp
+
       - name: Journey in Firefox (desktop)
         if: ${{ !cancelled() && steps.seed.outcome == 'success' }}
         run: node scripts/journey.mjs --base http://localhost:3737 --browser firefox --viewports desktop --username journeyadmin --out journey-firefox
@@ -228,6 +237,7 @@ jobs:
           path: |
             journey-chrome
             journey-zoom
+            journey-lcp
             journey-firefox
             journey-ui-tells
             backend.log
