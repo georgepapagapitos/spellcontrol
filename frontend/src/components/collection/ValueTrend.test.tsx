@@ -10,7 +10,13 @@ import {
 } from '@/lib/collection/value-history';
 import { ValueTrend } from './ValueTrend';
 
-const daysAgo = (n: number) => Date.now() - n * 86400000;
+// Calendar days, not 24-hour blocks: on the day clocks fall back, "24h ago" can land on the
+// same local date as today and collapse two snapshots into one logged day.
+const daysAgo = (n: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.getTime();
+};
 
 afterEach(async () => {
   await clearValueHistory();
