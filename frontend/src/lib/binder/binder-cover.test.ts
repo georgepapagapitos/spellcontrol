@@ -3,7 +3,7 @@ import { binderCoverArt } from './binder-cover';
 import type { EnrichedCard, MaterializedBinder } from '@/types/index';
 
 const NORMAL = (n: string) => `https://cards.scryfall.io/normal/front/a/b/${n}.jpg`;
-const CROP = (n: string) => `https://cards.scryfall.io/art_crop/front/a/b/${n}.jpg`;
+const CROP = (n: string) => `https://cards.scryfall.io/art/front/a/b/${n}.webp`;
 
 function card(over: Partial<EnrichedCard>): EnrichedCard {
   return {
@@ -127,7 +127,7 @@ describe('binderCoverArt', () => {
     expect(binderCoverArt(b)).toBe(CROP('auto'));
   });
 
-  it('is a no-op on URLs already pointing at art_crop', () => {
+  it('is a no-op on URLs already pointing at the art crop', () => {
     const b = binder([card({ scryfallId: 's1', imageNormal: CROP('healed') })]);
     expect(binderCoverArt(b)).toBe(CROP('healed'));
   });

@@ -151,7 +151,7 @@ describe('searchTokenArt (E139 playtest token art)', () => {
       })
     );
 
-    expect(await searchTokenArt('Treasure')).toBe('https://cards.scryfall.io/normal/treasure.jpg');
+    expect(await searchTokenArt('Treasure')).toBe('https://cards.scryfall.io/grid/treasure.webp');
   });
 
   it('returns null when the search has no results', async () => {

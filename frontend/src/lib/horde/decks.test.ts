@@ -34,7 +34,7 @@ describe('horde catalog', () => {
   });
 
   it.each(HORDE_CATALOG)('$id: has a signature tileArt crop and theme colors', (entry) => {
-    expect(entry.tileArt).toMatch(/^https:\/\/cards\.scryfall\.io\/art_crop\//);
+    expect(entry.tileArt).toMatch(/^https:\/\/cards\.scryfall\.io\/art\//);
     expect(entry.themeColors.length).toBeGreaterThan(0);
   });
 });

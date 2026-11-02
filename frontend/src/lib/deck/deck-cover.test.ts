@@ -15,7 +15,7 @@ describe('deckCoverArt', () => {
     const offline = card('Delver', {
       card_faces: [{ image_uris: { normal: 'https://c/normal/delver.jpg' } }],
     });
-    expect(deckCoverArt({ cards: [{ card: offline }] })).toBe('https://c/art_crop/delver.jpg');
+    expect(deckCoverArt({ cards: [{ card: offline }] })).toBe('https://c/art/delver.jpg');
   });
 
   it('is undefined for a deck with no art', () => {

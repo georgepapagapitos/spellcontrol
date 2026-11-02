@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import 'fake-indexeddb/auto';
+import { modernScryfallImage } from '@spellcontrol/deck-metrics';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCollectionStore } from '@/store/collection';
 import { useDecksStore, type Deck } from '@/store/decks';
@@ -13,6 +14,7 @@ import {
 } from './refresh-image-versions';
 
 const CHIMERA = '81cea94d-e8a2-4c88-b121-9806eb7cc210';
+const want = (stamp: number) => modernScryfallImage(url(stamp));
 const url = (stamp: number) => `https://cards.scryfall.io/normal/front/8/1/${CHIMERA}.jpg?${stamp}`;
 const OLD = 1790000000;
 const NEW = 1791120518;
@@ -55,13 +57,16 @@ describe('applyImageVersionsToStores', () => {
     const unsub = useDecksStore.subscribe(() => seen.push(isApplyingServer()));
     applyImageVersionsToStores();
     unsub();
-    expect(deckImage()).toBe(url(NEW));
-    expect(useCollectionStore.getState().cards[0].imageNormal).toBe(url(NEW));
+    expect(deckImage()).toBe(want(NEW));
+    expect(useCollectionStore.getState().cards[0].imageNormal).toBe(want(NEW));
     expect(seen).toEqual([true]);
     expect(isApplyingServer()).toBe(false);
   });
 
-  it('does nothing when no stamp moved', () => {
+  it('does nothing when no stamp moved and the rows are already WebP', () => {
+    // The seeded rows carry JPEG URLs, which the first pass rewrites (E1088).
+    applyImageVersionsToStores();
+    expect(deckImage()).toBe(want(OLD));
     const decks = useDecksStore.getState().decks;
     applyImageVersionsToStores();
     expect(useDecksStore.getState().decks).toBe(decks);
@@ -82,7 +87,7 @@ describe('refreshImageVersions', () => {
     const [path, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(path).toContain('/api/cards/image-versions');
     expect(JSON.parse(init.body as string)).toEqual({ scryfallIds: [CHIMERA] });
-    expect(deckImage()).toBe(url(NEW));
+    expect(deckImage()).toBe(want(NEW));
   });
 
   it('runs at most once a day', async () => {
@@ -112,7 +117,7 @@ describe('refreshImageVersions', () => {
     const fetch = stubFetch({ imageVersions: { [CHIMERA]: String(NEW) } });
     await refreshImageVersions(T + 2);
     expect(fetch).toHaveBeenCalledOnce();
-    expect(deckImage()).toBe(url(NEW));
+    expect(deckImage()).toBe(want(NEW));
   });
 
   // A collection card whose price is fresh gets no stamp from the price
@@ -123,7 +128,7 @@ describe('refreshImageVersions', () => {
     await refreshImageVersions(T);
     const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(JSON.parse(init.body as string)).toEqual({ scryfallIds: [CHIMERA] });
-    expect(useCollectionStore.getState().cards[0].imageNormal).toBe(url(NEW));
+    expect(useCollectionStore.getState().cards[0].imageNormal).toBe(want(NEW));
   });
 
   it('skips the request when there are no cards at all', async () => {

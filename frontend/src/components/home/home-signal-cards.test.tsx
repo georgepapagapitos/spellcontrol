@@ -266,7 +266,8 @@ describe('PriceMoversCard', () => {
     await screen.findByText('Riser');
     const img = container.querySelector('.home-thumb img') as HTMLImageElement;
     expect(img.getAttribute('srcset')).toBe(
-      'https://cards.scryfall.io/small/front/a/a/a.jpg?1 146w, ' + `${normal} 488w`
+      'https://cards.scryfall.io/thumb/front/a/a/a.webp?1 146w, ' +
+        'https://cards.scryfall.io/grid/front/a/a/a.webp?1 488w'
     );
   });
 

@@ -101,7 +101,7 @@ describe('BracketBreakdown', () => {
     );
     const rift = screen.getByRole('button', { name: 'Preview Cyclonic Rift' });
     expect(rift.querySelector('img')?.getAttribute('src')).toBe(
-      'https://cards.scryfall.io/art_crop/rift.jpg'
+      'https://cards.scryfall.io/art/rift.webp'
     );
     const tithe = screen.getByRole('button', { name: 'Preview Smothering Tithe' });
     expect(tithe.querySelector('img')).toBeNull();

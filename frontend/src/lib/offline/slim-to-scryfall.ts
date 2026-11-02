@@ -1,16 +1,21 @@
+import { modernScryfallImage } from '@spellcontrol/deck-metrics';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { SlimCard, SlimCardFace } from './types';
 
 /**
  * Derive a Scryfall art-crop URL from a full-card image URL. The slim bundle
  * only carries the `normal` image, but Scryfall CDN URLs differ solely by the
- * size segment (`.../normal/...` vs `.../art_crop/...`), so the crop is a pure
+ * size segment (`.../grid/...` vs `.../art/...`), so the crop is a pure
  * string swap. Any of the JPEG card sizes swaps: a Coach row can carry the
  * `small` image, and swapping only `/normal/` squeezed that whole card into
  * an art-crop box (E415). URLs with no such segment pass through unchanged.
  */
 export function scryfallArtCrop(imageNormal: string): string {
-  return imageNormal.replace(/\/(small|normal|large)\//, '/art_crop/');
+  // The JPEG art_crop retires 2027-01-01 (E1088), so the crop is the WebP `art`.
+  return modernScryfallImage(imageNormal).replace(
+    /\/(thumb|grid|display|crop|small|normal|large)\//,
+    '/art/'
+  );
 }
 
 /**
@@ -41,13 +46,13 @@ export function slimToScryfall(s: SlimCard): ScryfallCard {
     edhrec_rank: s.edhrecRank,
     image_uris: s.imageNormal
       ? {
-          small: s.imageSmall ?? s.imageNormal,
-          normal: s.imageNormal,
-          large: s.imageLarge ?? s.imageNormal,
+          small: modernScryfallImage(s.imageSmall ?? s.imageNormal),
+          normal: modernScryfallImage(s.imageNormal),
+          large: modernScryfallImage(s.imageLarge ?? s.imageNormal),
           // ScryfallCard's image_uris type marks these as required; png/
           // border_crop are never rendered, so pass the normal URL through.
-          png: s.imageLarge ?? s.imageNormal,
-          border_crop: s.imageNormal,
+          png: modernScryfallImage(s.imageLarge ?? s.imageNormal),
+          border_crop: modernScryfallImage(s.imageNormal),
           // art_crop IS rendered (deck thumbnails) — derive the real crop so we
           // don't show the full card frame where a cropped art is expected.
           art_crop: scryfallArtCrop(s.imageNormal),
@@ -81,9 +86,9 @@ function slimFaceToScryfall(f: SlimCardFace): NonNullable<ScryfallCard['card_fac
     colors: f.colors,
     image_uris: f.imageNormal
       ? {
-          small: f.imageSmall ?? f.imageNormal,
-          normal: f.imageNormal,
-          large: f.imageLarge ?? f.imageNormal,
+          small: modernScryfallImage(f.imageSmall ?? f.imageNormal),
+          normal: modernScryfallImage(f.imageNormal),
+          large: modernScryfallImage(f.imageLarge ?? f.imageNormal),
           art_crop: scryfallArtCrop(f.imageNormal),
         }
       : undefined,

@@ -3,7 +3,7 @@
  * rewrite that moves a stored image URL onto it.
  *
  * A Scryfall image URL ends in a version stamp:
- * `cards.scryfall.io/normal/front/8/1/<id>.jpg?1791120518`. Scryfall bumps the
+ * `cards.scryfall.io/grid/front/8/1/<id>.webp?1791120518`. Scryfall bumps the
  * stamp when it replaces an image, most often when a preview-season phone photo
  * gives way to the real scan. The CDN serves the newest file under any stamp,
  * but tells the browser to cache each URL for a year. The app stores image URLs
@@ -22,6 +22,8 @@
  * after the swap already carries the newest stamp, and an older map entry must
  * never pull it back.
  */
+
+import { modernScryfallImage, normalizeImageUris } from '@spellcontrol/deck-metrics';
 
 const LS_KEY = 'spellcontrol:card-image-versions';
 
@@ -78,32 +80,39 @@ export function _resetForTests(): void {
 }
 
 const SCRYFALL_IMAGE =
-  /^(https:\/\/cards\.scryfall\.io\/[^?]*\/([0-9a-f-]{36})\.(?:jpg|png))(?:\?(\d+))?$/;
+  /^(https:\/\/cards\.scryfall\.io\/[^?]*\/([0-9a-f-]{36})\.(?:jpg|png|webp))(?:\?(\d+))?$/;
 
 /**
- * The URL on the newest stamp this device knows for its printing, or the URL
- * unchanged (same reference) when there is nothing newer or it isn't a Scryfall
- * card image.
+ * The WebP URL on the newest stamp this device knows for its printing. A stored
+ * JPEG URL is rewritten to its WebP twin even when the stamp map is empty, which
+ * is how a row persisted before Scryfall's 2027-01-01 JPEG cutoff keeps
+ * rendering (E1088). Returns the URL unchanged when there is nothing to do or
+ * it isn't a Scryfall card image.
  */
 export function freshImageUrl<T extends string | undefined | null>(url: T): T {
-  if (!url || cache.size === 0) return url;
-  const m = SCRYFALL_IMAGE.exec(url);
-  if (!m) return url;
+  if (!url) return url;
+  const modern: string = modernScryfallImage(url as string);
+  if (cache.size === 0) return modern as T;
+  const m = SCRYFALL_IMAGE.exec(modern);
+  if (!m) return modern as T;
   const known = cache.get(m[2]);
-  if (known === undefined || known <= Number(m[3] ?? 0)) return url;
+  if (known === undefined || known <= Number(m[3] ?? 0)) return modern as T;
   return `${m[1]}?${known}` as T;
 }
 
 /** A Scryfall `image_uris` block with every URL freshened, or the same object. */
 function freshUris<U extends object | undefined>(uris: U): U {
   if (!uris) return uris;
+  // Fill any legacy key from its WebP twin first, then move every URL onto WebP
+  // and the newest stamp.
+  const base = normalizeImageUris(uris);
   let out: Record<string, unknown> | undefined;
-  for (const [k, v] of Object.entries(uris)) {
+  for (const [k, v] of Object.entries(base)) {
     if (typeof v !== 'string') continue;
     const next = freshImageUrl(v);
-    if (next !== v) (out ??= { ...uris })[k] = next;
+    if (next !== v) (out ??= { ...base })[k] = next;
   }
-  return (out ?? uris) as U;
+  return (out ?? base) as U;
 }
 
 type ImageUris = Record<string, string | undefined>;
@@ -115,7 +124,7 @@ interface ScryfallImages {
 
 /** A Scryfall card with its top-level and per-face image URLs freshened. */
 export function freshenScryfallCard<C extends ScryfallImages | null | undefined>(card: C): C {
-  if (!card || cache.size === 0) return card;
+  if (!card) return card;
   const uris = freshUris(card.image_uris);
   let faces = card.card_faces;
   if (faces) {
@@ -148,7 +157,6 @@ type EnrichedImages = Partial<Record<(typeof ENRICHED_IMAGE_FIELDS)[number], str
  */
 export function freshenCollectionImages<T extends EnrichedImages>(cards: T[]): T[] {
   loadImageVersions();
-  if (cache.size === 0) return cards;
   let touched = false;
   const out = cards.map((card) => {
     let next: T | undefined;
@@ -190,7 +198,6 @@ function freshSlots<S extends { card: ScryfallImages }>(slots: S[] | undefined):
  */
 export function freshenDeckImages<D extends DeckImages>(decks: D[]): D[] {
   loadImageVersions();
-  if (cache.size === 0) return decks;
   let touched = false;
   const out = decks.map((d) => {
     const commander = freshenScryfallCard(d.commander);

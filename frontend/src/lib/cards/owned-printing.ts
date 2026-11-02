@@ -1,3 +1,4 @@
+import { modernScryfallImage } from '@spellcontrol/deck-metrics';
 import { useCollectionStore } from '@/store/collection';
 import type { EnrichedCard, Finish } from '@/types';
 import { type ThumbVersion, useCardThumb } from './card-thumbs';
@@ -9,6 +10,14 @@ import { type ThumbVersion, useCardThumb } from './card-thumbs';
  * owned printing (a Secret Lair copy, say) while the row resolved the name to
  * Scryfall's default printing, and the two disagreed for every owned card.
  */
+
+/** The WebP size segment that stands for each {@link ThumbVersion}. */
+const WEBP_SEGMENT: Record<ThumbVersion, string> = {
+  small: 'thumb',
+  normal: 'grid',
+  large: 'display',
+  art_crop: 'art',
+};
 
 const FINISH_RANK: Record<Finish, number> = { foil: 3, etched: 2, nonfoil: 1 };
 
@@ -38,10 +47,16 @@ export function bestOwnedCopyByName(
  *  one, else builds the CDN path from the printing id (Scryfall's image paths
  *  are keyed by it), so a copy imported without image fields still matches. */
 export function ownedCopyImage(copy: EnrichedCard, version: ThumbVersion): string {
+  const segment = WEBP_SEGMENT[version];
   const stored = copy.imageNormal ?? copy.imageSmall ?? copy.imageLarge;
-  if (stored) return stored.replace(/\/(small|normal|large|art_crop)\//, `/${version}/`);
+  // A stored JPEG URL is read as its WebP twin (E1088), then re-sized.
+  if (stored)
+    return modernScryfallImage(stored).replace(
+      /\/(thumb|grid|display|crop|art|small|normal|large|art_crop)\//,
+      `/${segment}/`
+    );
   const id = copy.scryfallId;
-  return `https://cards.scryfall.io/${version}/front/${id[0]}/${id[1]}/${id}.jpg`;
+  return `https://cards.scryfall.io/${segment}/front/${id[0]}/${id[1]}/${id}.webp`;
 }
 
 /** The owned printing's image for `name`, or undefined when it isn't owned.

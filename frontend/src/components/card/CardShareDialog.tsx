@@ -5,6 +5,7 @@ import { toast } from '@/store/toasts';
 import './CardShareDialog.css';
 import { Button } from '@/components/shared/Button';
 import { copyToClipboard } from '@/lib/util/clipboard';
+import { cardImageFilename } from '@/lib/cards/image-file';
 
 interface Props {
   /** Card name — titles the dialog and names the downloaded file. */
@@ -25,7 +26,7 @@ interface Props {
  */
 export function CardShareDialog({ name, imageUrl, onClose }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
-  const filename = `${name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.jpg`;
+  const filename = cardImageFilename(name, imageUrl);
 
   const run = async (
     key: string,
