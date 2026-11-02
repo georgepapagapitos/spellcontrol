@@ -532,7 +532,8 @@ export function actionIsAllowed(
     case 'life':
     case 'set-life':
     case 'poison':
-    case 'cmd-dmg': {
+    case 'cmd-dmg':
+    case 'dungeon': {
       const target = state.players.find((p) => p.seat === action.seat);
       if (target && target.userId !== userId && target.userId !== null) {
         return 'Can only adjust your own seat.';

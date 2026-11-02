@@ -40,6 +40,13 @@ const poison = (s: GameState, seat: number, delta: number) =>
   applyAction(s, { type: 'poison', seat, delta, actorSeat: seat, ts: 2000 });
 
 describe('Two-Headed Giant', () => {
+  it('refuses to start an odd or single-team table', () => {
+    expect(table('2hg', 3).status).toBe('lobby');
+    expect(table('2hg', 2).status).toBe('lobby');
+    expect(table('2hg', 4).status).toBe('active');
+    expect(table('2hg', 6).status).toBe('active');
+  });
+
   it('pairs seats into teams: 0+1, 2+3', () => {
     expect([0, 1, 2, 3, 4, 5].map(teamOf)).toEqual([0, 0, 1, 1, 2, 2]);
   });

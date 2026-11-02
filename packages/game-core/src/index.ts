@@ -986,6 +986,11 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'start': {
       if (prev.status !== 'lobby') return prev;
+      // Two-Headed Giant needs whole teams: an odd table or a single team would
+      // finish on the first win check. The UI holds Start; this holds the API.
+      if (prev.format === '2hg' && (prev.players.length < 4 || prev.players.length % 2 !== 0)) {
+        return prev;
+      }
       next = {
         ...next,
         status: 'active',
