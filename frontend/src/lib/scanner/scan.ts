@@ -71,6 +71,8 @@ export type ScanResult =
       quad: Point[];
       timings: ScanTimings;
       source: ScanSource;
+      /** The 488x680 warp the match came from; the caller reads the info line off it. */
+      warped?: HTMLCanvasElement;
     }
   | {
       kind: 'borderline';
@@ -130,17 +132,22 @@ export async function scan(input: ScanInput): Promise<ScanResult> {
     // unreachable, so skip straight to the on-device fallback.
     const first = await tryServerMatch(detect.warped, cropArtRegion, detectMs, quad, t0);
     if (first) {
-      if (first.kind === 'confident') return first;
+      if (first.kind === 'confident') return withWarp(first, detect.warped);
       // Pass 2: full-art cards (basic lands, borderless, full-art promos) miss
       // the art-region band because their art fills the whole card. Retry the
       // same warp with a whole-card crop and keep whichever matched better.
       const second = await tryServerMatch(detect.warped, cropFullArtRegion, detectMs, quad, t0);
-      return second ? pickBetterResult(first, second) : first;
+      return withWarp(second ? pickBetterResult(first, second) : first, detect.warped);
     }
     logger.debug('[scanner] server match unavailable — falling back to on-device pHash');
   }
 
-  return onDeviceMatchAsync(detect.warped, detectMs, quad, t0);
+  return withWarp(await onDeviceMatchAsync(detect.warped, detectMs, quad, t0), detect.warped);
+}
+
+/** Attach the warp to a confident result so the caller can read the info line. */
+function withWarp(r: ScanResult, warped: HTMLCanvasElement): ScanResult {
+  return r.kind === 'confident' ? { ...r, warped } : r;
 }
 
 /** Rank scan results best-first: confident > borderline > miss. */

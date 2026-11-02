@@ -31,6 +31,7 @@ export interface ScryfallCard {
   set: string;
   set_name: string;
   collector_number?: string;
+  illustration_id?: string; // shared by printings with the same art
   /** The printing's release date, `YYYY-MM-DD`. */
   released_at?: string;
   edhrec_rank?: number;
