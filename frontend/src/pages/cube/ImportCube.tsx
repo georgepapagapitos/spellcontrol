@@ -17,6 +17,7 @@ import {
   buildMyVersion,
   type BuildMyVersionResult as BuildMyVersionData,
 } from '../../lib/cube/build-my-version';
+import { importPastedCube } from '../../lib/cube/paste-import';
 import { useOwnedCubePool } from '../../lib/cube/use-owned-pool';
 import { DEFAULT_POOL_FILTERS } from '../../lib/cube/pool-filters';
 import { BuildMyVersionResult } from './BuildMyVersionResult';
@@ -40,6 +41,8 @@ export function ImportCube() {
   const [result, setResult] = useState<{ cube: ImportedCube; overlay: OwnershipOverlay } | null>(
     null
   );
+  const [pasteText, setPasteText] = useState('');
+  const [unresolved, setUnresolved] = useState<string[]>([]);
   const [filter, setFilter] = useState<OwnFilter>('all');
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
@@ -63,6 +66,7 @@ export function ImportCube() {
       const cube = await fetchCubeCobraCube(url);
       const overlay = overlayOwnership(cube.cards, ownershipFor);
       setResult({ cube, overlay });
+      setUnresolved([]);
       setStatus('done');
       setBuildStatus('idle');
       setMyVersion(null);
@@ -71,6 +75,27 @@ export function ImportCube() {
       setStatus('error');
     }
   }, [url, ownershipFor]);
+
+  const runPaste = useCallback(async () => {
+    if (!pasteText.trim()) return;
+    setStatus('working');
+    setError('');
+    try {
+      const { cube, unresolved: missed } = await importPastedCube(pasteText);
+      setResult({ cube, overlay: overlayOwnership(cube.cards, ownershipFor) });
+      setUnresolved(missed);
+      setStatus('done');
+      setBuildStatus('idle');
+      setMyVersion(null);
+    } catch (e) {
+      setError(
+        e instanceof CubeImportError
+          ? e.message
+          : userMessage(e, "Couldn't import that list. Try again.")
+      );
+      setStatus('error');
+    }
+  }, [pasteText, ownershipFor]);
 
   const buildMine = useCallback(async () => {
     if (!result) return;
@@ -137,6 +162,33 @@ export function ImportCube() {
         </Button>
       </form>
 
+      <form
+        className="cube-import-paste"
+        onSubmit={(e) => {
+          e.preventDefault();
+          runPaste();
+        }}
+      >
+        <label htmlFor="cube-paste-list" className="cube-import-hint">
+          Or paste a card list: one card per line, a Draftmancer cube file, or a CubeCobra CSV.
+        </label>
+        <textarea
+          id="cube-paste-list"
+          className="cube-input cube-paste-input"
+          rows={6}
+          spellCheck={false}
+          value={pasteText}
+          onChange={(e) => setPasteText(e.target.value)}
+        />
+        <Button
+          variant="primary"
+          type="submit"
+          disabled={status === 'working' || !pasteText.trim()}
+        >
+          {status === 'working' ? 'Importing…' : 'Import list'}
+        </Button>
+      </form>
+
       {/* aria-live region: always in DOM so screen readers catch transitions */}
       <div aria-live="polite" aria-atomic="true">
         {status === 'working' && (
@@ -146,7 +198,12 @@ export function ImportCube() {
           />
         )}
 
-        {status === 'error' && <CubeErrorBlock error={error} onRetry={run} />}
+        {status === 'error' && (
+          <CubeErrorBlock
+            error={error}
+            onRetry={pasteText.trim() && !url.trim() ? runPaste : run}
+          />
+        )}
       </div>
 
       {status === 'done' && result && (
@@ -155,9 +212,17 @@ export function ImportCube() {
             <div>
               <h2>{result.cube.name}</h2>
               <p className="cube-result-sub">
-                {result.cube.cardCount} cards · {result.cube.likeCount.toLocaleString()} likes on
-                CubeCobra
+                {result.cube.cardCount} cards
+                {result.cube.id !== 'pasted' &&
+                  ` · ${result.cube.likeCount.toLocaleString()} likes on CubeCobra`}
               </p>
+              {unresolved.length > 0 && (
+                <p className="cube-import-hint" role="status">
+                  Couldn't match {unresolved.length} {unresolved.length === 1 ? 'name' : 'names'}:{' '}
+                  {unresolved.slice(0, 5).join(', ')}
+                  {unresolved.length > 5 ? ', and more' : ''}.
+                </p>
+              )}
             </div>
             <div className="cube-pct">
               <strong>{Math.round(result.overlay.pctComplete * 100)}%</strong>

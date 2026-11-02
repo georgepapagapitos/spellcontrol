@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Ban, Boxes, Copy, Pencil, Plus, Share2, Trash2, X } from 'lucide-react';
+import { Ban, Boxes, Copy, Download, Pencil, Plus, Share2, Trash2, X } from 'lucide-react';
 import './cube.css';
 import { BackLink } from '@/components/app-shell/BackLink';
 import { PageHeader } from '@/components/app-shell/PageHeader';
@@ -17,7 +17,13 @@ import { useToastsStore } from '../../store/toasts';
 import { useAuth } from '../../store/auth';
 import { bindCubeCopies } from '@/lib/cube/bind-cube-copies';
 import { getCardsByNames } from '../../deck-builder/services/scryfall/client';
-import { toCubeCobraList } from '../../lib/cube/format';
+import {
+  cubeExportFileName,
+  toCubeCobraCsv,
+  toCubeCobraList,
+  toDraftmancerCube,
+} from '../../lib/cube/format';
+import { downloadText } from '@/lib/import-export/collection-export';
 import { useAwaitingFirstPull } from '@/lib/sync/use-awaiting-first-pull';
 import { useOwnedCubePool } from '../../lib/cube/use-owned-pool';
 import { DEFAULT_POOL_FILTERS } from '../../lib/cube/pool-filters';
@@ -224,6 +230,28 @@ export function CubeDetailPage() {
     );
   };
 
+  const downloadDraftmancer = () => {
+    downloadText(
+      toDraftmancerCube(target.cube.picks, target.name),
+      cubeExportFileName(target.name, 'draftmancer', 'txt')
+    );
+    pushToast({
+      message: 'Saved. In Draftmancer, load it from the cube import.',
+      tone: 'success',
+    });
+  };
+
+  const downloadCubeCobraCsv = () => {
+    downloadText(
+      toCubeCobraCsv(target.cube.picks, (name) => copyFor(name)),
+      cubeExportFileName(target.name, 'cubecobra', 'csv')
+    );
+    pushToast({
+      message: "Saved. Upload it from your cube's Edit menu on CubeCobra.",
+      tone: 'success',
+    });
+  };
+
   const handleRename = (name: string) => cubeStore.renameSaved(target.id, name);
   // Undoable from the toast, so it doesn't confirm first (T157) —
   // removeSaved shows the Undo toast itself.
@@ -426,6 +454,18 @@ export function CubeDetailPage() {
           },
           { label: 'Share', icon: Share2, opensDialog: true, onClick: () => setShareOpen(true) },
           { label: 'Copy cube list', icon: Copy, onClick: copyList },
+          {
+            label: 'Download for Draftmancer',
+            icon: Download,
+            menuOnly: true,
+            onClick: downloadDraftmancer,
+          },
+          {
+            label: 'Download CubeCobra CSV',
+            icon: Download,
+            menuOnly: true,
+            onClick: downloadCubeCobraCsv,
+          },
           {
             label: target.isPhysical ? 'Unmark physical' : 'Mark physical',
             icon: Boxes,
