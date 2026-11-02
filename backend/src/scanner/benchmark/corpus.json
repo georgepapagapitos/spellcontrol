@@ -1,0 +1,808 @@
+{
+  "seed": 20261102,
+  "drawn": 230,
+  "indexRecords": 55725,
+  "cards": [
+    {
+      "id": "136f72e2-0b39-4241-bd89-1dc41af79efe",
+      "name": "Look Skyward and Despair"
+    },
+    {
+      "id": "7b4d8ab5-252c-4727-817d-6f18cbaedd91",
+      "name": "Master of Cruelties"
+    },
+    {
+      "id": "3499687b-5dd3-4a0c-96a3-7db227abcaf2",
+      "name": "Blood Fountain"
+    },
+    {
+      "id": "642d9239-82e0-4696-ad99-10796042d1f8",
+      "name": "Simoon"
+    },
+    {
+      "id": "3adb076a-ddec-442d-be01-806e498279ea",
+      "name": "Hollowhenge Wrangler"
+    },
+    {
+      "id": "a06081fa-857f-40b3-8041-257d5c5457bd",
+      "name": "Old Guard"
+    },
+    {
+      "id": "4529a3d2-e4e6-4cca-bcea-16b51f69bbec",
+      "name": "From the Ashes"
+    },
+    {
+      "id": "8053b888-a680-4318-88c3-0924e596e780",
+      "name": "Gladewalker Ritualist"
+    },
+    {
+      "id": "3b9256e2-b59c-4997-91c1-4c565746d53d",
+      "name": "Harvestguard Alseids"
+    },
+    {
+      "id": "64832674-beb1-446e-b2f7-8a5e271139a5",
+      "name": "Lofty Denial"
+    },
+    {
+      "id": "1d0d80c7-87b5-47cc-b2fd-7defd281e1a2",
+      "name": "Door of Destinies"
+    },
+    {
+      "id": "657fa00d-ddb5-49e6-a01e-82038cccfe30",
+      "name": "Zombie"
+    },
+    {
+      "id": "2d33e3d5-c608-4ba8-8614-0b9d0385af64",
+      "name": "Urborg Stalker"
+    },
+    {
+      "id": "19e4d494-e8b3-4ae2-93e3-70c65ab90f15",
+      "name": "Kardur, Doomscourge"
+    },
+    {
+      "id": "3ab9ec17-efcf-489d-a2db-52ada3145d61",
+      "name": "Azusa, Lost but Seeking // Azusa, Lost but Seeking"
+    },
+    {
+      "id": "593409f4-0c1e-4858-90e6-bfbf60688c5e",
+      "name": "Organ Hoarder"
+    },
+    {
+      "id": "65badf7f-7e69-4e2a-91c5-041e3c8bd32e",
+      "name": "Bituminous Blast"
+    },
+    {
+      "id": "070a3f30-0839-4678-a37c-475ee189811e",
+      "name": "Verdant Command"
+    },
+    {
+      "id": "11c25f81-a1e1-46db-a432-d8e993a2514c",
+      "name": "Malicious Eclipse // Malicious Eclipse"
+    },
+    {
+      "id": "e160cb2a-1d8a-47cb-b136-8347eaab67d7",
+      "name": "Island"
+    },
+    {
+      "id": "fe83a23c-723e-4b34-a121-a10fc0efe1b5",
+      "name": "Felidar Umbra"
+    },
+    {
+      "id": "6fbc9abd-8719-4cea-8bf4-1a3d78e3f00b",
+      "name": "Priest of the Blessed Graf"
+    },
+    {
+      "id": "b72257f5-0cf9-45ca-8dc7-a1a93bd7dd1e",
+      "name": "Custody Battle"
+    },
+    {
+      "id": "0859810b-132c-4067-87b7-794dfc4aefa5",
+      "name": "Ichor Aberration"
+    },
+    {
+      "id": "6674c208-4d8d-4833-bee2-bfc87c93049d",
+      "name": "Coruscation Mage"
+    },
+    {
+      "id": "d7f8adaa-2852-4e9c-b91d-ce80a21859c9",
+      "name": "Predatory Urge"
+    },
+    {
+      "id": "1a30f99a-b295-45a2-bff7-479cbe7541a5",
+      "name": "Scrounge"
+    },
+    {
+      "id": "8342ad27-f2cd-47c3-bc30-6fae8523f250",
+      "name": "Rummaging Goblin"
+    },
+    {
+      "id": "64820f4f-1f78-4338-beb8-5ed5a447cfe4",
+      "name": "Endless One"
+    },
+    {
+      "id": "6330415d-324c-4170-9269-eb024dc9e5a3",
+      "name": "Variable Chaser // Arc of Fortune"
+    },
+    {
+      "id": "0b1c856f-6d29-4bfc-976e-7875d60abd52",
+      "name": "Wand of Denial"
+    },
+    {
+      "id": "ba41ec1b-e631-4882-b897-df26e26ada04",
+      "name": "Battle Cry Goblin"
+    },
+    {
+      "id": "e9acc1ce-964e-425c-88a6-fe641d3f1f5b",
+      "name": "Inhumaniac"
+    },
+    {
+      "id": "5d1994a0-9323-4108-addf-9ad8aaa80ca6",
+      "name": "Vigor"
+    },
+    {
+      "id": "a154dadc-be5b-4ad6-9946-bdc54c251bff",
+      "name": "Become Brutes"
+    },
+    {
+      "id": "0e790851-f0f7-4f1a-80e6-94be649499b6",
+      "name": "Boon of the Wish-Giver"
+    },
+    {
+      "id": "896043a7-c7a2-4542-8739-7b4f09c6e1f1",
+      "name": "Bola Slinger"
+    },
+    {
+      "id": "23b3bf1e-ea85-47f5-8473-4d16615f68d7",
+      "name": "How to Start a Riot"
+    },
+    {
+      "id": "69bcb2ea-444d-416c-8817-d822f971b75c",
+      "name": "Urza, Lord High Artificer // Urza, Lord High Artificer"
+    },
+    {
+      "id": "35c78973-f2ae-4c76-802f-793d1022fcbd",
+      "name": "Refocus"
+    },
+    {
+      "id": "8f7f06e8-d8ee-435c-965c-8e1302a8ec10",
+      "name": "Dakmor Salvage"
+    },
+    {
+      "id": "c9f30b7a-75bb-44e6-b1a2-726df1b5b1f3",
+      "name": "Leonin Den-Guard"
+    },
+    {
+      "id": "551518b7-1b71-4fa6-8828-5ae08eab1887",
+      "name": "Spellbound Dragon"
+    },
+    {
+      "id": "0db7f9e6-4f27-4743-a456-1386f24dbd5f",
+      "name": "Kindred Discovery"
+    },
+    {
+      "id": "1006c846-4b4b-4b1b-aa5c-0b120c8bcefb",
+      "name": "Myojin of Blooming Dawn // Myojin of Blooming Dawn"
+    },
+    {
+      "id": "1935902c-d84f-496a-b9f1-f96d1f5e2b84",
+      "name": "Construct"
+    },
+    {
+      "id": "174f5d7e-5d36-4d13-96bf-9b12cd644716",
+      "name": "Postmortem Professor"
+    },
+    {
+      "id": "bcf8196e-3dd6-480f-a431-0e17005f7168",
+      "name": "Castle"
+    },
+    {
+      "id": "73586dec-e263-41f5-b736-34a186b3c7db",
+      "name": "Tradewind Rider Avatar"
+    },
+    {
+      "id": "08318a16-a9ed-42c8-9433-876b7a72e368",
+      "name": "Broodrage Mycoid"
+    },
+    {
+      "id": "5d7f701c-dcdc-4067-8d00-b4b7aadee9ba",
+      "name": "Simian Spirit Guide"
+    },
+    {
+      "id": "0b98ba34-f251-4bd0-9d75-1d4445be5cfd",
+      "name": "Airship Engine Room"
+    },
+    {
+      "id": "98563d19-fa5d-4395-ba6c-2bd724d9c410",
+      "name": "Secluded Courtyard"
+    },
+    {
+      "id": "9d1c9e3a-cd3f-412c-af59-c024081782cf",
+      "name": "Kroxa and Kunoros"
+    },
+    {
+      "id": "5e3e5b0f-c702-4671-ad95-ab0cda1ab83d",
+      "name": "Setzer, Wandering Gambler"
+    },
+    {
+      "id": "3742a0fb-4b86-49d6-b6fb-bd6a42fa1bcb",
+      "name": "Sleep with the Fishes"
+    },
+    {
+      "id": "b75f56f2-88fd-44ba-ad02-56ea3391f173",
+      "name": "Jace, Cunning Castaway"
+    },
+    {
+      "id": "2d1bb8ac-7125-4537-b2da-e23a8c28df79",
+      "name": "Reckless Pyrosurfer"
+    },
+    {
+      "id": "bc2bbff9-af57-4858-9351-d148b8c4bc3a",
+      "name": "Ruthless Invasion"
+    },
+    {
+      "id": "049771b0-69ad-4f2d-8567-47e8a87b4496",
+      "name": "Elder Arthur Maxson"
+    },
+    {
+      "id": "8f0abdb4-4898-4818-b7e2-24a90f15e49d",
+      "name": "Scion of Stygia"
+    },
+    {
+      "id": "d2b2d07a-9ea1-430d-b432-ae507f4fe73b",
+      "name": "Wall of Distortion"
+    },
+    {
+      "id": "16e889c4-105b-4f4e-8a3d-ace753a24a4e",
+      "name": "Sudden Death"
+    },
+    {
+      "id": "65e28187-fece-4f78-b8fe-43ee6df4d338",
+      "name": "Glacial Fortress"
+    },
+    {
+      "id": "260d784d-0213-44da-8f78-58968a185012",
+      "name": "Sorin the Mirthless"
+    },
+    {
+      "id": "531cba81-afd7-4be4-adec-87edb77ba2a9",
+      "name": "Archangel of Thune"
+    },
+    {
+      "id": "4152a5a8-e5a1-46b0-8f75-b9ac341da474",
+      "name": "Kethek, Crucible Goliath"
+    },
+    {
+      "id": "3e550776-b806-4f66-8aab-e6a5dac6d5cc",
+      "name": "Flash of Defiance"
+    },
+    {
+      "id": "2fdeab50-b45f-412b-85a3-c6cf009ce567",
+      "name": "Sulfurous Springs"
+    },
+    {
+      "id": "b738ed22-fb88-4f19-a67f-b39a33a0c7a7",
+      "name": "Lukka, Bound to Ruin"
+    },
+    {
+      "id": "59b033df-0d6a-4207-b305-95530d7590b9",
+      "name": "Jester's Cap"
+    },
+    {
+      "id": "d8ef63b9-c021-40fe-910e-93c06d660c20",
+      "name": "Oakheart Dryads"
+    },
+    {
+      "id": "9e2e3efb-75cb-430f-b9f4-cb58f3aeb91b",
+      "name": "Dockside Extortionist"
+    },
+    {
+      "id": "4388e57e-0c87-4d66-a862-58261d76c5ac",
+      "name": "Goblin War Paint"
+    },
+    {
+      "id": "b8574ffd-3e72-41de-90bf-69363189f047",
+      "name": "Burn Bright"
+    },
+    {
+      "id": "754f202f-4f08-4c39-9219-1114d8508788",
+      "name": "Mephidross Vampire"
+    },
+    {
+      "id": "db45133d-ce37-42b4-b068-fbcc8be0e907",
+      "name": "Alien Salamander"
+    },
+    {
+      "id": "a0b9d4f3-4570-4fe0-857f-97f5bd6ead44",
+      "name": "Terraformer"
+    },
+    {
+      "id": "54dd4948-dc79-4fe5-b4a0-fb257058f9dd",
+      "name": "Skywhaler's Shot"
+    },
+    {
+      "id": "6168ca14-b8d6-4149-bc61-dc1965d2f5b4",
+      "name": "Guardian Archon"
+    },
+    {
+      "id": "d0fcd8d3-f159-49a1-8dd9-582ae4a0adc3",
+      "name": "Goblin Patrol"
+    },
+    {
+      "id": "4ecb1362-9a67-4d4c-8d69-9ac2ebf4d0b0",
+      "name": "Lifeblood"
+    },
+    {
+      "id": "58b35399-79af-49fa-989e-867a85320cc2",
+      "name": "Oculus Whelp"
+    },
+    {
+      "id": "c8e246c8-3b3f-47c4-8a1b-b5f2d36f0ca4",
+      "name": "Tunneler Wurm"
+    },
+    {
+      "id": "99d082a0-abb9-42a1-9edc-0f9faca6d648",
+      "name": "Sudden Insight"
+    },
+    {
+      "id": "5b402a0c-4861-4b58-83b6-c754624cb6ea",
+      "name": "Thorin, Company's Leader"
+    },
+    {
+      "id": "48255f10-ea0e-42a3-bbfb-efa773f0cb08",
+      "name": "Starling, Aerial Ally"
+    },
+    {
+      "id": "23518ae8-98ab-4253-8930-63d1780b0d0c",
+      "name": "Trailblazer's Boots"
+    },
+    {
+      "id": "eb7dc259-9949-4673-a8f1-874396948392",
+      "name": "Swamp"
+    },
+    {
+      "id": "7bc56147-9920-401d-8e4e-93d497e8b67a",
+      "name": "Long-Range Sensor"
+    },
+    {
+      "id": "09e86aad-5f99-404b-b66f-39e791c3a53f",
+      "name": "Viconia, Disciple of Rebirth"
+    },
+    {
+      "id": "0957875c-e1a2-4d14-8b61-c806903fc760",
+      "name": "Oran-Rief Invoker"
+    },
+    {
+      "id": "eacec01f-c971-48b7-bf4a-2fdacae32835",
+      "name": "Elemental Time Flamingo"
+    },
+    {
+      "id": "6cca7aa4-10b8-4618-b0f8-8a13d2c9e3fc",
+      "name": "Utopia Sprawl"
+    },
+    {
+      "id": "e3d97a02-9187-4dbc-a511-2a15ca840cda",
+      "name": "Glyph Keeper"
+    },
+    {
+      "id": "ad03ba90-2442-4a71-94df-2088b5b63662",
+      "name": "Violent Echoes"
+    },
+    {
+      "id": "5dd5b018-bb3e-4333-a9c7-dac134b99b8c",
+      "name": "Ruby, Daring Tracker"
+    },
+    {
+      "id": "490fa81f-3557-4f01-ba2d-0da10fb68a20",
+      "name": "Trapeze Artist"
+    },
+    {
+      "id": "0e57335d-4066-4d73-83cd-67a215e01a4e",
+      "name": "Simian Spirit Guide"
+    },
+    {
+      "id": "2f497641-b73a-4399-bc89-5274c42e17cc",
+      "name": "Curse of Bounty"
+    },
+    {
+      "id": "f395278e-6d74-4f35-af9d-21bad7b19763",
+      "name": "Elves of Deep Shadow"
+    },
+    {
+      "id": "542306fa-50a5-4ae6-bd05-1f3d221253b6",
+      "name": "Burning-Rune Demon // Burning-Rune Demon"
+    },
+    {
+      "id": "045ae4ec-07f2-4098-a2d9-4bfcbd0273b2",
+      "name": "Timberwatch Elf"
+    },
+    {
+      "id": "abf44662-62ad-47fb-9cfe-6bed47133de5",
+      "name": "Horta"
+    },
+    {
+      "id": "ad3eddfe-bbed-41ef-b14f-25aa528fc100",
+      "name": "Plaguecrafter's Familiar"
+    },
+    {
+      "id": "0d6094b0-72a1-4f1b-9067-b1c97238d005",
+      "name": "Averna, the Chaos Bloom"
+    },
+    {
+      "id": "7d5bbb02-a04e-4add-ae9a-67819cffdb3a",
+      "name": "Elderfang Venom"
+    },
+    {
+      "id": "b5ec75ba-bae2-4ccc-b18b-ad4639cfb548",
+      "name": "Noxious Toad"
+    },
+    {
+      "id": "69ce6839-92d1-497b-9760-6fdc7388614e",
+      "name": "Cyclops Superconductor"
+    },
+    {
+      "id": "adbd9e19-0ab6-43bf-b4e7-1def2aff4eb7",
+      "name": "Junji, the Midnight Sky // Junji, the Midnight Sky"
+    },
+    {
+      "id": "24179418-d92c-43eb-a8f6-b8ea83f8c80f",
+      "name": "Command Tower"
+    },
+    {
+      "id": "7dea7997-546d-474a-b362-31714abe2bb5",
+      "name": "Bedevil"
+    },
+    {
+      "id": "5d977da2-4024-4c7b-b557-e89564f8d465",
+      "name": "Balshan Beguiler"
+    },
+    {
+      "id": "e7e74cfe-d573-482c-87df-804551667aad",
+      "name": "Hungry for More"
+    },
+    {
+      "id": "26a37e3f-e256-41e7-8a91-be56b925e64e",
+      "name": "Jukai Liberator"
+    },
+    {
+      "id": "008d3b2e-a5e6-4ac2-85a0-82628333b80c",
+      "name": "Construct"
+    },
+    {
+      "id": "99fd1cd5-4740-4a0f-b773-3d3b66861d77",
+      "name": "The Warring Triad"
+    },
+    {
+      "id": "914837df-c255-4cea-9255-b05f218fd9f8",
+      "name": "Saving Grasp"
+    },
+    {
+      "id": "2a4f3d89-86dc-45df-9593-d8a7c336ebac",
+      "name": "Darksteel Splicer"
+    },
+    {
+      "id": "4742c222-1f29-4e1a-a545-798d175255ca",
+      "name": "Gatta and Luzzu"
+    },
+    {
+      "id": "8916e24f-9c74-4b6c-9894-d60669854f35",
+      "name": "Counterspell"
+    },
+    {
+      "id": "f8d7a2c7-666d-4fc6-bac8-ef8eb66e355d",
+      "name": "Animal Sanctuary"
+    },
+    {
+      "id": "81d69cf2-8643-4926-857e-febbd54d870f",
+      "name": "Gateway Plaza"
+    },
+    {
+      "id": "1cddae19-eb96-475c-9800-17ac57df4c0a",
+      "name": "Fling"
+    },
+    {
+      "id": "8c8875a3-9f56-4947-9655-aa5d95f06de0",
+      "name": "Crosstown Courier"
+    },
+    {
+      "id": "d0d1f5b0-f842-40d5-ae51-015eefe68fa1",
+      "name": "The Blue Spirit"
+    },
+    {
+      "id": "46012ec9-9605-44fe-84a9-6aab0738737f",
+      "name": "Exocomp"
+    },
+    {
+      "id": "68357502-cf23-4bf6-ab4e-371428e540d0",
+      "name": "Swords to Plowshares"
+    },
+    {
+      "id": "d4e2f75e-75f3-4255-969f-0eab32f7bd1e",
+      "name": "Nautiloid Ship"
+    },
+    {
+      "id": "3ef062a2-8664-49fd-92d6-413fcf2b9dae",
+      "name": "Idyllic Tutor"
+    },
+    {
+      "id": "d66a9f1b-31c8-4557-888b-a927922d37af",
+      "name": "Voracious Vampire"
+    },
+    {
+      "id": "692942ae-15e9-4c16-ab56-fc2065991034",
+      "name": "Jace Reawakened"
+    },
+    {
+      "id": "6079aea9-145a-445d-a00f-1c0f4018a529",
+      "name": "Swamp"
+    },
+    {
+      "id": "acca1fd4-6384-460e-905f-118f01aa76ed",
+      "name": "Naktamun Lorespinner // Wheel of Fortune"
+    },
+    {
+      "id": "39934090-36a6-4183-9176-97ea932d2685",
+      "name": "Pack Mastiff"
+    },
+    {
+      "id": "c60a2035-59cb-426e-b2ae-45d8d6ce0bb8",
+      "name": "Dense Foliage"
+    },
+    {
+      "id": "b3d33df2-a77b-4c2e-ba7f-2cc9c1505f9b",
+      "name": "Tam's Resistance"
+    },
+    {
+      "id": "8970a5d6-dcab-415a-851b-20e228ef7d16",
+      "name": "Bloody Betrayal"
+    },
+    {
+      "id": "aa7c53cf-d314-4f60-bb5b-cf5068ed9915",
+      "name": "Nirkana Revenant"
+    },
+    {
+      "id": "64975352-8d35-4d02-94ac-fa0c6ee12409",
+      "name": "Clay Statue"
+    },
+    {
+      "id": "9ece8504-389a-43e3-b178-7067722c4b75",
+      "name": "Inviolability"
+    },
+    {
+      "id": "e3731001-4e6a-4a91-9e7d-fc2ea039a60b",
+      "name": "Mountain"
+    },
+    {
+      "id": "cbafdfc0-380a-482b-b5f8-a7a00ecf8da6",
+      "name": "Construct"
+    },
+    {
+      "id": "e086d1eb-4d45-4c39-b361-48fcf61d8a26",
+      "name": "Inspiring Vantage"
+    },
+    {
+      "id": "75caefa7-94d5-472e-a540-daad3ee69899",
+      "name": "Ox of Agonas"
+    },
+    {
+      "id": "fbd2422e-8e84-4c39-af29-3b4d38baee63",
+      "name": "Strix Lookout"
+    },
+    {
+      "id": "1936aa23-3a5d-4386-bc4d-66841e0cab2c",
+      "name": "The Explorer"
+    },
+    {
+      "id": "df8713cd-3f4b-43ef-adbd-e37c2617c617",
+      "name": "Winter, Team Player"
+    },
+    {
+      "id": "5d419927-f5c0-42fd-a780-b91911909f2e",
+      "name": "Persistent Petitioners"
+    },
+    {
+      "id": "13453abe-3f05-4956-8493-382d7d2af699",
+      "name": "Dance of Many"
+    },
+    {
+      "id": "ad8d2b97-72b9-4bde-ad31-fd9562512d30",
+      "name": "Carefree Swinemaster"
+    },
+    {
+      "id": "17db6ef5-1aa9-4b8c-b0b7-d6668a2347a1",
+      "name": "Doomfall"
+    },
+    {
+      "id": "2efecdd9-bd3a-4b79-92da-6485589d5bde",
+      "name": "Deprive"
+    },
+    {
+      "id": "c76f346c-ae34-4f5f-8e3b-6c77b0c4d530",
+      "name": "Urborg Volcano"
+    },
+    {
+      "id": "c0165eb2-e268-4587-9e46-1bf59285b48c",
+      "name": "Silkwrap"
+    },
+    {
+      "id": "6a55cafa-cb5c-482c-b3c9-1b1f4f0c698d",
+      "name": "Nature's Lore"
+    },
+    {
+      "id": "9f21a33a-ef9d-495d-a475-7042cbd9f6f5",
+      "name": "The Superlatorium"
+    },
+    {
+      "id": "10aeac19-6892-448e-9e5f-302051a089fc",
+      "name": "Arashin Cleric"
+    },
+    {
+      "id": "0ce05634-6c01-4941-a135-904cb4e33ac4",
+      "name": "Galuf's Final Act"
+    },
+    {
+      "id": "54fbbf39-cd52-474a-908e-b7a78cb5eb5b",
+      "name": "Goblin Bird-Grabber"
+    },
+    {
+      "id": "1e09568e-8927-454b-99a5-4776fa51fa31",
+      "name": "Enter the Eternities"
+    },
+    {
+      "id": "2b871039-6a66-4ac3-95e7-24759c1f2f92",
+      "name": "Merfolk of the Pearl Trident"
+    },
+    {
+      "id": "3e4e7589-9cee-4d57-8648-ce733781bfb2",
+      "name": "Latch Seeker"
+    },
+    {
+      "id": "4f352b5e-9731-4a8e-b872-db5d3bf32211",
+      "name": "Quina, Qu Gourmet"
+    },
+    {
+      "id": "115cab84-60d7-4bf2-9beb-b4ed7b5ceaf4",
+      "name": "Remote Farm"
+    },
+    {
+      "id": "63050aa0-a7ea-4fe7-8746-7a11407ea0e4",
+      "name": "Magnus the Red"
+    },
+    {
+      "id": "cbfb3c53-1e68-48ce-8008-93bc49e188dd",
+      "name": "Uyo, Silent Prophet"
+    },
+    {
+      "id": "cfa4837b-7d37-4026-a49d-eaf311d60e33",
+      "name": "Falcon, Joaquin Torres"
+    },
+    {
+      "id": "09516d3d-e6c2-4359-af2a-a4aa244ca033",
+      "name": "Glen Elendra Archmage"
+    },
+    {
+      "id": "7a380bca-e64d-4582-9f55-02f91a1f3c2f",
+      "name": "Command Tower"
+    },
+    {
+      "id": "6ef168d6-28f2-4c24-9bfa-82c35663b729",
+      "name": "Resonating Lute"
+    },
+    {
+      "id": "cb33529b-80bd-4f52-94cc-d8371c53ad75",
+      "name": "Library Larcenist"
+    },
+    {
+      "id": "f566741d-a847-4f24-b6fc-7873f0797d59",
+      "name": "Windreader Sphinx"
+    },
+    {
+      "id": "6a198942-049c-4537-b5b1-d35df32d45d5",
+      "name": "Shard"
+    },
+    {
+      "id": "d5ef1d34-bf7f-462e-b190-53984fca5495",
+      "name": "Rakshasa Deathdealer"
+    },
+    {
+      "id": "5456b036-231e-4a64-b060-0709f5254664",
+      "name": "Dragonwing Glider"
+    },
+    {
+      "id": "2c12928e-ec68-40d4-8126-af5af4b49033",
+      "name": "Grim Haruspex"
+    },
+    {
+      "id": "8068c263-e5fa-4449-8887-418e9d0a4da4",
+      "name": "Angelic Voices"
+    },
+    {
+      "id": "c78da035-6b5b-4136-9ab6-f622b64fdc54",
+      "name": "Unstoppable Slasher"
+    },
+    {
+      "id": "14c94463-31e8-4a2e-b879-d096a27cc60e",
+      "name": "Forest"
+    },
+    {
+      "id": "9397010b-6116-4612-993a-11ec2a5d3115",
+      "name": "Forest"
+    },
+    {
+      "id": "e8faedf4-1178-4f5d-8f46-7277dfe1ae2c",
+      "name": "Radiant Performer"
+    },
+    {
+      "id": "285c4d9e-0f22-49a8-b68c-150fd0d4b617",
+      "name": "Swiftblade Vindicator"
+    },
+    {
+      "id": "0f2e89f2-6101-4ada-b925-2ae6f754b39e",
+      "name": "Hallowed Respite"
+    },
+    {
+      "id": "dd5db68c-24d5-44ce-9809-e446f26fac5d",
+      "name": "Ahn-Crop Crasher"
+    },
+    {
+      "id": "667a356c-b10d-42f2-bb2f-c3fd9affa4bd",
+      "name": "Mount Velus Manticore"
+    },
+    {
+      "id": "8ae15f32-034c-4c10-b1b1-ba8ccec76f2c",
+      "name": "Glimpse of Nature"
+    },
+    {
+      "id": "d2119f3f-27d2-4d43-a5ef-35c1b73d182a",
+      "name": "The Reaper, King No More"
+    },
+    {
+      "id": "75afdbe6-a3f9-49cf-b4ef-f370e518e960",
+      "name": "Phantasmal Mount"
+    },
+    {
+      "id": "f8baa9d1-b45d-4947-9eb6-7f580c83a2c3",
+      "name": "Shrapnel Blast"
+    },
+    {
+      "id": "dcb79f39-5ef3-4ad6-9a43-04beb27d8480",
+      "name": "Eladamri's Call"
+    },
+    {
+      "id": "5cf181ae-daa7-42f9-b667-5e679d80cf34",
+      "name": "Embalmed Ascendant"
+    },
+    {
+      "id": "7206db10-e248-420d-bf92-4d57bc72da56",
+      "name": "Maestros Diabolist"
+    },
+    {
+      "id": "8ea82964-fd9c-48e3-962f-94954476b31f",
+      "name": "Caparocti Sunborn"
+    },
+    {
+      "id": "6f80b450-70fe-4148-a7ce-1463c4c7b28c",
+      "name": "Echoing Deeps"
+    },
+    {
+      "id": "1f721f8d-fd2f-480b-8645-4bf6ce38dde9",
+      "name": "Synchronized Charge"
+    },
+    {
+      "id": "055afa78-b969-498f-a3ad-c792426e5ee6",
+      "name": "Orim's Chant"
+    },
+    {
+      "id": "eb55e544-ab9d-403d-93ee-19e792a256c5",
+      "name": "Brightclimb Pathway // Grimclimb Pathway"
+    },
+    {
+      "id": "05fa34df-99b0-4121-b2f1-d41afe97b200",
+      "name": "Make Your Move"
+    },
+    {
+      "id": "2d1ea522-a0f6-45a8-8985-6fcca95d60cc",
+      "name": "Ichor Wellspring"
+    }
+  ],
+  "gateSize": 20
+}

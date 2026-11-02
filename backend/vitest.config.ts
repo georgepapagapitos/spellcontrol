@@ -40,6 +40,9 @@ export default defineConfig({
         // measuring anything we can act on.
         'src/scanner/hash-ingest.ts',
         'src/scanner/embedding-ingest.ts',
+        // Benchmark stages that need the Git LFS embedding index and the ONNX
+        // model; run by the manual benchmark workflow, not the default suite.
+        'src/scanner/benchmark/heavy.ts',
         // Thin CLI wrappers around the ingests above + the combos ingest.
         'src/scripts/**',
         // Thin Anthropic API client — the single messages.create call site.

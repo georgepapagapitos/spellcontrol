@@ -83,3 +83,6 @@ docs/superpowers/
 # passed" report on disk — which is exactly how a crashed suite got read as 98
 # passing tests during the 2026-09-14 filter audit. Read exit codes, not this.
 .vitest/
+
+# Scanner benchmark: fetched Scryfall art for the full corpus
+backend/.cache/
