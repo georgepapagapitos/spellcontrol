@@ -69,7 +69,7 @@ const report = [
   `**Removed on Scryfall (${removed.length}):**`,
   list(removed),
   '',
-  'Update `HARDCODED_GAME_CHANGERS` and `GAME_CHANGERS_AS_OF` in `packages/deck-metrics/src/index.ts`, then re-run the bracket benchmark. Editing the list changes bracket estimates, so it is a product call.',
+  'Update `HARDCODED_GAME_CHANGERS` (`packages/deck-metrics/src/index.ts`) and `GAME_CHANGERS_AS_OF` (`packages/deck-metrics/src/gameChangersDrift.ts`), then re-run the bracket benchmark. Editing the list changes bracket estimates, so it is a product call.',
 ].join('\n');
 console.log(report);
 writeFileSync('game-changers-drift.md', report + '\n');

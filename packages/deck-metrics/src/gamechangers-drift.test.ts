@@ -3,7 +3,10 @@ import { diffGameChangers, GAME_CHANGERS_AS_OF, HARDCODED_GAME_CHANGERS } from '
 
 describe('diffGameChangers', () => {
   it('reports nothing when the live list is the hardcoded list', () => {
-    expect(diffGameChangers([...HARDCODED_GAME_CHANGERS])).toEqual({ added: [], removed: [] });
+    expect(diffGameChangers([...HARDCODED_GAME_CHANGERS], HARDCODED_GAME_CHANGERS)).toEqual({
+      added: [],
+      removed: [],
+    });
   });
 
   it('reads a double-faced card by its front face on either side', () => {
@@ -23,7 +26,10 @@ describe('diffGameChangers', () => {
 
   it('catches a single card dropped from the live list', () => {
     const live = [...HARDCODED_GAME_CHANGERS].filter((n) => n !== 'Mana Vault');
-    expect(diffGameChangers(live)).toEqual({ added: [], removed: ['Mana Vault'] });
+    expect(diffGameChangers(live, HARDCODED_GAME_CHANGERS)).toEqual({
+      added: [],
+      removed: ['Mana Vault'],
+    });
   });
 });
 
