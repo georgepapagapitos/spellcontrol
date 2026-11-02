@@ -8,6 +8,7 @@
  */
 import { dayKey } from '@/lib/collection/value-history';
 import { epochDay } from './home-hero';
+import heroArt from './welcome-hero-art.json';
 
 /** Iconic, evergreen EDH staples with striking, recognizable art — chosen so
  *  a guest with zero collection data still gets a hero that looks like the
@@ -34,4 +35,15 @@ export const EVERGREEN_COMMANDERS = [
  */
 export function pickWelcomeHeroCard(day: string = dayKey(Date.now())): string {
   return EVERGREEN_COMMANDERS[epochDay(day) % EVERGREEN_COMMANDERS.length];
+}
+
+/**
+ * The pool card's art_crop WebP URL, from a static table rather than an API
+ * lookup, so the image can be named in the initial HTML (E1105): index.html
+ * preloads exactly this URL (scripts/welcome-hero-preload.mjs) and the hero
+ * `<img>` renders it, so the preload is the request that paints. Key order is
+ * the pool order. Undefined for a name outside the pool.
+ */
+export function welcomeHeroArtUrl(name: string): string | undefined {
+  return (heroArt as Record<string, string>)[name];
 }

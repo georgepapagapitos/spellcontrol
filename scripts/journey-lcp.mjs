@@ -23,11 +23,10 @@ export const LCP_RUNS = 3;
 // 616 / 560 / 572 ms. The ceiling is the worst of those x 1.5, rounded up to
 // the next 250 ms.
 export const LCP_CEILING_MS = { phone: 1500, desktop: 1000 };
-// The hero art URL comes from an API lookup after the app boots, so no static
-// preload can name it yet: the discovery check reports a finding today. It is
-// an advisory until the hero is discoverable from the HTML (board E1094), then
-// flip this to true and the nightly fails on it.
-export const LCP_DISCOVERY_ENFORCED = false;
+// The hero art is named in the initial HTML (E1105): an inline script in
+// index.html preloads today's pick from a static table. A LCP image that only
+// the app's JS can find fails the nightly.
+export const LCP_DISCOVERY_ENFORCED = true;
 
 const median = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
 
@@ -42,7 +41,9 @@ export function imageFormat(contentType, url) {
 /**
  * Whether the initial HTML (what the server sent, before any script ran) lets
  * the preload scanner find `imageUrl`: a `<link rel=preload as=image>` for it,
- * or an `<img>` for it in the markup.
+ * or an `<img>` for it in the markup, or an inline script that creates that
+ * preload (the hero's art rotates by day, so the markup cannot name one URL:
+ * the script holds the table and runs before any module).
  */
 export function discoveredInHtml(html, imageUrl) {
   if (!imageUrl) return false;
@@ -51,7 +52,10 @@ export function discoveredInHtml(html, imageUrl) {
   const links = html.match(/<link\b[^>]*>/gi) ?? [];
   if (links.some((t) => /\brel=["']?preload/i.test(t) && /\bas=["']?image/i.test(t) && mentions(t)))
     return true;
-  return (html.match(/<img\b[^>]*>/gi) ?? []).some(mentions);
+  if ((html.match(/<img\b[^>]*>/gi) ?? []).some(mentions)) return true;
+  return (html.match(/<script\b(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/gi) ?? []).some(
+    (t) => mentions(t) && /preload/.test(t) && /\bas\s*=\s*['"]image['"]/.test(t)
+  );
 }
 
 /**

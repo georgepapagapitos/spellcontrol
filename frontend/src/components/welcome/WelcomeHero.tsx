@@ -6,7 +6,7 @@ import { SearchPill } from '@/components/search/SearchPill';
 import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { markEverVisited } from '@/lib/home/first-run';
 import { track } from '@/lib/util/analytics';
-import { pickWelcomeHeroCard } from '@/lib/home/welcome-hero';
+import { pickWelcomeHeroCard, welcomeHeroArtUrl } from '@/lib/home/welcome-hero';
 import { Button, IconButton } from '@/components/shared/Button';
 
 interface WelcomeHeroProps {
@@ -39,7 +39,12 @@ export function WelcomeHero({ onTrySamples, samplesLoading }: WelcomeHeroProps) 
   // illustration, not a card scan's border cover-cropped to a dark strip.
   // It is also the landing's largest contentful paint, so the <img> below is
   // eager + high fetch priority: lazy-loading it told the browser to wait.
-  const art = useCardThumb(heroCardName, 'art_crop');
+  // The static table names the same URL index.html preloads (E1105), so the
+  // art is on the first frame and the preload is the request that paints. The
+  // lookup is only the fallback for a name the table lacks.
+  const tableArt = welcomeHeroArtUrl(heroCardName);
+  const looked = useCardThumb(tableArt ? undefined : heroCardName, 'art_crop');
+  const art = tableArt ?? looked;
   const [query, setQuery] = useState('');
 
   function handleSubmit(e: FormEvent) {

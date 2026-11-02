@@ -15,6 +15,7 @@ vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => 'https://example
 
 import { WelcomeHero } from './WelcomeHero';
 import { hasEverVisited } from '@/lib/home/first-run';
+import { pickWelcomeHeroCard, welcomeHeroArtUrl } from '@/lib/home/welcome-hero';
 
 const onTrySamplesMock = vi.fn();
 
@@ -81,6 +82,14 @@ describe('WelcomeHero', () => {
   it('shows an art caption crediting Scryfall once art resolves', () => {
     renderHero();
     expect(screen.getByText(/· art via Scryfall/)).toBeTruthy();
+  });
+
+  it('renders the static-table art that index.html preloads, not the lookup result (E1105)', () => {
+    const { container } = renderHero();
+    const img = container.querySelector('img.welcome-hero-art');
+    expect(img?.getAttribute('src')).toBe(welcomeHeroArtUrl(pickWelcomeHeroCard()));
+    expect(img?.getAttribute('src')).toMatch(/\/art\/front\/.+\.webp/);
+    expect(img?.getAttribute('fetchpriority')).toBe('high');
   });
 
   // ============================================================
