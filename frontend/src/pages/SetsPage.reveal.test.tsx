@@ -32,13 +32,14 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-function renderSets() {
+async function renderSets() {
   render(
     <MemoryRouter>
       <SetsPage />
     </MemoryRouter>
   );
-  fireEvent.change(screen.getByLabelText(/Filter sets by name or code/), {
+  // The hub holds its loader until the set list answers (or fails).
+  fireEvent.change(await screen.findByLabelText(/Filter sets by name or code/), {
     target: { value: 'bolt' },
   });
 }
@@ -46,8 +47,8 @@ function renderSets() {
 const groups = () => document.querySelectorAll('.sets-card-group').length;
 
 describe('SetsPage card matches reveal', () => {
-  it('reveals six at a time with a count line, then hands focus to it', () => {
-    renderSets();
+  it('reveals six at a time with a count line, then hands focus to it', async () => {
+    await renderSets();
     expect(groups()).toBe(6);
     expect(screen.getByText('Showing 6 of 14 cards.')).toBeTruthy();
 

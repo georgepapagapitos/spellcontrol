@@ -16,7 +16,7 @@ import {
 import './SetsPage.css';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '../types';
-import { fetchPrintings, getSetCards, useSetMap, type SetMap } from '@/lib/api';
+import { fetchPrintings, getSetCards, getSetMap, useSetMap, type SetMap } from '@/lib/api';
 import {
   CARD_SEARCH_MIN_CHARS,
   SET_SORT_LABEL,
@@ -286,8 +286,23 @@ function SetsIndex() {
   // pull): show the loader, not "No sets to track yet." The empty state used to
   // flash for a frame on every visit, and the short page parked the footer
   // mid-screen before the sets shoved it away (CLS 0.15 on desktop, E1049).
-  const loadingCollection = hydrating || (cards.length === 0 && awaitingFirstPull);
   const setMap = useSetMap();
+  // The set list arrives on its own request. Rows painted before it came back
+  // were re-sorted newest first, gained their totals and meter bars, and shoved
+  // the page down (CLS 0.28 on phone, E1086). Hold the loader until the list is
+  // here; a failed fetch stops holding it so the rows still render by code.
+  const [setMapFailed, setSetMapFailed] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    getSetMap().catch(() => {
+      if (!cancelled) setSetMapFailed(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const loadingCollection =
+    hydrating || (cards.length === 0 && awaitingFirstPull) || (!setMap && !setMapFailed);
   const sldIndex = useSldDrops();
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<SetSortKey>(loadSort);
