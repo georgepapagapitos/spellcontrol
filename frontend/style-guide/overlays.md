@@ -645,6 +645,14 @@ Untap):
   release click can't land on the sheet's items (`useLongPress`). Permanent
   counters, face flips and transforms are logged (`card-counter` / `face`
   kinds, public on the ticker); a face-down play is logged without the name.
+- **A floating card menu makes the page behind it `inert`.** Its backdrop takes
+  every pointer, so the page is as unreachable as behind a modal, and `inert`
+  says so to the tab order, screen readers and axe's target-size rule (an open
+  menu can cover most of a control on a short phone, and axe fails what a
+  focusable widget half-hides). `CtxMenuShell` does it through
+  `useBackgroundInert`, whose `release()` runs before the close hands focus back
+  to the opener. The backdrop is `data-inert-exempt`. The bottom-sheet variant
+  is `aria-modal` already. (Nightly journey, 2026-11-02.)
 - **Drag-to-attach is gated by type, never by geometry.** Every battlefield
   permanent is a host droppable, but `attach-drop.ts`'s collision detection
   reports a host only while the dragged card is an Aura / Equipment /

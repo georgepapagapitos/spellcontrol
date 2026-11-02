@@ -1,4 +1,4 @@
-import { useEffect, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, type RefObject } from 'react';
 
 /**
  * F10: makes every sibling along the path from `ref`'s element up to
@@ -30,12 +30,22 @@ import { useEffect, type RefObject } from 'react';
  * overlay closes, while the outer one is still mounted. Resolving the
  * boundary by selector at effect time sidesteps that race entirely, rather
  * than depending on which of the two effects happens to run first.
+ *
+ * Returns `release()`: hand the page back NOW, ahead of the unmount. A caller
+ * that is about to move focus into the page it inerted (a menu returning focus
+ * to its opener) needs the page live first, and React flushes the close that
+ * would clear it a microtask later. Idempotent; the unmount still clears.
  */
 export function useBackgroundInert(
   active: boolean,
   ref: RefObject<HTMLElement | null>,
   boundarySelector?: string
-): void {
+): () => void {
+  const ownedRef = useRef<HTMLElement[]>([]);
+  const release = useCallback(() => {
+    for (const sibling of ownedRef.current) sibling.inert = false;
+    ownedRef.current = [];
+  }, []);
   useEffect(() => {
     if (!active) return;
     const el = ref.current;
@@ -62,8 +72,8 @@ export function useBackgroundInert(
       }
       node = parent;
     }
-    return () => {
-      for (const sibling of owned) sibling.inert = false;
-    };
-  }, [active, ref, boundarySelector]);
+    ownedRef.current = owned;
+    return release;
+  }, [active, ref, boundarySelector, release]);
+  return release;
 }

@@ -297,4 +297,52 @@ describe('CtxMenuShell', () => {
       expect(document.activeElement).toBe(opener);
     });
   });
+
+  describe('the page behind a floating menu', () => {
+    // Guard (nightly journey 2026-11-02): the open menu covered most of the
+    // table's +1 life button on a phone and axe failed it as a target under
+    // 24px that a focusable widget partly hides. The page under the menu's own
+    // backdrop is unreachable, so it is inert, which axe and screen readers read.
+    it('is inert while a floating menu is open and live again once it closes', () => {
+      const { container, unmount } = render(
+        <CtxMenuShell x={10} y={10} title="Brago" variant="floating" onClose={vi.fn()}>
+          {items()}
+        </CtxMenuShell>
+      );
+      expect(container.inert).toBe(true);
+      const backdrop = document.querySelector<HTMLElement>('.ctx-menu__backdrop')!;
+      expect(backdrop.inert).toBe(false);
+      expect(document.querySelector<HTMLElement>('.ctx-menu')!.inert).toBe(false);
+      unmount();
+      expect(container.inert).toBe(false);
+    });
+
+    it('is live before the close runs, so the opener can take focus back', () => {
+      let inertAtClose: boolean | null = null;
+      const host = document.createElement('div');
+      document.body.appendChild(host);
+      const onClose = vi.fn(() => {
+        inertAtClose = host.inert;
+      });
+      render(
+        <CtxMenuShell x={10} y={10} title="Brago" variant="floating" onClose={onClose}>
+          {items()}
+        </CtxMenuShell>
+      );
+      expect(host.inert).toBe(true);
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(onClose).toHaveBeenCalled();
+      expect(inertAtClose).toBe(false);
+      host.remove();
+    });
+
+    it('leaves the page alone for the sheet, which is aria-modal already', () => {
+      const { container } = render(
+        <CtxMenuShell x={0} y={0} title="Brago" variant="sheet" onClose={vi.fn()}>
+          {items()}
+        </CtxMenuShell>
+      );
+      expect(container.inert).toBe(false);
+    });
+  });
 });

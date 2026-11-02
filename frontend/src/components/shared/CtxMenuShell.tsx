@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'rea
 import { createPortal, flushSync } from 'react-dom';
 import './CtxMenuShell.css';
 import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
+import { useBackgroundInert } from '@/lib/overlays/use-background-inert';
 import { useMenuKeyboard } from '@/lib/overlays/use-menu-keyboard';
 import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { getSafeViewport } from '@/lib/overlays/popover-placement';
@@ -96,6 +97,17 @@ export function CtxMenuShell({
 
   useLockBodyScroll();
 
+  // The floating menu is not a dialog, but the backdrop under it takes every
+  // pointer, so the page behind is as unreachable as behind a modal. Say so:
+  // `inert` takes it out of the tab order and the accessibility tree, and out
+  // of axe's target-size check, which otherwise fails a control the open menu
+  // happens to cover ("partially obscured", the table's +1 life button under a
+  // card menu on a phone, nightly journey 2026-11-02). Declared BEFORE
+  // useMenuKeyboard on purpose: effect cleanups run in declaration order, so
+  // the page is live again by the time that hook hands focus back to the
+  // opener. The sheet variant is aria-modal already, which axe honors itself.
+  const releaseInert = useBackgroundInert(variant === 'floating', menuRef);
+
   // A right-click (or a table/pile menu) opens with no trigger button to
   // return focus to on close — fall back to whatever had focus beforehand,
   // the same as a modal would. useRef's argument is read once, on the first
@@ -107,7 +119,12 @@ export function CtxMenuShell({
 
   useMenuKeyboard({
     open: true,
-    onClose: variant === 'sheet' ? beginClose : onClose,
+    // Keys and outside presses close, then focus the opener in the same tick,
+    // before React unmounts this: the page has to be live for that focus to land.
+    onClose: () => {
+      releaseInert();
+      (variant === 'sheet' ? beginClose : onClose)();
+    },
     panelRef: variant === 'floating' ? menuRef : sheetRef,
     triggerRef: triggerRef ?? fallbackTriggerRef,
     itemSelector: ITEM_SELECTOR,
@@ -181,6 +198,8 @@ export function CtxMenuShell({
     <>
       <div
         className="ctx-menu__backdrop"
+        // The one sibling that must stay live: it is what a click outside lands on.
+        data-inert-exempt
         role="presentation"
         onClick={onClose}
         // A right-click outside the menu is a right-click on whatever is under
