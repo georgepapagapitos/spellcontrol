@@ -1,4 +1,5 @@
 import { isBasicLandName } from '@/lib/collection/allocations';
+import { isTopHeavyAvgMv } from '@/lib/deck-analysis/average-mana-value';
 import type { DeckFormatConfig } from '@/deck-builder/types';
 
 /** A single deck-health gate. `fail` = hard rule (legality); `warn` = soft target. */
@@ -72,9 +73,6 @@ export interface ValidationInput {
   sideboard?: { count: number; limit: number };
 }
 
-/** Decks with an average MV above this read as top-heavy. Mirrors the bracket
- *  estimator's low-curve threshold so the two agree on "fast enough". */
-const CURVE_AVG_MAX = 3.5;
 /** Fallback format rules when no config is passed: Commander (commander[s] + 99). */
 const DEFAULT_FORMAT: Required<ValidationInput>['format'] = { deckSize: 100, maxCopies: 1 };
 
@@ -205,8 +203,9 @@ export function buildValidationChecklist(input: ValidationInput): ValidationResu
     checks.push({
       id: 'curve',
       label: 'Curve',
-      status: averageCmc <= CURVE_AVG_MAX ? 'pass' : 'warn',
-      detail: `Avg mana value ${averageCmc.toFixed(2)}`,
+      // Same cutoff as the analysis verdict and the summary (E1078); this was 3.5.
+      status: isTopHeavyAvgMv(averageCmc) ? 'warn' : 'pass',
+      detail: `Avg mana value ${averageCmc.toFixed(2)}${isTopHeavyAvgMv(averageCmc) ? ', top-heavy' : ''}`,
     });
   }
 

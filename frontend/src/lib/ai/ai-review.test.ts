@@ -304,6 +304,7 @@ function fullAnalysis(): DeckAnalysisResult {
     curve: {
       buckets: [{ cmc: 1, count: 9 }],
       averageCmc: 2.7,
+      promptAverageCmc: 2.7,
       peak: 6,
       verdict: 'curve-ok',
       message: 'fine',
