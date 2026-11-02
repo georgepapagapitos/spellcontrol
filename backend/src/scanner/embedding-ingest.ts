@@ -45,6 +45,7 @@ import sharp from 'sharp';
 import * as ort from 'onnxruntime-node';
 import { logger } from '../logger';
 import { fetchScryfallBulkEntry, streamBulkJsonl } from '../scryfall-bulk';
+import { assertWriteFloor, extractArtUrl } from './ingest-guards';
 import { uuidToBytes } from './hash-ingest';
 
 const SCRYFALL_UA = 'spellcontrol/1.0 (scanner-v2-embedding-ingest)';
@@ -81,8 +82,8 @@ export interface EmbeddingIngestResult {
 
 interface ScryfallCard {
   id?: unknown;
-  image_uris?: { art_crop?: unknown } | null;
-  card_faces?: Array<{ image_uris?: { art_crop?: unknown } | null }> | null;
+  image_uris?: { art?: unknown; art_crop?: unknown } | null;
+  card_faces?: Array<{ image_uris?: { art?: unknown; art_crop?: unknown } | null }> | null;
 }
 
 /**
@@ -147,14 +148,6 @@ export async function* streamUniqueArtwork(urlOrPath: string): AsyncIterable<Scr
   }
 }
 
-function extractArtCropUrl(card: ScryfallCard): string | null {
-  const direct = card.image_uris?.art_crop;
-  if (typeof direct === 'string' && direct) return direct;
-  const face0 = card.card_faces?.[0]?.image_uris?.art_crop;
-  if (typeof face0 === 'string' && face0) return face0;
-  return null;
-}
-
 /**
  * Fetch the art_crop, resize to 256×256 RGB via sharp, and produce the
  * planar NCHW float32 tensor MobileCLIP2-S0 expects. The preprocessor
@@ -162,7 +155,7 @@ function extractArtCropUrl(card: ScryfallCard): string | null {
  * returned Float32Array.
  */
 export async function fetchPreprocessedArtCrop(card: ScryfallCard): Promise<Float32Array | null> {
-  const url = extractArtCropUrl(card);
+  const url = extractArtUrl(card);
   if (!url) return null;
 
   const ctrl = new AbortController();
@@ -330,6 +323,12 @@ export async function ingestCardEmbeddings(
   await Promise.all(inflight);
 
   const buf = packEmbeddingBinary(records);
+  await assertWriteFloor({
+    label: 'embedding-ingest',
+    outPath: opts.outPath,
+    newCount: records.length,
+    limited: Boolean(opts.limit),
+  });
   await fs.mkdir(path.dirname(opts.outPath), { recursive: true });
   const tmp = `${opts.outPath}.tmp`;
   await fs.writeFile(tmp, buf);

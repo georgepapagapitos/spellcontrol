@@ -21,6 +21,7 @@ import * as path from 'node:path';
 import sharp from 'sharp';
 import { logger } from '../logger';
 import { fetchScryfallBulkEntry, streamBulkJsonl } from '../scryfall-bulk';
+import { assertWriteFloor, extractArtUrl } from './ingest-guards';
 import { computePHash, PHASH_INPUT_SIZE } from './phash';
 
 const SCRYFALL_UA = 'spellcontrol/1.0 (scanner-v2-hash-ingest)';
@@ -52,8 +53,8 @@ export interface IngestResult {
 
 interface ScryfallCard {
   id?: unknown;
-  image_uris?: { art_crop?: unknown } | null;
-  card_faces?: Array<{ image_uris?: { art_crop?: unknown } | null }> | null;
+  image_uris?: { art?: unknown; art_crop?: unknown } | null;
+  card_faces?: Array<{ image_uris?: { art?: unknown; art_crop?: unknown } | null }> | null;
 }
 
 /**
@@ -84,7 +85,7 @@ export async function* streamUniqueArtwork(url: string): AsyncIterable<ScryfallC
  * with no front face, double-faced shells, etc.) — callers skip those.
  */
 export async function fetchAndHashArtCrop(card: ScryfallCard): Promise<bigint | null> {
-  const url = extractArtCropUrl(card);
+  const url = extractArtUrl(card);
   if (!url) return null;
 
   const ctrl = new AbortController();
@@ -113,16 +114,6 @@ export async function fetchAndHashArtCrop(card: ScryfallCard): Promise<bigint | 
     return null;
   }
   return computePHash(new Uint8Array(raw.buffer, raw.byteOffset, raw.length));
-}
-
-function extractArtCropUrl(card: ScryfallCard): string | null {
-  const direct = card.image_uris?.art_crop;
-  if (typeof direct === 'string' && direct) return direct;
-  // Double-faced cards put image_uris on each face. We take face 0 (front)
-  // as canonical — back-side hashing is a later enhancement.
-  const face0 = card.card_faces?.[0]?.image_uris?.art_crop;
-  if (typeof face0 === 'string' && face0) return face0;
-  return null;
 }
 
 /**
@@ -201,6 +192,12 @@ export async function ingestCardHashes(opts: IngestOptions): Promise<IngestResul
   await Promise.all(inflight);
 
   const buf = packBinary(records);
+  await assertWriteFloor({
+    label: 'hash-ingest',
+    outPath: opts.outPath,
+    newCount: records.length,
+    limited: Boolean(opts.limit),
+  });
   await fs.mkdir(path.dirname(opts.outPath), { recursive: true });
   const tmp = `${opts.outPath}.tmp`;
   await fs.writeFile(tmp, buf);
