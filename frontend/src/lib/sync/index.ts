@@ -1607,18 +1607,31 @@ async function applyServerRows(rows: SyncRow[], notifyForeignDeckEdits = false):
   const deckUpserts = upsertsByKind.get('deck');
   const priorDeckRevs = new Map<string, number>();
   if (deckUpserts) {
+    const localDecks = new Map<string, estore.StoredRow | undefined>();
     for (const u of deckUpserts) {
-      priorDeckRevs.set(u.id, baseRevFor(await estore.getById('deck', u.id)));
+      const local = await estore.getById('deck', u.id);
+      localDecks.set(u.id, local);
+      priorDeckRevs.set(u.id, baseRevFor(local));
     }
     // A pull that was already in flight when our own push committed delivers
     // the row at the OLDER rev. Writing it would roll IDB's rev and data back
     // under the stamp the push just wrote, so the next edit goes out with a
     // stale clientRev and the server rejects it as another device's change:
     // the "changed on another device" panel, opened by this device alone.
-    // A row at or below the rev we already hold is nothing new either way.
-    const fresher = deckUpserts.filter((u) => u.rev > (priorDeckRevs.get(u.id) ?? 0));
-    if (fresher.length === 0) upsertsByKind.delete('deck');
-    else upsertsByKind.set('deck', fresher);
+    // Only a strictly older row is dropped. At the SAME rev the server row is
+    // applied when the data differs (an edit made after the push was sent
+    // carries the acked rev, and the server copy is what converges), and
+    // skipped when it is identical or when the local row is an unpushed edit.
+    const keep = deckUpserts.filter((u) => {
+      const prior = priorDeckRevs.get(u.id) ?? 0;
+      if (u.rev !== prior) return u.rev > prior;
+      const local = localDecks.get(u.id);
+      if (!local || local.deletedAt != null) return true;
+      if (local.rev === 0) return false;
+      return JSON.stringify(local.data) !== JSON.stringify(u.data);
+    });
+    if (keep.length === 0) upsertsByKind.delete('deck');
+    else upsertsByKind.set('deck', keep);
   }
 
   for (const [kind, rows] of upsertsByKind) {
