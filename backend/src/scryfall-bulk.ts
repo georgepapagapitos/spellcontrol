@@ -1,6 +1,7 @@
 import { tokensFromParts, type RelatedPart } from './card-tokens';
 import { logger } from './logger';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline as streamPipeline } from 'node:stream/promises';
@@ -114,6 +115,97 @@ export async function fetchScryfallBulkEntry(
   return { url, updatedAt: entry.updated_at, jsonl: url === entry.jsonl_download_uri };
 }
 
+export interface ResumableDownloadOptions {
+  /** Total attempts, first try included. Default 5. */
+  maxAttempts?: number;
+  /** Delay before retry n is `backoffMs * 2^(n-1)`. Default 2000; tests pass 0. */
+  backoffMs?: number;
+}
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/** Total size from a `Content-Range: bytes a-b/total` header, or null. */
+function totalFromContentRange(h: string | null): number | null {
+  const m = h ? /^bytes\s+\d+-\d+\/(\d+)$/i.exec(h.trim()) : null;
+  return m ? Number(m[1]) : null;
+}
+
+/**
+ * Downloads `url` to `dest`, surviving dropped connections. Each failed attempt
+ * keeps the bytes already on disk and the next one asks for the rest with a
+ * `Range` request. A 206 appends; a 200 to a Range request means the server
+ * ignored it, so that file restarts from zero. The finished size is checked
+ * against Content-Length (or Content-Range) when the server sent one. On final
+ * failure `dest` is deleted, so a caller never inherits a truncated file; on
+ * success the caller owns it.
+ */
+export async function downloadWithResume(
+  url: string,
+  dest: string,
+  opts: ResumableDownloadOptions = {}
+): Promise<void> {
+  const maxAttempts = opts.maxAttempts ?? 5;
+  const backoffMs = opts.backoffMs ?? 2000;
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.rmSync(dest, { force: true });
+  let lastErr: unknown;
+  try {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      if (attempt > 1) await sleep(backoffMs * 2 ** (attempt - 2));
+      const have = fs.existsSync(dest) ? fs.statSync(dest).size : 0;
+      try {
+        const headers: Record<string, string> = { 'User-Agent': SCRYFALL_USER_AGENT };
+        if (have > 0) headers.Range = `bytes=${have}-`;
+        // fetch-timeout-exempt: bulk download, streamed to disk
+        const res = await fetch(url, { headers });
+        if (!res.ok || !res.body) {
+          const err = new Error(`Scryfall bulk download returned ${res.status}`);
+          // 4xx other than 429 will not change on retry.
+          if (res.status >= 400 && res.status < 500 && res.status !== 429 && res.status !== 416) {
+            fs.rmSync(dest, { force: true });
+            throw Object.assign(err, { fatal: true });
+          }
+          // 416: our offset is past the end or the file changed; start over.
+          if (res.status === 416) fs.rmSync(dest, { force: true });
+          throw err;
+        }
+        const resumed = res.status === 206 && have > 0;
+        // A 200 (to any request) carries the whole file: restart it from zero.
+        if (!resumed) fs.rmSync(dest, { force: true });
+        const len = Number(res.headers.get('content-length'));
+        const expected = resumed
+          ? (totalFromContentRange(res.headers.get('content-range')) ??
+            (Number.isFinite(len) && len > 0 ? have + len : null))
+          : Number.isFinite(len) && len > 0
+            ? len
+            : null;
+        await streamPipeline(
+          Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]),
+          fs.createWriteStream(dest, { flags: resumed ? 'a' : 'w' })
+        );
+        const size = fs.statSync(dest).size;
+        if (expected !== null && size !== expected) {
+          // Too long cannot be repaired by resuming; too short can.
+          if (size > expected) fs.rmSync(dest, { force: true });
+          throw new Error(`size mismatch: got ${size} bytes, expected ${expected}`);
+        }
+        return;
+      } catch (err) {
+        lastErr = err;
+        if ((err as { fatal?: boolean }).fatal) break;
+        logger.warn(
+          `[scryfall-bulk] download attempt ${attempt}/${maxAttempts} failed: ${err instanceof Error ? err.message : String(err)}`
+        );
+      }
+    }
+    const reason = lastErr instanceof Error ? lastErr.message : String(lastErr);
+    throw new Error(`Scryfall bulk download failed after ${maxAttempts} attempts: ${reason}`);
+  } catch (err) {
+    fs.rmSync(dest, { force: true });
+    throw err;
+  }
+}
+
 /**
  * Streams a gzipped JSONL bulk feed, yielding one parsed object per line.
  * The dumps are hundreds of MB, so this never materializes the whole feed —
@@ -124,30 +216,28 @@ export async function fetchScryfallBulkEntry(
  * when Scryfall changed the field all three broke independently. One place to
  * fix next time.
  */
-export async function* streamBulkJsonl<T>(urlOrPath: string): AsyncGenerator<T> {
+export async function* streamBulkJsonl<T>(
+  urlOrPath: string,
+  opts: ResumableDownloadOptions = {}
+): AsyncGenerator<T> {
   const remote = /^https?:\/\//i.test(urlOrPath);
-  const ctrl = new AbortController();
-  let nodeStream: Readable;
+  // A remote feed is saved to a temp file first (with retry and Range resume),
+  // then parsed from disk. Streaming straight off the socket died on a single
+  // dropped connection and restarted a multi-hour ingest from zero (E1106).
+  let tempFile: string | null = null;
+  let source = urlOrPath;
   if (remote) {
-    const res = await fetch(urlOrPath, {
-      headers: { 'User-Agent': SCRYFALL_USER_AGENT },
-      signal: ctrl.signal,
-    });
-    if (!res.ok || !res.body) {
-      throw new Error(`Scryfall bulk download returned ${res.status}`);
-    }
-    nodeStream = Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]);
-  } else {
-    // Local path: the two-step download in `streamDefaultCards`. Reading from
-    // disk has no socket to starve, which is the whole point (see there).
-    nodeStream = fs.createReadStream(urlOrPath);
+    const ext = new URL(urlOrPath).pathname.endsWith('.gz') ? '.jsonl.gz' : '.jsonl';
+    tempFile = path.join(os.tmpdir(), `scryfall-bulk-${process.pid}-${Date.now()}${ext}`);
+    await downloadWithResume(urlOrPath, tempFile, opts);
+    source = tempFile;
   }
+  // Reading from disk has no socket to starve (see `streamDefaultCards`).
+  const nodeStream: Readable = fs.createReadStream(source);
   const lines = createInterface({
     // In the non-gzip case readline watches `nodeStream` directly and rejects
     // on its own; the gzip case needs the forward (see `pipeForwardingErrors`).
-    input: urlOrPath.endsWith('.gz')
-      ? pipeForwardingErrors(nodeStream, createGunzip())
-      : nodeStream,
+    input: source.endsWith('.gz') ? pipeForwardingErrors(nodeStream, createGunzip()) : nodeStream,
     crlfDelay: Infinity,
   });
   try {
@@ -156,12 +246,10 @@ export async function* streamBulkJsonl<T>(urlOrPath: string): AsyncGenerator<T> 
     }
   } finally {
     // A caller breaking out early (the scanner ingest's `--limit`) runs this via
-    // the iterator's `return()`. Without the abort, undici leaves the HTTP/2
-    // stream dangling and raises NGHTTP2_PROTOCOL_ERROR seconds after we
-    // thought we were done.
+    // the iterator's `return()`.
     lines.close();
-    ctrl.abort();
     nodeStream.destroy();
+    if (tempFile) fs.rmSync(tempFile, { force: true });
   }
 }
 
@@ -203,19 +291,8 @@ function bulkDownloadMarkerPath(dbPath: string): string {
  * truncated file that looks complete.
  */
 async function downloadBulkToDisk(url: string, dest: string): Promise<void> {
-  // fetch-timeout-exempt: bulk download, streamed to disk
-  const res = await fetch(url, { headers: { 'User-Agent': SCRYFALL_USER_AGENT } });
-  if (!res.ok || !res.body) {
-    throw new Error(`Scryfall bulk download returned ${res.status}`);
-  }
-  fs.mkdirSync(path.dirname(dest), { recursive: true });
   const tmp = `${dest}.downloading`;
-  // `pipeline` forwards errors and destroys both ends — the same reason
-  // `pipeForwardingErrors` exists for the `.pipe()` sites.
-  await streamPipeline(
-    Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]),
-    fs.createWriteStream(tmp)
-  );
+  await downloadWithResume(url, tmp);
   fs.renameSync(tmp, dest);
 }
 

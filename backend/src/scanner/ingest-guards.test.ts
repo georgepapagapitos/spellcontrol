@@ -7,6 +7,7 @@ import {
   assertWriteFloor,
   extractArtUrl,
   readRecordCount,
+  fetchArtBytes,
   BASELINE_RECORD_COUNT,
 } from './ingest-guards';
 import { ingestCardHashes, packBinary } from './hash-ingest';
@@ -120,5 +121,35 @@ describe('write floor', () => {
     expect(Buffer.compare(await fs.readFile(out), old)).toBe(0);
     await expect(fs.access(`${out}.tmp`)).rejects.toThrow();
     expect(fetch).toHaveBeenCalledWith('https://cards.scryfall.io/art/a.webp', expect.anything());
+  });
+});
+
+describe('fetchArtBytes', () => {
+  afterEach(() => vi.restoreAllMocks());
+  const ok = () => new Response(new Uint8Array([1, 2, 3]), { status: 200 });
+
+  it('retries a transient failure and returns the bytes', async () => {
+    const spy = vi
+      .spyOn(global, 'fetch')
+      .mockRejectedValueOnce(new Error('other side closed'))
+      .mockResolvedValueOnce(new Response('', { status: 503 }))
+      .mockResolvedValueOnce(ok());
+    const bytes = await fetchArtBytes('https://x/a.webp', 'ua', 1000, { backoffMs: 0 });
+    expect(new Uint8Array(bytes!)).toEqual(new Uint8Array([1, 2, 3]));
+    expect(spy).toHaveBeenCalledTimes(3);
+  });
+
+  it('gives up after maxAttempts by throwing', async () => {
+    const spy = vi.spyOn(global, 'fetch').mockRejectedValue(new Error('other side closed'));
+    await expect(
+      fetchArtBytes('https://x/a.webp', 'ua', 1000, { maxAttempts: 2, backoffMs: 0 })
+    ).rejects.toThrow('other side closed');
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns null without retrying on a 404', async () => {
+    const spy = vi.spyOn(global, 'fetch').mockResolvedValue(new Response('', { status: 404 }));
+    expect(await fetchArtBytes('https://x/a.webp', 'ua', 1000, { backoffMs: 0 })).toBeNull();
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 });

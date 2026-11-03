@@ -13,6 +13,7 @@ import {
   writeBulkMeta,
   fetchScryfallBulkEntry,
   streamBulkJsonl,
+  downloadWithResume,
 } from './scryfall-bulk';
 
 let dir: string;
@@ -225,31 +226,141 @@ describe('streamBulkJsonl', () => {
   // CI stayed green because the test went out with the fix, and the reverted
   // code shipped to production. If you are resolving a conflict here, the
   // forward stays.
-  it('a mid-download disconnect rejects the caller instead of killing the process', async () => {
+  it('a download that keeps dropping rejects the caller instead of killing the process', async () => {
     // ⛔ The regression this guards took production down repeatedly on
-    // 2026-08-17. `.pipe()` does NOT forward source errors, so when the
-    // ~450MB transfer dropped, `'error'` fired on the undici-backed Readable
-    // with nobody listening — process-fatal, `exit_code=1`, and the ingest
-    // restarted from zero forever because it only records success.
-    //
-    // A rejected promise here is the whole point: the JOB fails, the server
-    // lives. Without the forward this test does not fail, it CRASHES the
-    // worker, which is exactly how it behaved in prod.
-    const body = new Readable({ read() {} });
-    body.push(gzipSync(Buffer.from('{"id":"a"}\n')));
-    vi.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      body: Readable.toWeb(body),
-    } as unknown as Response);
+    // 2026-08-17: a mid-transfer socket error with nobody listening was
+    // process-fatal. The download now runs through `pipeline`, so a drop is a
+    // rejected promise: the JOB fails (after its retries), the server lives.
+    vi.spyOn(global, 'fetch').mockImplementation(async () => {
+      const body = new Readable({ read() {} });
+      body.push(Buffer.from('partial'));
+      setTimeout(() => body.destroy(new Error('terminated')), 0);
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        body: Readable.toWeb(body),
+      } as unknown as Response;
+    });
+    const iter = streamBulkJsonl<{ id: string }>('https://example.test/bulk.jsonl.gz', {
+      maxAttempts: 2,
+      backoffMs: 0,
+    });
+    await expect(iter.next()).rejects.toThrow(/after 2 attempts/);
+  });
+});
 
-    const iter = streamBulkJsonl<{ id: string }>('https://example.test/bulk.jsonl.gz');
-    const first = await iter.next();
-    expect(first.value).toEqual({ id: 'a' });
+/** A Response whose body emits `chunks`, then errors (`die`) or ends. */
+function fakeRes(
+  status: number,
+  chunks: Buffer[],
+  headers: Record<string, string>,
+  die = false
+): Response {
+  const body = new Readable({ read() {} });
+  for (const c of chunks) body.push(c);
+  if (die) setTimeout(() => body.destroy(new Error('other side closed')), 25);
+  else body.push(null);
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    headers: new Headers(headers),
+    body: Readable.toWeb(body),
+  } as unknown as Response;
+}
 
-    // The socket dies mid-stream, exactly as undici surfaces it.
-    body.destroy(new Error('terminated'));
+describe('downloadWithResume', () => {
+  const payload = Buffer.from('x'.repeat(1000));
+  let dest: string;
+  beforeEach(() => {
+    dest = path.join(dir, 'feed.jsonl.gz');
+  });
 
-    await expect(iter.next()).rejects.toThrow();
+  it('resumes with a Range request after a mid-stream drop and yields every record', async () => {
+    const lines = Array.from({ length: 50 }, (_, i) => JSON.stringify({ id: `c${i}` })).join('\n');
+    const gz = gzipSync(Buffer.from(lines + '\n'));
+    const cut = Math.floor(gz.length / 2);
+    const calls: Array<string | undefined> = [];
+    vi.spyOn(global, 'fetch').mockImplementation(async (_u, init) => {
+      const range = (init?.headers as Record<string, string>).Range;
+      calls.push(range);
+      if (!range) {
+        return fakeRes(200, [gz.subarray(0, cut)], { 'content-length': String(gz.length) }, true);
+      }
+      expect(range).toBe(`bytes=${cut}-`);
+      return fakeRes(206, [gz.subarray(cut)], {
+        'content-length': String(gz.length - cut),
+        'content-range': `bytes ${cut}-${gz.length - 1}/${gz.length}`,
+      });
+    });
+    const got: Array<{ id: string }> = [];
+    for await (const c of streamBulkJsonl<{ id: string }>('https://example.test/bulk.jsonl.gz', {
+      backoffMs: 0,
+    })) {
+      got.push(c);
+    }
+    expect(got).toHaveLength(50);
+    expect(got[49]).toEqual({ id: 'c49' });
+    expect(calls).toEqual([undefined, `bytes=${cut}-`]);
+  });
+
+  it('restarts the file from zero when the server answers 200 to a Range request', async () => {
+    let n = 0;
+    vi.spyOn(global, 'fetch').mockImplementation(async () => {
+      n++;
+      if (n === 1) {
+        return fakeRes(200, [payload.subarray(0, 400)], { 'content-length': '1000' }, true);
+      }
+      // Ignores Range: full body with a 200.
+      return fakeRes(200, [payload], { 'content-length': '1000' });
+    });
+    await downloadWithResume('https://example.test/f.gz', dest, { backoffMs: 0 });
+    expect(n).toBe(2);
+    expect(fs.readFileSync(dest).equals(payload)).toBe(true);
+  });
+
+  it('gives up after maxAttempts with a clear error and leaves no file behind', async () => {
+    const spy = vi
+      .spyOn(global, 'fetch')
+      .mockImplementation(async () =>
+        fakeRes(200, [payload.subarray(0, 100)], { 'content-length': '1000' }, true)
+      );
+    await expect(
+      downloadWithResume('https://example.test/f.gz', dest, { maxAttempts: 3, backoffMs: 0 })
+    ).rejects.toThrow(/failed after 3 attempts: .*other side closed/);
+    expect(spy).toHaveBeenCalledTimes(3);
+    expect(fs.existsSync(dest)).toBe(false);
+  });
+
+  it('detects a Content-Length mismatch on a body that ends cleanly', async () => {
+    vi.spyOn(global, 'fetch').mockImplementation(async () =>
+      fakeRes(200, [payload.subarray(0, 600)], { 'content-length': '1000' })
+    );
+    await expect(
+      downloadWithResume('https://example.test/f.gz', dest, { maxAttempts: 1, backoffMs: 0 })
+    ).rejects.toThrow(/size mismatch: got 600 bytes, expected 1000/);
+    expect(fs.existsSync(dest)).toBe(false);
+  });
+
+  it('does not retry a permanent 4xx', async () => {
+    const spy = vi.spyOn(global, 'fetch').mockResolvedValue(fakeRes(404, [], {}));
+    await expect(
+      downloadWithResume('https://example.test/f.gz', dest, { backoffMs: 0 })
+    ).rejects.toThrow(/returned 404/);
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it('streamBulkJsonl deletes its temp file on success', async () => {
+    const before = fs.readdirSync(os.tmpdir()).filter((f) => f.startsWith('scryfall-bulk-'));
+    const gz = gzipSync(Buffer.from('{"id":"a"}\n'));
+    vi.spyOn(global, 'fetch').mockImplementation(async () =>
+      fakeRes(200, [gz], { 'content-length': String(gz.length) })
+    );
+    const got = [];
+    for await (const c of streamBulkJsonl('https://example.test/b.jsonl.gz')) got.push(c);
+    expect(got).toEqual([{ id: 'a' }]);
+    const after = fs.readdirSync(os.tmpdir()).filter((f) => f.startsWith('scryfall-bulk-'));
+    expect(after).toEqual(before);
   });
 });
 

@@ -88,3 +88,40 @@ export async function assertWriteFloor(opts: {
       `Scryfall may have removed an image key; check extractArtUrl. The existing file was left in place.`
   );
 }
+
+export interface ArtFetchOptions {
+  /** Total attempts, first try included. Default 3. */
+  maxAttempts?: number;
+  /** Delay before retry n is `backoffMs * 2^(n-1)`. Default 500; tests pass 0. */
+  backoffMs?: number;
+}
+
+/**
+ * One art image's bytes, retrying transient failures (network error, timeout,
+ * 429, 5xx) a bounded number of times. Any other non-OK status returns null,
+ * as before, so the caller skips the card. The last transient failure throws,
+ * which the ingest loop already counts as a skip.
+ */
+export async function fetchArtBytes(
+  url: string,
+  userAgent: string,
+  timeoutMs: number,
+  opts: ArtFetchOptions = {}
+): Promise<ArrayBuffer | null> {
+  const maxAttempts = opts.maxAttempts ?? 3;
+  const backoffMs = opts.backoffMs ?? 500;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: { 'User-Agent': userAgent },
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (res.ok) return await res.arrayBuffer();
+      if (res.status !== 429 && res.status < 500) return null;
+      throw new Error(`art fetch returned ${res.status}`);
+    } catch (err) {
+      if (attempt >= maxAttempts) throw err;
+      await new Promise((r) => setTimeout(r, backoffMs * 2 ** (attempt - 1)));
+    }
+  }
+}

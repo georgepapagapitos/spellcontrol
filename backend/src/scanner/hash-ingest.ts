@@ -21,7 +21,7 @@ import * as path from 'node:path';
 import sharp from 'sharp';
 import { logger } from '../logger';
 import { fetchScryfallBulkEntry, streamBulkJsonl } from '../scryfall-bulk';
-import { assertWriteFloor, extractArtUrl } from './ingest-guards';
+import { assertWriteFloor, extractArtUrl, fetchArtBytes } from './ingest-guards';
 import { computePHash, PHASH_INPUT_SIZE } from './phash';
 
 const SCRYFALL_UA = 'spellcontrol/1.0 (scanner-v2-hash-ingest)';
@@ -88,19 +88,8 @@ export async function fetchAndHashArtCrop(card: ScryfallCard): Promise<bigint | 
   const url = extractArtUrl(card);
   if (!url) return null;
 
-  const ctrl = new AbortController();
-  const timeout = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
-  let bytes: ArrayBuffer;
-  try {
-    const res = await fetch(url, {
-      headers: { 'User-Agent': SCRYFALL_UA },
-      signal: ctrl.signal,
-    });
-    if (!res.ok) return null;
-    bytes = await res.arrayBuffer();
-  } finally {
-    clearTimeout(timeout);
-  }
+  const bytes = await fetchArtBytes(url, SCRYFALL_UA, FETCH_TIMEOUT_MS);
+  if (!bytes) return null;
 
   // sharp normalizes to single-channel grayscale and resamples via libvips.
   // The raw output is row-major byte-per-pixel, exactly what computePHash

@@ -31,13 +31,9 @@
 // them at boot and they ship in the Docker image. Embeddings are no longer
 // pushed to the frontend (server-side matching only).
 
-import { Readable } from 'node:stream';
-import { createReadStream, createWriteStream } from 'node:fs';
-import type { ReadableStream as WebReadableStream } from 'node:stream/web';
+import { createReadStream } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import * as os from 'node:os';
-import { pipeline as streamPipeline } from 'node:stream/promises';
 import { createInterface } from 'node:readline';
 import { createGunzip } from 'node:zlib';
 import { pipeForwardingErrors } from '../stream-utils';
@@ -45,7 +41,7 @@ import sharp from 'sharp';
 import * as ort from 'onnxruntime-node';
 import { logger } from '../logger';
 import { fetchScryfallBulkEntry, streamBulkJsonl } from '../scryfall-bulk';
-import { assertWriteFloor, extractArtUrl } from './ingest-guards';
+import { assertWriteFloor, extractArtUrl, fetchArtBytes } from './ingest-guards';
 import { uuidToBytes } from './hash-ingest';
 
 const SCRYFALL_UA = 'spellcontrol/1.0 (scanner-v2-embedding-ingest)';
@@ -95,39 +91,10 @@ export async function getUniqueArtworkDownloadUrl(): Promise<string> {
   return (await fetchScryfallBulkEntry('unique_artwork')).url;
 }
 
-/**
- * Two-step bulk consumption: download the (~600 MB) Scryfall JSON to a
- * temp file in one pass, then stream-parse from disk. Inference is much
- * slower per card than the pHash ingest's hashing step, so the original
- * "stream-parse straight from undici" pattern starved the HTTP/2 socket
- * mid-run and tripped `read ETIMEDOUT` somewhere past 1500 records. The
- * temp-file step costs ~30 s wall-time and one round of disk I/O, but
- * decouples upstream socket health from local processing rate entirely.
- */
-async function downloadBulkToTemp(url: string): Promise<string> {
-  // Keep the upstream extension: the feed is gzipped JSONL, and
-  // `streamUniqueArtwork` decides whether to gunzip by looking at the suffix.
-  const ext = url.endsWith('.gz') ? '.jsonl.gz' : '.jsonl';
-  const tmpPath = path.join(os.tmpdir(), `scanner-v2-bulk-${process.pid}-${Date.now()}${ext}`);
-  logger.info(`[embedding-ingest] downloading bulk feed → ${tmpPath}`);
-  const t0 = Date.now();
-  // fetch-timeout-exempt: bulk download, streamed to disk
-  const res = await fetch(url, { headers: { 'User-Agent': SCRYFALL_UA } });
-  if (!res.ok) throw new Error(`unique_artwork download failed: HTTP ${res.status}`);
-  if (!res.body) throw new Error('unique_artwork response missing body');
-  await streamPipeline(
-    Readable.fromWeb(res.body as unknown as WebReadableStream<Uint8Array>),
-    createWriteStream(tmpPath)
-  );
-  const sizeMb = ((await fs.stat(tmpPath)).size / 1_000_000).toFixed(1);
-  logger.info(`[embedding-ingest] bulk feed saved (${sizeMb} MB in ${Date.now() - t0}ms)`);
-  return tmpPath;
-}
-
 export async function* streamUniqueArtwork(urlOrPath: string): AsyncIterable<ScryfallCard> {
-  // Remote reads go through the shared JSONL reader; the local path is the
-  // temp-file case above, which exists to decouple upstream socket health from
-  // this ingest's much slower per-card inference rate (see downloadBulkToTemp).
+  // Remote reads go through the shared JSONL reader, which saves the feed to a
+  // temp file (retry + Range resume) and parses from disk, so upstream socket
+  // health is decoupled from this ingest's slow per-card inference rate.
   if (/^https?:\/\//i.test(urlOrPath)) {
     yield* streamBulkJsonl<ScryfallCard>(urlOrPath);
     return;
@@ -158,19 +125,8 @@ export async function fetchPreprocessedArtCrop(card: ScryfallCard): Promise<Floa
   const url = extractArtUrl(card);
   if (!url) return null;
 
-  const ctrl = new AbortController();
-  const timeout = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
-  let bytes: ArrayBuffer;
-  try {
-    const res = await fetch(url, {
-      headers: { 'User-Agent': SCRYFALL_UA },
-      signal: ctrl.signal,
-    });
-    if (!res.ok) return null;
-    bytes = await res.arrayBuffer();
-  } finally {
-    clearTimeout(timeout);
-  }
+  const bytes = await fetchArtBytes(url, SCRYFALL_UA, FETCH_TIMEOUT_MS);
+  if (!bytes) return null;
 
   // Match the frontend's preprocessing exactly: stretch to EMBED_INPUT_SIZE
   // (no aspect preservation), drop alpha, planar NCHW, divide by 255. The
@@ -263,8 +219,7 @@ export async function ingestCardEmbeddings(
   );
 
   const url = opts.bulkDownloadUrl ?? (await getUniqueArtworkDownloadUrl());
-  const bulkSource = /^https?:\/\//i.test(url) ? await downloadBulkToTemp(url) : url;
-  logger.info(`[embedding-ingest] streaming unique_artwork from ${bulkSource}`);
+  logger.info(`[embedding-ingest] streaming unique_artwork from ${url}`);
 
   // Inference mutex — onnxruntime-node sessions can't run concurrently.
   // We still parallelize fetch+preprocess; inference happens behind this
@@ -275,7 +230,7 @@ export async function ingestCardEmbeddings(
   const records: Array<{ embedding: Int8Array; uuid: Buffer }> = [];
   const inflight = new Set<Promise<void>>();
 
-  for await (const card of streamUniqueArtwork(bulkSource)) {
+  for await (const card of streamUniqueArtwork(url)) {
     totalSeen++;
     if (opts.limit && written + inflight.size >= opts.limit) break;
 
@@ -335,12 +290,6 @@ export async function ingestCardEmbeddings(
   await fs.rename(tmp, opts.outPath);
 
   await session.release();
-
-  // Clean up the downloaded bulk JSON if we made one (no-op when the
-  // caller supplied a local path via opts.bulkDownloadUrl).
-  if (bulkSource !== url) {
-    await fs.unlink(bulkSource).catch(() => undefined);
-  }
 
   const elapsedMs = Date.now() - startedAt;
   logger.info(
