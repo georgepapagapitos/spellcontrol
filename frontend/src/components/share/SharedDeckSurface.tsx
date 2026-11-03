@@ -47,7 +47,6 @@ import { useDeckCombos } from '@/lib/deck-analysis/use-deck-combos';
 import { partitionCombosByZone } from '@/lib/deck-analysis/combo-zone-partition';
 import type { ChangeOwnership } from '@/lib/coach/deck-change';
 import type { CardOwnership } from './SharedCardTile';
-import { bracketReasons, bracketBorderline } from '@spellcontrol/deck-metrics';
 import { Button } from '@/components/shared/Button';
 
 // Below this, a platform count (views/copies) reads as more "ghost town" than
@@ -289,6 +288,13 @@ export function SharedDeckSurface({
         : `Bracket ${bracketValue}${data.bracketEstimateIsFloor && deck.bracketOverride == null ? '+' : ''}`
       : null;
 
+  // The pregame card carries the commander's art and name, so the header drops
+  // its own thumbnail of the same image while the card is there (PS-05).
+  const pregame =
+    hasCommander && bracketValue != null && bracketHeroText
+      ? { bracket: bracketValue, text: bracketHeroText }
+      : null;
+
   const owner = formatIdentity({
     username: data.ownerUsername,
     displayName: data.ownerDisplayName,
@@ -319,7 +325,7 @@ export function SharedDeckSurface({
       {lead}
       <DeckHero
         className="shared-deck-header"
-        art={heroArt}
+        art={pregame ? undefined : heroArt}
         colors={comboColorIdentity}
         color={deck.color}
         title={<h1 className="binder-hero-name">{data.name}</h1>}
@@ -421,12 +427,12 @@ export function SharedDeckSurface({
           the Wizards turn bands. Commander decks with a bracket only; the
           speed row runs the same seeded clock the owner's Bracket panel does,
           from the win paths already on this payload. */}
-      {hasCommander && bracketValue != null && bracketHeroText && (
+      {pregame && (
         <PregameCard
           deck={deck}
           library={deckLibrary}
-          bracket={bracketValue}
-          bracketText={bracketHeroText}
+          bracket={pregame.bracket}
+          bracketText={pregame.text}
           art={heroArt}
           url={`${window.location.origin}${basePath}`}
         />
@@ -499,10 +505,6 @@ export function SharedDeckSurface({
               bracket={effectiveBracket(deck) ?? null}
               bracketOverridden={deck.bracketOverride != null}
               bracketEstimate={deck.bracketEstimation?.bracket ?? null}
-              bracketReasons={deck.bracketEstimation ? bracketReasons(deck.bracketEstimation) : []}
-              bracketBorderline={
-                deck.bracketEstimation ? bracketBorderline(deck.bracketEstimation) : null
-              }
               engineLabel={deck.synergyAnalysis?.axes[0]?.label}
               engineProducers={deck.synergyAnalysis?.axes[0]?.producers}
               enginePayoffs={deck.synergyAnalysis?.axes[0]?.payoffs}

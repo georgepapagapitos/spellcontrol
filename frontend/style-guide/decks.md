@@ -1159,17 +1159,15 @@ They are two different facts and the copy never blurs them into one:
   is. "Manual" read as a caveat on the number, as if the computed one were
   more legitimate. Both readings are wrong: a stated bracket is the primary
   fact, the Estimate is supporting evidence.
-- Show both only when they differ. On Auto (no stated bracket), the
-  headline **is** the Estimate — there's nothing to disambiguate, so no
-  second line. Once a bracket is stated, the headline reads "Bracket 3 ·
-  Upgraded" (the STATED value, formatted per the "Bracket: A number but also
-  a named tier" rule above) and, only when the Estimate disagrees, a second
-  line reads "Estimate: Bracket 4 · Optimized" beneath it.
-- The estimate's hard-floor reasons ("because: …") always show, whether or
-  not a bracket is stated — they explain the Estimate, not the headline.
-  They sit directly under whichever line shows the Estimate, so a plain
-  "because: …" reads as belonging to it; don't prefix "estimate" (the line
-  above already says it, and "Estimate … estimate because" stutters).
+- **The Power tab states one verdict sentence (2026-11 ruling, DK-03).** On
+  Auto the headline IS the Estimate: "Bracket 4 · Optimized". Once a bracket
+  is stated, one sentence compares it with the Estimate in the fixed
+  `Bracket N · Label` vocabulary: "Set to Bracket 3 · Upgraded, but the list
+  plays Bracket 4 · Optimized." (or "…, and the list plays there."). The
+  bracket menu sits in the same headline row. No hedged verdict ("Borderline
+  3/4", "Unconfirmed"), no second Estimate line, no stated-vs-estimate strip,
+  and no hard-floor "because:" line in the hero: the hard floor and its cards
+  show only in the Bracket panel's breakdown.
 - **Bracket 1 (Exhibition) is never "above target."** The estimator never
   returns 1 — Exhibition is a theme-first build intent the estimator can't
   confirm from card content, so it floors at Core (2) (`CORE_BASELINE` in

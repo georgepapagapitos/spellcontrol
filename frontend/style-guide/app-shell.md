@@ -700,7 +700,9 @@ buttons are disabled (a choose-a-color commander).
 ## The You page — a hub of sections, one name, precise doors
 
 The phone tab bar's fifth tab is **You**, it opens `/you`, and the page's
-heading says **You** — to a guest and to a signed-in player alike. The page is
+heading says **You** — to a guest and to a signed-in player alike. The social pages
+(`/friends`, `/trades`, `/pods` and their subroutes) have no tab of their own on the phone, so
+they light **You** as the active tab (PS-08). The page is
 not called Settings anywhere a user can read. Since T173 (2026-09-29) `/you`
 is a **hub**: who you are, then a list of sections, each its own route
 (`/you/profile`, `/you/account`, `/you/appearance`, `/you/prices`, `/you/ai`,

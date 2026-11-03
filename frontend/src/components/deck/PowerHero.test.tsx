@@ -6,7 +6,6 @@ import { PowerHero, type PowerHeroProps } from './PowerHero';
 const base: PowerHeroProps = {
   bracket: 3,
   bracketOverridden: false,
-  bracketReasons: ['2 game changers', '1 combo', '8 tutors'],
   engineLabel: 'Tokens / go-wide',
   engineProducers: 10,
   enginePayoffs: 8,
@@ -31,48 +30,39 @@ function hasText(re: RegExp): boolean {
 }
 
 describe('PowerHero', () => {
-  it('renders the bracket number, label, and floor reasons', () => {
+  it('renders the bracket number and label on Auto, and nothing else about brackets', () => {
     renderHero();
     expect(hasText(/^Bracket 3 · Upgraded$/)).toBe(true);
-    expect(hasText(/^because: 2 game changers, 1 combo, 8 tutors$/)).toBe(true);
+    // DK-03: the hard floor belongs to the Bracket panel's breakdown alone.
+    expect(hasText(/because:/)).toBe(false);
+    expect(hasText(/Borderline/)).toBe(false);
+    expect(hasText(/^Estimate/)).toBe(false);
   });
 
-  it('caps the floor reasons at three', () => {
-    renderHero({ bracketReasons: ['a', 'b', 'c', 'd'] });
-    expect(hasText(/^because: a, b, c$/)).toBe(true);
-    expect(hasText(/^because:.*\bd\b/)).toBe(false);
-  });
-
-  it('drops the "manual" tag and still shows the reasons, labeled as the estimate', () => {
-    renderHero({ bracketOverridden: true });
-    expect(screen.queryByText('manual')).toBeNull();
-    expect(hasText(/^because: 2 game changers, 1 combo, 8 tutors$/)).toBe(true);
-  });
-
-  it('shows an Estimate line only when it differs from the stated bracket', () => {
+  it('reads one sentence when the stated bracket differs from the estimate', () => {
     renderHero({ bracketOverridden: true, bracketEstimate: 4 });
-    expect(hasText(/^Estimate: Bracket 4 · Optimized$/)).toBe(true);
+    expect(
+      hasText(/^Set to Bracket 3 · Upgraded, but the list plays Bracket 4 · Optimized\.$/)
+    ).toBe(true);
+    expect(screen.queryByText('manual')).toBeNull();
   });
 
-  it('omits the Estimate line when the stated bracket matches the estimate', () => {
+  it('reads one sentence when the stated bracket matches the estimate', () => {
     renderHero({ bracketOverridden: true, bracketEstimate: 3 });
-    expect(hasText(/^Estimate: /)).toBe(false);
+    expect(hasText(/^Set to Bracket 3 · Upgraded, and the list plays there\.$/)).toBe(true);
   });
 
-  it('renders a borderline marker next to the estimate on Auto', () => {
-    renderHero({ bracketBorderline: 4 });
-    expect(screen.getByLabelText('Borderline between Bracket 3 and Bracket 4')).toBeTruthy();
-    expect(hasText(/Borderline 3\/4/)).toBe(true);
+  it('does not call a Core estimate a mismatch for Exhibition', () => {
+    renderHero({ bracket: 1, bracketOverridden: true, bracketEstimate: 2 });
+    expect(hasText(/^Set to Bracket 1 · Exhibition, a theme-first build\.$/)).toBe(true);
   });
 
-  it('renders a borderline marker next to the Estimate line when overridden and differing', () => {
-    renderHero({ bracketOverridden: true, bracketEstimate: 4, bracketBorderline: 5 });
-    expect(screen.getByLabelText('Borderline between Bracket 4 and Bracket 5')).toBeTruthy();
-  });
-
-  it('renders no borderline marker when bracketBorderline is absent', () => {
-    renderHero();
-    expect(screen.queryByText(/Borderline/)).toBeNull();
+  it('folds the bracket control into the headline row', () => {
+    const { container } = renderHero({ onSetBracketOverride: vi.fn() });
+    const row = container.querySelector('.power-hero-headline')!;
+    expect(row.querySelector('.power-hero-bracket')).toBeTruthy();
+    expect(row.querySelector('[aria-label="Set this deck\'s bracket"], button')).toBeTruthy();
+    expect(container.querySelector('.power-hero-target')).toBeNull();
   });
 
   it('shows "Bracket —" when bracket is null', () => {
@@ -226,7 +216,9 @@ describe('PowerHero with a stated bracket and a floor estimate', () => {
       bracketEstimate: 2,
       bracketMissesCombos: true,
     });
-    expect(hasText(/^Estimate: at least Bracket 2 · Core$/)).toBe(true);
+    expect(
+      hasText(/^Set to Bracket 3 · Upgraded, but the list plays at least Bracket 2 · Core\.$/)
+    ).toBe(true);
     expect(screen.getByText('Still checking combos, so it may be higher.')).toBeTruthy();
     // The owner's stated bracket is their word, never a floor.
     expect(hasText(/^At least Bracket 3/)).toBe(false);
@@ -239,11 +231,15 @@ describe('PowerHero with a stated bracket and a floor estimate', () => {
       bracketEstimate: 3,
       bracketMissesCombos: true,
     });
-    expect(hasText(/^Estimate: at least Bracket 3 · Upgraded$/)).toBe(true);
+    expect(hasText(/^Set to Bracket 3 · Upgraded, and the list plays at least there\.$/)).toBe(
+      true
+    );
   });
 
   it('keeps the plain estimate line when combos were counted', () => {
     renderHero({ bracket: 3, bracketOverridden: true, bracketEstimate: 4 });
-    expect(hasText(/^Estimate: Bracket 4 · Optimized/)).toBe(true);
+    expect(
+      hasText(/^Set to Bracket 3 · Upgraded, but the list plays Bracket 4 · Optimized\./)
+    ).toBe(true);
   });
 });

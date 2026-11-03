@@ -28,7 +28,6 @@ import { BuildReportPanel } from './BuildReportPanel';
 import { BracketBreakdown } from './BracketBreakdown';
 import type { ClockCard } from '@/lib/mana-sim/opening-hand-sim';
 import type { SpeedPath } from '@/lib/mana-sim/speed-path';
-import { BracketVerdictStrip } from './BracketVerdictStrip';
 import { DeckAnalysisSkeleton } from './DeckAnalysisSkeleton';
 import { DeckColorPanel } from './DeckColorPanel';
 import { DeckCurvePhases } from './DeckCurvePhases';
@@ -382,18 +381,8 @@ export function DeckAnalysisView({
                       {illegalCardNames.length === 1 ? 'it is' : 'they are'} cut.
                     </p>
                   )}
-                  {/* The stated-vs-estimate strip only when there is a stated
-                      bracket to compare. On Auto the Power hero's headline IS
-                      the estimate (§ Bracket: the owner's word), and the strip
-                      read "Bracket Auto · Estimate B4 · Auto · No bracket set",
-                      saying "Auto" twice to state one number again. */}
-                  {bracketOverride != null && (
-                    <BracketVerdictStrip
-                      bracket={bracketOverride}
-                      estimate={bracketEstimation?.bracket}
-                      estimateIsFloor={bracketMissesCombos}
-                    />
-                  )}
+                  {/* No stated-vs-estimate strip here: the Power hero's headline is
+                      the one verdict sentence (2026-11 ruling, DK-03). */}
                   {/* One sentence naming where the ESTIMATE comes from (a hard
                       floor, the power signal, or neither), whether or not the
                       owner has stated a bracket above it. */}

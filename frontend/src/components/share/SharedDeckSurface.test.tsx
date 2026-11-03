@@ -110,10 +110,32 @@ describe('SharedDeckSurface', () => {
       })
     );
     expect(screen.getByRole('heading', { name: 'Before you sit down' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Copy summary' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Copy link' })).toBeTruthy();
+    // PS-05: Copy summary and Copy link live in the Share menu, not beside it.
+    expect(screen.getByRole('button', { name: 'Share this deck' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Copy link' })).toBeNull();
     // No win path on this payload, so the speed row says it was not timed.
     expect(screen.getByText('No combo or alternate win path to time.')).toBeTruthy();
+  });
+
+  it('shows the commander art and name once while the pregame card is up (PS-05)', () => {
+    renderSurface(
+      makeDeck({
+        commander: {
+          name: 'Atraxa, Praetors\u2019 Voice',
+          type_line: 'Legendary Creature',
+          cmc: 4,
+          image_uris: { art_crop: 'https://cards.scryfall.io/art_crop/atraxa.jpg' },
+        } as PublicDeck['commander'],
+        bracketEstimation: estimation(3),
+      })
+    );
+    const hero = document.querySelector('.deck-editor-hero')!;
+    expect(hero.querySelector('.deck-editor-hero-art')).toBeNull();
+    expect(document.querySelectorAll('.pregame-card-art')).toHaveLength(1);
+    const named = [hero, document.querySelector('.pregame-card')!].filter((el) =>
+      (el.textContent ?? '').includes('Praetors\u2019 Voice')
+    );
+    expect(named).toHaveLength(1);
   });
 
   it('shows no pregame card when the deck has no bracket to read', () => {
@@ -346,7 +368,9 @@ describe('SharedDeckSurface', () => {
     // PowerHero's own secondary line, same rule as the owner's deck page —
     // only rendered once the Power tab is active.
     fireEvent.click(screen.getByRole('tab', { name: 'Power' }));
-    expect(screen.getByText(/Estimate: Bracket 4/)).toBeTruthy();
+    expect(document.querySelector('.power-hero-bracket')?.textContent).toMatch(
+      /^Set to Bracket\s*2 · Core, but the list plays Bracket 4 · Optimized\./
+    );
   });
 
   it("draws a Game Changer floor's cards with the deck's own art, commander included", () => {
@@ -394,7 +418,9 @@ describe('SharedDeckSurface', () => {
     expect(hero.querySelector('.deck-hero-bracket')?.textContent).toContain('Bracket 3');
     expect(hero.querySelector('.deck-hero-bracket')?.textContent).not.toContain('est.');
     fireEvent.click(screen.getByRole('tab', { name: 'Power' }));
-    expect(screen.queryByText(/Estimate:/)).toBeNull();
+    expect(document.querySelector('.power-hero-bracket')?.textContent).not.toContain(
+      'but the list'
+    );
   });
 
   it("reads the viewer's owned cards as owned, not as missing", () => {

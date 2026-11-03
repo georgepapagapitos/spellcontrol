@@ -25,9 +25,9 @@ vi.mock('@/store/play', () => ({
 
 import { MobileTabBar } from './MobileTabBar';
 
-function renderBar() {
+function renderBar(path = '/') {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[path]}>
       <MobileTabBar />
     </MemoryRouter>
   );
@@ -120,5 +120,29 @@ describe('MobileTabBar', () => {
     const you = screen.getByRole('link', { name: 'You, signed in as @georgep' });
     const img = you.querySelector('img.user-avatar') as HTMLImageElement | null;
     expect(img?.src).toBe('https://img.example/avatar.png');
+  });
+
+  // PS-08: the bar has no Social slot, so the social cluster lights You.
+  it.each([
+    '/you',
+    '/you/account',
+    '/friends',
+    '/friends/abc',
+    '/trades',
+    '/trades/xyz',
+    '/pods',
+    '/pods/p1',
+  ])('marks You as the active tab on %s', (path) => {
+    renderBar(path);
+    const nav = screen.getByRole('navigation', { name: 'Primary mobile' });
+    const active = within(nav).getAllByRole('link', { current: 'page' });
+    expect(active.map((l) => l.getAttribute('href'))).toEqual(['/you']);
+    expect(active[0].className).toContain('active');
+  });
+
+  it('does not light You on a lookalike path or an unrelated tab', () => {
+    renderBar('/friendship');
+    expect(screen.getByRole('link', { name: 'You' }).className).not.toContain('active');
+    expect(screen.getByRole('link', { name: 'You' }).hasAttribute('aria-current')).toBe(false);
   });
 });

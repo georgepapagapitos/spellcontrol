@@ -1,6 +1,6 @@
 import './PregameCard.css';
 import { useMemo, type JSX } from 'react';
-import { Share2 } from 'lucide-react';
+import { ChevronDown, Share2 } from 'lucide-react';
 import { readSpeed } from '@spellcontrol/deck-metrics';
 import type { Deck } from '@/store/decks';
 import type { ClockCard } from '@/lib/mana-sim/opening-hand-sim';
@@ -8,8 +8,10 @@ import { speedPathOf } from '@/lib/mana-sim/speed-path';
 import { useAssemblyClock } from '@/lib/mana-sim/use-assembly-clock';
 import { pregameShareText, pregameSpeed } from '@/lib/deck-analysis/pregame-card';
 import { canShare, openShareSheet } from '@/lib/util/web-share';
-import { Button } from '@/components/shared/Button';
-import { CopyButton } from '@/components/shared/CopyButton';
+import { buttonClass } from '@/components/shared/Button';
+import { OverflowMenu, type OverflowMenuItem } from '@/components/overlays/OverflowMenu';
+import { copyToClipboard } from '@/lib/util/clipboard';
+import { toast } from '@/store/toasts';
 
 interface PregameCardProps {
   deck: Deck;
@@ -32,6 +34,23 @@ interface PregameCardProps {
  * update says the bracket's games last to. The speed row is an estimate from a
  * goldfish simulation, so the sample size always rides with it.
  */
+/** A menu row's copy confirms with a toast, since the menu closes on use
+ *  (STYLE_GUIDE § Verbs, Copy). */
+function copyRow(label: string, what: string, value: string) {
+  return {
+    label,
+    onClick: () => {
+      void copyToClipboard(value).then((ok) =>
+        toast.show(
+          ok
+            ? { message: `Copied ${what}`, tone: 'success' }
+            : { message: `Couldn't copy ${what}.`, tone: 'error' }
+        )
+      );
+    },
+  } satisfies OverflowMenuItem;
+}
+
 export function PregameCard({
   deck,
   library,
@@ -104,23 +123,35 @@ export function PregameCard({
               )}
             </div>
           </dl>
+          {/* One Share button: the native sheet where the browser has one, then
+              Copy summary and Copy link. Three buttons wrapped Copy link alone
+              onto a second row at phone width. */}
           <div className="pregame-card-actions">
-            {canShare() && (
-              <Button
-                variant="primary"
-                icon={<Share2 width={16} height={16} strokeWidth={2} />}
-                onClick={() => void openShareSheet({ title: deck.name, text, url })}
-              >
-                Share
-              </Button>
-            )}
-            <CopyButton
-              value={text}
-              what="the pregame card"
-              label="Copy summary"
-              variant={canShare() ? 'secondary' : 'primary'}
+            <OverflowMenu
+              ariaLabel="Share this deck"
+              align="left"
+              triggerClassName={buttonClass({ variant: 'primary' })}
+              trigger={
+                <>
+                  <Share2 width={16} height={16} strokeWidth={2} aria-hidden />
+                  Share
+                  <ChevronDown width={14} height={14} strokeWidth={1.8} aria-hidden />
+                </>
+              }
+              items={[
+                ...(canShare()
+                  ? [
+                      {
+                        label: 'Share…',
+                        icon: Share2,
+                        onClick: () => void openShareSheet({ title: deck.name, text, url }),
+                      },
+                    ]
+                  : []),
+                copyRow('Copy summary', 'the summary', text),
+                copyRow('Copy link', 'the link', url),
+              ]}
             />
-            <CopyButton value={url} what="the link" label="Copy link" />
           </div>
         </div>
       </section>

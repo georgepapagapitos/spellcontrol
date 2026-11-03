@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CircleUserRound, Home, Layers, List, Search, Users } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { usePlayStore } from '@/store/play';
 import { useAuth } from '@/store/auth';
 import { useActivity } from '@/lib/social/use-activity';
@@ -22,6 +22,17 @@ function useSyncNeedsAttention(): boolean {
   useEffect(() => onSyncedChange(() => force((n) => n + 1)), []);
   if (!isAuthed) return false;
   return !isOnline() || hasSyncError() || getPendingCount() > 0;
+}
+
+/**
+ * The phone bar has no Social slot, so the social cluster (/friends, /trades,
+ * /pods and their subroutes) lives under You: those routes light the You tab
+ * instead of leaving the bar with no active tab (PS-08). /you itself and its
+ * subroutes match the same way NavLink would.
+ */
+const YOU_PREFIXES = ['/you', '/friends', '/trades', '/pods'];
+function isYouPath(pathname: string): boolean {
+  return YOU_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 const ICON_PROPS = {
@@ -54,6 +65,7 @@ export function MobileTabBar() {
   // this badge already sends you; desktop, which has room, gets a nav link.
   const { count } = useActivity();
   const syncNeedsAttention = useSyncNeedsAttention();
+  const youActive = isYouPath(useLocation().pathname);
   return (
     <nav className="mobile-tab-bar" aria-label="Primary mobile">
       <NavLink
@@ -122,12 +134,11 @@ export function MobileTabBar() {
         </span>
         <span className="mobile-tab-bar-label">Play</span>
       </NavLink>
-      <NavLink
+      <Link
         viewTransition
         to="/you"
-        className={({ isActive }) =>
-          isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
-        }
+        className={youActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'}
+        aria-current={youActive ? 'page' : undefined}
         aria-label={
           isAuthed
             ? `You, signed in as @${user?.username}${syncNeedsAttention ? ', sync needs attention' : ''}`
@@ -147,7 +158,7 @@ export function MobileTabBar() {
           {syncNeedsAttention && <span className="mobile-tab-bar-sync-dot" aria-hidden="true" />}
         </span>
         <span className="mobile-tab-bar-label">You</span>
-      </NavLink>
+      </Link>
       <NavLink
         viewTransition
         to="/search"

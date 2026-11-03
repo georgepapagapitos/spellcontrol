@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { Deck } from '@/store/decks';
 import { PregameCard } from './PregameCard';
 
@@ -80,15 +80,28 @@ describe('PregameCard', () => {
     expect(screen.queryByText('Game Changers')).toBeNull();
   });
 
-  it('offers Copy summary and Copy link, and Share only where the browser can', () => {
+  it('folds Copy summary and Copy link into one Share menu (PS-05)', () => {
     vi.stubGlobal('navigator', { ...navigator, share: undefined });
-    const { unmount } = render(<PregameCard deck={deck()} {...props} />);
-    expect(screen.getByRole('button', { name: 'Copy summary' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Copy link' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Share' })).toBeNull();
-    unmount();
+    render(<PregameCard deck={deck()} {...props} />);
+    // One button at rest: Copy link no longer wraps alone onto a second row.
+    const actions = document.querySelector('.pregame-card-actions')!;
+    expect(actions.querySelectorAll('button')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Copy summary' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Copy link' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Share this deck' }));
+    expect(screen.getByRole('menuitem', { name: 'Copy summary' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Copy link' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: 'Share…' })).toBeNull();
+  });
+
+  it('adds the native Share row only where the browser can, and the menu is keyboard-operable', () => {
     vi.stubGlobal('navigator', { ...navigator, share: vi.fn() });
     render(<PregameCard deck={deck()} {...props} />);
-    expect(screen.getByRole('button', { name: 'Share' })).toBeTruthy();
+    const trigger = screen.getByRole('button', { name: 'Share this deck' });
+    expect(trigger.getAttribute('aria-haspopup')).toBeTruthy();
+    fireEvent.click(trigger);
+    expect(screen.getByRole('menuitem', { name: 'Share…' })).toBeTruthy();
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+    expect(screen.queryByRole('menuitem', { name: 'Copy link' })).toBeNull();
   });
 });

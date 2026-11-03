@@ -1,10 +1,6 @@
 import { useDecksStore, effectiveBracket, type Deck } from '@/store/decks';
 import { DeckDisplay } from '@/components/deck/DeckDisplay';
 import { type DeckView } from '@/lib/deck-analysis/deck-view';
-import {
-  bracketReasons,
-  bracketBorderline,
-} from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { DeckCombosPanel } from '@/components/deck/DeckCombosPanel';
 import { DeckAnalysisPanel } from '@/components/deck/DeckAnalysisPanel';
 import { useCommanderProfile, useWarmCommanderPage } from '@/lib/deck/use-commander-profile';
@@ -410,12 +406,6 @@ export function DeckEditorLayout({
                   bracketOverridden={deck.bracketOverride != null}
                   bracketEstimate={deck.bracketEstimation?.bracket ?? null}
                   revealKey={scoreRevealKey}
-                  bracketReasons={
-                    deck.bracketEstimation ? bracketReasons(deck.bracketEstimation) : []
-                  }
-                  bracketBorderline={
-                    deck.bracketEstimation ? bracketBorderline(deck.bracketEstimation) : null
-                  }
                   engineLabel={deck.synergyAnalysis?.axes[0]?.label}
                   engineProducers={deck.synergyAnalysis?.axes[0]?.producers}
                   enginePayoffs={deck.synergyAnalysis?.axes[0]?.payoffs}
