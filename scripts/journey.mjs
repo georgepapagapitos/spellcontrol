@@ -1024,7 +1024,8 @@ async function main() {
       const context = await (rootFont ? await launch(rootFont) : browser).createBrowserContext();
       const page = await context.newPage();
       await page.setViewport(viewport);
-      if (SCHEME) await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: SCHEME }]);
+      if (SCHEME)
+        await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: SCHEME }]);
       const consoleErrors = [];
       const thirdPartyFailures = [];
       live = { page, tierName, consoleErrors, thirdPartyFailures };
@@ -1070,7 +1071,10 @@ async function main() {
           console.log(`        ${msg}`);
         }
       };
-      const record = async (label, { keyboard = true, scope = null, popups: probePopups = true } = {}) => {
+      const record = async (
+        label,
+        { keyboard = true, scope = null, popups: probePopups = true } = {}
+      ) => {
         await sleep(300);
         const m = await page.evaluate(() => {
           const de = document.documentElement;
@@ -1121,17 +1125,18 @@ async function main() {
         }
         // Popup placement (--popups): open each trigger, measure its panel. Runs
         // before axe, which swaps themes, and leaves every popup closed.
-        const popups = POPUPS && probePopups
-          ? await popupProbe(page, {
-              tierName,
-              label,
-              shot: async (name) => {
-                const f = `${slug(label)}__${tierName}__${slug(name)}.png`;
-                await page.screenshot({ path: path.join(OUT, f) }).catch(() => {});
-                return f;
-              },
-            })
-          : null;
+        const popups =
+          POPUPS && probePopups
+            ? await popupProbe(page, {
+                tierName,
+                label,
+                shot: async (name) => {
+                  const f = `${slug(label)}__${tierName}__${slug(name)}.png`;
+                  await page.screenshot({ path: path.join(OUT, f) }).catch(() => {});
+                  return f;
+                },
+              })
+            : null;
         if (popups)
           console.log(
             `        popups: opened ${popups.checked}/${popups.total}, exempt ${popups.exempt}` +

@@ -38,11 +38,7 @@ function collect({ trigger, cap }) {
     const kind = el.classList.contains('info-tip-btn')
       ? 'tooltip'
       : `popup:${el.getAttribute('aria-haspopup') ?? el.className.toString().split(' ')[0]}`;
-    const label = (
-      el.getAttribute('aria-label') ||
-      el.textContent ||
-      el.className.toString()
-    )
+    const label = (el.getAttribute('aria-label') || el.textContent || el.className.toString())
       .trim()
       .replace(/\s+/g, ' ')
       .slice(0, 60);
@@ -182,7 +178,9 @@ export async function popupProbe(page, { tierName, label, shot }) {
       await page.evaluate(() => document.activeElement?.blur?.()).catch(() => {});
       await page.mouse.move(1, 1).catch(() => {});
       await sleep(60);
-      const now = await page.evaluate(() => location.pathname + location.search).catch(() => startPath);
+      const now = await page
+        .evaluate(() => location.pathname + location.search)
+        .catch(() => startPath);
       if (now !== startPath) {
         await page.goBack({ waitUntil: 'domcontentloaded' }).catch(() => {});
         await sleep(600);
