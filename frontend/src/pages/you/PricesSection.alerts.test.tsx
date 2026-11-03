@@ -14,6 +14,15 @@ describe('PricesSection owned-card alerts', () => {
     expect(screen.queryByRole('radio', { name: '25%' })).toBeNull();
   });
 
+  it('gives the alert switch a real hint, never a bare repeat of its On/Off value', () => {
+    render(<PricesSection />);
+    expect(screen.queryByText('Off.')).toBeNull();
+    expect(screen.getByText(/Flags cards you own that spike or dip/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('switch', { name: 'Alert on cards you own' }));
+    expect(screen.queryByText(/^On\./)).toBeNull();
+    expect(screen.getByText(/past both limits show in Waiting on you/)).toBeTruthy();
+  });
+
   it('switching on reveals direction, percent and amount, and each choice is saved', () => {
     render(<PricesSection />);
     fireEvent.click(screen.getByRole('switch', { name: 'Alert on cards you own' }));

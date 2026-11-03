@@ -454,6 +454,8 @@ describe('Account — sign-in methods, notifications, this device', () => {
     renderYouPage('/you/account');
     const offSwitch = await screen.findByRole('switch', { name: 'Email notifications' });
     expect(offSwitch.hasAttribute('disabled')).toBe(true);
+    // A disabled switch must not read On while the stored preference is true.
+    expect(offSwitch.getAttribute('aria-checked')).toBe('false');
     expect(screen.getByText('Needs a verified email.')).toBeTruthy();
   });
 

@@ -647,6 +647,14 @@
     align-content: start;
   }
 
+  /* The online host form has no rules panel, so visibility takes that cell:
+     left column, under Format and Name, in DOM and tab order. Without an
+     area it auto-placed above them. */
+  .play-setup-form-grid > .play-setup-visibility {
+    grid-area: rules;
+    align-content: start;
+  }
+
   .play-setup-form-grid > .play-setup-roster {
     grid-area: roster;
     border-left: 0.5px solid var(--border);

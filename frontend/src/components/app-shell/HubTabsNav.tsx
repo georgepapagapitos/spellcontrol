@@ -6,6 +6,10 @@ import './HubTabsNav.css';
 export interface HubTab {
   to: string;
   label: string;
+  /** A shorter label shown on a narrow phone (under 600px), so a five-tab
+   *  strip leaves the last tab peeking past the edge fade instead of hidden
+   *  under it. The accessible name stays `label`. */
+  shortLabel?: string;
   /** Caller derives this from the live pathname — exact vs prefix match differs
    *  per tab, so the rule stays with the hub that owns the routes. */
   active: boolean;
@@ -74,7 +78,7 @@ export function HubTabsNav({ ariaLabel, tabs }: { ariaLabel: string; tabs: HubTa
 
   return (
     <nav className="collection-hub-tabs" aria-label={ariaLabel} ref={navRef}>
-      {tabs.map(({ to, label, active, count, countNoun, live }) => (
+      {tabs.map(({ to, label, shortLabel, active, count, countNoun, live }) => (
         <Link
           key={to}
           to={to}
@@ -83,9 +87,18 @@ export function HubTabsNav({ ariaLabel, tabs }: { ariaLabel: string; tabs: HubTa
           aria-current={active ? 'page' : undefined}
           // One string, so the name reads "Local, game in progress"; a
           // visually hidden suffix computes as "Local , game in progress".
-          aria-label={live ? `${label}, ${live}` : undefined}
+          aria-label={live ? `${label}, ${live}` : shortLabel ? label : undefined}
         >
-          <span>{label}</span>
+          {shortLabel ? (
+            <>
+              <span className="hub-tab-label-full">{label}</span>
+              <span className="hub-tab-label-short" aria-hidden="true">
+                {shortLabel}
+              </span>
+            </>
+          ) : (
+            <span>{label}</span>
+          )}
           {live && <span className="site-nav-dot" aria-hidden="true" />}
           {count !== undefined && count > 0 && (
             <span

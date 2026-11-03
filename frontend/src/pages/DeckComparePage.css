@@ -2,10 +2,10 @@
   max-width: 1100px;
 }
 
-.deck-compare-heading {
-  font-size: var(--text-lg);
-  color: var(--text-primary);
-  margin-bottom: var(--space-4);
+/* The h1 is the shared page title (.binder-hero-name); this keeps only the gap
+   below it, net of that class's own -0.22em margin. */
+.deck-compare-heading.binder-hero-name {
+  margin-bottom: calc(var(--space-4) - 0.22em);
 }
 /* Deck names in the heading link out to their editors — inherit the
    heading's size/family instead of .btn-link's default small serif. */

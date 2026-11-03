@@ -19,16 +19,18 @@ import { Button } from '@/components/shared/Button';
 export function RecoveryBanner() {
   const status = useAuth((s) => s.status);
   const emailVerified = useAuth((s) => s.emailVerified);
+  const hasEmail = useAuth((s) => s.hasEmail);
 
   if (status !== 'authed' || emailVerified) return null;
 
   return (
     <div className="recovery-banner" role="status" aria-live="polite">
       <div className="recovery-banner-text">
-        <strong>Confirm your email.</strong> It's the only way back in if you forget your password.
+        <strong>{hasEmail ? 'Confirm your email.' : 'Add an email.'}</strong> It's the only way back
+        in if you forget your password.
       </div>
       <Button variant="primary" to="/you/account">
-        Confirm email
+        {hasEmail ? 'Confirm email' : 'Add email'}
       </Button>
     </div>
   );

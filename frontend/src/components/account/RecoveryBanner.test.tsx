@@ -21,6 +21,7 @@ function setAuth(patch: AuthPatch) {
     user: { id: 'u1', username: 'pat', role: 'user' },
     status: 'authed',
     emailVerified: true,
+    hasEmail: true,
     error: null,
     ...patch,
   });
@@ -37,6 +38,16 @@ describe('RecoveryBanner', () => {
     setAuth({ emailVerified: false });
     renderBanner();
     expect(screen.getByText('Confirm your email.')).toBeTruthy();
+  });
+
+  it('asks to add an address, not confirm one, when none is on file', () => {
+    setAuth({ emailVerified: false, hasEmail: false });
+    renderBanner();
+    expect(screen.getByText('Add an email.')).toBeTruthy();
+    expect(screen.queryByText(/Confirm/)).toBeNull();
+    expect(screen.getByRole('link', { name: 'Add email' }).getAttribute('href')).toBe(
+      '/you/account'
+    );
   });
 
   it('has no dismiss — the only way out is confirming the address', () => {

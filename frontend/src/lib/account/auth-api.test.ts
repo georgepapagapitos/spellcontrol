@@ -90,6 +90,7 @@ describe('fetchMe', () => {
       autoLinkedAt: null,
       inboxSeenAt: null,
       emailVerified: true,
+      hasEmail: true,
     });
   });
 
@@ -102,6 +103,7 @@ describe('fetchMe', () => {
       autoLinkedAt: 1700000000000,
       inboxSeenAt: null,
       emailVerified: true,
+      hasEmail: true,
     });
   });
 
@@ -114,6 +116,7 @@ describe('fetchMe', () => {
       autoLinkedAt: null,
       inboxSeenAt: null,
       emailVerified: true,
+      hasEmail: true,
     });
   });
 
@@ -122,6 +125,16 @@ describe('fetchMe', () => {
       jsonResponse({ user: { id: 'u3', username: 'cory' }, emailVerified: false })
     );
     expect((await fetchMe())?.emailVerified).toBe(false);
+  });
+
+  it('reports whether an address is on file, defaulting to yes on an older /me', async () => {
+    const spy = vi.spyOn(globalThis, 'fetch');
+    spy.mockResolvedValueOnce(
+      jsonResponse({ user: { id: 'u3', username: 'cory' }, emailVerified: false, hasEmail: false })
+    );
+    expect((await fetchMe())?.hasEmail).toBe(false);
+    spy.mockResolvedValueOnce(jsonResponse({ user: { id: 'u3', username: 'cory' } }));
+    expect((await fetchMe())?.hasEmail).toBe(true);
   });
 
   it('treats an older /me with no emailVerified as verified', async () => {
@@ -141,6 +154,7 @@ describe('fetchMe', () => {
       autoLinkedAt: null,
       inboxSeenAt: 1700000000000,
       emailVerified: true,
+      hasEmail: true,
     });
   });
 });

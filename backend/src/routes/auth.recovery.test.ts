@@ -460,6 +460,26 @@ describe('POST /api/auth/register — the recovery address', () => {
 
     const me = await request(app).get('/api/auth/me').set('Cookie', cookie);
     expect(me.body.emailVerified).toBe(false);
+    // An address is awaiting its link: the banner says "Confirm".
+    expect(me.body.hasEmail).toBe(true);
+  });
+
+  it('reports hasEmail false when no address was ever given, so the banner says Add', async () => {
+    const reg = await request(app).post('/api/auth/register').send({
+      username: 'banner-noemail',
+      password: 'correct horse battery',
+      email: 'banner-noemail@example.test',
+    });
+    const cookie = extractSessionCookie(reg.headers['set-cookie'])!;
+    // An account that predates the sign-up email requirement has neither an
+    // address nor a pending verify token.
+    await pool.query(
+      `DELETE FROM auth_tokens WHERE user_id = (SELECT id FROM users WHERE username = 'banner-noemail')`
+    );
+
+    const me = await request(app).get('/api/auth/me').set('Cookie', cookie);
+    expect(me.body.emailVerified).toBe(false);
+    expect(me.body.hasEmail).toBe(false);
   });
 
   it('refuses an address another VERIFIED account owns, without saying whose', async () => {

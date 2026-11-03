@@ -370,7 +370,7 @@ export function DeckComparePage() {
   return (
     <div className="deck-compare-page" aria-busy={!hydrated}>
       <BackLink to="/decks" label="All decks" />
-      <h1 className="deck-compare-heading">
+      <h1 className="binder-hero-name deck-compare-heading">
         {deckA && deckB ? (
           <>
             <Button variant="link" to={`/decks/${deckA.id}`}>

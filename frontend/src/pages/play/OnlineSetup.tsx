@@ -167,7 +167,7 @@ export function OnlineSetup({
               identity rather than something to tune later, so they join
               Format here. */}
           <section className="play-setup-row play-setup-game">
-            <div className="play-field play-field-inline">
+            <div className="play-field">
               <span>Format</span>
               <SelectMenu<GameFormat>
                 ariaLabel="Format"
@@ -179,7 +179,7 @@ export function OnlineSetup({
                 ]}
               />
             </div>
-            <label className="play-field play-field-inline">
+            <label className="play-field">
               <span>Name</span>
               <input
                 value={tableName}
@@ -190,7 +190,7 @@ export function OnlineSetup({
             </label>
           </section>
 
-          <section className="play-setup-row">
+          <section className="play-setup-row play-setup-visibility">
             <VisibilityChoice
               ariaLabel="Table visibility"
               value={visibility}

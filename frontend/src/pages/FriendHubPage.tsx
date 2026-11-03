@@ -448,7 +448,10 @@ export function FriendHubPage() {
     { id: 'collection', label: 'Collection', controls: 'friend-hub-panel-collection' },
     {
       id: 'trades',
-      label: awaitingMe > 0 ? `Trades (${awaitingMe})` : 'Trades',
+      label: 'Trades',
+      // The count rides the pill badge (aria-hidden), so the name carries it.
+      count: awaitingMe > 0 ? awaitingMe : null,
+      ariaLabel: awaitingMe > 0 ? `Trades, ${awaitingMe} awaiting you` : undefined,
       controls: 'friend-hub-panel-trades',
     },
   ];

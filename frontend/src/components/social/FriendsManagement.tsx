@@ -421,7 +421,11 @@ export function FriendsManagement() {
           {loading ? (
             <FriendsSkeleton />
           ) : incomingList.length === 0 && outgoingList.length === 0 ? (
-            <EmptyState status tagline="No pending requests." />
+            <EmptyState
+              status
+              tagline="No pending requests."
+              hint="Requests you send or receive wait here until someone answers."
+            />
           ) : (
             <>
               {incomingList.length > 0 && (
@@ -523,7 +527,11 @@ export function FriendsManagement() {
           {inbox === null ? (
             <FriendsSkeleton />
           ) : inboxList.length === 0 ? (
-            <EmptyState status tagline="Nothing shared yet." />
+            <EmptyState
+              status
+              tagline="Nothing shared yet."
+              hint="Anything a friend shares with you shows up here."
+            />
           ) : (
             <ul className="list-stack friends-inbox-list" aria-label="Shared with you">
               {inboxList.map((item) => {
@@ -575,7 +583,11 @@ export function FriendsManagement() {
           ) : activity === null ? (
             <FriendsSkeleton />
           ) : activity.length === 0 ? (
-            <EmptyState status tagline="Nothing new from friends yet." />
+            <EmptyState
+              status
+              tagline="Nothing new from friends yet."
+              hint="Decks friends publish and links they share show up here."
+            />
           ) : (
             <ul className="list-stack friends-activity-list" aria-label="Recent friend activity">
               {activity.map((item) => {

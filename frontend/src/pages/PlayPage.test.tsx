@@ -123,7 +123,8 @@ describe('PlayPage tabs', () => {
     expect(
       within(nav)
         .getAllByRole('link')
-        .map((t) => t.textContent)
+        // The accessible name: a tab with a short label renders both spans.
+        .map((t) => t.getAttribute('aria-label') ?? t.textContent)
     ).toEqual(['Play', 'Local', 'Online', 'Game nights', 'History']);
     // The hub keeps its title; the tab is named for screen readers.
     expect(screen.getByRole('heading', { level: 1, name: 'Play: Local' })).toBeTruthy();

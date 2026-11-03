@@ -180,7 +180,8 @@ function PodsIndexPageBody() {
       hub="social"
       section="Pods"
       className="pods-index-page"
-      intro="Your regular tables: games and trades in one place."
+      // The empty state says the same thing with an action; one voice, not two.
+      intro={isEmpty ? undefined : 'Your regular tables: games and trades in one place.'}
     >
       {loadError && (
         <div className="friends-error" role="alert">

@@ -50,6 +50,9 @@ interface AuthState {
    *  recovery banner. True while signed out or offline, so the banner never
    *  appears somewhere it cannot be acted on. */
   emailVerified: boolean;
+  /** False when the account never gave an address: the recovery banner asks
+   *  to add one instead of confirming one. */
+  hasEmail: boolean;
   /**
    * Server truth (T117) behind the inbox/friend-request "unseen" badges —
    * `users.inbox_seen_at`. Every badge reader (`useInbox`, `useFriendRequests`,
@@ -150,6 +153,7 @@ export const useAuth = create<AuthState>((set) => {
     error: null,
     autoLinkedAt: null,
     emailVerified: true,
+    hasEmail: true,
     inboxSeenAt: null,
     profile: null,
 
@@ -165,6 +169,7 @@ export const useAuth = create<AuthState>((set) => {
             error: null,
             autoLinkedAt: me.autoLinkedAt,
             emailVerified: me.emailVerified,
+            hasEmail: me.hasEmail,
             inboxSeenAt: me.inboxSeenAt,
             profile: me.profile,
           });

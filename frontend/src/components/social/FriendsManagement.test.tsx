@@ -235,6 +235,22 @@ describe('FriendsManagement — Activity tab', () => {
     expect(await screen.findByText(/nothing new from friends yet/i)).toBeTruthy();
   });
 
+  it('gives each tab empty state a hint sentence after its tagline', async () => {
+    mockGetFriendsActivity.mockResolvedValue([]);
+    await renderPage();
+    openActivityTab();
+    await screen.findByText(/nothing new from friends yet/i);
+    for (const tagline of [
+      /no pending requests/i,
+      /nothing shared yet/i,
+      /nothing new from friends/i,
+    ]) {
+      const hint = screen.getByText(tagline).nextElementSibling;
+      expect(hint?.className).toContain('empty-state-hint');
+      expect(hint?.textContent?.length).toBeGreaterThan(10);
+    }
+  });
+
   it('shows an error row with Retry, and a successful retry loads the list', async () => {
     mockGetFriendsActivity.mockRejectedValueOnce(new Error('Failed to load activity.'));
     await renderPage();

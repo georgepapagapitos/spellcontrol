@@ -31,8 +31,8 @@ describe('EmptyState', () => {
   });
 
   it('renders the tagline as an h1 when taglineAs is set (the 404 page)', () => {
-    render(<EmptyState tagline="Page not found." taglineAs="h1" />);
-    expect(screen.getByRole('heading', { level: 1, name: 'Page not found.' })).toBeTruthy();
+    render(<EmptyState tagline="Page not found" taglineAs="h1" />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Page not found' })).toBeTruthy();
   });
 
   it('adds role="status" only when asked, for a state that replaces a loading skeleton', () => {

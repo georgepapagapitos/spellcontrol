@@ -560,6 +560,20 @@ describe('FriendHubPage — ?counter=<offerId> from /trades', () => {
     expect(Object.keys(saved?.give ?? {}).sort()).toEqual(['o-sig', 'o-sol']);
   });
 
+  it('keeps the Trades tab label short and carries the waiting count as a badge', async () => {
+    listTrades.mockResolvedValue({ offers: [incoming], truncated: false });
+    render(
+      <MemoryRouter initialEntries={['/friends/friend-1']}>
+        <Routes>
+          <Route path="/friends/:friendId" element={<FriendHubPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    const tab = await screen.findByRole('tab', { name: 'Trades, 1 awaiting you' });
+    expect(tab.querySelector('.sc-tab-label')?.textContent).toBe('Trades');
+    expect(tab.querySelector('.sc-tab-count')?.textContent).toBe('1');
+  });
+
   it('spends the counter and review params once it has landed', async () => {
     myCards = [makeOwned({ copyId: 'c1', name: 'Sol Ring', oracleId: 'o-sol' })];
     listTrades.mockResolvedValue({ offers: [incoming], truncated: false });

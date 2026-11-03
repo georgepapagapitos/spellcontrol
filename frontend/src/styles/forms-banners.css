@@ -102,6 +102,7 @@
   .inline-rename-btn::after,
   .pod-hub-name-btn::after,
   .player-panel-name::after,
+  .home-hero-scale-link::after,
   .playtest-life-table__details::after {
     content: '';
     position: absolute;

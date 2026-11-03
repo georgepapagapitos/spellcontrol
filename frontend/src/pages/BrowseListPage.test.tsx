@@ -263,7 +263,7 @@ describe('BrowseListPage', () => {
 
   it('reads an unknown list as a broken link', () => {
     renderList('/search/top/best-cards');
-    expect(screen.getByText('Page not found.')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Page not found' })).toBeTruthy();
     expect(h.loadBrowseList).not.toHaveBeenCalled();
   });
 });

@@ -1650,7 +1650,8 @@ Rulings for `--font-display` (restyle Phase 6):
   `.public-profile-name`, `.pod-hub-name`. Everything _functional_ stays
   `--font-serif`: dialog/sheet/modal titles (a confirm dialog is not ceremony),
   section and lane headings, empty-state taglines, error-state titles
-  ("Link not found"), stat numerals, the `--text-lg` home greeting.
+  ("Link not found", no trailing period; a not-found page's h1 is one too, so
+  "Page not found" matches it), stat numerals, the `--text-lg` home greeting.
 - **Always pair `font-family: var(--font-display)` with `font-weight: 400`.**
   Several sets' display faces ship a single cut (Germania One, Sorts Mill
   Goudy, Marcellus, IM Fell English…), and a leftover 600/700 makes the

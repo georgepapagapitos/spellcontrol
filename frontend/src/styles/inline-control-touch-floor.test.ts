@@ -26,6 +26,8 @@ const CASES: Array<[file: string, selector: string]> = [
   ['components/card/RulesText.css', '.keyword-term'],
   // A rename control inside a heading.
   ['components/shared/InlineRename.css', '.inline-rename-btn'],
+  // The card / deck / binder counts under Home's value line.
+  ['components/home/HomeHero.css', '.home-hero-scale-link'],
 ];
 
 describe('inline controls meet the coarse touch floor', () => {

@@ -41,6 +41,7 @@ describe('bootstrap', () => {
       autoLinkedAt: null,
       inboxSeenAt: null,
       emailVerified: true,
+      hasEmail: true,
       profile: EMPTY_PROFILE,
     });
     await useAuth.getState().bootstrap();
@@ -56,6 +57,7 @@ describe('bootstrap', () => {
       autoLinkedAt: null,
       inboxSeenAt: null,
       emailVerified: true,
+      hasEmail: true,
       profile,
     });
     await useAuth.getState().bootstrap();
@@ -114,6 +116,7 @@ describe('bootstrap', () => {
       autoLinkedAt: 1700000000000,
       inboxSeenAt: null,
       emailVerified: true,
+      hasEmail: true,
       profile: EMPTY_PROFILE,
     });
     await useAuth.getState().bootstrap();
@@ -126,6 +129,7 @@ describe('bootstrap', () => {
       autoLinkedAt: null,
       inboxSeenAt: 1700000000000,
       emailVerified: true,
+      hasEmail: true,
       profile: EMPTY_PROFILE,
     });
     await useAuth.getState().bootstrap();
@@ -188,6 +192,7 @@ describe('login / register', () => {
       autoLinkedAt: null,
       inboxSeenAt: null,
       emailVerified: true,
+      hasEmail: true,
       profile,
     });
     await useAuth.getState().login('bob', 'correct horse battery');

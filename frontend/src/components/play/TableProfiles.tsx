@@ -51,7 +51,7 @@ export function TableProfiles({
 
       {profiles.length === 0 ? (
         <p className="table-profiles-empty">
-          No saved tables yet. Set up a game, then name it under Save this setup as.
+          No saved tables yet. Save a setup to reuse this table.
         </p>
       ) : (
         <ul className="list-stack list-stack--tight table-profiles-list">

@@ -375,6 +375,9 @@ export interface MeResponse {
    * the recovery banner acts on.
    */
   emailVerified: boolean;
+  /** True when an address is on file or awaiting its link. False means the
+   *  banner should ask to add one rather than confirm one. */
+  hasEmail: boolean;
   profile: Profile;
 }
 
@@ -386,6 +389,7 @@ export async function fetchMe(): Promise<MeResponse | null> {
     autoLinkedAt?: number | null;
     inboxSeenAt?: number | null;
     emailVerified?: boolean;
+    hasEmail?: boolean;
     profile: Profile;
   }>(res);
   return {
@@ -395,6 +399,7 @@ export async function fetchMe(): Promise<MeResponse | null> {
     // Absent (an older backend) is treated as verified: a banner nobody can
     // act on is worse than a missing one.
     emailVerified: data.emailVerified ?? true,
+    hasEmail: data.hasEmail ?? true,
     profile: data.profile,
   };
 }

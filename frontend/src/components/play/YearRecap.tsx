@@ -39,6 +39,10 @@ export function YearRecap({
     [games, year]
   );
   if (!recap || year === undefined) return null;
+  // "Best" lists a rate worth naming: a 0% entry stays in the played counts
+  // but is not a best.
+  const bestDecks = recap.bestRates.filter((d) => d.wins > 0);
+  const bestPlayers = recap.playerRates.filter((p) => p.wins > 0);
 
   return (
     <Surface as="section" variant="framed" className="year-recap" aria-label={`${title} ${year}`}>
@@ -103,17 +107,17 @@ export function YearRecap({
 
       <section className="year-recap-block" aria-label="Best win rates">
         <h3 className="year-recap-sub">Best win rates</h3>
-        {recap.bestRates.length === 0 && recap.playerRates.length === 0 ? (
+        {bestDecks.length === 0 && bestPlayers.length === 0 ? (
           <p className="year-recap-note">
             A win rate shows once a deck or player has {DECK_RATE_MIN_GAMES} games with a winner.
           </p>
         ) : (
           <>
-            {recap.bestRates.length > 0 && (
+            {bestDecks.length > 0 && (
               <>
                 <h4 className="year-recap-kind">Decks</h4>
                 <ul className="year-recap-list" aria-label="Best deck win rates">
-                  {recap.bestRates.map((d) => (
+                  {bestDecks.map((d) => (
                     <li key={d.deckId}>
                       <span className="year-recap-list-name">{d.deckName}</span>
                       <span className="year-recap-list-value">
@@ -124,11 +128,11 @@ export function YearRecap({
                 </ul>
               </>
             )}
-            {recap.playerRates.length > 0 && (
+            {bestPlayers.length > 0 && (
               <>
                 <h4 className="year-recap-kind">Players</h4>
                 <ul className="year-recap-list" aria-label="Best player win rates">
-                  {recap.playerRates.map((p) => (
+                  {bestPlayers.map((p) => (
                     <li key={`p:${p.name}`}>
                       <span className="year-recap-list-name">{p.name}</span>
                       <span className="year-recap-list-value">

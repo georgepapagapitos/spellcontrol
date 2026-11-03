@@ -214,6 +214,8 @@
   text-decoration-thickness: 1px;
   text-underline-offset: 0.2em;
   white-space: nowrap;
+  /* Host for the coarse-pointer 44px ghost (styles/forms-banners.css). */
+  position: relative;
 }
 
 @media (hover: hover) and (pointer: fine) {
