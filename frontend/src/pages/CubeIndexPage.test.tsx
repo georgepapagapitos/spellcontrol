@@ -75,6 +75,15 @@ describe('CubeIndexPage — rows', () => {
     expect(screen.getByText('Physical')).toBeTruthy();
   });
 
+  // DK-14: the empty state's CTA is the one primary action; the header's
+  // twin would be a second "New cube" on the same screen.
+  it('shows a single "New cube" button when there are no cubes', () => {
+    renderPage();
+    // The CTA is a link (Button `to`), and nothing else on the page carries the name.
+    expect(screen.getAllByRole('link', { name: 'New cube' })).toHaveLength(1);
+    expect(screen.queryAllByRole('button', { name: 'New cube' })).toHaveLength(0);
+  });
+
   it('"New cube" primary action links to the chooser', () => {
     useCubeStore.setState({ saved: [saved()] });
     renderPage();

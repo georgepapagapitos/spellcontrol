@@ -423,14 +423,26 @@ describe('buildNextBestMoves', () => {
   });
 
   describe('land-count move (curve-derived advice)', () => {
-    it('suggests adding lands when 2+ under the Karsten suggestion', () => {
-      const moves = buildNextBestMoves(base({ landAdvice: { count: 33, suggested: 37 } }));
+    it('suggests adding lands when a deck with room is 2+ under the Karsten suggestion', () => {
+      const moves = buildNextBestMoves(
+        base({ cardCount: 90, landAdvice: { count: 33, suggested: 37 } })
+      );
+      const land = moves.find((m) => m.id === 'land-count');
+      expect(land?.tier).toBe(2);
+      expect(land?.title).toBe('Add 4 lands');
+      expect(land?.detail).toContain('~37');
+      expect(land?.navigateTo).toBe('stats');
+    });
+
+    it('words a full deck as a swap, naming the land shortfall', () => {
+      const moves = buildNextBestMoves(
+        base({ cardCount: 100, deckTarget: 100, landAdvice: { count: 30, suggested: 37 } })
+      );
       expect(moves).toHaveLength(1);
       expect(moves[0].id).toBe('land-count');
-      expect(moves[0].tier).toBe(2);
-      expect(moves[0].title).toBe('Add 4 lands');
-      expect(moves[0].detail).toContain('~37');
-      expect(moves[0].navigateTo).toBe('stats');
+      expect(moves[0].title).toBe('Swap 7 spells for lands');
+      expect(moves[0].detail).toContain('full at 100/100');
+      expect(moves[0].detail).toContain('7 lands short of ~37');
     });
 
     it('suggests trimming lands when 2+ over the suggestion', () => {

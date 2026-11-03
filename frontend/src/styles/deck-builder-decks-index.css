@@ -375,7 +375,7 @@
   min-width: 0;
 }
 
-/* The long "Commander · N cards · Manual" tail — the one meta child allowed
+/* The long "N cards · Manual · Commander" tail — the one meta child allowed
    to truncate, so a two-commander partner pair can't push the row wider than
    its column. */
 .decks-index-card-detail {

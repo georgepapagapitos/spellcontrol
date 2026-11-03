@@ -14,6 +14,7 @@ const BinderCardEditor = lazy(() =>
 );
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '@/lib/binder/materialize';
+import { groupPrintRows, printFinishLabel } from '@/lib/binder/print-groups';
 import { findRedundantPins } from '@/lib/binder/binder-pin-dissolve';
 import { useBinderLayoutInputs } from '@/lib/binder/use-binder-layout-inputs';
 import { buildQtyByPrintingKey } from '@spellcontrol/binder-routing';
@@ -280,25 +281,10 @@ export function BinderPage() {
   // duplicate copies rolled into a Quantity like its qty pills do.
   const printGroups = useMemo(() => {
     if (!active) return [];
-    return active.sections.map((section) => {
-      const rows = new Map<
-        string,
-        { name: string; setCode: string; collectorNumber: string; qty: number }
-      >();
-      for (const card of section.cards) {
-        const key = `${card.name}|${card.setCode}|${card.collectorNumber}|${card.finish}`;
-        const existing = rows.get(key);
-        if (existing) existing.qty += 1;
-        else
-          rows.set(key, {
-            name: card.name,
-            setCode: card.setCode,
-            collectorNumber: card.collectorNumber,
-            qty: 1,
-          });
-      }
-      return { label: section.label, rows: [...rows.values()] };
-    });
+    return active.sections.map((section) => ({
+      label: section.label,
+      rows: groupPrintRows(section.cards),
+    }));
   }, [active]);
 
   // Pin auto-dissolve: a "Keep it here" pin that no longer does any work (the
@@ -622,13 +608,14 @@ export function BinderPage() {
               <h2 className="print-list-section-title">{g.label}</h2>
               <ul>
                 {g.rows.map((row) => (
-                  <li key={`${row.name}|${row.setCode}|${row.collectorNumber}`}>
+                  <li key={row.key}>
                     <span className="print-list-qty">{row.qty}</span>
                     <span className="print-list-name">
                       <CardName card={row} />
                     </span>
                     <span className="print-list-printing">
                       {row.setCode.toUpperCase()} {row.collectorNumber}
+                      {printFinishLabel(row.finish) && ` ${printFinishLabel(row.finish)}`}
                     </span>
                   </li>
                 ))}

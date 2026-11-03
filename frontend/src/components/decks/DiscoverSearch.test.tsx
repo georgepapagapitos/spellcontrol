@@ -21,6 +21,14 @@ function renderSearch(query: string | null = null) {
 }
 
 describe('DiscoverSearch', () => {
+  // DK-11: "Search decks, commanders, brewers…" (36 chars) clipped mid-word at
+  // 360px ("…brewe"); the longest that fit was 31. The input's accessible name
+  // still says "Search public decks", so the placeholder needn't repeat it.
+  it('keeps the placeholder short enough for a 360px phone', () => {
+    renderSearch();
+    expect(getInput().placeholder.length).toBeLessThanOrEqual(30);
+  });
+
   beforeEach(() => {
     mockSearchCommanders.mockReset();
     mockSearchCommanders.mockResolvedValue([]);

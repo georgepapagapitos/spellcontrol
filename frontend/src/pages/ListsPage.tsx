@@ -389,8 +389,8 @@ export function ListsPage() {
                           ) : (
                             <>
                               {l.entries.length.toLocaleString()}{' '}
-                              {l.entries.length === 1 ? 'entry' : 'entries'}
-                              {isTrackingList(l) && ' · tracking'}
+                              {l.entries.length === 1 ? 'card' : 'cards'}
+                              {isTrackingList(l) && ' · tracking what you own'}
                             </>
                           )}
                         </span>

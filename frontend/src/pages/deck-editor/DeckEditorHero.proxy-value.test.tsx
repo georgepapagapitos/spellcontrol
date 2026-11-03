@@ -72,4 +72,14 @@ describe('DeckEditorHero: value without proxies', () => {
     expect(container.querySelector('.deck-hero-totals')!.textContent).not.toMatch(/proxies/);
     expect(screen.queryByText(/proxies/)).toBeNull();
   });
+
+  // DK-09: the separator is a breakable space BEFORE the dot and a
+  // non-breaking one after it, so a wrap leaves the dot leading the next line
+  // with its fact instead of dangling at the end of the previous one.
+  it('keeps every separator attached to the fact after it', () => {
+    const { container } = renderHero(240);
+    const text = container.querySelector('.deck-hero-totals')!.textContent!;
+    expect(text).toContain('$372.00 ·\u00A0$240.00');
+    expect(text).not.toMatch(/\u00A0· /);
+  });
 });

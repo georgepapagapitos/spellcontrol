@@ -32,7 +32,12 @@ const phoneBlock = (() => {
 })();
 
 const rule = (selector: string) => {
-  const head = phoneBlock.indexOf(`\n  ${selector} {`);
+  // A selector may lead a list (`sel,`) or close it (`sel {`).
+  const head = Math.max(
+    phoneBlock.indexOf(`\n  ${selector} {`),
+    phoneBlock.indexOf(`\n  ${selector},`),
+    phoneBlock.indexOf(`,\n  ${selector} {`)
+  );
   if (head < 0) return '';
   const open = phoneBlock.indexOf('{', head);
   return phoneBlock.slice(open + 1, phoneBlock.indexOf('}', open));
@@ -67,9 +72,14 @@ describe('phone collection rows: thumbnail view is two lines', () => {
       rule(`${T}.collection-list-check,
   ${T}.collection-list-thumb`)
     ).toMatch(/grid-row:\s*1 \/ 3/);
-    const menu = rule(`${T}.collection-list-right > .deck-row-menu`);
-    expect(menu).toMatch(/grid-row:\s*1 \/ 3/);
-    expect(menu).toMatch(/grid-column:\s*6/);
+    // CardRowMenu's wrapper is `.deck-row-menu`; a list entry's generic
+    // OverflowMenu is `.overflow-menu`. Both take the trailing column, or the
+    // list row's kebab auto-places between the thumbnail and the name.
+    for (const cls of ['deck-row-menu', 'overflow-menu']) {
+      const menu = rule(`${T}.collection-list-right > .${cls}`);
+      expect(menu, `no phone grid rule reaches .${cls}`).toMatch(/grid-row:\s*1 \/ 3/);
+      expect(menu).toMatch(/grid-column:\s*6/);
+    }
   });
 });
 

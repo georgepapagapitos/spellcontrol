@@ -120,4 +120,18 @@ describe('DecksIndexPage — deck value', () => {
     expect(cell.textContent).toBe('$20');
     expect(cell.getAttribute('title')).toBe('$400.00 in proxies not counted');
   });
+
+  // The detail run is the one piece that truncates, so what must survive a
+  // narrow column (count, source) leads and the commander names trail.
+  it('leads the detail line with the card count and source, commander last', () => {
+    render(
+      <MemoryRouter>
+        <DecksIndexPage />
+      </MemoryRouter>
+    );
+    const row = screen.getByText('Cheap Deck').closest('li')!;
+    expect(row.querySelector('.decks-index-card-detail')?.textContent).toBe(
+      '2 cards · Manual · Card'
+    );
+  });
 });

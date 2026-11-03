@@ -1,6 +1,7 @@
-.deck-compare-page {
-  max-width: 1100px;
-}
+/* .deck-compare-page sets no max-width: the shell frame (--page-max) already
+   centers and caps the page. A narrower, left-hugging 1100px box put the "pick
+   two decks" empty state off the page's axis, and a page root may not center
+   itself (header-fixed-rail.test). */
 
 /* The h1 is the shared page title (.binder-hero-name); this keeps only the gap
    below it, net of that class's own -0.22em margin. */
