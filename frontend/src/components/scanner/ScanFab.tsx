@@ -106,6 +106,20 @@ export function ScanFab({ scrollEl }: { scrollEl?: HTMLElement | null }) {
   // and unmounting it dropped that reservation, which clamped the page's scroll
   // and moved the page 30 to 48px under a ⋮ menu that had just opened on a card
   // in the last row (the popup walk measured it, 2026-11-02).
+  // Closing the scanner hands focus back to the Scan button. It is hidden while
+  // an overlay is open, so this waits for the layer to clear before focusing it.
+  const returnFocus = useRef(false);
+  useEffect(() => {
+    if (scannerOpen) {
+      returnFocus.current = true;
+      return;
+    }
+    if (returnFocus.current && !overlayOpen) {
+      returnFocus.current = false;
+      buttonRef.current?.focus({ preventScroll: true });
+    }
+  }, [scannerOpen, overlayOpen]);
+
   const showButton = phone && onCollection;
   // An open scanner outlives the button (a route change under it must not
   // unmount the camera mid-scan).
