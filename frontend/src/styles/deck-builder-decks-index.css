@@ -82,6 +82,29 @@
   margin-left: auto;
 }
 
+/* Phone: sort 127 + view modes 141 + Select 47 + two gaps is 327px against a
+   328px row at 360 wide, so any longer sort label wrapped Select onto a third
+   toolbar row of its own (UX pass DK-10). The row never wraps on a phone;
+   the sort pill is the one control that gives, ellipsizing its value. */
+@media (max-width: 599px) {
+  .decks-index-sort-bar {
+    flex-wrap: nowrap;
+    gap: var(--space-1);
+  }
+  .decks-index-sort-bar > .toolbar-popover {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  .decks-index-sort-bar > .toolbar-popover > .toolbar-pill {
+    max-width: 100%;
+    min-width: 0;
+  }
+  .decks-index-sort-bar > .toolbar-popover > .toolbar-pill > .toolbar-pill-value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
 .decks-index-sort-dir {
   min-width: 2rem;
   justify-content: center;
