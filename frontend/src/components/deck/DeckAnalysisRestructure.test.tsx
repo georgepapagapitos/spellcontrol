@@ -239,7 +239,6 @@ describe('UX-313 — PowerHero Bracket control', () => {
       <PowerHero
         bracket={3}
         bracketOverridden={false}
-        bracketReasons={[]}
         comboInDeck={0}
         comboOneAway={0}
         comboOwnedMissing={0}
@@ -257,14 +256,13 @@ describe('UX-313 — PowerHero Bracket control', () => {
       <PowerHero
         bracket={3}
         bracketOverridden={false}
-        bracketReasons={[]}
         comboInDeck={0}
         comboOneAway={0}
         comboOwnedMissing={0}
         combosLoading={false}
       />
     );
-    expect(document.querySelector('.power-hero-target')).toBeNull();
+    expect(document.querySelector('.power-hero-headline button.toolbar-pill')).toBeNull();
   });
 
   it('calls onSetBracketOverride with the selected bracket when a bracket option is chosen', () => {
@@ -273,7 +271,6 @@ describe('UX-313 — PowerHero Bracket control', () => {
       <PowerHero
         bracket={3}
         bracketOverridden={false}
-        bracketReasons={[]}
         comboInDeck={0}
         comboOneAway={0}
         comboOwnedMissing={0}
@@ -285,7 +282,7 @@ describe('UX-313 — PowerHero Bracket control', () => {
     // The SelectMenu trigger is the toolbar-pill button whose label text includes "Target".
     // When a label prop is provided, the SelectMenu does NOT set aria-label on the button;
     // the accessible name comes from the child text. Find by its container class.
-    const targetContainer = document.querySelector('.power-hero-target');
+    const targetContainer = document.querySelector('.power-hero-headline');
     expect(targetContainer).toBeTruthy();
     const trigger = targetContainer!.querySelector('button');
     expect(trigger).toBeTruthy();
@@ -302,7 +299,6 @@ describe('UX-313 — PowerHero Bracket control', () => {
       <PowerHero
         bracket={4}
         bracketOverridden={true}
-        bracketReasons={[]}
         comboInDeck={0}
         comboOneAway={0}
         comboOwnedMissing={0}
@@ -311,7 +307,7 @@ describe('UX-313 — PowerHero Bracket control', () => {
         onSetBracketOverride={onSetBracketOverride}
       />
     );
-    const targetContainer = document.querySelector('.power-hero-target');
+    const targetContainer = document.querySelector('.power-hero-headline');
     const trigger = targetContainer!.querySelector('button');
     fireEvent.click(trigger!);
     const autoOpt = screen.getByRole('option', { name: /auto/i });
@@ -320,11 +316,12 @@ describe('UX-313 — PowerHero Bracket control', () => {
   });
 });
 
-// ── E415: the verdict strip only compares a stated bracket ─────────────────
-// On Auto the Power hero's headline IS the estimate; the strip read "Bracket
-// Auto · Estimate B4 · Auto · No bracket set", stating one number twice.
+// ── DK-03: the Power hero's headline is the one bracket verdict ─────────────
+// The Bracket panel used to repeat it as a stated-vs-estimate strip ("Bracket
+// B3 · Estimate B5 · Plays above"), so the tab showed several numbers with
+// nothing saying which to believe.
 
-describe('E415: stated-vs-estimate strip on the Power tab', () => {
+describe('DK-03: no second bracket verdict on the Power tab', () => {
   function renderPower(bracketOverride: 3 | null) {
     return render(
       <MemoryRouter>
@@ -343,7 +340,7 @@ describe('E415: stated-vs-estimate strip on the Power tab', () => {
     );
   }
 
-  it('is absent on Auto', () => {
+  it('has no strip on Auto', () => {
     const { container } = renderPower(null);
     expect(container.querySelector('.bracket-verdict-strip')).toBeNull();
   });
@@ -357,8 +354,8 @@ describe('E415: stated-vs-estimate strip on the Power tab', () => {
     );
   });
 
-  it('shows once a bracket is stated', () => {
+  it('has no strip once a bracket is stated either', () => {
     const { container } = renderPower(3);
-    expect(container.querySelector('.bracket-verdict-strip')).toBeTruthy();
+    expect(container.querySelector('.bracket-verdict-strip')).toBeNull();
   });
 });

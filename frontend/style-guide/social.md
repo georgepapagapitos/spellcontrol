@@ -117,9 +117,11 @@ assembly clock itself from `winConditions` already on the payload, so the projec
 no separate speed field that could go stale. States: the Speed row holds its place with
 "Running the speed read" (`aria-busy` on the list) while the clock runs, and says "No combo or
 alternate win path to time." when the deck has none; Game Changers is left out when the
-estimate never counted them. Sharing uses the existing pattern: `Share` only where
-`canShare()`, plus `Copy summary` and `Copy link` as `CopyButton`s. No image is rendered; the
-link's own `og:image` is the commander art.
+estimate never counted them. Sharing is one `Share` menu button (PS-05): a `Share…` row only
+where `canShare()`, then `Copy summary` and `Copy link` (toast confirmation, since the menu
+closes). Three buttons wrapped `Copy link` alone onto a second row at phone width. The card
+owns the commander art and name, so the deck header drops its own thumbnail while the card
+shows. No image is rendered; the link's own `og:image` is the commander art.
 
 ### Visibility is one choice, not a link to manage (board T136)
 

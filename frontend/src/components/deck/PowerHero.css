@@ -118,33 +118,6 @@
   color: var(--text-primary);
 }
 
-/* Borderline marker — neutral pill per STYLE_GUIDE's Tag chips plate (a
-   system-derived hint, not a verdict, so it never takes --accent). Sits
-   inline in the bracket/estimate line, baseline-aligned via that line's own
-   flex + align-items: baseline. */
-.power-hero-borderline {
-  align-self: center;
-  padding: 0.05rem var(--space-2);
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-/* The estimate line — shown only when it differs from the stated bracket
-   headline above it. Same weight as the "because" line below it. */
-.power-hero-estimate {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  margin: 0;
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-}
-
 .power-hero-because {
   margin: 0;
   font-size: var(--text-xs);
@@ -152,16 +125,16 @@
   color: var(--text-muted);
 }
 
-/* UX-313: Target bracket SelectMenu — sits below the detected bracket line in
-   the Power level pillar. The toolbar-pill style is shared with the sort/show
-   menus elsewhere; we just position it as a control row within the pillar. */
-.power-hero-target {
+/* The headline row: the verdict sentence with the bracket control beside it
+   (wrapping under it when the pillar is narrow). */
+.power-hero-headline {
   display: flex;
   align-items: center;
-  margin-top: var(--space-1);
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
 }
 
-/* Keep the target menu compact so it fits in the pillar without causing a reflow. */
+/* Keep the bracket menu compact so it fits in the pillar without causing a reflow. */
 .power-hero-target-menu .toolbar-pill {
   font-size: var(--text-xs);
   padding: var(--space-1) var(--space-2);
