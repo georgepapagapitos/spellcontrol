@@ -127,20 +127,20 @@ export function DeckEditorHero({
                   carries a separate "Not in deck" jump. One fact in one place,
                   with the affordance on the fact rather than beside it. */}
           <span className="deck-hero-totals">
-            {formatConfig ? '\u00A0· ' : ''}
+            {formatConfig ? ' ·\u00A0' : ''}
             {heroTotals.count}
             {'\u00A0'}
             {heroTotals.count === 1 ? 'card' : 'cards'}
-            {'\u00A0· '}
+            {' ·\u00A0'}
             {formatMoney(heroTotals.value)}
             {/* The value leaves proxies out, and says so right beside it: a
                 deck that lost value when a card was marked would otherwise
                 read as wrong. The note wraps as one unit on a phone. */}
             {heroTotals.proxied > 0 &&
-              `\u00A0· ${formatMoney(heroTotals.proxied)}\u00A0in\u00A0proxies\u00A0not\u00A0counted`}
+              ` ·\u00A0${formatMoney(heroTotals.proxied)}\u00A0in\u00A0proxies\u00A0not\u00A0counted`}
             {heroTotals.sideboard > 0 && (
               <>
-                {'\u00A0· '}
+                {' ·\u00A0'}
                 <a
                   href="#deck-outzone"
                   className="deck-hero-outzone-link"
@@ -152,7 +152,7 @@ export function DeckEditorHero({
             )}
             {heroTotals.considering > 0 && (
               <>
-                {'\u00A0· '}
+                {' ·\u00A0'}
                 <a
                   href="#deck-outzone"
                   className="deck-hero-outzone-link"
@@ -164,7 +164,7 @@ export function DeckEditorHero({
             )}
             {heroTotals.extras > 0 && (
               <>
-                {'\u00A0· '}
+                {' ·\u00A0'}
                 <a
                   href="#deck-outzone"
                   className="deck-hero-outzone-link"
@@ -189,7 +189,7 @@ export function DeckEditorHero({
               aria-label={heroBracket?.aria}
               role={heroBracket?.aria ? 'img' : undefined}
             >
-              {`\u00A0· ${heroBracket?.text.replace(/ /g, '\u00A0')}`}
+              {` ·\u00A0${heroBracket?.text.replace(/ /g, '\u00A0')}`}
             </span>
           )}
           {/* Sharing is a fact about the deck, so it is the meta line's last

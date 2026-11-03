@@ -228,11 +228,16 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
     const { count, suggested } = input.landAdvice;
     const delta = suggested - count;
     if (delta >= 2) {
+      // A deck already at its card target has no free slot: the lands come
+      // out of the spells, so the move is a swap, not an add.
+      const full = cardCount >= deckTarget;
       moves.push({
         id: 'land-count',
         tier: 2,
-        title: `Add ${delta} lands`,
-        detail: `Add ${delta} lands to reach ~${suggested} for this curve. Basics work.`,
+        title: full ? `Swap ${delta} spells for lands` : `Add ${delta} lands`,
+        detail: full
+          ? `The deck is full at ${cardCount}/${deckTarget} and ${delta} lands short of ~${suggested} for this curve. Cut ${delta} of your weakest spells for basics.`
+          : `Add ${delta} lands to reach ~${suggested} for this curve. Basics work.`,
         navigateTo: 'stats',
       });
     } else if (delta <= -2) {

@@ -982,7 +982,7 @@ export function CommanderSearch({
 
   const filters = (
     <div className="commander-finder-filters" id={filtersId}>
-      <div className="commander-finder-row">
+      <div className="commander-finder-row is-stacked">
         <span className="commander-finder-label" id={`${baseId}-colors`}>
           Color
         </span>

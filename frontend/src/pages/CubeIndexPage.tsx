@@ -70,7 +70,13 @@ export function CubeIndexPage() {
           ? `${physicalCount.toLocaleString()} physical ${physicalCount === 1 ? 'cube' : 'cubes'}`
           : undefined
       }
-      actions={[{ label: 'New cube', icon: Plus, primary: true, to: '/decks/cube/new' }]}
+      // One primary action per screen: the empty state carries the CTA, so the
+      // header's copy appears only once there is a cube list to add to.
+      actions={
+        saved.length === 0
+          ? []
+          : [{ label: 'New cube', icon: Plus, primary: true, to: '/decks/cube/new' }]
+      }
     >
       {saved.length === 0 && awaitingFirstPull ? (
         <div className="page-loader" role="status" aria-live="polite">

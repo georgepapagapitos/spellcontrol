@@ -593,14 +593,14 @@
 
 .playtest-opening-status {
   margin: 0;
-  color: var(--brand-seal-gold);
+  color: var(--warn-text);
   font-size: var(--text-sm);
   text-align: center;
 }
 
 .is-takeover .playtest-opening-stats,
 .is-takeover .playtest-opening-status {
-  color: var(--brand-seal-gold);
+  color: var(--warn-text);
   font-size: var(--text-md);
 }
 

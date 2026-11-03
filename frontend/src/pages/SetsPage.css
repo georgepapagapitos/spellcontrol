@@ -248,7 +248,10 @@
   flex-direction: column;
   gap: var(--space-1);
   min-width: 0;
-  flex: 1;
+  /* Capped so the percent stays beside its bar on a wide screen instead of
+     floating at the far edge; every row's bar then has the same width. */
+  flex: 1 1 auto;
+  max-width: 28rem;
 }
 
 .sets-row-name {
@@ -273,7 +276,7 @@
 
 .sets-row-bar {
   margin-top: var(--space-1);
-  max-width: 24rem;
+  width: 100%;
 }
 
 .sets-row-pct {
@@ -281,6 +284,9 @@
   align-items: center;
   gap: var(--space-1);
   flex: none;
+  /* Fixed width ("100%" plus the complete check) so rows line up. */
+  justify-content: flex-end;
+  min-width: 4.5rem;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   font-size: var(--text-sm);

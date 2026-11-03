@@ -65,6 +65,19 @@
   align-items: center;
 }
 
+/* The Color row stacks swatches over a mode line and a hint, so a centered
+   label floated between the two lines. Only that row is top-aligned; the
+   label is one swatch tall (2rem) so it centers on the swatch line. */
+.commander-finder-row.is-stacked {
+  align-items: start;
+}
+
+.commander-finder-row.is-stacked .commander-finder-label {
+  display: flex;
+  align-items: center;
+  min-height: 2rem;
+}
+
 .commander-finder-label {
   font-size: var(--text-sm);
   color: var(--text-secondary);
@@ -250,6 +263,11 @@
   .commander-finder-row {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-1-5);
+  }
+
+  /* The label stacks above its control here, so it needs no swatch-tall box. */
+  .commander-finder-row.is-stacked .commander-finder-label {
+    min-height: 0;
   }
 
   .commander-finder-toolbar {

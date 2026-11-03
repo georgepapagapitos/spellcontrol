@@ -722,13 +722,16 @@ export function DecksIndexPage() {
                 const totalCards =
                   (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0) + deck.cards.length;
                 // The line truncates in a narrow row; the title carries all of it.
-                const detail = `${
-                  deck.commander
-                    ? `${deck.commander.name}${
-                        deck.partnerCommander ? ` + ${deck.partnerCommander.name}` : ''
-                      } · `
-                    : ''
-                }${totalCards} cards · ${deck.source === 'generated' ? 'Generated' : 'Manual'}`;
+                // Count and source lead, commander names trail: the tail is what
+                // truncates, so the count never clips before the price.
+                const commanderNames = deck.commander
+                  ? `${deck.commander.name}${
+                      deck.partnerCommander ? ` + ${deck.partnerCommander.name}` : ''
+                    }`
+                  : '';
+                const detail = `${totalCards} cards · ${deck.source === 'generated' ? 'Generated' : 'Manual'}${
+                  commanderNames ? ` · ${commanderNames}` : ''
+                }`;
                 const art = deckCoverArt(deck);
                 const colorIdentity = deckDisplayColors(deck);
                 const themes = deck.generationContext?.selectedThemes ?? [];

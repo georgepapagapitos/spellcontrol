@@ -38,6 +38,10 @@ describe('collection row name line — only the name truncates', () => {
     expect(name).toMatch(/min-width:/);
   });
 
+  it('the Owned verdict badge is spaced off the name like every other badge', () => {
+    expect(rule('.collection-list-name > .verdict-badge')).toMatch(/margin-left:\s*var\(--space-/);
+  });
+
   it('both CardRow layouts wrap the name in the truncating span', () => {
     const spans = row.match(
       /className="collection-list-name-text card-name-chip-text" title=\{card\.name\}>\s*<CardName card=\{card\} \/>/g
