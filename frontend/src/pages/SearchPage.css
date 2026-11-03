@@ -5,12 +5,7 @@
   max-width: 540px;
 }
 
-.search-page-head h1 {
-  margin: 0 0 var(--space-1);
-  font-size: var(--text-lg);
-  color: var(--text-primary);
-}
-
+/* The h1 is the shared page title (.binder-hero-name); it needs no rule here. */
 .search-page-sub {
   margin: 0 0 var(--space-3);
   color: var(--text-secondary);

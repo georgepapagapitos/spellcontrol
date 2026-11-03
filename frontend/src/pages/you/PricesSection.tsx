@@ -89,7 +89,9 @@ export function PricesSection() {
         <SwitchRow
           label="Alert on cards you own"
           hint={
-            alerts.enabled ? 'On. Cards that move past both limits show in Waiting on you.' : 'Off.'
+            alerts.enabled
+              ? 'Cards that move past both limits show in Waiting on you.'
+              : 'Flags cards you own that spike or dip, in Waiting on you.'
           }
           checked={alerts.enabled}
           onChange={(enabled) => updateAlerts({ enabled })}

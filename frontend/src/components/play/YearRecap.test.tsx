@@ -50,6 +50,19 @@ describe('YearRecap', () => {
     expect(screen.getByText(/200 most recent games/)).toBeTruthy();
   });
 
+  it('never lists a 0% deck or player under best win rates', () => {
+    // Ann wins all five, so Bo is 0-5: past the floor, but not a best.
+    const games = [0, 0, 0, 0, 0].map((w, i) => game(`g${i}`, '2026-02-01T12:00:00', w, 60 + i));
+    render(<YearRecap games={games} />);
+    const best = screen.getByRole('region', { name: 'Best win rates' });
+    const decks = within(best).getByRole('list', { name: 'Best deck win rates' });
+    const players = within(best).getByRole('list', { name: 'Best player win rates' });
+    expect(within(decks).getByText('Atraxa')).toBeTruthy();
+    expect(within(decks).queryByText('Edgar')).toBeNull();
+    expect(within(players).queryByText('Bo')).toBeNull();
+    expect(within(best).queryByText(/^0%/)).toBeNull();
+  });
+
   it('switches year from the picker', () => {
     render(
       <YearRecap

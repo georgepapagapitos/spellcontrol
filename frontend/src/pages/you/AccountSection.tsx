@@ -290,7 +290,7 @@ export function AccountSection() {
                 ? 'Friend requests, trade offers, and game-night invites.'
                 : 'Needs a verified email.'
             }
-            checked={identities.notifyEmail}
+            checked={identities.emailVerified && identities.notifyEmail}
             onChange={() => void handleToggleNotifyEmail()}
             disabled={!identities.emailVerified || notifyEmailBusy}
           />

@@ -771,6 +771,7 @@ authRouter.get('/me', sessionLimiter, async (req: Request, res: Response) => {
       autoLinkedAt: users.autoLinkedAt,
       inboxSeenAt: users.inboxSeenAt,
       emailVerified: users.emailVerified,
+      email: users.email,
       displayName: users.displayName,
       bio: users.bio,
       avatarCardId: users.avatarCardId,
@@ -796,6 +797,9 @@ authRouter.get('/me', sessionLimiter, async (req: Request, res: Response) => {
     // password reset, which is the only thing the banner cares about. Which
     // of the two it is lives on the Settings screen the banner links to.
     emailVerified: row[0]?.emailVerified ?? false,
+    // Tells the banner whether to say "Confirm" (an address is on file or
+    // awaiting its link) or "Add" (nothing was ever given).
+    hasEmail: Boolean(row[0]?.email) || (await latestPendingVerify(user.id)) !== null,
     profile: {
       displayName: row[0]?.displayName ?? null,
       bio: row[0]?.bio ?? null,

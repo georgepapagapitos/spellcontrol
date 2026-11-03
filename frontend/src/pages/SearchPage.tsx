@@ -135,7 +135,7 @@ export function SearchPage() {
   return (
     <div className={`search-page${wide ? ' search-page--wide' : ''}`}>
       <header className="search-page-head">
-        <h1>Card search</h1>
+        <h1 className="binder-hero-name">Card search</h1>
         <p className="search-page-sub">
           Look up any card, owned or not.{' '}
           <Link className="search-page-tags-link text-link" to="/tags">

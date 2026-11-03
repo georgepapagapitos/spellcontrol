@@ -14,3 +14,20 @@
   margin-left: var(--space-1);
   transform: translateY(-0.45em);
 }
+
+/* A tab with a shortLabel shows it on a narrow phone. At 360px the strip's
+   fifth tab (Play's History) sat wholly under the right-edge fade with no
+   peek, so nothing said the strip scrolls. */
+.hub-tab-label-short {
+  display: none;
+}
+
+@media (max-width: 599px) {
+  .hub-tab-label-full {
+    display: none;
+  }
+
+  .hub-tab-label-short {
+    display: inline;
+  }
+}

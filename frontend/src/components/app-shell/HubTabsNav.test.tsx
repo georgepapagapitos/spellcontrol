@@ -2,7 +2,11 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { HubTabsNav } from './HubTabsNav';
+import { PlayHubTabs } from '@/components/play/PlayHubTabs';
 
 /**
  * happy-dom does no layout, so every getBoundingClientRect is 0×0 and the
@@ -164,6 +168,35 @@ describe('HubTabsNav', () => {
         </MemoryRouter>
       );
       expect(nav.scrollLeft).toBeGreaterThan(0);
+    });
+  });
+
+  describe('short labels on a narrow phone', () => {
+    it('keeps the full label as the accessible name', () => {
+      renderNav([
+        { to: '/a', label: 'Game nights', shortLabel: 'Nights', active: false },
+        { to: '/b', label: 'History', active: true },
+      ]);
+      expect(screen.getByRole('link', { name: 'Game nights' })).toBeTruthy();
+    });
+
+    it('swaps to the short label under 600px', () => {
+      const css = readFileSync(
+        join(dirname(fileURLToPath(import.meta.url)), 'HubTabsNav.css'),
+        'utf8'
+      );
+      expect(css).toMatch(
+        /@media \(max-width: 599px\)\s*\{[^@]*\.hub-tab-label-full\s*\{\s*display:\s*none/
+      );
+    });
+
+    it("gives Play's Game nights tab a short label so History peeks at 360px", () => {
+      render(
+        <MemoryRouter>
+          <PlayHubTabs />
+        </MemoryRouter>
+      );
+      expect(screen.getByText('Nights')).toBeTruthy();
     });
   });
 });

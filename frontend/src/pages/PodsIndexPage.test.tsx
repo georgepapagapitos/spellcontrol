@@ -103,6 +103,18 @@ describe('PodsIndexPage — mixed list render', () => {
     expect(podLink.getAttribute('href')).toBe('/pods/member1');
   });
 
+  it('drops the intro line while the empty state says the same thing', async () => {
+    renderPage();
+    expect(await screen.findByText('No pods yet.')).toBeTruthy();
+    expect(screen.queryByText(/Your regular tables/)).toBeNull();
+  });
+
+  it('shows the intro once there are pods', async () => {
+    vi.mocked(listPods).mockResolvedValue([pod({ id: 'm1', name: 'My pod' })]);
+    renderPage();
+    expect(await screen.findByText(/Your regular tables/)).toBeTruthy();
+  });
+
   it('refetches on window focus so an invite that landed meanwhile shows up (playtest batch 9)', async () => {
     renderPage();
     expect(await screen.findByText(/no pods yet/i)).toBeTruthy();

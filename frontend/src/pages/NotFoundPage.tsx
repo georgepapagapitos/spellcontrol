@@ -11,7 +11,7 @@ export function NotFoundPage({ homePath }: { homePath: string }) {
   return (
     <EmptyState
       taglineAs="h1"
-      tagline="Page not found."
+      tagline="Page not found"
       hint="That link is broken or the page has moved."
       actions={
         <Button variant="primary" to={homePath}>

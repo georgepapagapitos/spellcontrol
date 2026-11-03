@@ -39,6 +39,7 @@ export function PlayHubTabs({ counts }: { counts?: Record<string, number> }) {
         {
           to: '/play/nights',
           label: 'Game nights',
+          shortLabel: 'Nights',
           active: current === 'nights',
           count: counts?.['/play/nights'],
           countNoun: 'awaiting your reply',

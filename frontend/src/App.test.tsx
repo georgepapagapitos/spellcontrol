@@ -153,7 +153,7 @@ describe('App — "*" (unmatched path) route resolution', () => {
     authState.status = 'guest';
     hasEverVisitedMock.mockReturnValue(true);
     renderAt('/does-not-exist');
-    expect(screen.getByText('Page not found.')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Page not found' })).toBeTruthy();
     expect(screen.getByRole('link', { name: /go to collection/i }).getAttribute('href')).toBe(
       '/collection'
     );
@@ -164,7 +164,7 @@ describe('App — "*" (unmatched path) route resolution', () => {
     authState.user = { id: 'u1', username: 'alice', role: 'user' };
     hasEverVisitedMock.mockReturnValue(true);
     renderAt('/does-not-exist');
-    expect(screen.getByText('Page not found.')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Page not found' })).toBeTruthy();
     expect(screen.getByRole('link', { name: /go to home/i }).getAttribute('href')).toBe('/home');
   });
 });

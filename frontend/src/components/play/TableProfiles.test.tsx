@@ -35,6 +35,14 @@ beforeEach(() => {
   usePlayStore.setState({ tableProfiles: [] });
 });
 
+describe('TableProfiles — empty hint', () => {
+  it('does not restate the adjacent Save this setup as label', () => {
+    renderInForm(vi.fn());
+    expect(screen.getByText(/Save a setup to reuse this table/)).toBeTruthy();
+    expect(screen.queryByText(/then name it under/)).toBeNull();
+  });
+});
+
 describe('TableProfiles — the name field is inside the setup form', () => {
   it('Enter with a name saves the profile and does not submit the form', () => {
     const onSubmit = vi.fn();
