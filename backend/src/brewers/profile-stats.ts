@@ -1,4 +1,5 @@
 import { getPool } from '../db';
+import { userWonSql } from '../games/team-win';
 import { deckColors } from './cards';
 import { storedImageUrl } from '../scryfall-images';
 
@@ -124,7 +125,7 @@ export async function loadGameRecord(userId: string): Promise<GameRecord> {
   const seat = JSON.stringify([{ userId }]);
   const [totals, seats] = await Promise.all([
     pool.query<{ games: string; wins: string }>(
-      `SELECT COUNT(*) AS games, COUNT(*) FILTER (WHERE winner_user_id = $2) AS wins
+      `SELECT COUNT(*) AS games, COUNT(*) FILTER (WHERE ${userWonSql('game_results', '$2')}) AS wins
          FROM game_results
         WHERE participants @> $1::jsonb AND format <> 'horde'`,
       [seat, userId]

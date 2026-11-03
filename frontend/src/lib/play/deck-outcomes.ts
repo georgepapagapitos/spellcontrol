@@ -1,4 +1,4 @@
-import type { GameRecord } from '@spellcontrol/game-core';
+import { isWinningSeat, type GameRecord } from '@spellcontrol/game-core';
 import { seatCountsForDeck } from '@/lib/play/table-read';
 
 /**
@@ -75,7 +75,7 @@ export function deckOutcomes(
         continue;
       }
       current.games += 1;
-      const won = rec.winnerSeat === p.seat;
+      const won = isWinningSeat(rec, p.seat);
       if (won) current.wins += 1;
       const rounds = gameRounds(rec);
       if (rounds === null) continue;

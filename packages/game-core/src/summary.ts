@@ -19,6 +19,7 @@
  */
 
 import type { GameEvent, GameState } from './index';
+import { isWinningSeat } from './teams';
 
 /**
  * Consecutive life losses on one seat inside this window count as a single
@@ -245,6 +246,8 @@ export function summarizeGame(state: GameState, now: number = Date.now()): GameS
   const placement = new Map<number, number>();
   finalElims.forEach((e, i) => placement.set(e.seat, total - i));
   if (state.winnerSeat != null) placement.set(state.winnerSeat, 1);
+  // A Two-Headed Giant win is the team's: the teammate shares first place.
+  for (const p of state.players) if (isWinningSeat(state, p.seat)) placement.set(p.seat, 1);
 
   const elimBySeat = new Map(finalElims.map((e) => [e.seat, e]));
 

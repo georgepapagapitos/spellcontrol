@@ -1,3 +1,4 @@
+import { isWinningSeat } from '@spellcontrol/game-core';
 import { rateAboveFloor } from './deck-stats';
 
 /** The slice of a finished game a recap reads; a pod's games and your own history both fit it. */
@@ -93,7 +94,7 @@ export function buildYearRecap(all: RecapGame[], year: number): YearRecap {
     totalMs += Math.max(0, g.durationMs);
     const decided = g.winnerSeat !== null;
     for (const s of g.seats) {
-      const isWinner = g.winnerSeat === s.seat;
+      const isWinner = isWinningSeat(g, s.seat);
       // Players are keyed by lower-cased seat name: two different guests who share
       // a name merge, and a friend who also appears as a typed guest name splits.
       // Acceptable for a group-local recap with no cross-user identity.

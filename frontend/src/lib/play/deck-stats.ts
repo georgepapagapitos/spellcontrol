@@ -1,4 +1,4 @@
-import type { GameRecord } from '@spellcontrol/game-core';
+import { isWinningSeat, type GameRecord } from '@spellcontrol/game-core';
 import { seatCountsForDeck } from './table-read';
 
 /**
@@ -62,7 +62,7 @@ export function deckPilots(
       };
       cur.played += 1;
       if (rec.winnerSeat !== null) {
-        if (rec.winnerSeat === p.seat) cur.wins += 1;
+        if (isWinningSeat(rec, p.seat)) cur.wins += 1;
         else cur.losses += 1;
       }
       byPilot.set(key, cur);

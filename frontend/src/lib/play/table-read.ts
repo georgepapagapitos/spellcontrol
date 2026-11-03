@@ -1,4 +1,4 @@
-import type { GameRecord } from '@spellcontrol/game-core';
+import { isWinningSeat, type GameRecord } from '@spellcontrol/game-core';
 
 /**
  * Does this seat's result belong to its deck in this viewer's record? One
@@ -48,7 +48,7 @@ export function deckTableRead(
       if (p.deckId !== deckId || !seatCountsForDeck(rec, p, userId)) continue;
       games += 1;
       evenShare += 1 / rec.players.length;
-      if (rec.winnerSeat === p.seat) wins += 1;
+      if (isWinningSeat(rec, p.seat)) wins += 1;
     }
   }
   const verdict =

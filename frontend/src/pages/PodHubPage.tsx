@@ -15,6 +15,7 @@ import { EmptyState } from '../components/shared/EmptyState';
 import { UserAvatar } from '@/components/profile/UserAvatar';
 import { Chip } from '../components/shared/Chip';
 import { gameFormatLabel } from '@/lib/play/game-formats';
+import { winnerOf } from '@/lib/play/winners';
 import { useAnimatedNumber } from '@/lib/util/use-animated-number';
 import { listFriends, type Friend } from '@/lib/social/friends-client';
 import { getFriendShares, type FriendShareRow } from '@/lib/social/share-client';
@@ -652,7 +653,7 @@ export function PodHubPage() {
                     </thead>
                     <tbody>
                       {gamesFetch.games.map((g) => {
-                        const winner = g.participants.find((p) => p.seat === g.winnerSeat);
+                        const winner = winnerOf({ ...g, players: g.participants });
                         const names = g.participants.map((p) => p.name).join(', ');
                         return (
                           <tr key={g.sessionId}>

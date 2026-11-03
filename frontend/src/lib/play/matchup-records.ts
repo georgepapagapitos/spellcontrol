@@ -1,4 +1,4 @@
-import type { GameRecord } from '@spellcontrol/game-core';
+import { isWinningSeat, type GameRecord } from '@spellcontrol/game-core';
 
 export interface MatchupRow {
   /** Lexicographically-first deckId in the pair (canonical A slot). */
@@ -84,9 +84,12 @@ export function aggregateMatchupRecords(
         cur.lastPlayedAt = Math.max(cur.lastPlayedAt, rec.endedAt);
 
         if (rec.winnerSeat !== null) {
-          if (rec.winnerSeat === aPlayer.seat) cur.wins += 1;
-          else if (rec.winnerSeat === bPlayer.seat) cur.losses += 1;
-          // winnerSeat matched neither of this pair (another player won) — no win/loss
+          const aWon = isWinningSeat(rec, aPlayer.seat);
+          const bWon = isWinningSeat(rec, bPlayer.seat);
+          if (aWon && !bWon) cur.wins += 1;
+          else if (bWon && !aWon) cur.losses += 1;
+          // Neither won (another player did), or both did (Two-Headed Giant
+          // teammates) — no win/loss between this pair.
         }
 
         byPair.set(key, cur);

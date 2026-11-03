@@ -13,7 +13,8 @@ import { aggregateMatchupRecords } from '@/lib/play/matchup-records';
 import { formatRate } from '@/lib/play/deck-stats';
 import { YearRecap } from '@/components/play/YearRecap';
 import type { RecapGame } from '@/lib/play/year-recap';
-import type { GameRecord } from '@spellcontrol/game-core';
+import { isWinningSeat, type GameRecord } from '@spellcontrol/game-core';
+import { winnerOf } from '@/lib/play/winners';
 import { coopResultLabel } from '@/lib/horde/horde-records';
 import { Button, IconButton } from '@/components/shared/Button';
 import '@/styles/social-shared.css';
@@ -346,8 +347,7 @@ export function HistoryTab({
         )}
         <ul className="list-stack play-history-list">
           {shown.map((rec) => {
-            const winner =
-              rec.winnerSeat != null ? rec.players.find((p) => p.seat === rec.winnerSeat) : null;
+            const winner = winnerOf(rec);
             const when = new Date(rec.endedAt).toLocaleString();
             const kind = dropKind(rec, userId);
             // Delete is a visible control, not a menu entry. It used to be one
@@ -415,7 +415,7 @@ export function HistoryTab({
                 </div>
                 <ol className="play-history-players">
                   {rec.players.map((p) => (
-                    <li key={p.seat} className={p.seat === rec.winnerSeat ? 'is-winner' : ''}>
+                    <li key={p.seat} className={isWinningSeat(rec, p.seat) ? 'is-winner' : ''}>
                       <span className="play-history-player-name">{p.name}</span>
                       {p.deckName && <span className="play-history-player-deck">{p.deckName}</span>}
                       <span className="play-history-player-life">
