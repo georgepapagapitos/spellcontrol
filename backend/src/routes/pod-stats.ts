@@ -5,6 +5,7 @@ import { testAwareLimiter } from '../route-utils';
 import { podMembershipStatus } from '../pods/relations';
 import { RESULT_COLUMNS, toPublic, type ResultRow } from './game-results';
 import { killEdges, rollupForUser } from '../games/rollup';
+import { userWon } from '../games/team-win';
 import type { GameResultParticipant, PublicGameResult } from '../games/result-types';
 
 /**
@@ -216,7 +217,18 @@ podStatsRouter.get(
         const seat = g.participants.find((p) => p.userId === m.user_id);
         if (!seat) continue;
         played++;
-        if (g.winner_user_id === m.user_id) wins++;
+        if (
+          userWon(
+            {
+              format: g.format,
+              winnerSeat: g.winner_seat,
+              winnerUserId: g.winner_user_id,
+              participants: g.participants,
+            },
+            m.user_id
+          )
+        )
+          wins++;
       }
       const derived = rollupForUser(projected, m.user_id);
       return {

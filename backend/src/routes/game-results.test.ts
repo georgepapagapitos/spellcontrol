@@ -4,7 +4,14 @@ import type { Server } from 'node:http';
 import type { Pool } from 'pg';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { persistGameResult } from '../games/persist-result';
-import type { GameState } from '../games/state';
+import { loadGameRecord } from '../brewers/profile-stats';
+import {
+  applyAction,
+  createGameState,
+  makePlayer,
+  TWO_HEADED_GIANT_LIFE,
+  type GameState,
+} from '../games/state';
 
 let app: Server;
 let pool: Pool;
@@ -350,5 +357,82 @@ describe('GET /api/game-results/h2h/:friendId', () => {
 
     const res = await request(app).get(`/api/game-results/h2h/${bobId}`).set('Cookie', alice);
     expect(res.body.results[0].notableEvents).toBeNull();
+  });
+});
+
+// ─── Two-Headed Giant: a team win credits both teammates ──────────────────────
+
+describe('Two-Headed Giant results', () => {
+  /** A real four-seat table through the reducer: seats 0+1 beat seats 2+3. */
+  function team(ids: string[], sessionId: string): GameState {
+    const lobby = createGameState({
+      id: sessionId,
+      code: 'TEAM',
+      mode: 'online',
+      hostUserId: ids[0],
+      format: '2hg',
+      startingLife: TWO_HEADED_GIANT_LIFE,
+      commanderDamageEnabled: false,
+      poisonEnabled: true,
+      players: ids.map((id, i) =>
+        makePlayer({
+          id: `p${i}`,
+          userId: id,
+          seat: i,
+          name: `P${i}`,
+          startingLife: TWO_HEADED_GIANT_LIFE,
+        })
+      ),
+      ts: 1000,
+    });
+    let s = applyAction(lobby, { type: 'start', ts: 1001 });
+    s = applyAction(s, { type: 'life', seat: 2, delta: -100, actorSeat: 2, ts: 2000 });
+    expect(s.status).toBe('finished');
+    return s;
+  }
+
+  it('the friends leaderboard and head-to-head count the non-lowest teammate as a winner', async () => {
+    const bobCookie = await makeUser('2hg-bob');
+    await makeUser('2hg-alice');
+    await makeUser('2hg-carol');
+    await makeUser('2hg-dave');
+    const [aliceId, bobId, carolId, daveId] = await Promise.all(
+      ['2hg-alice', '2hg-bob', '2hg-carol', '2hg-dave'].map(userId)
+    );
+    await makeFriends(bobId, aliceId);
+    await makeFriends(bobId, carolId);
+
+    const state = team([aliceId, bobId, carolId, daveId], 'team-1');
+    expect(state.winnerSeat).toBe(0);
+    await persistGameResult(state, pool);
+    // Stored shape is untouched: one winner_user_id, the lowest seat of the team.
+    const stored = await pool.query(`SELECT winner_user_id FROM game_results WHERE session_id=$1`, [
+      'team-1',
+    ]);
+    expect(stored.rows[0].winner_user_id).toBe(aliceId);
+
+    const lb = await request(app).get('/api/game-results/leaderboard').set('Cookie', bobCookie);
+    const byFriend = Object.fromEntries(
+      lb.body.leaderboard.map((e: { friendUsername: string }) => [e.friendUsername, e])
+    );
+    // Bob sat at seat 1 and won with Alice; Carol lost.
+    expect(byFriend['2hg-alice']).toMatchObject({ callerWins: 1, friendWins: 1 });
+    expect(byFriend['2hg-carol']).toMatchObject({ callerWins: 1, friendWins: 0 });
+
+    const h2h = await request(app).get(`/api/game-results/h2h/${carolId}`).set('Cookie', bobCookie);
+    expect(h2h.body.summary).toMatchObject({ callerWins: 1, friendWins: 0 });
+  });
+
+  it('the profile game record counts a win for the teammate that is not the stored winner', async () => {
+    await makeUser('2hgp-alice');
+    await makeUser('2hgp-bob');
+    await makeUser('2hgp-carol');
+    await makeUser('2hgp-dave');
+    const [a, b, c, d] = await Promise.all(
+      ['2hgp-alice', '2hgp-bob', '2hgp-carol', '2hgp-dave'].map(userId)
+    );
+    await persistGameResult(team([a, b, c, d], 'team-2'), pool);
+    const wins = async (id: string) => (await loadGameRecord(id)).wins;
+    expect([await wins(a), await wins(b), await wins(c), await wins(d)]).toEqual([1, 1, 0, 0]);
   });
 });

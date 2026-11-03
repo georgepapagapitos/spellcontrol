@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { summarizeGame } from './summary';
 import {
   applyAction,
   createGameState,
@@ -80,6 +81,13 @@ describe('Two-Headed Giant', () => {
     expect(isWinningSeat(s, 2)).toBe(true);
     expect(isWinningSeat(s, 3)).toBe(true);
     expect(isWinningSeat(s, 0)).toBe(false);
+  });
+
+  it('the summary places both teammates of the winning team first', () => {
+    const s = life(table(), 0, -30);
+    const placements = summarizeGame(s).seats.map((x) => x.placement);
+    expect(placements.slice(2)).toEqual([1, 1]);
+    expect(placements.slice(0, 2).every((x) => x !== 1)).toBe(true);
   });
 
   it('keeps playing while two teams are standing, with a player down to one teammate left', () => {

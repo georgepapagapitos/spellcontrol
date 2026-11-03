@@ -2,8 +2,9 @@ import './PlayHome.css';
 import { CalendarDays, ChevronRight, KeyRound, Radio, Swords, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { GameNight } from '@/lib/play/game-nights-api';
-import type { GameRecord, GameState } from '@spellcontrol/game-core';
+import { isWinningSeat, type GameRecord, type GameState } from '@spellcontrol/game-core';
 import { gameFormatLabel } from '@/lib/play/game-formats';
+import { winnerOf } from '@/lib/play/winners';
 import { aggregateDeckRecords } from '../../store/play';
 import { Button } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
@@ -287,10 +288,7 @@ export function PlayHome({
         ) : (
           <ul className="list-stack play-home-recent">
             {recent.map((rec) => {
-              const winner =
-                rec.winnerSeat != null
-                  ? (rec.players.find((p) => p.seat === rec.winnerSeat) ?? null)
-                  : null;
+              const winner = winnerOf(rec);
               return (
                 <li key={rec.id} className="play-home-recent-row">
                   <span className="play-home-recent-main">
@@ -360,7 +358,7 @@ function summarizeRecord(
       const mine = rec.players.find((p) => p.userId === userId);
       if (!mine || rec.winnerSeat === null) continue;
       decided += 1;
-      if (rec.winnerSeat === mine.seat) wins += 1;
+      if (isWinningSeat(rec, mine.seat)) wins += 1;
     }
     winRate = decided > 0 ? wins / decided : null;
   }

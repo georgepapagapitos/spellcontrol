@@ -9,6 +9,7 @@ import type {
   PublicGameResult,
 } from '../games/result-types';
 import { rollupForUser, killEdges } from '../games/rollup';
+import { userWon, userWonSql } from '../games/team-win';
 import { buildGameResultRow, insertGameResult } from '../games/persist-result';
 import { MAX_LOCAL_RESULT_BYTES, parseLocalResult, parseResultEdit } from '../games/local-result';
 import { applyResultEdit } from '../games/edit-result';
@@ -418,7 +419,7 @@ gameResultsRouter.get(
          WHERE status = 'accepted' AND (requester_id = $1 OR addressee_id = $1)
        ),
        caller_games AS (
-         SELECT session_id, ended_at, winner_user_id, participants
+         SELECT session_id, ended_at, format, winner_seat, winner_user_id, participants
          FROM game_results
          WHERE participants @> $2::jsonb
            AND ($3::text IS NULL OR mode = $3)
@@ -426,7 +427,7 @@ gameResultsRouter.get(
            AND format <> 'horde'
        ),
        shared AS (
-         SELECT g.session_id, g.ended_at, g.winner_user_id, fi.friend_id
+         SELECT g.session_id, g.ended_at, g.format, g.winner_seat, g.winner_user_id, g.participants, fi.friend_id
          FROM caller_games g
          JOIN friend_ids fi
            ON g.participants @> jsonb_build_array(jsonb_build_object('userId', fi.friend_id))
@@ -435,8 +436,8 @@ gameResultsRouter.get(
               u.username AS friend_username,
               u.display_name AS friend_display_name,
               COUNT(*) AS games_played,
-              COUNT(*) FILTER (WHERE s.winner_user_id = $1) AS caller_wins,
-              COUNT(*) FILTER (WHERE s.winner_user_id = s.friend_id) AS friend_wins,
+              COUNT(*) FILTER (WHERE ${userWonSql('s', '$1')}) AS caller_wins,
+              COUNT(*) FILTER (WHERE ${userWonSql('s', 's.friend_id')}) AS friend_wins,
               MAX(s.ended_at) AS last_played_at
        FROM shared s
        JOIN users u ON u.id = s.friend_id
@@ -549,8 +550,8 @@ function summarize(results: PublicGameResult[], callerId: string, friendId: stri
     const friend = g.participants.find((p) => p.userId === friendId);
     if (!caller || !friend) continue; // defensive; the query guarantees both
 
-    const callerWon = g.winnerUserId === callerId;
-    const friendWon = g.winnerUserId === friendId;
+    const callerWon = userWon(g, callerId);
+    const friendWon = userWon(g, friendId);
     if (callerWon) callerWins++;
     if (friendWon) friendWins++;
 

@@ -18,11 +18,13 @@
  * must render an absent superlative as "—" and not as a zero.
  */
 
-import type { GameSummary } from '@spellcontrol/game-core';
+import { isWinningSeat, type GameSummary } from '@spellcontrol/game-core';
 import type { GameResultParticipant } from './result-types';
 
 /** The per-game shape these rollups need — satisfied by `PublicGameResult`. */
 export interface RollupGame {
+  /** Needed to credit a Two-Headed Giant team; absent reads as a one-winner game. */
+  format?: string;
   participants: GameResultParticipant[];
   summary: GameSummary | null;
 }
@@ -101,7 +103,8 @@ export function rollupForUser(games: RollupGame[], userId: string): PlayerRollup
       onThePlayGames++;
       if (g.summary.startingSeat === seat) {
         wentFirst++;
-        if (g.summary.winnerSeat === seat) wonGoingFirst++;
+        if (isWinningSeat({ format: g.format ?? '', winnerSeat: g.summary.winnerSeat }, seat))
+          wonGoingFirst++;
       }
     }
   }

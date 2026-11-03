@@ -17,6 +17,7 @@ import {
   type GameRecord,
   type GameState,
   type HordeStep,
+  isWinningSeat,
 } from '@spellcontrol/game-core';
 import {
   createGame as apiCreateGame,
@@ -1775,7 +1776,7 @@ export function aggregateDeckRecords(
       cur.played += 1;
       cur.lastPlayedAt = Math.max(cur.lastPlayedAt, rec.endedAt);
       if (rec.winnerSeat !== null) {
-        if (rec.winnerSeat === p.seat) cur.wins += 1;
+        if (isWinningSeat(rec, p.seat)) cur.wins += 1;
         else cur.losses += 1;
       }
       byDeck.set(p.deckId, cur);
