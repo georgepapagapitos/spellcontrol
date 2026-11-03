@@ -29,7 +29,11 @@ import { computePopoverPlacement, getSafeViewport } from '@/lib/overlays/popover
  * explainers — see the `.info-tip-lead` / `.info-tip-list` helpers.
  */
 interface TipPos {
-  left: number;
+  /** Exactly one of left / right is set: computePopoverPlacement right-aligns
+   *  a trigger near the right edge, and dropping `right` (the old `left ?? 8`)
+   *  threw those bubbles to the far left of the screen. */
+  left?: number;
+  right?: number;
   top?: number;
   bottom?: number;
   width: number;
@@ -73,7 +77,13 @@ export function InfoTip({
     const safe = getSafeViewport();
     const width = Math.min(wide ? 360 : 300, safe.right - 16);
     const placement = computePopoverPlacement(r, { width, height: 150 }, safe, 'left', 6);
-    setPos({ left: placement.left ?? 8, top: placement.top, bottom: placement.bottom, width });
+    setPos({
+      left: placement.left,
+      right: placement.right,
+      top: placement.top,
+      bottom: placement.bottom,
+      width,
+    });
   }, [wide]);
 
   const close = useCallback(() => setPos(null), []);
@@ -136,6 +146,7 @@ export function InfoTip({
             style={{
               position: 'fixed',
               left: pos.left,
+              right: pos.right,
               top: pos.top,
               bottom: pos.bottom,
               width: pos.width,

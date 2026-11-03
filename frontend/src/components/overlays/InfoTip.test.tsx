@@ -53,3 +53,44 @@ describe('InfoTip reveal model', () => {
     expect(screen.queryByRole('tooltip')).toBeNull();
   });
 });
+
+// 2026-11-02, the user's report: the Build health ⓘ (right column of Deck
+// stats) opened its bubble at the far LEFT of the screen. computePopoverPlacement
+// right-aligns a trigger near the right edge and returns `right`; InfoTip read
+// only `left` (`left ?? 8`), so the bubble fell to left: 8px.
+describe('InfoTip placement next to its trigger', () => {
+  const rect = (left: number, top: number, w = 16, h = 16) =>
+    ({
+      left,
+      top,
+      right: left + w,
+      bottom: top + h,
+      width: w,
+      height: h,
+      x: left,
+      y: top,
+      toJSON: () => ({}),
+    }) as DOMRect;
+
+  function openAt(triggerLeft: number) {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1440 });
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 900 });
+    render(<InfoTip label="build health" text="Each part scores out of 100." />);
+    const btn = screen.getByRole('button');
+    btn.getBoundingClientRect = () => rect(triggerLeft, 340);
+    fireEvent.focus(btn);
+    return screen.getByRole('tooltip');
+  }
+
+  it('a trigger near the right edge opens right-aligned under it, not at the far left', () => {
+    const tip = openAt(1400); // trigger spans 1400-1416 on a 1440 px screen
+    expect(tip.style.left).toBe('');
+    expect(tip.style.right).toBe(`${1440 - 1416}px`); // bubble's right edge = trigger's right edge
+  });
+
+  it('a trigger with room to its right still opens left-aligned under it', () => {
+    const tip = openAt(200);
+    expect(tip.style.left).toBe('200px');
+    expect(tip.style.right).toBe('');
+  });
+});
