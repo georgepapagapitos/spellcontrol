@@ -172,7 +172,7 @@
   min-width: 11rem;
   max-width: calc(100vw - 2rem);
   padding: var(--space-1);
-  max-height: min(360px, calc(100dvh - 4rem));
+  max-height: min(360px, calc(100dvh - 4rem), var(--panel-room, 100dvh));
   overflow-y: auto;
 }
 

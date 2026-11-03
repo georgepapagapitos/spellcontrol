@@ -4,7 +4,11 @@ import { useLocation } from 'react-router-dom';
 import { X } from 'lucide-react';
 import './GuestActionPopover.css';
 import { useMenuKeyboard } from '@/lib/overlays/use-menu-keyboard';
-import { computePopoverPlacement, getSafeViewport } from '@/lib/overlays/popover-placement';
+import {
+  computePopoverPlacement,
+  getSafeViewport,
+  panelRoomStyle,
+} from '@/lib/overlays/popover-placement';
 import { Button, IconButton } from '@/components/shared/Button';
 import { Surface } from '@/components/shared/Surface';
 
@@ -19,7 +23,13 @@ interface Props {
   message: string;
 }
 
-type PanelPos = { top?: number; bottom?: number; left?: number; right?: number };
+type PanelPos = {
+  top?: number;
+  bottom?: number;
+  left?: number;
+  right?: number;
+  vars?: Record<string, string>;
+};
 
 /**
  * Shared guest-tap gate for LikeButton/BookmarkButton: an inline,
@@ -61,6 +71,7 @@ export function GuestActionPopover({ open, onClose, anchorRef, message }: Props)
       bottom: placement.bottom,
       left: placement.left,
       right: placement.right,
+      vars: panelRoomStyle(placement, anchorRect),
     });
   }, [open, anchorRef]);
 
@@ -87,6 +98,7 @@ export function GuestActionPopover({ open, onClose, anchorRef, message }: Props)
         bottom: pos.bottom,
         left: pos.left,
         right: pos.right,
+        ...pos.vars,
       }}
     >
       <p className="guest-action-popover-message">{message}</p>

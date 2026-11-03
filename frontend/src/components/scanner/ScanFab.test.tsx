@@ -17,6 +17,12 @@ vi.mock('./CardScanner', () => ({
   ),
 }));
 
+vi.mock('@/lib/overlays/overlay-layer', async (importActual) => ({
+  ...(await importActual<typeof import('@/lib/overlays/overlay-layer')>()),
+  useAnyOverlayOpen: vi.fn(() => false),
+}));
+
+import { useAnyOverlayOpen } from '@/lib/overlays/overlay-layer';
 import { useCanScan } from '@/lib/scanner/use-can-scan';
 import { ScanFab } from './ScanFab';
 
@@ -107,6 +113,19 @@ describe('ScanFab', () => {
     scrollTo(600);
     scrollTo(20); // back near the top
     expect(button.classList.contains('is-tucked')).toBe(false);
+  });
+
+  // The shell reserves room for the button at the end of the scroll region while
+  // it is mounted. Unmounting it under an overlay dropped that room, clamped the
+  // scroll, and moved the page under the ⋮ menu that had just opened.
+  it('stays mounted, only tucked, while an overlay is open', () => {
+    vi.mocked(useCanScan).mockReturnValue(true);
+    vi.mocked(useAnyOverlayOpen).mockReturnValue(true);
+    renderFab('/collection');
+    const button = document.querySelector('.scan-fab-btn');
+    expect(button).not.toBeNull();
+    expect(button!.classList.contains('is-tucked')).toBe(true);
+    vi.mocked(useAnyOverlayOpen).mockReturnValue(false);
   });
 
   it('never tucks while it holds keyboard focus', () => {

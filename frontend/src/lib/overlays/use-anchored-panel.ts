@@ -1,5 +1,10 @@
 import { useCallback, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import { computePopoverPlacement, getSafeViewport, type PopoverAlign } from './popover-placement';
+import {
+  computePopoverPlacement,
+  getSafeViewport,
+  panelRoomStyle,
+  type PopoverAlign,
+} from './popover-placement';
 import { useMenuKeyboard } from './use-menu-keyboard';
 
 interface Options {
@@ -73,7 +78,7 @@ export function useAnchoredPanel({ align = 'right', ignoreSelector }: Options = 
       // inline max-height: an inline cap would override every consumer's own
       // stylesheet cap (rule-field, keyword and sort panels). A panel opts in
       // with `max-height: var(--panel-room)`.
-      '--panel-room': `${placement.maxHeight}px`,
+      ...panelRoomStyle(placement, anchorRect),
     } as CSSProperties);
   }, [open, align]);
 

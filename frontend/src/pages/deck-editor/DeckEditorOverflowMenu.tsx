@@ -3,7 +3,11 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '@/components/shared/Button';
 import { useMenuKeyboard } from '@/lib/overlays/use-menu-keyboard';
-import { computePopoverPlacement, getSafeViewport } from '@/lib/overlays/popover-placement';
+import {
+  computePopoverPlacement,
+  getSafeViewport,
+  panelRoomStyle,
+} from '@/lib/overlays/popover-placement';
 
 /**
  * The header's Deck menu: what acts on the deck as a whole. Edits to the card
@@ -81,6 +85,7 @@ export function DeckEditorOverflowMenu({
     bottom?: number;
     left?: number;
     right?: number;
+    vars?: Record<string, string>;
   } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -108,6 +113,7 @@ export function DeckEditorOverflowMenu({
       bottom: placement.bottom,
       left: placement.left,
       right: placement.right,
+      vars: panelRoomStyle(placement, anchorRect),
     });
   }, [open]);
 
@@ -199,6 +205,7 @@ export function DeckEditorOverflowMenu({
               bottom: panelPos.bottom,
               left: panelPos.left,
               right: panelPos.right,
+              ...panelPos.vars,
             }}
           >
             {onUndo && (

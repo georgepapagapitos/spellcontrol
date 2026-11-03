@@ -101,7 +101,12 @@ export function ScanFab({ scrollEl }: { scrollEl?: HTMLElement | null }) {
     }
   };
 
-  const showButton = phone && onCollection && !overlayOpen;
+  // The button stays MOUNTED under an overlay and is only tucked: the shell
+  // reserves room for it at the end of the scroll region (`:has(.scan-fab-btn)`),
+  // and unmounting it dropped that reservation, which clamped the page's scroll
+  // and moved the page 30 to 48px under a ⋮ menu that had just opened on a card
+  // in the last row (the popup walk measured it, 2026-11-02).
+  const showButton = phone && onCollection;
   // An open scanner outlives the button (a route change under it must not
   // unmount the camera mid-scan).
   if (!canScan || (!showButton && !scannerOpen)) return null;
@@ -110,7 +115,7 @@ export function ScanFab({ scrollEl }: { scrollEl?: HTMLElement | null }) {
     <div className="scan-fab-root">
       {showButton && (
         <IconButton
-          className={`scan-fab-btn${tucked ? ' is-tucked' : ''}`}
+          className={`scan-fab-btn${tucked || overlayOpen ? ' is-tucked' : ''}`}
           ref={buttonRef}
           disabled={importing}
           onClick={() => setScannerOpen(true)}

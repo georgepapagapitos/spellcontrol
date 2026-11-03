@@ -4,6 +4,7 @@ import { ChevronDown } from 'lucide-react';
 import {
   computePopoverPlacement,
   getSafeViewport,
+  panelRoomStyle,
   type PopoverAlign,
 } from '@/lib/overlays/popover-placement';
 import { useMenuKeyboard } from '@/lib/overlays/use-menu-keyboard';
@@ -17,7 +18,14 @@ import { Surface } from './Surface';
  * `.toolbar-popover-*` skin lives in styles/deck-builder-display.css /
  * deck-builder-card-list.css (imported globally via main.tsx).
  */
-type PanelPos = { top?: number; bottom?: number; left?: number; right?: number };
+type PanelPos = {
+  top?: number;
+  bottom?: number;
+  left?: number;
+  right?: number;
+  /** `--panel-room`, so a panel taller than the room beside its trigger scrolls. */
+  vars?: Record<string, string>;
+};
 
 export function ToolbarPopover({
   label,
@@ -76,8 +84,9 @@ export function ToolbarPopover({
   useLayoutEffect(() => {
     if (!open || !panelRef.current || !buttonRef.current) return;
     const safe = getSafeViewport();
+    const anchorRect = buttonRef.current.getBoundingClientRect();
     const placement = computePopoverPlacement(
-      buttonRef.current.getBoundingClientRect(),
+      anchorRect,
       panelRef.current.getBoundingClientRect(),
       safe,
       align,
@@ -88,6 +97,7 @@ export function ToolbarPopover({
       bottom: placement.bottom,
       left: placement.left,
       right: placement.right,
+      vars: panelRoomStyle(placement, anchorRect),
     });
   }, [open, align]);
 
@@ -147,6 +157,7 @@ export function ToolbarPopover({
           right: panelPos.right,
           top: panelPos.top,
           bottom: panelPos.bottom,
+          ...panelPos.vars,
           zIndex: 'var(--z-portal-popover)',
           // Scale the enter animation from the trigger corner: anchored-side
           // top/bottom + left/right mirror how the panel was placed.
