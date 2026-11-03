@@ -128,6 +128,19 @@ describe('ScanFab', () => {
     vi.mocked(useAnyOverlayOpen).mockReturnValue(false);
   });
 
+  // The nightly keyboard walk caught this: with the button kept mounted (hidden)
+  // under the scanner, closing it left focus nowhere instead of on the opener.
+  it('returns focus to the Scan button when the scanner closes', async () => {
+    vi.mocked(useCanScan).mockReturnValue(true);
+    renderFab('/collection');
+    fireEvent.click(screen.getByRole('button', { name: 'Scan cards' }));
+    await waitFor(() => expect(screen.getByTestId('card-scanner')).toBeTruthy());
+    fireEvent.click(screen.getByText('close-scanner'));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Scan cards' }))
+    );
+  });
+
   it('never tucks while it holds keyboard focus', () => {
     vi.mocked(useCanScan).mockReturnValue(true);
     const scroller = document.createElement('div');
