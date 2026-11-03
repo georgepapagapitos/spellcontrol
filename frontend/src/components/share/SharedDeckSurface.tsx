@@ -333,15 +333,15 @@ export function SharedDeckSurface({
           <>
             {formatConfig?.label}
             <span className="deck-hero-totals">
-              {formatConfig ? '\u00A0· ' : ''}
+              {formatConfig ? ' ·\u00A0' : ''}
               {mainboardCount.toLocaleString()}
               {'\u00A0'}
               {mainboardCount === 1 ? 'card' : 'cards'}
-              {heroValue > 0 && `\u00A0· ${formatMoney(heroValue, { currency })}`}
-              {data.sideboard.length > 0 && `\u00A0· +${data.sideboard.length}\u00A0sideboard`}
+              {heroValue > 0 && ` ·\u00A0${formatMoney(heroValue, { currency })}`}
+              {data.sideboard.length > 0 && ` ·\u00A0+${data.sideboard.length}\u00A0sideboard`}
             </span>
             {bracketHeroText && (
-              <span className="deck-hero-bracket">{`\u00A0· ${bracketHeroText}`}</span>
+              <span className="deck-hero-bracket">{` ·\u00A0${bracketHeroText}`}</span>
             )}
           </>
         }

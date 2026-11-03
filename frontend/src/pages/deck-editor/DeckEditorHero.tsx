@@ -198,7 +198,7 @@ export function DeckEditorHero({
               extra 44px touch rows (STYLE_GUIDE § Page hero art, deck header). */}
           {!isPhone && (
             <>
-              {' · '}
+              {' ·\u00A0'}
               <DeckVisibilityChip
                 deckId={deck.id}
                 deckName={deck.name}
