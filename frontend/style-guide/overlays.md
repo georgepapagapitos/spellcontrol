@@ -356,6 +356,36 @@ on the store's `hydrated` flag AND on the sync driver's first pull (`getSyncStat
 'syncing'`): a fresh device hydrates an empty IndexedDB first and the deck only arrives
 with the pull (the deck editor showed "That deck no longer exists" for ~16s).
 
+### Anchored panels sit beside their trigger, and the nightly walk measures it (2026-11-02)
+
+An info tip, kebab, select, toolbar popover, legend or guest popover opens
+adjacent to the control that opened it: just below or just above it (within the
+placement gap), overlapping or touching its column, or clamped against a
+viewport edge the trigger is near. Four rules keep that true.
+
+- **Read every field `computePopoverPlacement` returns.** It flips to `right`
+  for a trigger near the right edge; a caller that read only `left` opened the
+  Build health tip at the far left of the screen.
+- **A panel taller than the room beside its trigger scrolls; it is never shoved
+  over the trigger.** The placement keeps it adjacent on its better side and
+  publishes the room; spread `panelRoomStyle(placement, anchorRect)` into the
+  panel's inline style and give its class
+  `max-height: min(<own cap>, var(--panel-room, 100dvh))` with `overflow-y: auto`.
+  A pointer-anchored menu (a right-click) is the exception: it has no trigger to
+  cover, and the placement clamps it into the safe box.
+- **Opening a popup never moves the page under it.** A fixed panel is placed
+  against the trigger where it stood; if the scroll region then changes size (a
+  floating button unmounting and giving back its reserved room), the page slides
+  away from the open panel. Keep what the shell reserves room for mounted
+  (tucked, not removed) while an overlay is open.
+- **Sheets and modals are exempt by their primitive** (`aria-modal`, a `sheet` or
+  `modal` class), never by route.
+
+`scripts/journey-popups.mjs` enforces the first three on every route at phone and
+desktop in the nightly Chrome journey (`--popups`; `--scheme light|dark` picks the
+color scheme). Guards: `test/popup-placement-journey.test.ts`,
+`styles/panel-room-cap.test.ts`, `lib/overlays/popover-placement.test.ts`.
+
 ### Play setup — desktop composes config beside the table
 
 The Local and Online-host setup forms are two-panel at ≥1024px

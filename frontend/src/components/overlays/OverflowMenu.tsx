@@ -2,7 +2,11 @@ import { ExternalLink, Link2, MoreVertical, type LucideIcon } from 'lucide-react
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useMenuKeyboard } from '@/lib/overlays/use-menu-keyboard';
-import { computePopoverPlacement, getSafeViewport } from '@/lib/overlays/popover-placement';
+import {
+  computePopoverPlacement,
+  getSafeViewport,
+  panelRoomStyle,
+} from '@/lib/overlays/popover-placement';
 import {
   isKeyboardContextMenu,
   itemFocusTarget,
@@ -84,7 +88,14 @@ interface Props {
   selection?: { title: string; items: OverflowMenuItem[] } | null;
 }
 
-type PanelPos = { top?: number; bottom?: number; left?: number; right?: number };
+type PanelPos = {
+  top?: number;
+  bottom?: number;
+  left?: number;
+  right?: number;
+  /** `--panel-room`, so a menu taller than the room beside its trigger scrolls. */
+  vars?: Record<string, string>;
+};
 
 /**
  * A `⋮` kebab that collapses a short list of secondary actions into a popover.
@@ -150,6 +161,7 @@ export function OverflowMenu({
       bottom: placement.bottom,
       left: placement.left,
       right: placement.right,
+      vars: panelRoomStyle(placement, anchorRect),
     });
   }, [open, align, point]);
 
@@ -319,6 +331,7 @@ export function OverflowMenu({
               bottom: panelPos.bottom,
               left: panelPos.left,
               right: panelPos.right,
+              ...panelPos.vars,
               transformOrigin: `${panelPos.top !== undefined ? 'top' : 'bottom'} ${
                 panelPos.left !== undefined ? 'left' : 'right'
               }`,

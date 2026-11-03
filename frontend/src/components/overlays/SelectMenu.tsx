@@ -127,12 +127,15 @@ export function SelectMenu<T extends string | number>({
     // Taller than the room on its better side: scroll inside that room,
     // beside the trigger, rather than be clamped over it.
     if (!searchable && height > placement.maxHeight) placement = place(placement.maxHeight);
+    // A searchable list keeps its 360px cap, and is capped to the room only when
+    // the room is smaller: an inline max-height would otherwise lift that cap.
+    const roomCap = searchable && height > placement.maxHeight ? placement.maxHeight : undefined;
     setPanelPos({
       top: placement.top,
       bottom: placement.bottom,
       left: placement.left,
       right: placement.right,
-      maxHeight: searchable ? undefined : placement.maxHeight,
+      maxHeight: searchable ? roomCap : placement.maxHeight,
     });
   }, [open, searchable]);
 

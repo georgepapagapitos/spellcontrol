@@ -80,9 +80,10 @@ export interface PopoverPlacement {
   right?: number;
   /** When true the panel opens above the trigger (for animation transform-origin). */
   opensAbove: boolean;
-  /** The room on the side it opens, trigger to safe edge. A panel capped to
-   *  this scrolls inside the viewport instead of being clamped over its own
-   *  trigger. */
+  /** The room on the side it opens, trigger to safe edge. A panel taller than
+   *  this MUST be capped to it (`--panel-room`, see `panelRoomStyle`): the
+   *  placement no longer clamps it over its own trigger, so an uncapped one
+   *  runs off the edge. */
   maxHeight: number;
 }
 
@@ -123,19 +124,27 @@ export function computePopoverPlacement(
   let top: number | undefined;
   let bottom: number | undefined;
 
+  // A pointer-anchored menu (a right-click) has a zero-height anchor: nothing
+  // for the panel to cover, so the old clamp into the safe box is right for it.
+  // A real trigger is different: clamping a tall panel into the box shoves it up
+  // over the control that opened it (the Discover Filters panel, the search
+  // syntax cheatsheet). The panel stays beside the trigger on its better side
+  // instead, and the caller caps it to `maxHeight` so it scrolls in the room.
+  const coversNothing = anchor.bottom - anchor.top < 1;
+
   if (opensAbove) {
     // `position: fixed; bottom` is measured from the viewport bottom edge.
     bottom = viewportHeight - anchor.top + gap;
     // If it would go off the top of the safe viewport, clamp to top instead.
     const wouldBeTop = anchor.top - gap - panel.height;
-    if (wouldBeTop < safe.top + EDGE_PAD) {
+    if (coversNothing && wouldBeTop < safe.top + EDGE_PAD) {
       bottom = undefined;
       top = safe.top + EDGE_PAD;
     }
   } else {
     top = anchor.bottom + gap;
     // If it overflows the bottom safe edge, clamp.
-    if (top + panel.height > safe.bottom - EDGE_PAD) {
+    if (coversNothing && top + panel.height > safe.bottom - EDGE_PAD) {
       top = Math.max(safe.top + EDGE_PAD, safe.bottom - EDGE_PAD - panel.height);
     }
   }
@@ -241,4 +250,18 @@ export function getSafeViewport(): SafeViewport {
     left: notchLeft,
     right: vw - notchRight,
   };
+}
+
+/**
+ * The custom property every anchored panel's stylesheet reads to cap its
+ * height: `max-height: min(<its own cap>, var(--panel-room, 100dvh))`. Spread
+ * into the panel's inline style next to the coordinates. Absent for a
+ * pointer-anchored menu, which the placement clamps instead of capping.
+ */
+export function panelRoomStyle(
+  placement: Pick<PopoverPlacement, 'maxHeight'>,
+  anchor: AnchorRect
+): Record<string, string> {
+  if (anchor.bottom - anchor.top < 1) return {};
+  return { '--panel-room': `${Math.floor(placement.maxHeight)}px` };
 }

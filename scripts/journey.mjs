@@ -53,6 +53,7 @@ import puppeteer from 'puppeteer-core';
 import { TIERS, executable } from './journey-browser.mjs';
 import { lcpCheck, writeLcpReport } from './journey-lcp.mjs';
 import { overlayWalk } from './journey-overlays.mjs';
+import { popupProbe } from './journey-popups.mjs';
 import { ZOOM_BY_DESIGN, ZOOM_TIERS, launchPrefs, zoomProbe } from './journey-zoom.mjs';
 
 // Expected sample-pack card count, read straight from the source constant
@@ -72,6 +73,8 @@ const BASE = opt('--base', 'http://localhost:3737').replace(/\/$/, '');
 const BROWSER = opt('--browser', 'chrome');
 const OUT = path.resolve(opt('--out', `journey-${BROWSER}`));
 const VIEWPORTS = opt('--viewports', 'phone,desktop').split(',');
+// --scheme light|dark: the OS color scheme the app follows on a first visit (default: the browser's).
+const SCHEME = opt('--scheme', '');
 const SETTLE_MS = Number(opt('--settle', 1500));
 // Fixed account name instead of a fresh `journey<ts>` one. Pair it with the
 // backend's ADMIN_USERNAMES so the walk also covers /admin (admin-only route);
@@ -112,6 +115,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const A11Y = argv.includes('--a11y');
 // --skip-routes: seed, then walk only the overlays (--a11y). For iterating on the overlay list.
 const SKIP_ROUTES = argv.includes('--skip-routes');
+// --popups: open every popup trigger on each screen and judge the panel against it
+// (journey-popups.mjs). A panel off-screen or away from its trigger fails the screen.
+const POPUPS = argv.includes('--popups');
 const src = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const AXE_SRC = A11Y ? src('../frontend/node_modules/axe-core/axe.min.js') : '';
 // Read the registries rather than re-typing them, so a new theme or type set
@@ -1018,6 +1024,8 @@ async function main() {
       const context = await (rootFont ? await launch(rootFont) : browser).createBrowserContext();
       const page = await context.newPage();
       await page.setViewport(viewport);
+      if (SCHEME)
+        await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: SCHEME }]);
       const consoleErrors = [];
       const thirdPartyFailures = [];
       live = { page, tierName, consoleErrors, thirdPartyFailures };
@@ -1063,7 +1071,10 @@ async function main() {
           console.log(`        ${msg}`);
         }
       };
-      const record = async (label, { keyboard = true, scope = null } = {}) => {
+      const record = async (
+        label,
+        { keyboard = true, scope = null, popups: probePopups = true } = {}
+      ) => {
         await sleep(300);
         const m = await page.evaluate(() => {
           const de = document.documentElement;
@@ -1112,6 +1123,28 @@ async function main() {
           zoom.findings = kept;
           tallyZoom(tierName, label, zoom);
         }
+        // Popup placement (--popups): open each trigger, measure its panel. Runs
+        // before axe, which swaps themes, and leaves every popup closed.
+        const popups =
+          POPUPS && probePopups
+            ? await popupProbe(page, {
+                tierName,
+                label,
+                shot: async (name) => {
+                  const f = `${slug(label)}__${tierName}__${slug(name)}.png`;
+                  await page.screenshot({ path: path.join(OUT, f) }).catch(() => {});
+                  return f;
+                },
+              })
+            : null;
+        if (popups)
+          console.log(
+            `        popups: opened ${popups.checked}/${popups.total}, exempt ${popups.exempt}` +
+              (popups.skipped ? `, skipped past cap ${popups.skipped}` : '') +
+              (popups.unreachable.length
+                ? `, unreachable ${popups.unreachable.length} (${popups.unreachable.slice(0, 3).join('; ')})`
+                : '')
+          );
         // Axe runs last among the probes: it swaps themes and restores them.
         // Axe's contrast rule scrolls each node into view and the Tab walk
         // scrolls to each stop, so put the page back where it loaded: the
@@ -1141,6 +1174,7 @@ async function main() {
           smallTargets,
           overlapping,
           zoom,
+          popups: popups?.findings ?? [],
           a11y,
           file,
         };
@@ -1153,6 +1187,7 @@ async function main() {
           wrapped.length > 0 ||
           overlapping.length > 0 ||
           smallTargets.length > 0 ||
+          (popups?.findings.length ?? 0) > 0 ||
           (zoom?.findings.length ?? 0) > 0 ||
           a11yNodeCount(a11y) > 0;
         results.push(rec);
@@ -1170,6 +1205,7 @@ async function main() {
         if (wrapped.length) for (const w of wrapped) console.log(`        ${w}`);
         if (overlapping.length)
           for (const o of overlapping) console.log(`        overlapping: ${o}`);
+        for (const f of popups?.findings ?? []) console.log(`        popup: ${f}`);
         for (const f of zoom?.findings ?? [])
           console.log(`        ${f.kind}: ${f.key} (${f.detail})`);
         return rec;
@@ -1350,7 +1386,7 @@ async function main() {
         await clickText(page, /^Generate deck$/, { timeout: 60_000 });
         await page.waitForSelector('.build-report-sheet', { timeout: 240_000 });
         await sleep(SETTLE_MS);
-        const sheetRec = await record('/decks/{deck} (generated, build report)');
+        const sheetRec = await record('/decks/{deck} (generated, build report)', { popups: false });
         await assertPage(sheetRec, 'build report sheet opens after generation', async () => {
           const observed = await page.evaluate(
             () => document.querySelector('.build-report-sheet-heading')?.textContent?.trim() ?? null
@@ -1403,7 +1439,7 @@ async function main() {
           }
           await sleep(SETTLE_MS);
         }
-        const previewRec = await record('/decks/{deck} (card preview)');
+        const previewRec = await record('/decks/{deck} (card preview)', { popups: false });
         await assertPage(previewRec, 'card preview opens from a deck row', async () => ({
           ok: opened,
           expected: '.card-preview-panel',

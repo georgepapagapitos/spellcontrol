@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   computePopoverPlacement,
+  panelRoomStyle,
   type AnchorRect,
   type SafeViewport,
   type PopoverSize,
@@ -277,5 +278,57 @@ describe('computePopoverPlacement — sticky chrome insets', () => {
     const anchor = triggerTop(100, 100);
     const result = computePopoverPlacement(anchor, PANEL, DESKTOP_SAFE, 'left', 12);
     expect(result.top).toBe(anchor.bottom + 12);
+  });
+});
+
+// The popup walk (scripts/journey-popups.mjs) found tall panels clamped up over
+// the very control that opened them: Discover's Filters panel on a phone, and the
+// search syntax cheatsheet. A panel taller than the room on its side now stays
+// beside its trigger, and the caller caps it to `maxHeight` via `--panel-room`.
+describe('computePopoverPlacement — a panel taller than the room never covers its trigger', () => {
+  const safe: SafeViewport = { top: 0, bottom: 756, left: 0, right: 375 };
+  const tall: PopoverSize = { width: 300, height: 600 };
+
+  it('keeps a tall panel directly below the trigger instead of clamping it over it', () => {
+    const anchor: AnchorRect = { top: 208, bottom: 252, left: 20, right: 360 };
+    const r = computePopoverPlacement(anchor, tall, safe, 'left', 6, 844, 375);
+    expect(r.opensAbove).toBe(false);
+    expect(r.top).toBe(252 + 6); // adjacent; the old clamp put it at 148
+    expect(r.maxHeight).toBe(756 - 252 - 6 - 8);
+  });
+
+  it('keeps a tall panel directly above the trigger when that side has more room', () => {
+    const anchor: AnchorRect = { top: 560, bottom: 600, left: 20, right: 100 };
+    const r = computePopoverPlacement(anchor, tall, safe, 'left', 6, 844, 375);
+    expect(r.opensAbove).toBe(true);
+    expect(r.bottom).toBe(844 - 560 + 6);
+    expect(r.top).toBeUndefined(); // the old clamp pinned it to the top edge
+    expect(r.maxHeight).toBe(560 - 6 - 8);
+  });
+
+  it('still clamps a pointer-anchored menu (a right-click has no trigger to cover)', () => {
+    const point: AnchorRect = { top: 100, bottom: 100, left: 100, right: 100 };
+    const r = computePopoverPlacement(
+      point,
+      { width: 160, height: 700 },
+      safe,
+      'left',
+      0,
+      844,
+      375
+    );
+    expect(r.top).toBe(756 - 8 - 700);
+  });
+});
+
+describe('panelRoomStyle', () => {
+  it('publishes the room as --panel-room for a real trigger, floored to whole px', () => {
+    const a: AnchorRect = { top: 10, bottom: 40, left: 0, right: 30 };
+    expect(panelRoomStyle({ maxHeight: 301.7 }, a)).toEqual({ '--panel-room': '301px' });
+  });
+  it('publishes nothing for a pointer anchor, which is clamped rather than capped', () => {
+    expect(panelRoomStyle({ maxHeight: 300 }, { top: 5, bottom: 5, left: 1, right: 1 })).toEqual(
+      {}
+    );
   });
 });

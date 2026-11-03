@@ -105,7 +105,7 @@
    isn't fixed. The panel scrolls when the viewport is short. */
 .search-syntax-panel.toolbar-popover-panel {
   width: min(32rem, calc(100vw - 2rem));
-  max-height: min(34rem, calc(100dvh - 8rem));
+  max-height: min(34rem, calc(100dvh - 8rem), var(--panel-room, 100dvh));
   padding: var(--space-3);
 }
 

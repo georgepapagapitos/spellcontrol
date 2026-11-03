@@ -385,7 +385,7 @@
   /* E181: at worst-case row count the stacked panel runs ~450px tall — on a
      short mobile viewport that ran Delete off-screen. Cap relative to the
      viewport and let the panel itself scroll. */
-  max-height: min(calc(100vh - 6rem), 26rem);
+  max-height: min(calc(100vh - 6rem), 26rem, var(--panel-room, 100vh));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }

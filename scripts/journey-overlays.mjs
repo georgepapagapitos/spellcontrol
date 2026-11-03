@@ -555,6 +555,7 @@ export async function overlayWalk({
     const rec = await record(label, {
       keyboard: !it.menu && !(tierName in ZOOM_TIERS),
       scope: it.scope ?? it.ready,
+      popups: false, // an overlay is open: the route walk already probed this screen
     });
     await assertPage(rec, `${it.name} opens`, async () => ({
       ok: !err,
