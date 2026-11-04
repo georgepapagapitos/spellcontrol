@@ -811,13 +811,18 @@ body[data-felt='slate'] {
    it, tabbing into it, or dragging a card onto it. Nothing is hidden, only
    deferred. */
 .playtest-pile:has(:focus-visible) .playtest-pile__stack,
-.playtest-pile.is-over .playtest-pile__stack,
-.playtest-pile.is-menu-open .playtest-pile__stack {
+.playtest-pile.is-over .playtest-pile__stack {
   height: var(--pt-card-h);
 }
 
+/* A menu opened from a hovered pile keeps it open, so the card stays under the
+   menu that was placed against it after the pointer moves onto the menu. Only
+   where hover opened it: on a touch screen the pile was never open, the menu
+   sits against the resting slice, and growing it would slide the card up
+   under the menu. */
 @media (hover: hover) and (pointer: fine) {
-  .playtest-pile:hover .playtest-pile__stack {
+  .playtest-pile:hover .playtest-pile__stack,
+  .playtest-pile.is-menu-open .playtest-pile__stack {
     height: var(--pt-card-h);
   }
 }

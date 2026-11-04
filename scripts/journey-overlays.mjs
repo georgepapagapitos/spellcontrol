@@ -422,7 +422,11 @@ function playtestSteps(deck) {
       }),
       ready: '.playtest-main .playtest-card',
       scope: 'body', // the table is the surface here
-      popups: true, // the board's own menus and tips: no route reaches them
+      // The board's own menus and tips: no route reaches them. No closing
+      // reload: a reloaded table opens on the resume dialog, and the Escape
+      // after this step would answer it "Start fresh", clearing the saved game
+      // the next step reopens.
+      popups: { reload: false },
     },
     {
       route,
@@ -557,9 +561,9 @@ export async function overlayWalk({
       keyboard: !it.menu && !(tierName in ZOOM_TIERS),
       scope: it.scope ?? it.ready,
       // An open overlay hides the page behind it, which the route walk already
-      // probed. The playtest table is the exception (`popups: true`): no route
+      // probed. The playtest table is the exception (`popups`): no route
       // reaches a board with cards on it, so its menus are probed here.
-      popups: it.popups === true,
+      popups: it.popups ?? false,
     });
     await assertPage(rec, `${it.name} opens`, async () => ({
       ok: !err,

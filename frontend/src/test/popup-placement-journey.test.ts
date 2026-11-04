@@ -64,9 +64,20 @@ describe('popup placement nightly check', () => {
     expect(walk).not.toMatch(/tierName !== 'desktop'|tierName === 'desktop'\s*\)\s*return/);
     // An open overlay hides the page behind it: the overlay walk probes only
     // the steps that opt in, and the playtest table with cards on it is one.
-    expect(overlays).toContain('popups: it.popups === true');
+    expect(overlays).toContain('popups: it.popups ?? false');
     const table = overlays.slice(overlays.indexOf("name: 'table after a draw and a play'"));
-    expect(table.slice(0, table.indexOf('\n    },'))).toContain('popups: true');
+    expect(table.slice(0, table.indexOf('\n    },'))).toMatch(/popups: \{/);
+  });
+  it('probes the playtest table without the closing reload, so the saved game survives', () => {
+    // A reloaded table opens on the resume dialog, and the walk's Escape after
+    // the step answers it "Start fresh": the next step, the resume dialog, then
+    // found an opening hand instead (the nightly's "not open for the keyboard pass").
+    const table = overlays.slice(overlays.indexOf("name: 'table after a draw and a play'"));
+    const step = table.slice(0, table.indexOf('\n    },'));
+    expect(step).toContain('popups: { reload: false }');
+    expect(step).not.toContain('noPostEscape');
+    const resume = overlays.indexOf("name: 'resume game dialog'");
+    expect(resume).toBeGreaterThan(overlays.indexOf("name: 'table after a draw and a play'"));
   });
   it('probes the post-generation build report in place, without closing it', () => {
     // The sheet opens once, from router state, and holds the deck's ⓘ tips (the

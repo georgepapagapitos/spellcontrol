@@ -296,8 +296,28 @@ describe('ZonePile — a commander tile opens its menu above itself', () => {
     expect(document.querySelector('.playtest-pile')?.classList.contains('is-menu-open')).toBe(true);
     const tiles = [...document.querySelectorAll('.playtest-pile__commander')];
     expect(tiles.map((t) => t.getAttribute('aria-expanded'))).toEqual(['false', 'true']);
+  });
+
+  it('keeps the pile open for its menu only where hover opened it', () => {
+    // On a touch screen the pile was never open: its menu sits against the
+    // resting slice, and growing the pile then would slide the card up under
+    // the menu (the nightly's "page moved 0,-92px" on its pointer-less Chrome).
     const css = readFileSync(resolve(__dirname, '../../styles/playtest.css'), 'utf8');
-    expect(css).toMatch(
+    const HOVER = '@media (hover: hover) and (pointer: fine) {';
+    const inside: string[] = [];
+    let outside = css;
+    for (let at = outside.indexOf(HOVER); at !== -1; at = outside.indexOf(HOVER)) {
+      let depth = 0;
+      let end = at + HOVER.length - 1;
+      for (; end < outside.length; end++) {
+        if (outside[end] === '{') depth++;
+        else if (outside[end] === '}' && --depth === 0) break;
+      }
+      inside.push(outside.slice(at, end + 1));
+      outside = outside.slice(0, at) + outside.slice(end + 1);
+    }
+    expect(outside).not.toContain('.is-menu-open');
+    expect(inside.join('\n')).toMatch(
       /\.playtest-pile\.is-menu-open \.playtest-pile__stack \{\s*height: var\(--pt-card-h\);/
     );
   });
