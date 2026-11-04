@@ -703,6 +703,7 @@ export function PlaytestBoard({ state, backLabel, onBack }: Props) {
         setHordeDamageOpen={setHordeDamageOpen}
         withHordeActions={withHordeActions}
         handMenuOpen={pileMenu?.zone === 'hand'}
+        commanderMenuId={handMenu?.zone === 'command' ? handMenu.cardId : null}
       />
 
       <BoardLeftDock

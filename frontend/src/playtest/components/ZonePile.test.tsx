@@ -1,6 +1,8 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { DndContext } from '@dnd-kit/core';
 import type { PlaytestCard } from '@/lib/playtest';
 import { ZonePile } from './ZonePile';
@@ -230,5 +232,79 @@ describe('ZonePile — a card exiled face down', () => {
   it('shows the art when the top card is face up, even if one under it is not', () => {
     const { container } = renderExile(new Set(['x1']));
     expect(container.querySelector('img')?.getAttribute('src')).toBe('https://img/hidden.jpg');
+  });
+});
+
+/**
+ * A click on a commander opened its menu DOWN from the card's top edge. The
+ * pile sits at the bottom of the table, so the shell clamped the menu back up
+ * over the commander it was for (the nightly popup probe, E1108: panel y
+ * 741..892 over a trigger at 847..896). A click now anchors the menu above the
+ * card, up and left from its top-right corner, as the Hand button's menu does.
+ * A right-click stays at the pointer.
+ */
+describe('ZonePile — a commander tile opens its menu above itself', () => {
+  function renderWithMenu(
+    onCardMenu: (card: PlaytestCard, x: number, y: number, origin?: 'bottom-end') => void
+  ) {
+    render(
+      <DndContext>
+        <ZonePile
+          zone="command"
+          label="Command"
+          cards={[card('a')]}
+          click={{ label: 'View the command zone', onClick: vi.fn() }}
+          onMenu={vi.fn()}
+          onCardMenu={onCardMenu}
+        />
+      </DndContext>
+    );
+    const tile = document.querySelector('.playtest-pile__commander') as HTMLElement;
+    tile.getBoundingClientRect = () =>
+      ({ left: 1330, right: 1430, top: 847, bottom: 987, width: 100, height: 140 }) as DOMRect;
+    return tile;
+  }
+
+  it('a click anchors the menu at the top-right corner, opening up', () => {
+    const onCardMenu = vi.fn();
+    fireEvent.click(renderWithMenu(onCardMenu));
+    expect(onCardMenu).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'a' }),
+      1430,
+      847,
+      'bottom-end'
+    );
+  });
+
+  it('stays open under its menu, so the menu lands on the card and not on a dropped pile', () => {
+    // The click lands on a pile that hover has opened to the full card; the
+    // menu covers the pointer, hover ends, and the pile used to drop back to
+    // its slice, leaving the menu 92px above the card it opened from.
+    render(
+      <DndContext>
+        <ZonePile
+          zone="command"
+          label="Command"
+          cards={[card('a'), card('b')]}
+          click={{ label: 'View the command zone', onClick: vi.fn() }}
+          onMenu={vi.fn()}
+          onCardMenu={vi.fn()}
+          menuCardId="b"
+        />
+      </DndContext>
+    );
+    expect(document.querySelector('.playtest-pile')?.classList.contains('is-menu-open')).toBe(true);
+    const tiles = [...document.querySelectorAll('.playtest-pile__commander')];
+    expect(tiles.map((t) => t.getAttribute('aria-expanded'))).toEqual(['false', 'true']);
+    const css = readFileSync(resolve(__dirname, '../../styles/playtest.css'), 'utf8');
+    expect(css).toMatch(
+      /\.playtest-pile\.is-menu-open \.playtest-pile__stack \{\s*height: var\(--pt-card-h\);/
+    );
+  });
+
+  it('a right-click still opens at the pointer', () => {
+    const onCardMenu = vi.fn();
+    fireEvent.contextMenu(renderWithMenu(onCardMenu), { clientX: 1360, clientY: 900 });
+    expect(onCardMenu).toHaveBeenCalledWith(expect.objectContaining({ id: 'a' }), 1360, 900);
   });
 });

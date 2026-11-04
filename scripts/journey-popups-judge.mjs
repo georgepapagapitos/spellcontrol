@@ -78,3 +78,19 @@ export function judgePlacement(t, p, vp) {
 
   return problems.length ? problems.join('; ') : null;
 }
+
+/**
+ * Which triggers of one kind a run opens. A screen with more than `cap` of a kind
+ * opens a different window of `cap` each night, so every trigger is opened over
+ * ceil(count / cap) nights instead of the first `cap` forever (E1108).
+ * @param {number} count triggers of this kind on the screen, in DOM order
+ * @param {number} cap triggers opened per kind per run
+ * @param {number} rotation the run's rotation (the nightly passes the day number)
+ * @returns {number[]} indices into the kind's DOM order
+ */
+export function pickWindow(count, cap, rotation) {
+  if (count <= cap) return Array.from({ length: count }, (_, i) => i);
+  const windows = Math.ceil(count / cap);
+  const start = (((rotation % windows) + windows) % windows) * cap;
+  return Array.from({ length: Math.min(cap, count - start) }, (_, i) => start + i);
+}

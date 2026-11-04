@@ -214,7 +214,7 @@ jobs:
 
       - name: Journey in Firefox (desktop)
         if: ${{ !cancelled() && steps.seed.outcome == 'success' }}
-        run: node scripts/journey.mjs --base http://localhost:3737 --browser firefox --viewports desktop --username journeyadmin --out journey-firefox 2>&1 | tee -a journey-output.log
+        run: node scripts/journey.mjs --base http://localhost:3737 --browser firefox --viewports desktop --username journeyadmin --popups --out journey-firefox 2>&1 | tee -a journey-output.log
 
       # The UI-tells detector's rendered scan (trove
       # plugins/polish/reference/ui-tells.md, "Enforcement"): the pinned

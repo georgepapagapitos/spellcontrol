@@ -422,6 +422,7 @@ function playtestSteps(deck) {
       }),
       ready: '.playtest-main .playtest-card',
       scope: 'body', // the table is the surface here
+      popups: true, // the board's own menus and tips: no route reaches them
     },
     {
       route,
@@ -555,7 +556,10 @@ export async function overlayWalk({
     const rec = await record(label, {
       keyboard: !it.menu && !(tierName in ZOOM_TIERS),
       scope: it.scope ?? it.ready,
-      popups: false, // an overlay is open: the route walk already probed this screen
+      // An open overlay hides the page behind it, which the route walk already
+      // probed. The playtest table is the exception (`popups: true`): no route
+      // reaches a board with cards on it, so its menus are probed here.
+      popups: it.popups === true,
     });
     await assertPage(rec, `${it.name} opens`, async () => ({
       ok: !err,

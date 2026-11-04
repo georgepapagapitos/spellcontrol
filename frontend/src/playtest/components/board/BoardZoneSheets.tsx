@@ -188,6 +188,7 @@ export function BoardZoneSheets({
         <HandCardMenu
           x={handMenu.x}
           y={handMenu.y}
+          origin={handMenu.origin}
           cardName={handMenuCard.name}
           zone={handMenuZone}
           libraryCount={libraryCount}

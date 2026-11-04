@@ -24,7 +24,9 @@ interface TablePilesProps {
   doDraw: () => void;
   openPileMenu: (zone: Zone) => (x: number, y: number) => void;
   onViewZone: (zone: Zone) => void;
-  onCommanderMenu: (cardId: string, x: number, y: number) => void;
+  onCommanderMenu: (cardId: string, x: number, y: number, origin?: 'bottom-end') => void;
+  /** The commander whose own menu is open, if any. */
+  commanderMenuId: string | null;
 }
 
 /** The pile row on the felt: the hand's count and menu, the library, the
@@ -43,6 +45,7 @@ export function TablePiles({
   openPileMenu,
   onViewZone,
   onCommanderMenu,
+  commanderMenuId,
 }: TablePilesProps) {
   return (
     <aside className="playtest-piles">
@@ -109,7 +112,8 @@ export function TablePiles({
             // every time someone only meant to look at it. Dragging it to
             // the battlefield casts it too (the reducer bumps its tax).
             // Anywhere else on the tile is still the zone's menu.
-            onCardMenu={(card, x, y) => onCommanderMenu(card.id, x, y)}
+            onCardMenu={(card, x, y, origin) => onCommanderMenu(card.id, x, y, origin)}
+            menuCardId={commanderMenuId}
           />
         </>
       )}
