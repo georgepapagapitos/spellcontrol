@@ -811,7 +811,8 @@ body[data-felt='slate'] {
    it, tabbing into it, or dragging a card onto it. Nothing is hidden, only
    deferred. */
 .playtest-pile:has(:focus-visible) .playtest-pile__stack,
-.playtest-pile.is-over .playtest-pile__stack {
+.playtest-pile.is-over .playtest-pile__stack,
+.playtest-pile.is-menu-open .playtest-pile__stack {
   height: var(--pt-card-h);
 }
 

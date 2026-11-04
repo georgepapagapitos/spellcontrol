@@ -78,7 +78,11 @@ interface Props {
    *  a right-click or a long-press on a commander reaches it; anywhere else
    *  on the tile is the zone's menu. With partners there are two commanders
    *  sitting there at once, each with its OWN tax, so the menu is per card. */
-  onCardMenu?(card: PlaytestCard, x: number, y: number): void;
+  onCardMenu?(card: PlaytestCard, x: number, y: number, origin?: 'bottom-end'): void;
+  /** The commander whose menu is open. The pile stays open under it, as it
+   *  was when the click landed, so the menu sits on the card it belongs to
+   *  instead of floating over a pile that dropped back to its slice. */
+  menuCardId?: string | null;
 }
 
 export function ZonePile({
@@ -93,6 +97,7 @@ export function ZonePile({
   revealTop = false,
   hiddenIds,
   onCardMenu,
+  menuCardId = null,
 }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: `zone:${zone}` });
   // A finger has no right-click, so the press-and-hold is the touch half of
@@ -138,7 +143,9 @@ export function ZonePile({
   return (
     <div
       ref={setNodeRef}
-      className={`playtest-pile${isOver ? ' is-over' : ''}${shown ? '' : ' is-empty'}`}
+      className={`playtest-pile${isOver ? ' is-over' : ''}${shown ? '' : ' is-empty'}${
+        menuCardId && cards.some((c) => c.id === menuCardId) ? ' is-menu-open' : ''
+      }`}
       // Fires for the Context Menu key and Shift+F10 as well as a right-click,
       // and bubbles from whichever child has focus — so the keyboard reaches
       // the same menu without the tile needing a key handler of its own.
@@ -183,6 +190,7 @@ export function ZonePile({
                 key={c.id}
                 card={c}
                 imageFailed={c.id === erroredId}
+                menuOpen={c.id === menuCardId}
                 onImageError={() => setErroredId(c.id)}
                 onContextMenu={(e) => {
                   if (!onCardMenu) return;
@@ -194,10 +202,13 @@ export function ZonePile({
                   // Same suppression as the pile's own button: a hold that
                   // opened the menu must not open it a second time.
                   if (longPress.consumedClick()) return;
-                  // From the card's top edge, so the menu opens beside the
-                  // commander whether a mouse or the keyboard pressed it.
+                  // Up and left from the card's top-right corner, as the Hand
+                  // button's menu opens, whether a mouse or the keyboard pressed
+                  // it. The pile sits at the bottom of the table: a menu opened
+                  // downward from the top edge was clamped back up over the
+                  // commander it belongs to (E1108).
                   const r = e.currentTarget.getBoundingClientRect();
-                  onCardMenu?.(c, r.left + r.width / 2, r.top);
+                  onCardMenu?.(c, r.right, r.top, 'bottom-end');
                 }}
               />
             ))}
@@ -260,9 +271,11 @@ function CommanderTile({
   onImageError,
   onClick,
   onContextMenu,
+  menuOpen,
 }: {
   card: PlaytestCard;
   imageFailed: boolean;
+  menuOpen: boolean;
   onImageError(): void;
   onClick(e: React.MouseEvent<HTMLButtonElement>): void;
   onContextMenu(e: React.MouseEvent): void;
@@ -278,6 +291,7 @@ function CommanderTile({
       data-card-id={card.id}
       data-preview-id={card.imageUrl ? card.id : undefined}
       aria-haspopup="menu"
+      aria-expanded={menuOpen}
       aria-label={card.name}
       // Transparent, not removed, while it rides the pointer: the row keeps
       // its shape and dnd-kit keeps a node to measure.

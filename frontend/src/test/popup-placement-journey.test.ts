@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error: plain .mjs with no types, outside the frontend tree
-import { judgePlacement, MAX_GAP } from '../../../scripts/journey-popups-judge.mjs';
+import { judgePlacement, MAX_GAP, pickWindow } from '../../../scripts/journey-popups-judge.mjs';
 
 const root = resolve(__dirname, '../../..');
 const read = (rel: string) => readFileSync(resolve(root, rel), 'utf8');
@@ -31,6 +31,10 @@ describe('popup placement nightly check', () => {
     expect(walk).toContain('await handle.hover()'); // tooltips: mouse on desktop
     expect(walk).toContain('await handle.focus()'); // tooltips: focus on the phone
     expect(walk).toContain('await handle.click()'); // menus
+    // A mouse rests on a menu's trigger before it clicks: the trigger is
+    // measured after that hover (a pile opens under the pointer), not before.
+    expect(walk.indexOf('await handle.hover();\n        await sleep(200);')).toBeGreaterThan(-1);
+    expect(walk.indexOf('await sleep(200);')).toBeLessThan(walk.indexOf('const t0 ='));
     expect(walk).toContain("page.keyboard.press('Escape')"); // and closes each one
   });
   it('exempts sheets and modals by their primitive, never by route', () => {
@@ -49,8 +53,15 @@ describe('popup placement nightly check', () => {
     // would turn the check off for one of them.
     expect(walk).toContain("tierName === 'phone'");
     expect(walk).not.toMatch(/tierName !== 'desktop'|tierName === 'desktop'\s*\)\s*return/);
-    // An open overlay hides the page behind it: the overlay walk does not probe.
-    expect(overlays).toContain('popups: false');
+    // An open overlay hides the page behind it: the overlay walk probes only
+    // the steps that opt in, and the playtest table with cards on it is one.
+    expect(overlays).toContain('popups: it.popups === true');
+    const table = overlays.slice(overlays.indexOf("name: 'table after a draw and a play'"));
+    expect(table.slice(0, table.indexOf('\n    },'))).toContain('popups: true');
+  });
+  it('rotates which triggers past the cap it opens, so none is skipped forever', () => {
+    expect(walk).toContain('pickWindow(count, CAP, ROTATION)');
+    expect(walk).toContain('Math.floor(Date.now() / 86_400_000)');
   });
   it('names route, tier, trigger and offsets in the failure line', () => {
     expect(walk).toContain('`${label} [${tierName}] ${t.kind} "${t.label}"');
@@ -59,6 +70,27 @@ describe('popup placement nightly check', () => {
     expect(workflow).toMatch(
       /- name: Journey in Chrome \(phone \+ desktop\)\n\s+run: [^\n]*--popups/
     );
+  });
+  it('is on the nightly Firefox step too: a placement can differ by engine', () => {
+    expect(workflow).toMatch(
+      /- name: Journey in Firefox[^\n]*\n(?:\s+if:[^\n]*\n)?\s+run: [^\n]*--popups/
+    );
+  });
+});
+
+describe('pickWindow', () => {
+  it('opens every trigger when a kind is under the cap', () => {
+    expect(pickWindow(5, 8, 123)).toEqual([0, 1, 2, 3, 4]);
+  });
+  it('opens a different window each night past the cap, and covers all of them', () => {
+    const seen = new Set<number>();
+    for (let night = 0; night < 3; night++) {
+      const w = pickWindow(20, 8, night);
+      expect(w.length).toBeLessThanOrEqual(8);
+      for (const i of w) seen.add(i);
+    }
+    expect([...seen].sort((a, b) => a - b)).toEqual(Array.from({ length: 20 }, (_, i) => i));
+    expect(pickWindow(20, 8, 0)).not.toEqual(pickWindow(20, 8, 1));
   });
 });
 

@@ -7,15 +7,21 @@
 //
 // Modals and sheets are meant to be centered or docked, so they are exempt by
 // their primitive (aria-modal, or a sheet/modal class), never by route.
-// Cost is bounded: the first CAP triggers of each kind per screen are opened,
-// and the rest are logged as skipped.
+// Cost is bounded: CAP triggers of each kind per screen are opened and the rest
+// are logged as skipped. Which CAP rotates by day (pickWindow), so a screen with
+// more than CAP of a kind has every trigger opened over a few nights. Set
+// POPUP_ROTATION=<n> to pick the window by hand.
 
-import { judgePlacement } from './journey-popups-judge.mjs';
+import { judgePlacement, pickWindow } from './journey-popups-judge.mjs';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Triggers opened per kind per screen. */
 export const CAP = 8;
+/** The window of each kind's triggers this run opens: the day number by default. */
+export const ROTATION = process.env.POPUP_ROTATION
+  ? Number(process.env.POPUP_ROTATION)
+  : Math.floor(Date.now() / 86_400_000);
 
 const TRIGGER =
   '.info-tip-btn, [aria-haspopup]:not([aria-haspopup="false"]), .toolbar-pill, .legend-trigger, .overflow-menu-trigger';
@@ -23,14 +29,18 @@ const PANEL =
   '[role=tooltip], [role=menu], [role=listbox], [role=dialog], .toolbar-popover-panel, .filter-popover-panel, .legend-popover, .overflow-menu-popover, .deck-editor-overflow-panel, .ctx-menu';
 const EXEMPT = '[aria-modal="true"], [class*="sheet"], [class*="modal"], [class*="Sheet"]';
 
-/** Runs in the page: tag the visible triggers and describe them. */
-function collect({ trigger, cap }) {
+/**
+ * Runs in the page: tag the visible triggers and describe them. Each kind's
+ * triggers are numbered in DOM order; only the indices in `pick[kind]` are
+ * tagged, so the walk opens the window pickWindow chose.
+ */
+function collect({ trigger, pick }) {
   const seen = new Set();
   const out = [];
   const perKind = {};
-  const skipped = {};
   let n = 0;
   for (const el of document.querySelectorAll(trigger)) {
+    el.removeAttribute('data-popup-probe');
     const r = el.getBoundingClientRect();
     const cs = getComputedStyle(el);
     if (el.disabled || r.width < 4 || r.height < 4 || cs.visibility === 'hidden') continue;
@@ -45,16 +55,14 @@ function collect({ trigger, cap }) {
     const key = `${kind}|${label}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    if ((perKind[kind] ?? 0) >= cap) {
-      skipped[kind] = (skipped[kind] ?? 0) + 1;
-      continue;
-    }
-    perKind[kind] = (perKind[kind] ?? 0) + 1;
+    const k = perKind[kind] ?? 0;
+    perKind[kind] = k + 1;
+    if (pick && !(pick[kind] ?? []).includes(k)) continue;
     el.setAttribute('data-popup-probe', String(n));
     out.push({ i: n, kind, label });
     n++;
   }
-  return { triggers: out, skipped };
+  return { triggers: out, perKind };
 }
 
 /** Runs in the page, after opening: the new panel's rect, or why there is none. */
@@ -97,7 +105,15 @@ function measure({ i, panelSel, exemptSel, before, t0 }) {
  */
 export async function popupProbe(page, { tierName, label, shot }) {
   const startPath = await page.evaluate(() => location.pathname + location.search);
-  const { triggers, skipped } = await page.evaluate(collect, { trigger: TRIGGER, cap: CAP });
+  // Count each kind first, then tag only this run's window of it.
+  const { perKind } = await page.evaluate(collect, { trigger: TRIGGER, pick: null });
+  const pick = {};
+  const skipped = {};
+  for (const [kind, count] of Object.entries(perKind)) {
+    pick[kind] = pickWindow(count, CAP, ROTATION);
+    if (count > pick[kind].length) skipped[kind] = count - pick[kind].length;
+  }
+  const { triggers } = await page.evaluate(collect, { trigger: TRIGGER, pick });
   const findings = [];
   let checked = 0;
   let exempt = 0;
@@ -132,11 +148,18 @@ export async function popupProbe(page, { tierName, label, shot }) {
         }
         return ids;
       }, PANEL);
+      const tooltip = t.kind === 'tooltip';
+      // A mouse is on a menu's trigger before it clicks, and hover can move the
+      // trigger (a pile opens to the full card): judge against where it stood
+      // under the pointer, which is where the user saw it.
+      if (!tooltip && tierName !== 'phone') {
+        await handle.hover();
+        await sleep(200);
+      }
       const t0 = await page.evaluate((i) => {
         const r = document.querySelector(`[data-popup-probe="${i}"]`).getBoundingClientRect();
         return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
       }, t.i);
-      const tooltip = t.kind === 'tooltip';
       if (tooltip) {
         if (tierName === 'phone') await handle.focus();
         else await handle.hover();
@@ -185,7 +208,7 @@ export async function popupProbe(page, { tierName, label, shot }) {
         await page.goBack({ waitUntil: 'domcontentloaded' }).catch(() => {});
         await sleep(600);
         // Re-tag: the page reloaded its DOM.
-        await page.evaluate(collect, { trigger: TRIGGER, cap: CAP }).catch(() => {});
+        await page.evaluate(collect, { trigger: TRIGGER, pick }).catch(() => {});
       }
     }
   }

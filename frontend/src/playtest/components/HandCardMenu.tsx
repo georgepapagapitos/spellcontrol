@@ -6,6 +6,8 @@ import { SEPARATOR, TableContextMenu, type MenuEntry } from './TableContextMenu'
 interface Props {
   x: number;
   y: number;
+  /** See CtxMenuShell: `bottom-end` when a click on a commander tile opened it. */
+  origin?: 'bottom-end';
   cardName: string;
   /** Where the card is. The hand gets the hand's whole vocabulary; a
    *  commander in the command zone gets EDHPlay's shorter list for it. */
@@ -57,6 +59,7 @@ interface Props {
 export function HandCardMenu({
   x,
   y,
+  origin,
   cardName,
   zone = 'hand',
   keyFor,
@@ -131,5 +134,14 @@ export function HandCardMenu({
     ...(onMove && canMoveEarlier ? [{ label: 'Move it left', onClick: () => onMove(-1) }] : []),
     ...(onMove && canMoveLater ? [{ label: 'Move it right', onClick: () => onMove(1) }] : []),
   ];
-  return <TableContextMenu x={x} y={y} title={cardName} items={items} onClose={onClose} />;
+  return (
+    <TableContextMenu
+      x={x}
+      y={y}
+      origin={origin}
+      title={cardName}
+      items={items}
+      onClose={onClose}
+    />
+  );
 }

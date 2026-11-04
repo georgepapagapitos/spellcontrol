@@ -466,6 +466,10 @@ function touchingSiblings() {
  * check exists to catch.
  */
 const TOUCHING_BY_DESIGN = new Set([
+  // The account banners are #root's first children, a full-bleed band above the
+  // page root (style-guide/app-shell.md, E379): attached to the shell by design.
+  'div › div.recovery-banner | div.app-shell',
+  'div › div.auto-link-banner | div.app-shell',
   // Index tiles are one sleeve: cover art, then the name band, then the meta
   // strip, attached (STYLE_GUIDE § Color & spacing, sleeve matte).
   'div.binders-index-card-body › div.binders-index-card-name | div.binders-index-card-meta',

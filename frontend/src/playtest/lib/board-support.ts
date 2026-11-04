@@ -20,6 +20,8 @@ export type HandMenuState = {
   cardId: string;
   x: number;
   y: number;
+  /** Set when a click on a tile opened it rather than a pointer: see CtxMenuShell. */
+  origin?: 'bottom-end';
   zone?: 'hand' | 'command';
 } | null;
 

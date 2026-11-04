@@ -118,6 +118,8 @@ interface BoardMainProps
   setViewingBoardSeat: (seat: number | null) => void;
   /** Whether the hand pile's menu is the one open. */
   handMenuOpen: boolean;
+  /** The commander whose own menu is open, if any. */
+  commanderMenuId: string | null;
   setPileMenu: (menu: { zone: Zone; x: number; y: number; origin?: 'bottom-end' } | null) => void;
   setHandMenu: Dispatch<SetStateAction<HandMenuState>>;
   setViewer: (viewer: ViewerMode) => void;
@@ -196,6 +198,7 @@ export function BoardMain({
   viewingBoardSeat,
   setViewingBoardSeat,
   handMenuOpen,
+  commanderMenuId,
   setPileMenu,
   setHandMenu,
   setViewer,
@@ -333,11 +336,14 @@ export function BoardMain({
       taxCards={taxCards}
       isPhone={isPhone}
       handMenuOpen={handMenuOpen}
+      commanderMenuId={commanderMenuId}
       onOpenHandMenu={(x, y) => setPileMenu({ zone: 'hand', x, y, origin: 'bottom-end' })}
       doDraw={doDraw}
       openPileMenu={openPileMenu}
       onViewZone={(zone) => setViewer({ zone })}
-      onCommanderMenu={(cardId, x, y) => setHandMenu({ cardId, x, y, zone: 'command' })}
+      onCommanderMenu={(cardId, x, y, origin) =>
+        setHandMenu({ cardId, x, y, origin, zone: 'command' })
+      }
     />
   );
 
