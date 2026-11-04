@@ -68,6 +68,17 @@ describe('popup placement nightly check', () => {
     const table = overlays.slice(overlays.indexOf("name: 'table after a draw and a play'"));
     expect(table.slice(0, table.indexOf('\n    },'))).toContain('popups: true');
   });
+  it('probes the post-generation build report in place, without closing it', () => {
+    // The sheet opens once, from router state, and holds the deck's ⓘ tips (the
+    // "mana sources" tip among them). The route walk's reload or Escape would
+    // close it for good, so it is probed scoped, with no reload, tips only.
+    const sheet = journey.slice(journey.indexOf("'/decks/{deck} (generated, build report)'"));
+    expect(sheet.slice(0, 200)).toContain(
+      "popups: { within: '.build-report-sheet', reload: false, tooltipsOnly: true }"
+    );
+    expect(walk).toContain('if (reload && checked + exempt + unreachable.length > 0)');
+    expect(walk).toContain("if (!within) await page.keyboard.press('Escape')");
+  });
   it('rotates which triggers past the cap it opens, so none is skipped forever', () => {
     expect(walk).toContain('pickWindow(count, CAP, ROTATION)');
     expect(walk).toContain('Math.floor(Date.now() / 86_400_000)');
