@@ -26,7 +26,7 @@ const workflow = read('.github/workflows/nightly-journey.yml');
 
 describe('popup placement nightly check', () => {
   it('finds every popup primitive by its trigger, and opens each the way a user does', () => {
-    for (const sel of ['.info-tip-btn', '[aria-haspopup', '.toolbar-pill', '.legend-trigger'])
+    for (const sel of ['.info-tip-btn', '[aria-haspopup', '.legend-trigger'])
       expect(walk).toContain(sel);
     expect(walk).toContain('await handle.hover()'); // tooltips: mouse on desktop
     expect(walk).toContain('await handle.focus()'); // tooltips: focus on the phone
@@ -36,6 +36,15 @@ describe('popup placement nightly check', () => {
     expect(walk.indexOf('await handle.hover();\n        await sleep(200);')).toBeGreaterThan(-1);
     expect(walk.indexOf('await sleep(200);')).toBeLessThan(walk.indexOf('const t0 ='));
     expect(walk).toContain("page.keyboard.press('Escape')"); // and closes each one
+  });
+  it('opens only what says it opens a popup, never a plain toolbar button', () => {
+    // `.toolbar-pill` is also every plain toolbar button. The walk clicked
+    // Select on /collection, left the grid in select mode, and every row menu
+    // after it was unreachable (E1109). The pill popovers announce themselves.
+    const trigger = walk.slice(walk.indexOf('const TRIGGER'), walk.indexOf('const PANEL'));
+    expect(trigger).not.toContain('.toolbar-pill');
+    expect(read('frontend/src/components/shared/ToolbarPopover.tsx')).toContain('aria-haspopup=');
+    expect(read('frontend/src/components/shared/Legend.tsx')).toContain('aria-haspopup="dialog"');
   });
   it('exempts sheets and modals by their primitive, never by route', () => {
     expect(walk).toContain('aria-modal');
