@@ -199,9 +199,15 @@ jobs:
       # These two run after a red Chrome walk, so one failure doesn't hide the
       # rest, but not after a failed setup: with no server they only add
       # "Cannot find module" noise under the real error (2026-10-15).
+      #
+      # This step signs up its own account (no --username), and that account
+      # has not confirmed its email. Every new sign-up sees the email banner
+      # above every screen, and journeyadmin, being verified, never does, so
+      # this is the one walk that carries the banner (E1109). /admin is the
+      # one route it gives up, and the Chrome walk above covers it.
       - name: Journey at 200% zoom and large text (Chrome)
         if: ${{ !cancelled() && steps.seed.outcome == 'success' }}
-        run: node scripts/journey.mjs --base http://localhost:3737 --browser chrome --viewports zoom,reflow,text,phone-text --username journeyadmin --out journey-zoom 2>&1 | tee -a journey-output.log
+        run: node scripts/journey.mjs --base http://localhost:3737 --browser chrome --viewports zoom,reflow,text,phone-text --out journey-zoom 2>&1 | tee -a journey-output.log
 
       # Welcome-route lab check (E1094, scripts/journey-lcp.mjs): a signed-out cold
       # visit of / at phone and desktop, LCP over 3 runs (median), the LCP element,
