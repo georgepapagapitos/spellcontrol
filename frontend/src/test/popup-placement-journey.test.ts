@@ -91,6 +91,15 @@ describe('popup placement nightly check', () => {
       /- name: Journey in Chrome \(phone \+ desktop\)\n\s+run: [^\n]*--popups/
     );
   });
+  it('walks one account that has not confirmed its email, so the banner is covered', () => {
+    // journeyadmin is verified, so no walk ever showed the email banner that
+    // sits above every screen for a new sign-up (E1109). The zoom step signs
+    // up its own account instead.
+    const step = workflow.slice(workflow.indexOf('- name: Journey at 200% zoom'));
+    const run = step.slice(step.indexOf('run:'), step.indexOf('\n', step.indexOf('run:')));
+    expect(run).toContain('--viewports zoom,reflow,text,phone-text');
+    expect(run).not.toContain('--username');
+  });
   it('is on the nightly Firefox step too: a placement can differ by engine', () => {
     expect(workflow).toMatch(
       /- name: Journey in Firefox[^\n]*\n(?:\s+if:[^\n]*\n)?\s+run: [^\n]*--popups/
