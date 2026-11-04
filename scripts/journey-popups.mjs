@@ -23,8 +23,13 @@ export const ROTATION = process.env.POPUP_ROTATION
   ? Number(process.env.POPUP_ROTATION)
   : Math.floor(Date.now() / 86_400_000);
 
+// By what the trigger says it opens. Not `.toolbar-pill`: that class is also
+// every plain toolbar button (Select, Done), and clicking Select left the
+// collection grid in select mode, which hid every row's menu from the rest of
+// the walk (E1109). The pill popovers (ToolbarPopover, Legend) carry
+// aria-haspopup, so they are found by it.
 const TRIGGER =
-  '.info-tip-btn, [aria-haspopup]:not([aria-haspopup="false"]), .toolbar-pill, .legend-trigger, .overflow-menu-trigger';
+  '.info-tip-btn, [aria-haspopup]:not([aria-haspopup="false"]), .legend-trigger, .overflow-menu-trigger';
 const PANEL =
   '[role=tooltip], [role=menu], [role=listbox], [role=dialog], .toolbar-popover-panel, .filter-popover-panel, .legend-popover, .overflow-menu-popover, .deck-editor-overflow-panel, .ctx-menu';
 const EXEMPT = '[aria-modal="true"], [class*="sheet"], [class*="modal"], [class*="Sheet"]';
@@ -204,6 +209,8 @@ export async function popupProbe(page, { tierName, label, shot }) {
       const now = await page
         .evaluate(() => location.pathname + location.search)
         .catch(() => startPath);
+      if (process.env.POPUP_DEBUG)
+        console.log(`        [popup-debug] ${t.kind} "${t.label}" -> ${now}`);
       if (now !== startPath) {
         await page.goBack({ waitUntil: 'domcontentloaded' }).catch(() => {});
         await sleep(600);
