@@ -1134,6 +1134,8 @@ async function main() {
             ? await popupProbe(page, {
                 tierName,
                 label,
+                // `popups: { within, reload, tooltipsOnly }` scopes the walk to one surface.
+                ...(typeof probePopups === 'object' ? probePopups : {}),
                 shot: async (name) => {
                   const f = `${slug(label)}__${tierName}__${slug(name)}.png`;
                   await page.screenshot({ path: path.join(OUT, f) }).catch(() => {});
@@ -1390,7 +1392,11 @@ async function main() {
         await clickText(page, /^Generate deck$/, { timeout: 60_000 });
         await page.waitForSelector('.build-report-sheet', { timeout: 240_000 });
         await sleep(SETTLE_MS);
-        const sheetRec = await record('/decks/{deck} (generated, build report)', { popups: false });
+        // The sheet opens once, from router state: its ⓘ tips are probed in
+        // place, without the reload or the Escape the route walk uses.
+        const sheetRec = await record('/decks/{deck} (generated, build report)', {
+          popups: { within: '.build-report-sheet', reload: false, tooltipsOnly: true },
+        });
         await assertPage(sheetRec, 'build report sheet opens after generation', async () => {
           const observed = await page.evaluate(
             () => document.querySelector('.build-report-sheet-heading')?.textContent?.trim() ?? null

@@ -39,12 +39,13 @@ const EXEMPT = '[aria-modal="true"], [class*="sheet"], [class*="modal"], [class*
  * triggers are numbered in DOM order; only the indices in `pick[kind]` are
  * tagged, so the walk opens the window pickWindow chose.
  */
-function collect({ trigger, pick }) {
+function collect({ trigger, pick, within, tooltipsOnly }) {
   const seen = new Set();
   const out = [];
   const perKind = {};
   let n = 0;
-  for (const el of document.querySelectorAll(trigger)) {
+  const root = within ? document.querySelector(within) : document;
+  for (const el of root ? root.querySelectorAll(trigger) : []) {
     el.removeAttribute('data-popup-probe');
     const r = el.getBoundingClientRect();
     const cs = getComputedStyle(el);
@@ -57,6 +58,7 @@ function collect({ trigger, pick }) {
       .trim()
       .replace(/\s+/g, ' ')
       .slice(0, 60);
+    if (tooltipsOnly && kind !== 'tooltip') continue;
     const key = `${kind}|${label}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -108,17 +110,28 @@ function measure({ i, panelSel, exemptSel, before, t0 }) {
 /**
  * @returns {Promise<{findings: string[], checked: number, exempt: number, skipped: string}>}
  */
-export async function popupProbe(page, { tierName, label, shot }) {
+/**
+ * `within` limits the walk to one open surface, for a sheet no route reaches
+ * again once closed (the post-generation build report opens once, from router
+ * state). There, `reload: false` keeps the page as it is, and `tooltipsOnly`
+ * opens only the ⓘ tips: they close on blur and pointer-out, so the walk never
+ * presses Escape, which would close the sheet itself.
+ */
+export async function popupProbe(
+  page,
+  { tierName, label, shot, within = null, reload = true, tooltipsOnly = false }
+) {
+  const scope = { within, tooltipsOnly };
   const startPath = await page.evaluate(() => location.pathname + location.search);
   // Count each kind first, then tag only this run's window of it.
-  const { perKind } = await page.evaluate(collect, { trigger: TRIGGER, pick: null });
+  const { perKind } = await page.evaluate(collect, { trigger: TRIGGER, pick: null, ...scope });
   const pick = {};
   const skipped = {};
   for (const [kind, count] of Object.entries(perKind)) {
     pick[kind] = pickWindow(count, CAP, ROTATION);
     if (count > pick[kind].length) skipped[kind] = count - pick[kind].length;
   }
-  const { triggers } = await page.evaluate(collect, { trigger: TRIGGER, pick });
+  const { triggers } = await page.evaluate(collect, { trigger: TRIGGER, pick, ...scope });
   const findings = [];
   let checked = 0;
   let exempt = 0;
@@ -201,8 +214,9 @@ export async function popupProbe(page, { tierName, label, shot }) {
       // is not a placement finding. Counted and logged so it cannot hide.
       unreachable.push(`${t.kind} "${t.label}": ${String(e).slice(0, 80)}`);
     } finally {
-      // Close: Escape, drop focus and hover; then undo any navigation.
-      await page.keyboard.press('Escape').catch(() => {});
+      // Close: Escape, drop focus and hover; then undo any navigation. Inside a
+      // sheet only tips are opened, and Escape would close the sheet instead.
+      if (!within) await page.keyboard.press('Escape').catch(() => {});
       await page.evaluate(() => document.activeElement?.blur?.()).catch(() => {});
       await page.mouse.move(1, 1).catch(() => {});
       await sleep(60);
@@ -215,7 +229,7 @@ export async function popupProbe(page, { tierName, label, shot }) {
         await page.goBack({ waitUntil: 'domcontentloaded' }).catch(() => {});
         await sleep(600);
         // Re-tag: the page reloaded its DOM.
-        await page.evaluate(collect, { trigger: TRIGGER, pick }).catch(() => {});
+        await page.evaluate(collect, { trigger: TRIGGER, pick, ...scope }).catch(() => {});
       }
     }
   }
@@ -224,7 +238,7 @@ export async function popupProbe(page, { tierName, label, shot }) {
     .join(' ');
   // A popup left a trace (focus, a toggled row, a route change): reload so the
   // steps after this screen's record() start from the page they expect.
-  if (checked + exempt + unreachable.length > 0) {
+  if (reload && checked + exempt + unreachable.length > 0) {
     await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
     await sleep(1500);
   }
