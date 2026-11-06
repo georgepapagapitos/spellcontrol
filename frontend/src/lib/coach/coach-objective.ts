@@ -55,6 +55,7 @@ import { comboEndsGame } from '@/deck-builder/services/winConditions/detect';
 import { deckComboPayoffs } from '@/deck-builder/services/winConditions/comboPayoffs';
 import { coachDeckSettings } from './deck-settings-fit';
 import { createCoachProtections, type CoachProtectionInputs } from './coach-protections';
+import { commanderPreviewNote } from '@/deck-builder/services/deckBuilder/commanderEligibility';
 
 /**
  * Fewest page rows (cards with a play rate) a context is built on. A page the
@@ -222,6 +223,13 @@ export function buildCoachObjective(input: CoachObjectiveInput): CoachObjectiveR
     extraProtections: protection,
     colorIdentity,
     customization,
+    // A deck led by a previewed commander may hold its set's previews; Coach
+    // judges them the way the generator built them.
+    allowPreviewCards: !!commanderPreviewNote(
+      deck.commander,
+      deck.partnerCommander,
+      customization.mtgFormat
+    ),
     edhrec: input.rows,
     roleTargets: targets as Partial<Record<ObjectiveRole, number>>,
     roleOf: countedRoleOf,

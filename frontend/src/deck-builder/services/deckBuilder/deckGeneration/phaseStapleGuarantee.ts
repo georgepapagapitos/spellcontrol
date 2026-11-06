@@ -78,7 +78,11 @@ export async function stapleGuaranteePhase(
     } catch {
       continue; // stapleManaRocksPhase already logged a fetch failure
     }
-    if (notLegalForFormat(card, cfg.mtgFormat) || notOnArena(card, cfg.arenaOnly)) continue;
+    if (
+      notLegalForFormat(card, cfg.mtgFormat, cfg.allowPreviewCards) ||
+      notOnArena(card, cfg.arenaOnly)
+    )
+      continue;
     if (exceedsCmcCap(card, cfg.maxCmc)) continue;
     if (
       !isOwnedRarityExempt(staple.name, context.collectionNames, cfg.ignoreOwnedRarity) &&

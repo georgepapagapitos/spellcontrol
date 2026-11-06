@@ -96,7 +96,7 @@ function rejectionReason(
   bracketGuard?: BracketGuard
 ): FilterReason | undefined {
   if (!fitsColorIdentity(card, state.context.colorIdentity)) return 'offColor';
-  if (notLegalForFormat(card, state.cfg.mtgFormat)) return 'legal';
+  if (notLegalForFormat(card, state.cfg.mtgFormat, state.cfg.allowPreviewCards)) return 'legal';
   if (
     !isOwnedRarityExempt(card.name, state.context.collectionNames, state.cfg.ignoreOwnedRarity) &&
     exceedsMaxRarity(card, state.cfg.maxRarity)

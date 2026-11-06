@@ -83,7 +83,11 @@ export function findPriceCapLeftOut(
     const price = parseFloat(getCardPrice(card, cfg.currency) ?? '');
     if (!Number.isFinite(price) || price <= cap) continue;
     // Raising the cap would not seat a card another setting rules out.
-    if (notLegalForFormat(card, cfg.mtgFormat) || notOnArena(card, cfg.arenaOnly)) continue;
+    if (
+      notLegalForFormat(card, cfg.mtgFormat, cfg.allowPreviewCards) ||
+      notOnArena(card, cfg.arenaOnly)
+    )
+      continue;
     if (exceedsCmcCap(card, cfg.maxCmc)) continue;
     if (
       !isOwnedRarityExempt(name, collection, cfg.ignoreOwnedRarity) &&

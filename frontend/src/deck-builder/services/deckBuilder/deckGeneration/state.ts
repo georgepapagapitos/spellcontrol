@@ -37,6 +37,7 @@ import { parseSetFromQuery } from '@/deck-builder/services/scryfall/client';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { isBasicLandName } from '@/lib/collection/allocations';
 import type { BasicPrintingAvail } from '@/lib/collection/collection-availability';
+import { commanderPreviewNote } from '../commanderEligibility';
 
 export interface GenerationContext {
   commander: ScryfallCard;
@@ -81,6 +82,9 @@ export interface GenerationConfig {
   /** MTG format ('commander' default). 'paupercommander' gates every pick on
    *  PDH legality and routes pool sourcing to the Scryfall alt-pool builder. */
   mtgFormat: NonNullable<Customization['mtgFormat']>;
+  /** The commander (or partner) is a preview, so the set's other previewed
+   *  cards may join the deck (notLegalForFormat's `allowPreview`). */
+  allowPreviewCards: boolean;
   maxCardPrice: number | null;
   budgetOption: BudgetOption | undefined;
   targetBracket: TargetBracket | undefined;
@@ -218,6 +222,11 @@ export function createState(context: GenerationContext): GenerationState {
   const cfg: GenerationConfig = {
     format: customization.deckFormat,
     mtgFormat: customization.mtgFormat ?? 'commander',
+    allowPreviewCards: !!commanderPreviewNote(
+      context.commander,
+      context.partnerCommander,
+      customization.mtgFormat
+    ),
     maxCardPrice: customization.maxCardPrice ?? null,
     budgetOption: customization.budgetOption !== 'any' ? customization.budgetOption : undefined,
     targetBracket: customization.targetBracket !== 'all' ? customization.targetBracket : undefined,

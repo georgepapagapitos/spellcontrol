@@ -42,6 +42,7 @@ import {
 import { bracketCeilings } from './bracketGuard';
 import { copyLimit, normalizeCardName } from './cardIdentity';
 import { measureThemeFidelity, themeDilution, type ThemePage } from './themeFidelity';
+import { isPreviewOnlyIllegal } from '@/lib/deck/card-release';
 
 // The name helpers live in a leaf (cardIdentity.ts) the objective can import
 // without this file's other dependencies.
@@ -452,9 +453,17 @@ export function checkDeckInvariants(
   // 5. legality by format. A forced user pick is honored, but only when the
   // deck says so; otherwise it is a silent illegal card like any other.
   const legalityKey = LEGALITY_KEY[cz.mtgFormat ?? 'commander'] ?? 'commander';
+  // A previewed commander's deck may hold its set's previews (allowPreviewCards):
+  // SOFT, since the deck's own preview note says the set isn't out yet.
+  const previewCommander =
+    !!commander && !!commanderPreviewNote(commander, partner, cz.mtgFormat, ctx.now);
   for (const card of cards) {
     const status = card.legalities?.[legalityKey];
     if (status === 'legal') continue;
+    if (previewCommander && isPreviewOnlyIllegal(card, legalityKey, ctx.now)) {
+      add('SOFT', 'legality', `${card.name} is a preview beside a previewed commander`);
+      continue;
+    }
     if (status === undefined) {
       add('SOFT', 'legality', `${card.name} has no ${legalityKey} legality on record`);
       continue;

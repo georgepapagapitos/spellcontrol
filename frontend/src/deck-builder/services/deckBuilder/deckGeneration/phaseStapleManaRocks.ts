@@ -69,7 +69,7 @@ export async function stapleManaRocksPhase(
         // Format-keyed legality (PDH: Sol Ring has no common printing
         // (not_legal); Arcane Signet's CLB common downshift keeps it legal —
         // the gate decides, not a list. Also covers brawl/other formats.).
-        if (notLegalForFormat(card, state.cfg.mtgFormat)) continue;
+        if (notLegalForFormat(card, state.cfg.mtgFormat, state.cfg.allowPreviewCards)) continue;
         const ownedExempt = isOwnedBudgetExempt(
           staple.name,
           state.context.collectionNames,
