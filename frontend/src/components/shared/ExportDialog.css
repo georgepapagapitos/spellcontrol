@@ -82,10 +82,12 @@
 }
 
 .export-dialog-preview {
-  flex: 1;
   /* Comfortable default that scales with viewport — short decks still fit
-     compactly, long decks show ~25 lines of context without scrolling. */
-  min-height: min(55dvh, 540px);
+     compactly, long decks show ~25 lines of context without scrolling. A
+     basis, not a min-height: with the MPC order panel above it the dialog
+     outgrows a phone, and the preview is what gives the room back. */
+  flex: 1 1 min(55dvh, 540px);
+  min-height: 8rem;
   resize: none;
   width: 100%;
   font-family: var(--font-mono);
@@ -115,5 +117,72 @@
 
   .export-dialog-meta {
     margin-left: auto;
+  }
+}
+
+/* MPC Autofill order file: hint and status on the left, the action on the
+   right; stacks under 600px like the controls row above. */
+.export-dialog-mpc {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  flex: 0 0 auto;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.export-dialog-mpc-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.export-dialog-mpc-text > * + * {
+  margin-top: var(--space-1);
+}
+
+.export-dialog-mpc-title {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.export-dialog-mpc-status,
+.export-dialog-mpc-error {
+  margin: 0;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.export-dialog-mpc-status {
+  color: var(--text-secondary);
+}
+
+.export-dialog-mpc-status:empty {
+  display: none;
+}
+
+.export-dialog-mpc-error {
+  color: var(--err-text);
+}
+
+.export-dialog-mpc .btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+}
+
+@media (pointer: coarse) {
+  .export-dialog-mpc .btn {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 599px) {
+  .export-dialog-mpc {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
