@@ -83,6 +83,7 @@ import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { SuggestionsHandoff, suggestionPreviewEntries } from './suggestions-results-parts';
 import type { CardPreviewAction } from '@/components/card/CardPreview';
 import { InDeckCount, NotLegalBadge, OffColorBadge } from './row-badges';
+import { readsFormatLegal } from '@/lib/deck/card-release';
 import { jumpTarget } from '@/lib/search/use-results-keys';
 import { useAddResultsAnnouncer, type PublishVisible } from './use-add-results-announcer';
 
@@ -93,12 +94,6 @@ import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { Surface } from '@/components/shared/Surface';
 import '../../styles/deck-builder-card-search.css';
-/** Legal in the deck's format (`legalityKey`), or no legality data to say otherwise. */
-function isFormatLegal(c: EnrichedCard, legalityKey: string): boolean {
-  const legality = c.legalities?.[legalityKey];
-  return !legality || legality === 'legal' || legality === 'restricted';
-}
-
 /**
  * Can this owned card go in the mainboard of a commander deck? The two rules
  * the mainboard enforces and the out-of-deck zones don't: the commander's
@@ -113,7 +108,7 @@ function isMainboardLegal(
   legalityKey: string
 ): boolean {
   if (commanderCI && !(c.colorIdentity ?? []).every((k) => commanderCI.includes(k))) return false;
-  return isFormatLegal(c, legalityKey);
+  return readsFormatLegal({ legalities: c.legalities, released_at: c.releasedAt }, legalityKey);
 }
 
 function isOffColor(cardCI: string[] | undefined, commanderCI: string[]): boolean {
@@ -1332,7 +1327,9 @@ function CollectionResults({
           // Only ever true in the badge state: the filter state removed these
           // rows upstream, and 'off' has no commander to measure against.
           const offColor = commanderRules !== 'off' && isOffColor(c.colorIdentity, colorIdentity);
-          const notLegal = commanderRules !== 'off' && !isFormatLegal(c, legalityKey);
+          const notLegal =
+            commanderRules !== 'off' &&
+            !readsFormatLegal({ legalities: c.legalities, released_at: c.releasedAt }, legalityKey);
           const flagNote = offColor ? ' (off-color)' : notLegal ? ' (not legal)' : '';
           return (
             <SearchResultRow
