@@ -537,7 +537,9 @@ function ScanRow({
         aria-label={`Edit ${entry.qty} ${card.name}, ${card.set_name}`}
       >
         {body}
-        <Pencil className="scan-row-pencil" width={18} height={18} strokeWidth={2} aria-hidden />
+        <span className="scan-row-pencil" aria-hidden>
+          <Pencil width={18} height={18} strokeWidth={2} />
+        </span>
       </button>
       <IconButton
         className="scan-row-remove"
