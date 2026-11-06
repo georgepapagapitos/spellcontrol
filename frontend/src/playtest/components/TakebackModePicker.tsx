@@ -1,7 +1,7 @@
+import { useRef } from 'react';
 import { Check } from 'lucide-react';
 import './TakebackModePicker.css';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { Sheet, type SheetHandle } from '@/components/overlays/Sheet';
 import { TAKEBACK_MODES, TAKEBACK_MODE_DESCRIPTION, TAKEBACK_MODE_LABEL } from '../lib/takeback';
 import type { TakebackMode } from '../lib/takeback';
 import { Button } from '@/components/shared/Button';
@@ -26,12 +26,10 @@ interface Props {
  * even consulted — there is no mode value that could reach it.
  */
 export function TakebackModePicker({ mode, onSelect, onClose, online }: Props) {
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  useLockBodyScroll();
-
+  const sheetRef = useRef<SheetHandle>(null);
   function select(next: TakebackMode) {
     onSelect(next);
-    beginClose();
+    sheetRef.current?.close();
   }
 
   function description(m: TakebackMode): string {
@@ -42,63 +40,55 @@ export function TakebackModePicker({ mode, onSelect, onClose, online }: Props) {
   }
 
   return (
-    <div className="card-picker-root">
-      {/* The backdrop fully covers the root (both `inset: 0`), so it — not
-          root — is what a "click outside the sheet" actually lands on. */}
-      <div className="card-picker-backdrop" role="presentation" onClick={() => beginClose()} />
-      <div
-        className={`card-picker-sheet playtest-takeback-picker${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Your takeback rule"
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <h2 className="card-picker-title">Your takeback rule</h2>
-          <p className="playtest-takeback-picker__intro">
-            Steps nobody else saw always take back free. This rule covers the rest, and each player
-            sets their own.
-          </p>
-        </div>
-        <fieldset className="playtest-takeback-picker__list" aria-label="Your takeback rule">
-          {TAKEBACK_MODES.map((m) => {
-            const active = m === mode;
-            return (
-              <label
-                key={m}
-                className={`playtest-takeback-picker__row${active ? ' is-active' : ''}`}
-              >
-                <input
-                  className="overlay-input"
-                  type="radio"
-                  name="takeback-mode"
-                  checked={active}
-                  onChange={() => select(m)}
-                />
-                <span className="playtest-takeback-picker__row-text">
-                  <span className="playtest-takeback-picker__row-label">
-                    {TAKEBACK_MODE_LABEL[m]}
-                  </span>
-                  <span className="playtest-takeback-picker__row-desc">{description(m)}</span>
+    <Sheet
+      ref={sheetRef}
+      inPlace
+      onClose={onClose}
+      className="playtest-takeback-picker"
+      title="Your takeback rule"
+      description={
+        <>
+          Steps nobody else saw always take back free. This rule covers the rest, and each player
+          sets their own.
+        </>
+      }
+      footer={(close) => (
+        <>
+          <Button onClick={() => close()}>Close</Button>
+        </>
+      )}
+    >
+      <fieldset className="playtest-takeback-picker__list" aria-label="Your takeback rule">
+        {TAKEBACK_MODES.map((m) => {
+          const active = m === mode;
+          return (
+            <label key={m} className={`playtest-takeback-picker__row${active ? ' is-active' : ''}`}>
+              <input
+                className="overlay-input"
+                type="radio"
+                name="takeback-mode"
+                checked={active}
+                onChange={() => select(m)}
+              />
+              <span className="playtest-takeback-picker__row-text">
+                <span className="playtest-takeback-picker__row-label">
+                  {TAKEBACK_MODE_LABEL[m]}
                 </span>
-                {active && (
-                  <Check
-                    className="playtest-takeback-picker__row-check"
-                    aria-hidden
-                    width={18}
-                    height={18}
-                    strokeWidth={2}
-                  />
-                )}
-              </label>
-            );
-          })}
-        </fieldset>
-        <div className="card-picker-footer">
-          <Button onClick={() => beginClose()}>Close</Button>
-        </div>
-      </div>
-    </div>
+                <span className="playtest-takeback-picker__row-desc">{description(m)}</span>
+              </span>
+              {active && (
+                <Check
+                  className="playtest-takeback-picker__row-check"
+                  aria-hidden
+                  width={18}
+                  height={18}
+                  strokeWidth={2}
+                />
+              )}
+            </label>
+          );
+        })}
+      </fieldset>
+    </Sheet>
   );
 }

@@ -1,9 +1,7 @@
-import { createPortal } from 'react-dom';
 import './DeckSizePrompt.css';
 import { type JSX, type ReactNode, useMemo, useState } from 'react';
 import { ArrowLeftRight, Plus } from 'lucide-react';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { Sheet } from '@/components/overlays/Sheet';
 import { useOwnedCardThumb } from '@/lib/cards/owned-printing';
 import { WhyBreakdown } from './WhyBreakdown';
 import type { WhyFactor } from '@/lib/coach/why-factors';
@@ -146,7 +144,6 @@ export function DeckSizePrompt({
   onClose,
 }: DeckSizePromptProps): JSX.Element {
   const [showAll, setShowAll] = useState(false);
-  useLockBodyScroll();
 
   // Tap any card's art to open the preview carousel over what's on screen —
   // the subject (incoming/cut card) leads, then the visible candidates, so
@@ -198,39 +195,16 @@ export function DeckSizePrompt({
     ];
   });
 
-  // Below 1024px this is a bottom sheet with a slide-up entry, so the
-  // dismiss paths the prompt owns (backdrop, Escape) play the symmetric
-  // `binder-sheet-slide-out` before unmount. On desktop it's a centered
-  // panel with `animation: none` — exits stay instant there. Footer and
-  // option actions are parent-owned callbacks (they act, then the parent
-  // unmounts the prompt), so they aren't routed through the hook.
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
-    onClose,
-    'binder-sheet-slide-out',
-    { instantAt: '(min-width: 1024px)' }
-  );
-
-  return createPortal(
-    <div
-      className="card-picker-root"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (e.target === e.currentTarget) beginClose();
-      }}
-      role="presentation"
-    >
-      <div
-        className={`card-picker-sheet deck-size-prompt${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <p className="deck-size-prompt-title">{title}</p>
-          <p className="deck-size-prompt-subtitle">{subtitle}</p>
-          {subject && (
+  return (
+    <>
+      <Sheet
+        onClose={onClose}
+        className="deck-size-prompt"
+        footerClassName="deck-size-prompt-footer"
+        title={title}
+        description={subtitle}
+        toolbar={
+          subject && (
             <button
               type="button"
               className="deck-size-prompt-subject"
@@ -244,9 +218,23 @@ export function DeckSizePrompt({
                 <span className="deck-size-prompt-hint">{subject.label}</span>
               </span>
             </button>
-          )}
-        </div>
-
+          )
+        }
+        footer={
+          <>
+            {footer.map((f) => (
+              <Button
+                key={f.label}
+                variant={f.primary ? 'primary' : 'secondary'}
+                onClick={f.onClick}
+                disabled={busy}
+              >
+                {f.label}
+              </Button>
+            ))}
+          </>
+        }
+      >
         {/* ONE scroll region for everything between header and footer — the AI
             verdict, the ranked candidates, and the expanded "pick another"
             list flow and scroll together. The previous shape (three sibling
@@ -299,25 +287,10 @@ export function DeckSizePrompt({
             </div>
           )}
         </div>
-
-        <div className="card-picker-footer deck-size-prompt-footer">
-          {footer.map((f) => (
-            <Button
-              key={f.label}
-              variant={f.primary ? 'primary' : 'secondary'}
-              onClick={f.onClick}
-              disabled={busy}
-            >
-              {f.label}
-            </Button>
-          ))}
-        </div>
-        {/* The preview portals to <body>, but it must be MOUNTED here — the
-            open() calls above were firing into an unrendered element, which is
-            exactly the bug this line retires. */}
-        {carousel.preview}
-      </div>
-    </div>,
-    document.body
+      </Sheet>
+      {/* The preview portals to <body>, but it must be MOUNTED — the open()
+          calls above once fired into an unrendered element. */}
+      {carousel.preview}
+    </>
   );
 }

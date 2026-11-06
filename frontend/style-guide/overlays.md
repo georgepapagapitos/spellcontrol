@@ -17,6 +17,21 @@ where every section lives.
   shared **card-picker** pattern: `.card-picker-root` + `.card-picker-sheet` —
   a **bottom sheet on mobile, centered modal ≥1024px**. Dismiss via backdrop
   tap, a close button, and `Esc`.
+- **Build a sheet on `<Sheet>` (`components/overlays/Sheet.tsx`), never by
+  typing the `.card-picker-*` markup out.** It owns the portal, scrim, drag
+  handle, focus trap, Escape and Back, the exit animation and the header. Its
+  slots are the only header shapes: `eyebrow` (a small label over a title
+  that is a name), `title`, `description` (one line under it), `toolbar`
+  (a search field or control row, inside the header's inset and above its
+  divider) and `closeButton` (an X when there is no footer to dismiss from).
+  `footer` takes the actions. `dismissable={false}` is for a sheet that must
+  be answered: no backdrop or Escape dismiss, and no handle. `inPlace` is for
+  the play table and playtest board only. Before this, 30-odd sheets each
+  composed the shell by hand and drifted: five title styles, two sheets with
+  no exit animation, and the binder "Add card" sheet's search field running
+  edge to edge with the header's divider through it.
+  `src/test/sheet-shell.test.ts` holds new sheets to it, and its allowlist of
+  the few that don't fit yet only shrinks.
 - **A sheet's middle is ONE scroll region — header and footer are chrome.**
   When a card-picker sheet stacks several content blocks between its header
   and footer (an AI slot, a ranked list, a reveal-more section), they live in

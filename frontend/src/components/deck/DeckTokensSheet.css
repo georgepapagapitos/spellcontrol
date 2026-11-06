@@ -17,35 +17,6 @@
   }
 }
 
-/* The shared sheet has no horizontal padding; pad the content instead so the
-   base's safe-area `padding-bottom` is preserved. */
-.deck-tokens-sheet-head {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-1) var(--space-4) 0;
-}
-
-.deck-tokens-sheet-title {
-  margin: 0;
-  font-size: var(--text-lg);
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.deck-tokens-sheet-sub {
-  margin: 0;
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-}
-
-/* Look comes from .icon-btn now; this class only nudges it against the
-   header's edge. */
-.deck-tokens-sheet-close {
-  flex: 0 0 auto;
-  margin: -0.15rem -0.4rem 0 0;
-}
-
 .deck-tokens-sheet-body {
   display: flex;
   flex-direction: column;

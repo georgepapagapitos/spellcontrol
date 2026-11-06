@@ -1,9 +1,7 @@
-import { createPortal } from 'react-dom';
 import { AlertTriangle, Check } from 'lucide-react';
+import { Sheet } from '@/components/overlays/Sheet';
 import './CardFitPanel.css';
 import { type JSX } from 'react';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useEscapeKey } from '@/lib/overlays/use-escape-key';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { AddFitReport } from '@/lib/coach/card-fit';
 import type { RankedCut } from '@/lib/coach/intelligent-cuts';
@@ -95,9 +93,6 @@ export function CardFitPanel({
   onClose,
   pinnedCutName,
 }: CardFitPanelProps): JSX.Element {
-  useLockBodyScroll();
-  useEscapeKey(onClose);
-
   const verdict = engineVerdict(report);
   const { curve, role, color } = report;
   const busy = !!busySlotId;
@@ -115,116 +110,103 @@ export function CardFitPanel({
       ]
     : report.rankedCuts;
 
-  return createPortal(
-    <div
-      className="card-picker-root"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (e.target === e.currentTarget) onClose();
-      }}
-      role="presentation"
-    >
-      <div
-        className="card-picker-sheet card-fit-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Will ${addCard.name} fit?`}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <p className="card-fit-title">{addCard.name}</p>
-          <p className="card-fit-subtitle">Will it fit?</p>
-        </div>
-
-        <ul className="card-fit-signals" role="list">
-          <li className={`card-fit-signal is-${verdict.tone}`}>
-            <span className="card-fit-signal-label">Engine</span>
-            <span className="card-fit-signal-value">
-              {verdict.tone === 'good' && (
-                <Check
-                  className="card-fit-signal-mark"
-                  width={14}
-                  height={14}
-                  strokeWidth={1.8}
-                  aria-hidden
-                />
-              )}
-              {verdict.tone === 'mixed' && (
-                <AlertTriangle
-                  className="card-fit-signal-mark"
-                  width={14}
-                  height={14}
-                  strokeWidth={1.8}
-                  aria-hidden
-                />
-              )}
-              {verdict.text}
-            </span>
-          </li>
-          <li className="card-fit-signal">
-            <span className="card-fit-signal-label">Curve</span>
-            <span className="card-fit-signal-value">
-              Mana value {curve.cmc},{' '}
-              {curve.nonlandAtCmc === 0
-                ? 'no other nonland cards here'
-                : `${curve.nonlandAtCmc} other ${curve.nonlandAtCmc === 1 ? 'card' : 'cards'} at this mana value`}
-            </span>
-          </li>
-          {role.label && (
-            <li className="card-fit-signal">
-              <span className="card-fit-signal-label">Role</span>
-              <span className="card-fit-signal-value">
-                {role.label},{' '}
-                {role.countInDeck === 0
-                  ? 'new role for this deck'
-                  : `${role.countInDeck} already in the deck`}
-              </span>
-            </li>
-          )}
-          {(!color.withinIdentity || color.colorless) && (
-            <li className={`card-fit-signal${!color.withinIdentity ? ' is-mixed' : ''}`}>
-              <span className="card-fit-signal-label">Color</span>
-              <span className="card-fit-signal-value">
-                {!color.withinIdentity
-                  ? "Outside your commander's color identity"
-                  : 'Colorless, slots into any deck'}
-              </span>
-            </li>
-          )}
-        </ul>
-
-        <div className="card-fit-cuts">
-          <p className="card-fit-cuts-head">
-            {rankedCuts.length > 0
-              ? 'Make room: cut a related card.'
-              : 'No related cut found. Add it and trim later.'}
-          </p>
-          {rankedCuts.length > 0 && (
-            <ul className="card-fit-cuts-list" role="list">
-              {rankedCuts.map((cut) => (
-                <DeckCardRow
-                  key={cut.slotId}
-                  change={cutToChange(cut)}
-                  commanderName={commanderName}
-                  onAct={() => onSwapCut(cut)}
-                  actLabel="Replace"
-                  acting={busySlotId === cut.slotId}
-                />
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div className="card-picker-footer card-fit-footer">
+  return (
+    <Sheet
+      onClose={onClose}
+      className="card-fit-panel"
+      footerClassName="card-fit-footer"
+      label={`Will ${addCard.name} fit?`}
+      title={addCard.name}
+      description="Will it fit?"
+      footer={(close) => (
+        <>
           <Button variant="primary" onClick={onAddAnyway} disabled={busy}>
             Add without cutting
           </Button>
-          <Button onClick={onClose} disabled={busy}>
+          <Button onClick={() => close()} disabled={busy}>
             Close
           </Button>
-        </div>
+        </>
+      )}
+    >
+      <ul className="card-fit-signals" role="list">
+        <li className={`card-fit-signal is-${verdict.tone}`}>
+          <span className="card-fit-signal-label">Engine</span>
+          <span className="card-fit-signal-value">
+            {verdict.tone === 'good' && (
+              <Check
+                className="card-fit-signal-mark"
+                width={14}
+                height={14}
+                strokeWidth={1.8}
+                aria-hidden
+              />
+            )}
+            {verdict.tone === 'mixed' && (
+              <AlertTriangle
+                className="card-fit-signal-mark"
+                width={14}
+                height={14}
+                strokeWidth={1.8}
+                aria-hidden
+              />
+            )}
+            {verdict.text}
+          </span>
+        </li>
+        <li className="card-fit-signal">
+          <span className="card-fit-signal-label">Curve</span>
+          <span className="card-fit-signal-value">
+            Mana value {curve.cmc},{' '}
+            {curve.nonlandAtCmc === 0
+              ? 'no other nonland cards here'
+              : `${curve.nonlandAtCmc} other ${curve.nonlandAtCmc === 1 ? 'card' : 'cards'} at this mana value`}
+          </span>
+        </li>
+        {role.label && (
+          <li className="card-fit-signal">
+            <span className="card-fit-signal-label">Role</span>
+            <span className="card-fit-signal-value">
+              {role.label},{' '}
+              {role.countInDeck === 0
+                ? 'new role for this deck'
+                : `${role.countInDeck} already in the deck`}
+            </span>
+          </li>
+        )}
+        {(!color.withinIdentity || color.colorless) && (
+          <li className={`card-fit-signal${!color.withinIdentity ? ' is-mixed' : ''}`}>
+            <span className="card-fit-signal-label">Color</span>
+            <span className="card-fit-signal-value">
+              {!color.withinIdentity
+                ? "Outside your commander's color identity"
+                : 'Colorless, slots into any deck'}
+            </span>
+          </li>
+        )}
+      </ul>
+
+      <div className="card-fit-cuts">
+        <p className="card-fit-cuts-head">
+          {rankedCuts.length > 0
+            ? 'Make room: cut a related card.'
+            : 'No related cut found. Add it and trim later.'}
+        </p>
+        {rankedCuts.length > 0 && (
+          <ul className="card-fit-cuts-list" role="list">
+            {rankedCuts.map((cut) => (
+              <DeckCardRow
+                key={cut.slotId}
+                change={cutToChange(cut)}
+                commanderName={commanderName}
+                onAct={() => onSwapCut(cut)}
+                actLabel="Replace"
+                acting={busySlotId === cut.slotId}
+              />
+            ))}
+          </ul>
+        )}
       </div>
-    </div>,
-    document.body
+    </Sheet>
   );
 }

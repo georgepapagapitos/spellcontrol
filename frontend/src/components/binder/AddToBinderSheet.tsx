@@ -1,9 +1,7 @@
-import { createPortal } from 'react-dom';
 import { Check } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useCollectionStore } from '@/store/collection';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { Sheet, type SheetHandle } from '@/components/overlays/Sheet';
 import { useAllocations } from '@/lib/collection/allocations';
 import {
   compileFilterGroups,
@@ -32,25 +30,14 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
   const isAllocated = allocations.has(card.copyId);
   const allocatedKind = allocations.get(card.copyId)?.ownerKind;
 
-  useLockBodyScroll();
-
-  // Below 1024px this is a bottom sheet with a slide-up entry, so every
-  // dismiss path (backdrop, Escape, Cancel, the post-pick auto-close) plays
-  // the symmetric `binder-sheet-slide-out` before unmount. On desktop it's
-  // a centered panel with `animation: none` — exits stay instant there,
-  // symmetric with its entry.
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
-    onClose,
-    'binder-sheet-slide-out',
-    { instantAt: '(min-width: 1024px)' }
-  );
+  const sheetRef = useRef<SheetHandle>(null);
 
   // Auto-close after showing confirmation feedback.
   useEffect(() => {
     if (!addedTo) return;
-    const t = setTimeout(beginClose, 900);
+    const t = setTimeout(() => sheetRef.current?.close(), 900);
     return () => clearTimeout(t);
-  }, [addedTo, beginClose]);
+  }, [addedTo]);
 
   const sorted = [...binders].sort((a, b) => a.position - b.position);
 
@@ -83,109 +70,90 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
   const headerLabel = currentBinderId ? 'Moving' : 'Adding';
   const dialogLabel = currentBinderId ? 'Move to binder' : 'Add to binder';
 
-  return createPortal(
-    <div
-      className="card-picker-root"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (e.target === e.currentTarget) beginClose();
-      }}
-      role="presentation"
+  return (
+    <Sheet
+      ref={sheetRef}
+      onClose={onClose}
+      label={dialogLabel}
+      eyebrow={headerLabel}
+      title={
+        <>
+          {card.name}
+          {card.foil ? <FoilBadge card={card} /> : null}
+        </>
+      }
+      footer={(close) => <Button onClick={() => close()}>Cancel</Button>}
     >
-      <div
-        className={`card-picker-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label={dialogLabel}
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <p className="add-to-binder-label">{headerLabel}</p>
-          <p className="add-to-binder-card-name">
-            {card.name}
-            {card.foil ? <FoilBadge card={card} /> : null}
-          </p>
+      {sorted.length === 0 ? (
+        <div className="card-picker-empty" style={{ padding: 'var(--space-6) var(--space-4)' }}>
+          No binders yet. Create a binder first.
         </div>
-
-        {sorted.length === 0 ? (
-          <div className="card-picker-empty" style={{ padding: 'var(--space-6) var(--space-4)' }}>
-            No binders yet. Create a binder first.
-          </div>
-        ) : (
-          <ul className="card-picker-list" role="list">
-            {sorted.map((binder) => {
-              const isAdded = addedTo === binder.id;
-              const isCurrent = binder.id === currentBinderId;
-              const matches = cardMatchesBinder(binder.id);
-              const isManual = binder.mode === 'manual';
-              return (
-                <li key={binder.id} className="add-to-binder-row">
-                  <span
-                    className="add-to-binder-swatch"
-                    style={{ background: binder.color ?? 'var(--accent)' }}
-                    aria-hidden
-                  />
-                  <span className="add-to-binder-name">
-                    {binder.name}
-                    {isManual && <span className="add-to-binder-mode-hint">Manual</span>}
+      ) : (
+        <ul className="card-picker-list" role="list">
+          {sorted.map((binder) => {
+            const isAdded = addedTo === binder.id;
+            const isCurrent = binder.id === currentBinderId;
+            const matches = cardMatchesBinder(binder.id);
+            const isManual = binder.mode === 'manual';
+            return (
+              <li key={binder.id} className="add-to-binder-row">
+                <span
+                  className="add-to-binder-swatch"
+                  style={{ background: binder.color ?? 'var(--accent)' }}
+                  aria-hidden
+                />
+                <span className="add-to-binder-name">
+                  {binder.name}
+                  {isManual && <span className="add-to-binder-mode-hint">Manual</span>}
+                </span>
+                {!matches && !isCurrent && !isAdded && (
+                  <span className="add-to-binder-mismatch">Doesn't match rules</span>
+                )}
+                {isAllocated && binder.hideDeckAllocated === false && !isCurrent && !isAdded && (
+                  <span className="add-to-binder-mismatch">
+                    {allocatedKind === 'cube' ? 'Hidden while in a cube' : 'Hidden while in a deck'}
                   </span>
-                  {!matches && !isCurrent && !isAdded && (
-                    <span className="add-to-binder-mismatch">Doesn't match rules</span>
-                  )}
-                  {isAllocated && binder.hideDeckAllocated === false && !isCurrent && !isAdded && (
-                    <span className="add-to-binder-mismatch">
-                      {allocatedKind === 'cube'
-                        ? 'Hidden while in a cube'
-                        : 'Hidden while in a deck'}
-                    </span>
-                  )}
-                  {isAdded ? (
-                    <span className="add-to-binder-added" aria-live="polite">
-                      <Check
-                        width={12}
-                        height={12}
-                        strokeWidth={2}
-                        aria-hidden
-                        style={{
-                          display: 'inline',
-                          verticalAlign: 'middle',
-                          marginRight: '0.2rem',
-                        }}
-                      />{' '}
-                      {currentBinderId ? 'Moved' : 'Added'}
-                    </span>
-                  ) : isCurrent ? (
-                    <span
-                      className="add-to-binder-current"
-                      aria-label="Already in this binder"
-                      role="img"
-                    >
-                      Already here
-                    </span>
-                  ) : (
-                    <Button
-                      onClick={() => handlePick(binder.id)}
-                      aria-label={`${
-                        currentBinderId ? 'Move' : 'Add'
-                      } ${card.name} to ${binder.name}`}
-                      disabled={!!addedTo}
-                      className="add-to-binder-btn"
-                    >
-                      {currentBinderId ? 'Move' : 'Add'}
-                    </Button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-
-        <div className="card-picker-footer">
-          <Button onClick={() => beginClose()}>Cancel</Button>
-        </div>
-      </div>
-    </div>,
-    document.body
+                )}
+                {isAdded ? (
+                  <span className="add-to-binder-added" aria-live="polite">
+                    <Check
+                      width={12}
+                      height={12}
+                      strokeWidth={2}
+                      aria-hidden
+                      style={{
+                        display: 'inline',
+                        verticalAlign: 'middle',
+                        marginRight: '0.2rem',
+                      }}
+                    />{' '}
+                    {currentBinderId ? 'Moved' : 'Added'}
+                  </span>
+                ) : isCurrent ? (
+                  <span
+                    className="add-to-binder-current"
+                    aria-label="Already in this binder"
+                    role="img"
+                  >
+                    Already here
+                  </span>
+                ) : (
+                  <Button
+                    onClick={() => handlePick(binder.id)}
+                    aria-label={`${
+                      currentBinderId ? 'Move' : 'Add'
+                    } ${card.name} to ${binder.name}`}
+                    disabled={!!addedTo}
+                    className="add-to-binder-btn"
+                  >
+                    {currentBinderId ? 'Move' : 'Add'}
+                  </Button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Sheet>
   );
 }

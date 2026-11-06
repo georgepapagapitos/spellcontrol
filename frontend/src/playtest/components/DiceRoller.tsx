@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import './DiceRoller.css';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { Sheet } from '@/components/overlays/Sheet';
 import { useOnlineSignals } from '../hooks/use-online-signals';
 import { Button } from '@/components/shared/Button';
 
@@ -26,8 +25,6 @@ const MAX_HISTORY = 5;
 const PENDING_TIMEOUT_MS = 6000;
 
 export function DiceRoller({ onClose }: Props) {
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  useLockBodyScroll();
   const [history, setHistory] = useState<Roll[]>([]);
   const nextId = useRef(0);
   const linked = useOnlineSignals();
@@ -86,80 +83,73 @@ export function DiceRoller({ onClose }: Props) {
   const latest = history[0];
 
   return (
-    <div className="card-picker-root">
-      {/* The backdrop fully covers the root (both `inset: 0`), so it — not
-          root — is what a "click outside the sheet" actually lands on. */}
-      <div className="card-picker-backdrop" role="presentation" onClick={() => beginClose()} />
-      <div
-        className={`card-picker-sheet playtest-dice-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Roll dice"
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <h2 className="card-picker-title">Roll</h2>
-        </div>
-        <div className="playtest-dice-grid">
+    <Sheet
+      inPlace
+      onClose={onClose}
+      className="playtest-dice-sheet"
+      label="Roll dice"
+      title="Roll"
+      footer={(close) => (
+        <>
+          <Button onClick={() => close()}>Close</Button>
+        </>
+      )}
+    >
+      <div className="playtest-dice-grid">
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            linked ? sendRoll('coin') : roll('Coin', Math.random() < 0.5 ? 'Heads' : 'Tails')
+          }
+        >
+          Coin flip
+        </button>
+        {DICE.map((sides) => {
+          const die = `d${sides}`;
+          const broadcasts = Boolean(linked) && BROADCAST_DICE.has(die as 'd6' | 'd20');
+          return (
+            <button
+              key={sides}
+              type="button"
+              disabled={broadcasts ? pending : false}
+              onClick={() =>
+                broadcasts
+                  ? sendRoll(die as 'd6' | 'd20')
+                  : roll(die, String(Math.floor(Math.random() * sides) + 1))
+              }
+            >
+              {die}
+            </button>
+          );
+        })}
+        {linked && (
           <button
             type="button"
+            className="playtest-dice-first"
             disabled={pending}
-            onClick={() =>
-              linked ? sendRoll('coin') : roll('Coin', Math.random() < 0.5 ? 'Heads' : 'Tails')
-            }
+            onClick={() => sendRoll('first')}
           >
-            Coin flip
+            Who goes first?
           </button>
-          {DICE.map((sides) => {
-            const die = `d${sides}`;
-            const broadcasts = Boolean(linked) && BROADCAST_DICE.has(die as 'd6' | 'd20');
-            return (
-              <button
-                key={sides}
-                type="button"
-                disabled={broadcasts ? pending : false}
-                onClick={() =>
-                  broadcasts
-                    ? sendRoll(die as 'd6' | 'd20')
-                    : roll(die, String(Math.floor(Math.random() * sides) + 1))
-                }
-              >
-                {die}
-              </button>
-            );
-          })}
-          {linked && (
-            <button
-              type="button"
-              className="playtest-dice-first"
-              disabled={pending}
-              onClick={() => sendRoll('first')}
-            >
-              Who goes first?
-            </button>
-          )}
-        </div>
-        <div className="playtest-dice-result" role="status">
-          {pending
-            ? 'Rolling…'
-            : latest
-              ? `${latest.label}: ${latest.result}`
-              : 'Tap a die or the coin to roll.'}
-        </div>
-        {history.length > 1 && (
-          <ul className="playtest-dice-history">
-            {history.slice(1).map((h) => (
-              <li key={h.id}>
-                {h.label}: {h.result}
-              </li>
-            ))}
-          </ul>
         )}
-        <div className="card-picker-footer">
-          <Button onClick={() => beginClose()}>Close</Button>
-        </div>
       </div>
-    </div>
+      <div className="playtest-dice-result" role="status">
+        {pending
+          ? 'Rolling…'
+          : latest
+            ? `${latest.label}: ${latest.result}`
+            : 'Tap a die or the coin to roll.'}
+      </div>
+      {history.length > 1 && (
+        <ul className="playtest-dice-history">
+          {history.slice(1).map((h) => (
+            <li key={h.id}>
+              {h.label}: {h.result}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Sheet>
   );
 }

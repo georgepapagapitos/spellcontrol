@@ -1,11 +1,4 @@
 {
-  "02eb2f6ff7": {
-    "size": 2,
-    "locations": [
-      "components/deck/CardFitPanel.css:.card-fit-title",
-      "components/deck/DeckSizePrompt.css:.deck-size-prompt-title"
-    ]
-  },
   "0a53b3599f": {
     "size": 2,
     "locations": [
