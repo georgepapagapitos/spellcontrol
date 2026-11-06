@@ -50,7 +50,6 @@ const ROLES: Record<string, Record<string, [Role, string]>> = {
     '.collection-table-th': ['table-head', 'the collection table'],
     '.set-filter-chip-label': ['data', 'a set code'],
     '.collection-grid-set, .copy-places-set': ['data', 'a set code, as a chip or on the one plate'],
-    '.art-proxy': ['stamp', "the PROXY stamp on a grid tile's plate"],
   },
   'styles/shared.css': {
     '.shared-list-table th': ['table-head', 'a shared list table'],
@@ -63,6 +62,9 @@ const ROLES: Record<string, Record<string, [Role, string]>> = {
   },
   'components/home/HomeHero.css': {
     '.home-hero-caption-tape': ['tape', "the day's card's name on its tape label"],
+  },
+  'components/shared/ProxySegment.css': {
+    '.art-proxy': ['stamp', "the PROXY stamp on a grid tile's plate"],
   },
   'components/play/OnlineGameView.css': {
     '.ogv-you-label': ['stamp', 'the "You" tag on your own seat'],

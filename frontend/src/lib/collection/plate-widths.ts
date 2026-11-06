@@ -26,7 +26,7 @@ const EM = {
   mono: 0.68, // a set-code character, letter-spacing included
   times: 0.75, // "×" and its margin
   margin: 0.25,
-  proxy: 3.5, // the "Proxy" segment, 3.2em in Chrome on 2026-11-06, plus fallback room
+  proxy: 3.8, // the "Proxy" stamp, 3.56em in Chrome on 2026-11-06, plus fallback room
 } as const;
 
 const digits = (n: number) => String(n).length;

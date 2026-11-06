@@ -1620,36 +1620,6 @@ i.ss.set-symbol--mythic {
   text-transform: uppercase;
 }
 
-/* "Proxy" as a plate segment: the first thing the tile's plate says (in
-   CopyPlaces' plate, or alone in the corner on a tile without one). A
-   warn-toned pill inside the scrim, so the plate stays one object and the
-   tile spends no extra width or line on it. */
-.art-proxy {
-  flex: none;
-  padding: 0.2em 0.55em;
-  border-radius: 999px;
-  background: var(--warn-bg);
-  color: var(--warn-text);
-  font-family: var(--font-label);
-  font-size: 0.75em;
-  font-weight: 700;
-  letter-spacing: var(--tracking-overline);
-  text-transform: uppercase;
-  line-height: 1.1;
-  box-shadow: inset 0 0 0 1px var(--warn-border);
-}
-
-/* The pill sits just inside the scrim's rim, as a disc does at the end. */
-.copy-places-plate:has(> .art-proxy:first-child),
-.collection-grid-proxy-plate {
-  padding-inline-start: 2px;
-}
-
-.collection-grid-proxy-plate {
-  padding-block: 2px;
-  padding-inline-end: 2px;
-}
-
 .collection-grid-qty-x {
   opacity: 0.7;
   margin-right: 0.15em;

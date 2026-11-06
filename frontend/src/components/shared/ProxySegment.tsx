@@ -1,3 +1,5 @@
+import './ProxySegment.css';
+
 /**
  * "Proxy" as a segment of an on-art plate: the first thing the grid tile's
  * plate says about a proxy stack (CopyPlaces), or the plate's only segment
