@@ -259,7 +259,8 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
           copyIds.length,
           finish,
           Boolean(binderId),
-          extras === undefined
+          extras === undefined,
+          Boolean(extras?.proxy)
         ),
         tone: 'success',
         durationMs: 4000,
@@ -306,6 +307,7 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
           finish,
           condition: extras.condition,
           language: extras.language,
+          proxy: extras.proxy,
           qty: extras.quantity,
           source: 'searched',
         });

@@ -368,6 +368,26 @@ describe('updateCard / replaceAllCards / addCard', () => {
     expect(rows.every((c) => c.condition === 'lp' && c.language === 'ja')).toBe(true);
   });
 
+  it('addCard with proxy flags every copy and prices it at $0', async () => {
+    const ids = await useCollectionStore.getState().addCard(
+      {
+        id: 'sfP',
+        name: "Gaea's Cradle",
+        set: 'usg',
+        set_name: "Urza's Saga",
+        collector_number: '321',
+        rarity: 'rare',
+        oracle_id: 'oP',
+        prices: { usd: '1649.66' },
+      } as never,
+      'nonfoil',
+      { quantity: 2, proxy: true }
+    );
+    const rows = useCollectionStore.getState().cards.filter((c) => ids.includes(c.copyId));
+    expect(rows).toHaveLength(2);
+    expect(rows.every((c) => c.proxy === true && c.purchasePrice === 0)).toBe(true);
+  });
+
   // Quick add passes no finish. It used to land as non-foil whatever the
   // printing was, so a foil-only printing (TMC Dark Ritual) became a copy
   // that can't exist, priced off the wrong column.

@@ -326,6 +326,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
                       finish,
                       condition: extras.condition,
                       language: extras.language,
+                      proxy: extras.proxy,
                       qty: extras.quantity,
                       source: 'searched',
                     })

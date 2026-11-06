@@ -8,7 +8,8 @@ import { useScannerSettings } from '@/lib/scanner/scanner-settings';
 import { CardThumb } from './CardThumb';
 import { ConditionControl, FinishControl } from './CopyControls';
 import { SelectMenu } from '@/components/overlays/SelectMenu';
-import { Field } from '@/components/shared/form';
+import { Field, SwitchRow } from '@/components/shared/form';
+import { PROXY_HINT } from '@/lib/util/shared-copy';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Condition, Finish } from '@/types/index';
 
@@ -30,6 +31,8 @@ export interface AddExtras {
   quantity: number;
   condition?: Condition;
   language?: string;
+  /** The copies are proxies: owned, valued at $0 (see `applyPrices`). */
+  proxy?: boolean;
 }
 
 function priceForFinish(card: ScryfallCard, finish: Finish): number {
@@ -100,6 +103,9 @@ export function PrintingPicker({
     () => useScannerSettings.getState().defaultCondition
   );
   const [language, setLanguage] = useState(() => useScannerSettings.getState().defaultLanguage);
+  // Real is the unmarked default; sticky like condition, so a stack of
+  // proxies goes in one printing after another.
+  const [proxy, setProxy] = useState(false);
   const qtyId = useId();
 
   // cardName is fixed for this picker's lifetime (a different row mounts a
@@ -155,6 +161,7 @@ export function PrintingPicker({
       quantity: qty,
       ...(condition !== 'nm' ? { condition } : {}),
       ...(language ? { language } : {}),
+      ...(proxy ? { proxy: true } : {}),
     });
     // Quantity resets so a follow-up tap can't silently re-add a whole stack;
     // condition/language stay sticky for entering a played playset in one go.
@@ -271,6 +278,7 @@ export function PrintingPicker({
                       </button>
                     </div>
                   </Field>
+                  <SwitchRow label="Proxy" hint={PROXY_HINT} checked={proxy} onChange={setProxy} />
                 </>
               )}
             </div>
@@ -281,9 +289,11 @@ export function PrintingPicker({
                 Add {qty > 1 ? `${qty} × ` : ''}
                 {selected.set.toUpperCase()} #{selected.collector_number} ·{' '}
                 {FINISH_LABELS[effectiveFinish]} ·{' '}
-                {formatMoney(priceForFinish(selected, effectiveFinish) * qty, {
-                  zeroAsDash: true,
-                })}
+                {showExtras && proxy
+                  ? 'Proxy'
+                  : formatMoney(priceForFinish(selected, effectiveFinish) * qty, {
+                      zeroAsDash: true,
+                    })}
               </button>
             </div>
           )}

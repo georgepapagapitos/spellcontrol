@@ -79,6 +79,7 @@ export interface AddOptions {
   condition?: Condition;
   language?: string;
   qty?: number;
+  proxy?: boolean;
   source?: EntrySource;
 }
 
@@ -152,6 +153,7 @@ function upsertCard(
       finish,
       condition,
       language,
+      ...(opts.proxy ? { proxy: true } : {}),
       rawText: card.name,
       addedAt: now,
       source: opts.source,

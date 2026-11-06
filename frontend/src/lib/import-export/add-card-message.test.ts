@@ -44,3 +44,11 @@ describe('addedCardMessage', () => {
     );
   });
 });
+
+describe('addedCardMessage proxy', () => {
+  it('says the copy landed as a proxy', () => {
+    expect(addedCardMessage(card(['nonfoil']), 1, 'nonfoil', false, false, true)).toBe(
+      'Added Ragavan, Nimble Pilferer · MH2 #138 · Non-foil · proxy'
+    );
+  });
+});
