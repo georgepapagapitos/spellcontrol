@@ -863,36 +863,47 @@
 }
 
 /* List rows: big enough to check a card at a glance. The row opens the
-   edit sheet; the bin sits apart so a tap meant for one can't hit the other. */
+   edit sheet; edit and remove sit together bottom-right as one pair of
+   equal targets, the bin a separate button so a tap meant for one can't hit
+   the other. Hover and selection fill the whole row, actions included
+   (style-guide/cards-collection.md § Card scanner). */
 .scan-rows {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 .scan-row {
-  display: flex;
-  align-items: stretch;
+  --scan-action: 36px;
+  position: relative;
   border-bottom: 0.5px solid var(--border);
+  transition: background var(--motion-fast);
+}
+@media (pointer: coarse) {
+  .scan-row {
+    --scan-action: 44px;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .scan-row:hover {
+    background: var(--surface-raised);
+  }
+}
+.scan-row.is-selected {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 .scan-row-main {
   position: relative;
-  flex: 1;
-  min-width: 0;
+  width: 100%;
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-2) var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--space-4);
   border: none;
   background: none;
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
-}
-@media (hover: hover) and (pointer: fine) {
-  .scan-row-main:hover {
-    background: var(--surface-raised);
-  }
 }
 .scan-row-main:focus-visible,
 .scan-row-main:has(.scan-row-input:focus-visible),
@@ -961,6 +972,7 @@
 }
 .scan-row-tags {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-1);
 }
 .scan-row-tag.finish-foil {
@@ -996,34 +1008,52 @@
   background: none;
   border: 1px dashed var(--text-muted);
 }
+/* The price column is at least as wide as the action pair below it, so the
+   text column never runs under the icons. */
 .scan-row-price {
   flex: none;
+  min-width: calc(2 * var(--scan-action) - var(--space-2));
   margin-left: auto;
+  text-align: right;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
 }
-.scan-row-pencil {
+/* The pencil is drawn inside the row button (it names what a tap does) and
+   the bin is its own button; both occupy one --scan-action square so they
+   read as a matched pair on a shared baseline. */
+.scan-row-pencil,
+.scan-row-remove {
   position: absolute;
-  right: var(--space-2);
-  bottom: var(--space-3);
+  bottom: var(--space-2);
+  width: var(--scan-action);
+  height: var(--scan-action);
+  border-radius: var(--radius);
   color: var(--text-muted);
+  transition:
+    color var(--motion-fast),
+    background var(--motion-fast);
+}
+.scan-row-pencil {
+  right: calc(var(--space-2) + var(--scan-action));
+  box-sizing: border-box;
+  padding: calc((var(--scan-action) - 18px) / 2);
 }
 .scan-row-remove {
-  flex: none;
-  width: 48px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding-bottom: var(--space-3);
+  right: var(--space-2);
+  min-width: 0;
+  min-height: 0;
   border: none;
   background: none;
-  color: var(--text-muted);
-  cursor: pointer;
+  box-shadow: none;
 }
 @media (hover: hover) and (pointer: fine) {
+  .scan-row-main:hover .scan-row-pencil {
+    color: var(--text-primary);
+  }
   .scan-row-remove:hover {
     color: var(--err-text);
+    background: var(--err-bg);
   }
 }
 

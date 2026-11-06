@@ -710,6 +710,16 @@ modal-backdrop--over-sheet`, and their menus portal to `<body>` anyway.
 - **Rare actions live in the list's ⋮**: select, sort, and "Clear the list"
   last and red behind a confirm. The footer carries only Keep scanning and
   the primary Add.
+- **A list row is one surface** (2026-11-06). Hover and selection fill the
+  whole row, its actions included; a fill that stopped at the edit button left
+  the bin floating in an unlit strip. Edit (the pencil drawn inside the row
+  button) and remove (its own button) sit bottom-right as a matched pair of
+  `--scan-action` squares (36px, 44px on touch), and the price column above
+  them is at least as wide as the pair, so text never runs under the icons.
+- **The list speaks for where it was opened.** The Add cards sheet's Review
+  reuses this list with `source="add-list"`: "Keep adding" in the footer and
+  "No cards here yet" when empty, since those cards came from search or a
+  pasted list, not the camera.
 - **Repeat scans teach every time.** "Already added. Tap the screen to add
   another copy" shows whenever the matcher sees the card it just added, not
   once per session.

@@ -104,6 +104,8 @@ const SITE_ALLOWLIST = new Set<string>([
   'components/import/AddCardsSheet.tsx::Camera::36',
   'components/scanner/CardScanner.tsx::LoaderCircle::34',
   'components/scanner/ScannerQueueSheet.tsx::Camera::32',
+  // The same empty-state mark when the list is the Add cards review.
+  'components/scanner/ScannerQueueSheet.tsx::ListChecks::32',
   // Large stat-emphasis glyph in a game sheet.
   'components/play/BoardSheets.tsx::ChartLine::40',
   // Device-rotate prompt hero glyph.
