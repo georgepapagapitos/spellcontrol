@@ -150,6 +150,7 @@ export async function wholeDeckSearchPhase(
   const ctx = createObjectiveContext({
     colorIdentity,
     customization: cz,
+    allowPreviewCards: state.cfg.allowPreviewCards,
     edhrec: rows,
     roleTargets: input.roleTargets ?? {},
     roleOf: countedRoleOf,

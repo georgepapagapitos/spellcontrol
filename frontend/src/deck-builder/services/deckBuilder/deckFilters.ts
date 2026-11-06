@@ -9,6 +9,7 @@ import {
 } from '@/deck-builder/services/scryfall/client';
 import { fitsColorIdentity as fitsColorIdentitySet } from '@/lib/deck/deck-validation';
 import { cardManaValue } from './deckStats';
+import { isPreviewOnlyIllegal } from '@/lib/deck/card-release';
 
 // The generator's identity gate: the card's color identity fits within the
 // deck's, AND the card does something in that identity (isDeadInIdentity).
@@ -230,9 +231,18 @@ const FORMAT_LEGALITY_KEY: Record<string, string> = {
   brawl: 'brawl',
 };
 
-export function notLegalForFormat(card: ScryfallCard, mtgFormat: string | undefined): boolean {
+// `allowPreview`: the deck's commander is itself a preview (GenerationConfig
+// .allowPreviewCards), so the set's other previewed cards, not legal only
+// because they haven't released, may join it. Off for a released commander,
+// whose deck never takes a card nobody can buy yet.
+export function notLegalForFormat(
+  card: ScryfallCard,
+  mtgFormat: string | undefined,
+  allowPreview = false
+): boolean {
   const key = (mtgFormat && FORMAT_LEGALITY_KEY[mtgFormat]) || 'commander';
-  return card.legalities[key] !== 'legal';
+  if (card.legalities[key] === 'legal') return false;
+  return !(allowPreview && isPreviewOnlyIllegal(card, key));
 }
 
 // Config shape every user hard-cap check needs. Structurally matches
@@ -245,6 +255,8 @@ export interface UserCapsConfig {
   maxCardPrice: number | null;
   currency: 'USD' | 'EUR';
   mtgFormat?: string;
+  /** The commander is a preview: its set's previewed cards pass legality. */
+  allowPreviewCards?: boolean;
   ignoreOwnedRarity?: boolean;
   ignoreOwnedBudget?: boolean;
   /** The Game Changer limit is a count, not a property of one card, so it
@@ -265,7 +277,7 @@ export function violatesUserCaps(
   caps: UserCapsConfig,
   collectionNames?: Set<string>
 ): boolean {
-  if (notLegalForFormat(card, caps.mtgFormat)) return true;
+  if (notLegalForFormat(card, caps.mtgFormat, caps.allowPreviewCards)) return true;
   // LIVE (stress sweep 2026-09-24): bracket 5 with "No Game Changers" shipped
   // Thassa's Oracle (combo audit) and Cyclonic Rift (post-gen fixup). Every
   // other cap was checked on those paths; this one wasn't.

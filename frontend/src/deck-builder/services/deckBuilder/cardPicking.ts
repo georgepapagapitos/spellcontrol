@@ -126,7 +126,9 @@ export function pickFromPrefetched(
    *  base Commander legality check. Fixes a real leak: this picker never
    *  checked commander legality at all, so a banned card in the EDHREC/lift
    *  pool could ship. */
-  mtgFormat?: string
+  mtgFormat?: string,
+  /** The commander is a preview (GenerationConfig.allowPreviewCards). */
+  allowPreview = false
 ): ScryfallCard[] {
   const result: ScryfallCard[] = [];
   const preferOwned = collectionStrategy === 'prefer';
@@ -149,7 +151,7 @@ export function pickFromPrefetched(
     const scryfallCard = cardMap.get(edhrecCard.name);
     if (!scryfallCard) return false;
     if (cardAllowed && !cardAllowed(scryfallCard)) return false;
-    if (notLegalForFormat(scryfallCard, mtgFormat)) return false;
+    if (notLegalForFormat(scryfallCard, mtgFormat, allowPreview)) return false;
     if (!fitsColorIdentity(scryfallCard, colorIdentity)) return false;
 
     const ownedExempt = isOwnedBudgetExempt(edhrecCard.name, collectionNames, ignoreOwnedBudget);
@@ -489,7 +491,9 @@ export function pickFromPrefetchedWithCurve(
    *  (typePassPick.ts's baselineComboSeats). */
   comboLinePieces?: ReadonlySet<string>,
   /** E532 off: the pre-E532 pass, for baselineComboSeats' dry run. */
-  e532Off = false
+  e532Off = false,
+  /** The commander is a preview (GenerationConfig.allowPreviewCards). */
+  allowPreview = false
 ): ScryfallCard[] {
   const result: ScryfallCard[] = [];
   const preferOwned = collectionStrategy === 'prefer';
@@ -651,7 +655,7 @@ export function pickFromPrefetchedWithCurve(
       // type label can't keep a land out (Dryad Arbor is a Creature to it).
       if (!fitsSpellSlot(scryfallCard)) continue;
       if (cardAllowed && !cardAllowed(scryfallCard)) continue;
-      if (notLegalForFormat(scryfallCard, mtgFormat)) continue;
+      if (notLegalForFormat(scryfallCard, mtgFormat, allowPreview)) continue;
 
       // Type check for Unknown cards (need to verify they match expected type via Scryfall)
       // Cards already categorized by EDHREC (primary_type !== 'Unknown') skip this check

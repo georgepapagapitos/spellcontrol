@@ -2077,7 +2077,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // E532: the card's inclusion on this commander's page exempts a staple.
   const pageInclusion = state.edhrecData ? buildInclusionIndex(state.edhrecData) : new Map();
   const isCardAllowedBySynergyDependencies = (card: ScryfallCard) =>
-    !notLegalForFormat(card, state.cfg.mtgFormat) &&
+    !notLegalForFormat(card, state.cfg.mtgFormat, state.cfg.allowPreviewCards) &&
     !isUnsupportedSynergyPayoff(
       card,
       dependencySupportCards(),
@@ -2651,6 +2651,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       gameChangerNames: state.gameChangerNames,
       arenaOnly,
       mtgFormat: state.cfg.mtgFormat,
+      allowPreviewCards: state.cfg.allowPreviewCards,
       strictCurve,
       collectionStrategy,
       collectionOwnedPercent,
@@ -2700,7 +2701,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       achievableComboPieces(state.combos, typePools, (n) => usedNames.has(n)),
       {
         cardAllowed: (card) =>
-          !notLegalForFormat(card, state.cfg.mtgFormat) &&
+          !notLegalForFormat(card, state.cfg.mtgFormat, state.cfg.allowPreviewCards) &&
           !isUnsupportedSynergyPayoff(card, dependencySupportCards(), dependencyCommanderCount),
         seat: (cards) => categories.synergy.push(...cards),
         unseat: (

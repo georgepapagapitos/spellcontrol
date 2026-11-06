@@ -930,5 +930,40 @@ export function runSettingsMatrix(part: number, parts: number): void {
         clearGenerationCache();
       }
     });
+
+    // 2026-11-06: a previewed commander's deck may hold its set's previews
+    // (Star Trek Commander's cards read not_legal until 2026-11-13); a released
+    // commander's deck never takes a card nobody can buy yet.
+    it('seats a previewed card beside a previewed commander only', async () => {
+      const asPreview = (c: ScryfallCard): ScryfallCard => ({
+        ...c,
+        legalities: { ...c.legalities, commander: 'not_legal' },
+        released_at: '2099-06-01',
+      });
+      const baseline = await generateDeck(baseContext());
+      clearGenerationCache();
+      const pick = baseline.categories.synergy.find((c) => !GC_NAMES.has(c.name))!;
+      expect(pick).toBeDefined();
+      const original = POOL.scMap.get(pick.name)!;
+      POOL.scMap.set(pick.name, asPreview(original));
+      try {
+        const released = await generateDeck(baseContext());
+        clearGenerationCache();
+        expect(allCards(released).map((c) => c.name)).not.toContain(pick.name);
+
+        const ctx = { ...baseContext(), commander: asPreview(COMMANDER) };
+        const deck = await generateDeck(ctx);
+        expect(allCards(deck).map((c) => c.name)).toContain(pick.name);
+        assertInvariants(deck, ctx.customization, ctx);
+        expect(
+          checkDeckInvariants(deck, ctx).filter(
+            (x) => x.check === 'legality' && x.detail.includes(pick.name)
+          )
+        ).toEqual([expect.objectContaining({ level: 'SOFT' })]);
+      } finally {
+        POOL.scMap.set(pick.name, original);
+        clearGenerationCache();
+      }
+    });
   });
 }

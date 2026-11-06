@@ -86,6 +86,9 @@ export interface ObjectiveContextInput {
   colorIdentity: readonly string[];
   /** What the deck was built under: constraints and a few preferences. */
   customization: Partial<Customization>;
+  /** The commander is a preview: its set's previewed cards pass legality
+   *  (GenerationConfig.allowPreviewCards). */
+  allowPreviewCards?: boolean;
   /**
    * EDHREC rows of the page(s) the deck is built from: the commander page, or
    * its theme/budget/bracket page, whichever the generator read. Keyed by the

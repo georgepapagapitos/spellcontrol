@@ -103,7 +103,8 @@ export function cardIneligibility(card: ScryfallCard, ctx: ObjectiveContext): st
   if (NOT_A_DECK_CARD.test(card.type_line ?? '')) return 'not a card for the deck';
   if (!fitsColorIdentity(card, identity)) return 'outside the color identity';
   if (isDeadInIdentity(card, identity)) return 'discounts a color the deck cannot cast';
-  if (!basic && notLegalForFormat(card, cz.mtgFormat)) return 'not legal in the format';
+  if (!basic && notLegalForFormat(card, cz.mtgFormat, ctx.allowPreviewCards))
+    return 'not legal in the format';
   const banned = new Set<string>();
   for (const n of [...(cz.bannedCards ?? []), ...(cz.tempBannedCards ?? [])])
     banned.add(normalizeCardName(n));
@@ -360,7 +361,9 @@ export function checkConstraints(
     });
   }
 
-  const illegal = cards.filter((c) => !isBasicLand(c) && notLegalForFormat(c, cz.mtgFormat));
+  const illegal = cards.filter(
+    (c) => !isBasicLand(c) && notLegalForFormat(c, cz.mtgFormat, ctx.allowPreviewCards)
+  );
   if (illegal.length) {
     add({
       check: 'legality',

@@ -137,7 +137,14 @@ export function wildcardScanPhase(
       liftTieBreak,
       undefined,
       resolvePriceSanity(customization),
-      getComboBoosts(state)
+      getComboBoosts(state),
+      undefined, // priceSanityDecided
+      undefined, // brewLevel
+      undefined, // mtgFormat: Commander, as before (cardAllowed gates the deck's own)
+      undefined, // admitFirst
+      undefined, // comboLinePieces
+      false, // e532Off
+      state.cfg.allowPreviewCards
     );
     // Hard role cap: same shape as isOverRoleCap's other two callers above
     // — a direct validateCardRole check against the real, current
