@@ -136,3 +136,25 @@ describe('guard: every card grid renders the shared tile', () => {
     ).not.toMatch(/className="list-entries-grid-cell"/);
   });
 });
+
+describe('CardGridCell copy chips', () => {
+  // The proxy / manual-price chips once sat in the top-right cluster, pushed
+  // in off the ⋮, which left them floating on the card's name line. They are
+  // facts about the copy, so they belong with the plate on the bottom row.
+  it('puts the proxy and manual-price chips in the bottom row, not the top corner', () => {
+    render(
+      <CardGridCell
+        card={{ ...card, proxy: true, priceOverride: 2 } as EnrichedCard}
+        qty={1}
+        size="1x"
+        caption={null}
+        setLabel={null}
+        onActivate={() => {}}
+      />
+    );
+    const status = document.querySelector('.collection-grid-foot > .collection-grid-status');
+    expect(status?.querySelector('.proxy-badge')).not.toBeNull();
+    expect(status?.querySelector('.price-override-badge')).not.toBeNull();
+    expect(document.querySelector('.collection-grid-topright .proxy-badge')).toBeNull();
+  });
+});
