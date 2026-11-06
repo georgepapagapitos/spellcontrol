@@ -36,7 +36,7 @@ import { formatRelativeTime } from '@/lib/util/format-time';
 import { CONDITIONS, FINISH_LABELS, entryUnitPrice } from '@/lib/scanner/scanner-feedback';
 import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import { bindersUseTags, useCardsWithTags } from '@/lib/cards/card-tags';
-import type { ScannedEntry } from '@/lib/scanner/use-scan-queue';
+import { rekeyedId, type ScannedEntry } from '@/lib/scanner/use-scan-queue';
 import { PROXY_HINT } from '@/lib/util/shared-copy';
 
 /** Every scanner sheet sits over the full-screen camera, which is above the
@@ -164,9 +164,15 @@ export function ScannerQueueSheet({
     );
   }, [entries, filter, sort]);
 
-  // Rows can merge or disappear under a selection (a bulk finish change
-  // re-keys them), so only ids still in the list count as selected.
+  // Rows can merge or disappear under a selection (a bulk finish or proxy
+  // change re-keys them), so only ids still in the list count as selected.
   const selectedIds = entries.filter((e) => selected.has(e.id)).map((e) => e.id);
+
+  // A bulk finish or proxy change re-keys each selected row (identity is
+  // printing + finish + proxy), so move the selection to the ids the rows
+  // land on; rows that merge land on one id and stay selected as one.
+  const rekeySelection = (nextId: (e: ScannedEntry) => string) =>
+    setSelected(new Set(entries.filter((e) => selected.has(e.id)).map(nextId)));
   const selectedCount = entries.filter((e) => selected.has(e.id)).reduce((n, e) => n + e.qty, 0);
 
   const toggle = useCallback((id: string) => {
@@ -375,10 +381,16 @@ export function ScannerQueueSheet({
       {bulkEditOpen && (
         <BulkEdit
           count={selectedCount}
-          onFinish={(f) => onChangeFinish(selectedIds, f)}
+          onFinish={(f) => {
+            onChangeFinish(selectedIds, f);
+            rekeySelection((e) => rekeyedId(e.card, f, e.proxy));
+          }}
           onCondition={(c) => onChangeCondition(selectedIds, c)}
           onLanguage={(l) => onChangeLanguage(selectedIds, l)}
-          onProxy={(p) => onChangeProxy(selectedIds, p)}
+          onProxy={(p) => {
+            onChangeProxy(selectedIds, p);
+            rekeySelection((e) => rekeyedId(e.card, e.finish, p));
+          }}
           onClose={() => setBulkEditOpen(false)}
         />
       )}
