@@ -3,6 +3,7 @@ import type { DeckCard } from '@/store/decks';
 import { BASIC_LAND_NAMES } from '@/lib/collection/allocations-core';
 import { isPdhCommanderEligible } from './commanders';
 import { isLand } from '@/lib/mana-sim/hand-classify';
+import { isPreviewOnlyIllegal } from './card-release';
 
 /** Synthetic slot ids for commander-zone issues — the commanders live outside
  *  the mainboard/sideboard slot lists, so they get stable keys of their own. */
@@ -216,6 +217,8 @@ export function validateDeck(
      *  it when the card was added, so a card banned since then still reads
      *  `legal` in its own legalities; this catches it. */
     bannedNames?: ReadonlySet<string>;
+    /** Today, for the preview check. */
+    now?: Date;
   } = {}
 ): LegalityIssue[] {
   const issues: LegalityIssue[] = [];
@@ -228,7 +231,12 @@ export function validateDeck(
   // Legality against Scryfall's per-format key, and the live ban list.
   for (const entry of allCards) {
     const banned = options.bannedNames?.has(entry.card.name) ?? false;
-    if (banned || !isCardLegal(entry.card, config.legalityKey)) {
+    // A previewed card reads `not_legal` until it releases; in a format that
+    // takes every set it isn't flagged (the card panel shows the date).
+    const illegal =
+      !isCardLegal(entry.card, config.legalityKey) &&
+      !isPreviewOnlyIllegal(entry.card, config.legalityKey, options.now);
+    if (banned || illegal) {
       issues.push({
         slotId: entry.slotId,
         cardName: entry.card.name,

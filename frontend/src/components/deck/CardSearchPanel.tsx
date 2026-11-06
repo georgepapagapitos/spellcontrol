@@ -83,6 +83,7 @@ import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { SuggestionsHandoff, suggestionPreviewEntries } from './suggestions-results-parts';
 import type { CardPreviewAction } from '@/components/card/CardPreview';
 import { InDeckCount, NotLegalBadge, OffColorBadge } from './row-badges';
+import { isPreviewOnlyIllegal } from '@/lib/deck/card-release';
 import { jumpTarget } from '@/lib/search/use-results-keys';
 import { useAddResultsAnnouncer, type PublishVisible } from './use-add-results-announcer';
 
@@ -93,10 +94,16 @@ import { Button, IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 import { Surface } from '@/components/shared/Surface';
 import '../../styles/deck-builder-card-search.css';
-/** Legal in the deck's format (`legalityKey`), or no legality data to say otherwise. */
+/** Legal in the deck's format (`legalityKey`), not legal only because it hasn't
+ *  released yet, or no legality data to say otherwise. */
 function isFormatLegal(c: EnrichedCard, legalityKey: string): boolean {
   const legality = c.legalities?.[legalityKey];
-  return !legality || legality === 'legal' || legality === 'restricted';
+  return (
+    !legality ||
+    legality === 'legal' ||
+    legality === 'restricted' ||
+    isPreviewOnlyIllegal({ legalities: c.legalities, released_at: c.releasedAt }, legalityKey)
+  );
 }
 
 /**

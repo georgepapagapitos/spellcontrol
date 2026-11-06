@@ -25,7 +25,8 @@
   line-height: 1.4;
 }
 
-.deck-card-preview-meta-chance {
+.deck-card-preview-meta-chance,
+.deck-card-preview-meta-release {
   min-width: 0;
   line-height: 1.4;
   font-variant-numeric: tabular-nums;

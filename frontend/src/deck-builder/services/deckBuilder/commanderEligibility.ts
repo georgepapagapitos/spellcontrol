@@ -36,6 +36,7 @@ import type { Customization, ScryfallCard } from '@/deck-builder/types';
 import { canBeCommanderByType, isPdhCommanderEligible } from '@/lib/deck/commanders';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { areValidPartners } from '@/deck-builder/lib/partnerUtils';
+import { formatReleaseDate, upcomingReleaseDate } from '@/lib/deck/card-release';
 
 export type CommanderIneligibleReason =
   'banned' | 'not-legal' | 'not-a-commander' | 'pdh-not-uncommon-creature' | 'invalid-pair';
@@ -83,29 +84,13 @@ function isBackground(card: ScryfallCard): boolean {
   return /\bBackground\b/.test(front);
 }
 
-/** Today in the player's calendar, as Scryfall writes dates ("2026-09-29"). */
-function localIsoDate(now: Date): string {
-  return [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0'),
-  ].join('-');
-}
-
 /** Not legal in the format only because it hasn't released yet: Scryfall
  *  reads a previewed card `not_legal` until its release date. */
 function isPreview(card: ScryfallCard, format: CommanderFormat, now: Date): boolean {
-  if (card.legalities?.[format] !== 'not_legal' || !card.released_at) return false;
-  return card.released_at > localIsoDate(now);
+  return card.legalities?.[format] === 'not_legal' && upcomingReleaseDate(card, now) !== null;
 }
 
-/** A release date ("2026-11-13") in the app's short date format ("Nov 13, 2026"). */
-export function formatReleaseDate(isoDate: string): string {
-  const d = new Date(`${isoDate}T00:00:00`);
-  return Number.isNaN(d.getTime())
-    ? isoDate
-    : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-}
+export { formatReleaseDate };
 
 /**
  * Why one card can't sit in the command zone, or null when it can.
