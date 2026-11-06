@@ -1,5 +1,6 @@
 import { useId, useImperativeHandle, type ReactNode, type Ref } from 'react';
 import { createPortal } from 'react-dom';
+import './Sheet.css';
 import { X } from 'lucide-react';
 import { IconButton } from '@/components/shared/Button';
 import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
