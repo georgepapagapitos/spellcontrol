@@ -17,9 +17,10 @@ import { useScannerSettings } from './scanner-settings';
 export type EntrySource = 'scanned' | 'searched';
 
 export interface ScannedEntry {
-  /** Stable row id = printing id + finish (see {@link entryKey}), so a foil
-   *  and a nonfoil copy of the same card are distinct rows, and so are two
-   *  different printings, each keeping its own set/collector. */
+  /** Stable row id = printing id + finish + proxy (see {@link entryKey}), so
+   *  a foil and a nonfoil copy of the same card are distinct rows, so are two
+   *  different printings, each keeping its own set/collector, and so are a
+   *  real copy and a proxy. */
   id: string;
   card: ScryfallCard;
   qty: number;
@@ -43,8 +44,9 @@ export interface ScannedEntry {
   language?: string;
   /**
    * The row's copies are proxies. Undefined means real cards, the unmarked
-   * default. Like `condition` it isn't part of row identity: it covers the
-   * whole `qty` stack. Round-trips to the collection via the import CSV's
+   * default. Unlike `condition` it IS part of row identity (see `entryKey`):
+   * merging a proxy into a real stack would either value it at market or
+   * zero out real cards, so the two never share a row. Round-trips to the collection via the import CSV's
    * Proxy column, and the row is valued at $0 like a proxy in the collection
    * (see `entryUnitPrice` in scanner-feedback.ts).
    */
@@ -93,14 +95,17 @@ export interface AddOptions {
 export type AddScanResult = 'accepted' | 'duplicate';
 
 /**
- * Row identity. Keys on `printing id + finish`: a foil and a nonfoil copy
- * are distinct collection items (different value), and so are two different
- * printings of the same card — each row carries its own set/collector number
- * into the import, so collapsing printings would silently discard real data.
- * Only genuinely identical scans (same printing, same finish) share a row.
+ * Row identity. Keys on `printing id + finish + proxy`: a foil and a nonfoil
+ * copy are distinct collection items (different value), and so are two
+ * different printings of the same card — each row carries its own
+ * set/collector number into the import, so collapsing printings would
+ * silently discard real data. A proxy is distinct from a real copy for the
+ * same reason (it's valued at $0). Only genuinely identical adds share a row.
+ * A real copy's key has no proxy part, so lists saved before proxy joined the
+ * key read back unchanged.
  */
-export function entryKey(printingId: string, finish: Finish): string {
-  return `${printingId}::${finish}`;
+export function entryKey(printingId: string, finish: Finish, proxy = false): string {
+  return `${printingId}::${finish}${proxy ? '::proxy' : ''}`;
 }
 
 /**
@@ -108,9 +113,9 @@ export function entryKey(printingId: string, finish: Finish): string {
  * clamped to what the printing offers, exactly as `applyEntryPatch` does. A
  * sheet showing that row uses it to keep pointing at the right one.
  */
-export function rekeyedId(card: ScryfallCard, finish: Finish): string {
+export function rekeyedId(card: ScryfallCard, finish: Finish, proxy = false): string {
   const allowed = availableFinishes(card.finishes);
-  return entryKey(card.id, allowed.includes(finish) ? finish : allowed[0]);
+  return entryKey(card.id, allowed.includes(finish) ? finish : allowed[0], proxy);
 }
 
 /**
@@ -135,7 +140,7 @@ function upsertCard(
   const allowed = availableFinishes(card.finishes);
   const requestedFinish = opts.finish ?? defaults.finish;
   const finish = allowed.includes(requestedFinish) ? requestedFinish : allowed[0];
-  const id = entryKey(card.id, finish);
+  const id = entryKey(card.id, finish, opts.proxy);
   const qty = opts.qty ?? 1;
   const existing = queue.find((e) => e.id === id);
   if (existing) {
@@ -173,7 +178,7 @@ function upsertCard(
 function applyEntryPatch(
   queue: ScannedEntry[],
   id: string,
-  patch: { card?: ScryfallCard; finish?: Finish }
+  patch: { card?: ScryfallCard; finish?: Finish; proxy?: boolean }
 ): ScannedEntry[] {
   const idx = queue.findIndex((e) => e.id === id);
   if (idx < 0) return queue;
@@ -182,14 +187,17 @@ function applyEntryPatch(
   const requested = patch.finish ?? cur.finish;
   const allowed = availableFinishes(card.finishes);
   const finish = allowed.includes(requested) ? requested : allowed[0];
-  const newId = entryKey(card.id, finish);
+  const proxy = patch.proxy ?? cur.proxy ?? false;
+  const newId = entryKey(card.id, finish, proxy);
   const mergeIdx = queue.findIndex((e, i) => i !== idx && e.id === newId);
   if (mergeIdx >= 0) {
     return queue
       .map((e, i) => (i === mergeIdx ? { ...e, qty: e.qty + cur.qty } : e))
       .filter((_, i) => i !== idx);
   }
-  return queue.map((e, i) => (i === idx ? { ...cur, id: newId, card, finish } : e));
+  return queue.map((e, i) =>
+    i === idx ? { ...cur, id: newId, card, finish, proxy: proxy || undefined } : e
+  );
 }
 
 interface ScanQueueState {
@@ -241,7 +249,7 @@ export const useScanQueueStore = create<ScanQueueState>()(
           queue: ids.reduce((q, id) => applyEntryPatch(q, id, { finish }), s.queue),
         })),
       // Condition isn't part of a row's identity (entryKey is printing+finish
-      // only — see ScannedEntry.condition's doc comment), so unlike `patch`
+      // +proxy — see ScannedEntry.condition's doc comment), so unlike `patch`
       // this never re-keys or merges rows; it's a plain in-place update.
       // NM is stored as absent, the unmarked default.
       setCondition: (ids, condition) =>
@@ -259,10 +267,12 @@ export const useScanQueueStore = create<ScanQueueState>()(
             ids.includes(e.id) ? { ...e, language: language || undefined } : e
           ),
         })),
-      // Same shape again: real cards are stored as absent, the unmarked default.
+      // Proxy is part of row identity, so this re-keys and may merge exactly
+      // like a finish change (`patchMany`), not an in-place update like
+      // condition/language.
       setProxy: (ids, proxy) =>
         set((s) => ({
-          queue: s.queue.map((e) => (ids.includes(e.id) ? { ...e, proxy: proxy || undefined } : e)),
+          queue: ids.reduce((q, id) => applyEntryPatch(q, id, { proxy }), s.queue),
         })),
       remove: (ids) => set((s) => ({ queue: s.queue.filter((e) => !ids.includes(e.id)) })),
       clear: () => set({ queue: [] }),
@@ -328,8 +338,8 @@ export interface UseScanQueueResult {
   changePrinting: (id: string, newCard: ScryfallCard) => void;
   /**
    * Set the owned finish (nonfoil / foil / etched) for one entry or several.
-   * Re-keys each row by `printing id + finish`, merging into an existing
-   * same-finish row if one is present, and clamps to what its printing offers.
+   * Re-keys each row by `printing id + finish + proxy`, merging into an
+   * existing row of that identity if one is present, and clamps to what its printing offers.
    */
   changeFinish: (ids: string | string[], finish: Finish) => void;
   /**
@@ -346,8 +356,10 @@ export interface UseScanQueueResult {
    */
   changeLanguage: (ids: string | string[], language: string) => void;
   /**
-   * Mark one entry or several as proxies, or back to real cards. Like
-   * {@link changeCondition}, this never re-keys or merges rows.
+   * Mark one entry or several as proxies, or back to real cards. Proxy is
+   * part of row identity, so like {@link changeFinish} this re-keys each row
+   * and merges it into an existing row of the new identity; follow the row
+   * with {@link rekeyedId}.
    */
   changeProxy: (ids: string | string[], proxy: boolean) => void;
 }

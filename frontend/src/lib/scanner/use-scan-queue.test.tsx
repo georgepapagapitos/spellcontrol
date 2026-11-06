@@ -19,6 +19,7 @@ beforeEach(() => {
 
 // Row identity is printing id + finish; scans land as nonfoil.
 const NONFOIL_1 = entryKey('print-1', 'nonfoil');
+const PROXY_1 = entryKey('print-1', 'nonfoil', true);
 
 /**
  * Minimal ScryfallCard shape, matching the fields the hook actually
@@ -172,7 +173,7 @@ describe('useScanQueue', () => {
       act(() => {
         result.current.addManual(makeCard(), { proxy: true });
       });
-      expect(result.current.queue[0]).toMatchObject({ id: NONFOIL_1, proxy: true });
+      expect(result.current.queue[0]).toMatchObject({ id: PROXY_1, proxy: true });
     });
 
     it('increments instead of deduping when the same card is added twice in a row', () => {
@@ -509,13 +510,66 @@ describe('useScanQueue', () => {
         result.current.changeProxy(NONFOIL_1, true);
       });
       expect(result.current.queue[0].proxy).toBe(true);
-      expect(result.current.queue[0].id).toBe(NONFOIL_1);
+      expect(result.current.queue[0].id).toBe(PROXY_1);
       expect(result.current.totalPrice).toBe(0);
       act(() => {
-        result.current.changeProxy(NONFOIL_1, false);
+        result.current.changeProxy(PROXY_1, false);
       });
       expect(result.current.queue[0].proxy).toBeUndefined();
+      expect(result.current.queue[0].id).toBe(NONFOIL_1);
       expect(result.current.totalPrice).toBe(realTotal);
+    });
+
+    // Proxy is part of row identity: a proxy add of a printing+finish that is
+    // already queued as a real card used to bump the real row, losing the flag
+    // and valuing the proxy at market.
+    it('keeps a proxy add of an already-queued printing in its own row', () => {
+      const { result } = renderHook(() => useScanQueue());
+      const card = makeCard();
+      act(() => {
+        result.current.addManual(card);
+      });
+      act(() => {
+        result.current.addManual(card, { proxy: true, qty: 2 });
+      });
+      expect(result.current.queue.map((e) => [e.id, e.qty, e.proxy])).toEqual([
+        [NONFOIL_1, 1, undefined],
+        [PROXY_1, 2, true],
+      ]);
+      act(() => {
+        result.current.addManual(card, { proxy: true });
+      });
+      expect(result.current.queue.find((e) => e.id === PROXY_1)?.qty).toBe(3);
+    });
+
+    it('merges a row into the matching stack when its proxy flag flips', () => {
+      const { result } = renderHook(() => useScanQueue());
+      const card = makeCard();
+      act(() => {
+        result.current.addManual(card);
+        result.current.addManual(card, { proxy: true, qty: 2 });
+      });
+      act(() => {
+        result.current.changeProxy(NONFOIL_1, true);
+      });
+      expect(result.current.queue.map((e) => [e.id, e.qty])).toEqual([[PROXY_1, 3]]);
+    });
+
+    it('keeps a proxy row a proxy through a finish change', () => {
+      const { result } = renderHook(() => useScanQueue());
+      const card = makeCard({ finishes: ['nonfoil', 'foil'] });
+      act(() => {
+        result.current.addManual(card, { proxy: true });
+      });
+      act(() => {
+        result.current.changeFinish(PROXY_1, 'foil');
+      });
+      expect(result.current.queue[0]).toMatchObject({
+        id: entryKey('print-1', 'foil', true),
+        finish: 'foil',
+        proxy: true,
+      });
+      expect(rekeyedId(card, 'foil', true)).toBe(result.current.queue[0].id);
     });
   });
 
