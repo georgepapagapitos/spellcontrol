@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { isPreviewOnlyIllegal, upcomingReleaseDate, localIsoDate } from './card-release';
+import {
+  isPreviewOnlyIllegal,
+  readsFormatLegal,
+  upcomingReleaseDate,
+  localIsoDate,
+} from './card-release';
 
 // Temporal Tribulation (Star Trek Commander, TRC #51) as Scryfall served it on
 // 2026-11-06, a week before the set released on 2026-11-13: not_legal in every
@@ -40,5 +45,18 @@ describe('card release', () => {
         before
       )
     ).toBe(false);
+  });
+});
+
+describe('readsFormatLegal', () => {
+  it('passes legal, restricted, unknown and preview-only cards', () => {
+    expect(readsFormatLegal({ legalities: { vintage: 'restricted' } }, 'vintage')).toBe(true);
+    expect(readsFormatLegal({}, 'commander')).toBe(true);
+    expect(readsFormatLegal(temporalTribulation, 'commander', before)).toBe(true);
+  });
+
+  it('hides banned and released not-legal cards', () => {
+    expect(readsFormatLegal({ legalities: { commander: 'banned' } }, 'commander')).toBe(false);
+    expect(readsFormatLegal(temporalTribulation, 'commander', releaseDay)).toBe(false);
   });
 });

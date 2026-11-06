@@ -52,3 +52,19 @@ export function isPreviewOnlyIllegal(
     upcomingReleaseDate(card, now) !== null
   );
 }
+
+/** Legal in the format, not legal only because it hasn't released yet, or no
+ *  legality data to say otherwise (card search: an unknown never hides a card). */
+export function readsFormatLegal(
+  card: Dated,
+  legalityKey: string,
+  now: Date = new Date()
+): boolean {
+  const status = card.legalities?.[legalityKey];
+  return (
+    !status ||
+    status === 'legal' ||
+    status === 'restricted' ||
+    isPreviewOnlyIllegal(card, legalityKey, now)
+  );
+}
