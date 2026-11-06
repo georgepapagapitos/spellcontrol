@@ -118,6 +118,12 @@ const CAPTURE_COOLDOWN_MS = 800;
  *  of flashing "didn't recognize" on every intermediate frame. */
 const SUSTAINED_MISS_HINTS = 3;
 
+/** A queue row read from the store before a re-keying change, so its finish
+ *  and proxy are the row's own, not stale render values. */
+function lastScanEntry(entryId: string) {
+  return useScanQueueStore.getState().queue.find((e) => e.id === entryId);
+}
+
 export function CardScanner({ onClose, onConfirm }: Props) {
   // The scanner mounts only while it's open (every caller renders it
   // conditionally), so it registers for its whole lifetime. One Back press
@@ -919,14 +925,21 @@ export function CardScanner({ onClose, onConfirm }: Props) {
 
   const handleBulkFinish = useCallback(
     (ids: string[], finish: Finish) => {
+      const entry = lastScan && ids.includes(lastScan.entryId) && lastScanEntry(lastScan.entryId);
       changeFinish(ids, finish);
-      setLastScan((prev) =>
-        prev && ids.includes(prev.entryId)
-          ? { ...prev, entryId: rekeyedId(prev.card, finish) }
-          : prev
-      );
+      if (entry) followRow(entry.id, rekeyedId(entry.card, finish, entry.proxy), entry.card);
     },
-    [changeFinish]
+    [changeFinish, followRow, lastScan]
+  );
+
+  // Proxy is part of row identity too, so a bulk toggle re-keys like a finish.
+  const handleBulkProxy = useCallback(
+    (ids: string[], proxy: boolean) => {
+      const entry = lastScan && ids.includes(lastScan.entryId) && lastScanEntry(lastScan.entryId);
+      changeProxy(ids, proxy);
+      if (entry) followRow(entry.id, rekeyedId(entry.card, entry.finish, proxy), entry.card);
+    },
+    [changeProxy, followRow, lastScan]
   );
 
   /**
@@ -1206,7 +1219,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
                       options={finishes.map((f) => ({ value: f, label: FINISH_LABELS[f] }))}
                       onChange={(f) => {
                         changeFinish(panelEntry.id, f);
-                        followRow(panelEntry.id, rekeyedId(card, f), card);
+                        followRow(panelEntry.id, rekeyedId(card, f, panelEntry.proxy), card);
                       }}
                     />
                   )}
@@ -1246,7 +1259,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
           onChangeFinish={handleBulkFinish}
           onChangeCondition={changeCondition}
           onChangeLanguage={changeLanguage}
-          onChangeProxy={changeProxy}
+          onChangeProxy={handleBulkProxy}
           onAddCard={handleAddManual}
           onConfirm={(ids) => void handleConfirm(ids)}
         />
@@ -1258,15 +1271,18 @@ export function CardScanner({ onClose, onConfirm }: Props) {
           onClose={() => setEditingId(null)}
           onFinish={(f) => {
             changeFinish(editing.id, f);
-            followRow(editing.id, rekeyedId(editing.card, f), editing.card);
+            followRow(editing.id, rekeyedId(editing.card, f, editing.proxy), editing.card);
           }}
           onCondition={(c) => changeCondition(editing.id, c)}
           onLanguage={(l) => changeLanguage(editing.id, l)}
-          onProxy={(p) => changeProxy(editing.id, p)}
+          onProxy={(p) => {
+            changeProxy(editing.id, p);
+            followRow(editing.id, rekeyedId(editing.card, editing.finish, p), editing.card);
+          }}
           onQty={(d) => changeQty(editing.id, d)}
           onPrinting={(card) => {
             changePrinting(editing.id, card);
-            followRow(editing.id, rekeyedId(card, editing.finish), card);
+            followRow(editing.id, rekeyedId(card, editing.finish, editing.proxy), card);
           }}
           onRemove={() => handleRemove([editing.id])}
         />

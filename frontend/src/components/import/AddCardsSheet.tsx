@@ -538,15 +538,18 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
             onClose={() => setAddListEditingId(null)}
             onFinish={(f) => {
               changeAddListFinish(addListEditing.id, f);
-              setAddListEditingId(rekeyedId(addListEditing.card, f));
+              setAddListEditingId(rekeyedId(addListEditing.card, f, addListEditing.proxy));
             }}
             onCondition={(c) => changeAddListCondition(addListEditing.id, c)}
             onLanguage={(l) => changeAddListLanguage(addListEditing.id, l)}
-            onProxy={(p) => changeAddListProxy(addListEditing.id, p)}
+            onProxy={(p) => {
+              changeAddListProxy(addListEditing.id, p);
+              setAddListEditingId(rekeyedId(addListEditing.card, addListEditing.finish, p));
+            }}
             onQty={(d) => changeAddListQty(addListEditing.id, d)}
             onPrinting={(card) => {
               changeAddListPrinting(addListEditing.id, card);
-              setAddListEditingId(rekeyedId(card, addListEditing.finish));
+              setAddListEditingId(rekeyedId(card, addListEditing.finish, addListEditing.proxy));
             }}
             onRemove={() => {
               removeFromAddList(addListEditing.id);
