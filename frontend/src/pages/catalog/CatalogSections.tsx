@@ -32,6 +32,7 @@ import { RarityBadge } from '@/components/shared/RarityBadge';
 import { SetSymbol } from '@/components/shared/SetSymbol';
 import { ProxyBadge } from '@/components/shared/ProxyBadge';
 import { PriceOverrideBadge } from '@/components/shared/PriceOverrideBadge';
+import { ProxySegment } from '@/components/shared/ProxySegment';
 import { ThinDataNote } from '@/components/shared/ThinDataNote';
 import { FilterChipsRow } from '@/components/shared/FilterChipsRow';
 import { CopyButton, CopyIconButton } from '@/components/shared/CopyButton';
@@ -425,7 +426,16 @@ function SymbolSpecimen() {
       <Row label="ProxyBadge">
         <ProxyBadge card={{ proxy: true }} />
         <PriceOverrideBadge card={{ priceOverride: 25, priceOverrideCurrency: 'USD' }} />
+        <PriceOverrideBadge
+          card={{ priceOverride: 25, priceOverrideCurrency: 'USD' }}
+          variant="pencil"
+        />
         <ConditionChip condition="lp" />
+      </Row>
+      <Row label="ProxySegment">
+        <ArtBadge className="collection-grid-proxy-plate">
+          <ProxySegment />
+        </ArtBadge>
       </Row>
       <Row label="CardName">
         <CardName card={fixtureCard()} />

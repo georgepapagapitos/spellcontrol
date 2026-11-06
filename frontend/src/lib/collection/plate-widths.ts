@@ -7,6 +7,8 @@ export interface PlateLead {
   set?: { code: string; title: string };
   /** Unallocated copies, while the tradeable-surplus filter is on. */
   surplus?: number;
+  /** A proxy stack: the plate opens with a "Proxy" segment. */
+  proxy?: boolean;
 }
 
 // Plate metrics in em of the plate's own font, mirroring CopyPlaces.css and
@@ -24,6 +26,7 @@ const EM = {
   mono: 0.68, // a set-code character, letter-spacing included
   times: 0.75, // "×" and its margin
   margin: 0.25,
+  proxy: 3.8, // the "Proxy" stamp, 3.56em in Chrome on 2026-11-06, plus fallback room
 } as const;
 
 const digits = (n: number) => String(n).length;
@@ -39,6 +42,7 @@ const digits = (n: number) => String(n).length;
 export function plateWidths(groups: readonly MarkGroup[], lead?: PlateLead) {
   const setW = lead?.set ? EM.mono * lead.set.code.length : 0;
   const leadParts = [
+    lead?.proxy ? EM.proxy : 0,
     lead && lead.qty > 1 ? EM.times + EM.digit * digits(lead.qty) : 0,
     setW,
     lead?.surplus ? EM.digit * (digits(lead.surplus) + 5) : 0,

@@ -18,6 +18,8 @@ interface Props {
   size: '1x' | '2x' | '3x';
   /** Sort-value caption, or null when the caption pref is off. */
   caption: string | null;
+  /** The caption is the card's price (see CardGridCell's priceCaption). */
+  priceCaption: boolean;
   captionPrefs: GridCaptionPrefs;
   selectMode: boolean;
   selected: boolean;
@@ -42,6 +44,7 @@ export function CardListGridCell({
   row: r,
   size,
   caption,
+  priceCaption,
   captionPrefs,
   selectMode,
   selected,
@@ -95,6 +98,7 @@ export function CardListGridCell({
       qty={r.qty}
       size={size}
       caption={caption}
+      priceCaption={priceCaption}
       setLabel={setLabel}
       selectMode={selectMode}
       selected={selected}
@@ -118,7 +122,7 @@ export function CardListGridCell({
             locations={locations}
             placement="art"
             interactive={!selectMode}
-            lead={{ qty: r.qty, set, surplus }}
+            lead={{ qty: r.qty, set, surplus, proxy: !!r.card.proxy }}
           />
         ) : null
       }

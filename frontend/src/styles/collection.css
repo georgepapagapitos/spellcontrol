@@ -1649,17 +1649,6 @@ i.ss.set-symbol--mythic {
   position: static;
 }
 
-/* Proxy / manual-price chips: a line of their own directly above the ×qty
-   corner or the plate (last in the DOM, so wrap-reverse stacks it on top).
-   Sharing the plate's line would break the plate's width switch, which
-   measures the whole row (CopyPlaces.css). */
-.collection-grid-status {
-  display: flex;
-  flex-basis: 100%;
-  align-items: center;
-  gap: var(--space-1);
-}
-
 .collection-grid-badges {
   display: flex;
   align-items: center;

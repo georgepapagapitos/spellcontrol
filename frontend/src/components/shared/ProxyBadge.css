@@ -26,11 +26,3 @@
 .collection-list-name > .proxy-badge {
   margin-left: var(--space-1-5);
 }
-
-/* Grid tile: leads the bottom row of marks (.collection-grid-status),
-   nudged up so it reads at grid-1x zoom, with the on-art drop shadow. */
-.collection-grid-proxy {
-  width: 1.1rem;
-  height: 1.1rem;
-  box-shadow: var(--shadow-raised);
-}
