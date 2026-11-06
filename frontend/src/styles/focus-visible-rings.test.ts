@@ -40,6 +40,7 @@ const ALLOWLIST = new Set([
   '.trade-result-row',
   '.room-browser-row', // <li>; its Join/Spectate/Full button carries .btn(-primary):focus-visible
   '.deck-combos-row',
+  '.scan-row', // <li>; .scan-row-main and .scan-row-remove inside it carry the ring
   // Same shape: the <li> is not focusable, and its hover only reveals the
   // tile's kebab. That button carries .deck-card-grid-menu:focus-visible,
   // which is also what reveals it for keyboard users.

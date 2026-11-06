@@ -516,6 +516,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search', initialQuery }: 
           <ScannerQueueSheet
             entries={addListQueue}
             binders={binders}
+            source="add-list"
             heading={`${addListCount} card${addListCount === 1 ? '' : 's'}`}
             onClose={() => setReviewOpen(false)}
             onEdit={setAddListEditingId}

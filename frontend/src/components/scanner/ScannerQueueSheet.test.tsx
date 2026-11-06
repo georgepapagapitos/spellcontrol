@@ -194,6 +194,31 @@ describe('ScannerQueueSheet', () => {
     expect(screen.getByRole('heading', { name: '3 cards' })).toBeTruthy();
   });
 
+  it('drops the camera copy when opened as the Add cards review (source="add-list")', () => {
+    const props = {
+      binders: [],
+      onClose: vi.fn(),
+      onEdit: vi.fn(),
+      onRemove: vi.fn(),
+      onClearAll: vi.fn(),
+      onChangeFinish: vi.fn(),
+      onChangeCondition: vi.fn(),
+      onChangeLanguage: vi.fn(),
+      onChangeProxy: vi.fn(),
+      onAddCard: vi.fn(),
+      onConfirm: vi.fn(),
+      source: 'add-list' as const,
+    };
+    const { unmount } = render(<ScannerQueueSheet {...props} entries={[bolt]} />);
+    expect(screen.getByRole('button', { name: 'Keep adding' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Keep scanning' })).toBeNull();
+    expect(screen.getByLabelText('Filter cards')).toBeTruthy();
+    unmount();
+    render(<ScannerQueueSheet {...props} entries={[]} />);
+    expect(screen.getByText('No cards here yet')).toBeTruthy();
+    expect(screen.queryByText(/scanned/i)).toBeNull();
+  });
+
   it('opens a row for editing and removes one with its own button', () => {
     const props = renderSheet();
     fireEvent.click(screen.getByRole('button', { name: /Edit 2 Lightning Bolt/ }));
