@@ -1,7 +1,6 @@
 import { Check, Compass, Crown, Landmark, type LucideIcon } from 'lucide-react';
 import './DesignationsPicker.css';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { Sheet } from '@/components/overlays/Sheet';
 import type { Designation } from '@/lib/playtest';
 import { Button } from '@/components/shared/Button';
 
@@ -58,67 +57,56 @@ const ROWS: Row[] = [
  * than one designation in a visit is the common case.
  */
 export function DesignationsPicker({ monarch, initiative, citysBlessing, onSet, onClose }: Props) {
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  useLockBodyScroll();
-
   const held: Record<Designation, boolean> = { monarch, initiative, citysBlessing };
 
   return (
-    <div className="card-picker-root">
-      {/* The backdrop fully covers the root (both `inset: 0`), so it — not
-          root — is what a "click outside the sheet" actually lands on. */}
-      <div className="card-picker-backdrop" role="presentation" onClick={() => beginClose()} />
-      <div
-        className={`card-picker-sheet playtest-designations-picker${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Designations"
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <h2 className="card-picker-title">Designations</h2>
-        </div>
-        <div className="playtest-designations-picker__list">
-          {ROWS.map((row) => {
-            const active = held[row.key];
-            const locked = row.oneWay && active;
-            return (
-              <button
-                key={row.key}
-                type="button"
-                role={row.oneWay ? undefined : 'switch'}
-                aria-checked={row.oneWay ? undefined : active}
-                disabled={locked}
-                className={`playtest-designations-picker__row${active ? ' is-active' : ''}`}
-                onClick={() => onSet(row.key, row.oneWay ? true : !active)}
-              >
-                <span className="playtest-designations-picker__row-icon" aria-hidden>
-                  <row.Icon width={16} height={16} strokeWidth={2} aria-hidden="true" />
+    <Sheet
+      inPlace
+      onClose={onClose}
+      className="playtest-designations-picker"
+      title="Designations"
+      footer={(close) => (
+        <>
+          <Button onClick={() => close()}>Close</Button>
+        </>
+      )}
+    >
+      <div className="playtest-designations-picker__list">
+        {ROWS.map((row) => {
+          const active = held[row.key];
+          const locked = row.oneWay && active;
+          return (
+            <button
+              key={row.key}
+              type="button"
+              role={row.oneWay ? undefined : 'switch'}
+              aria-checked={row.oneWay ? undefined : active}
+              disabled={locked}
+              className={`playtest-designations-picker__row${active ? ' is-active' : ''}`}
+              onClick={() => onSet(row.key, row.oneWay ? true : !active)}
+            >
+              <span className="playtest-designations-picker__row-icon" aria-hidden>
+                <row.Icon width={16} height={16} strokeWidth={2} aria-hidden="true" />
+              </span>
+              <span className="playtest-designations-picker__row-text">
+                <span className="playtest-designations-picker__row-label">
+                  {active ? row.activeLabel : row.inactiveLabel}
                 </span>
-                <span className="playtest-designations-picker__row-text">
-                  <span className="playtest-designations-picker__row-label">
-                    {active ? row.activeLabel : row.inactiveLabel}
-                  </span>
-                  <span className="playtest-designations-picker__row-desc">{row.description}</span>
-                </span>
-                {active && (
-                  <Check
-                    className="playtest-designations-picker__row-check"
-                    aria-hidden
-                    width={18}
-                    height={18}
-                    strokeWidth={2}
-                  />
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <div className="card-picker-footer">
-          <Button onClick={() => beginClose()}>Close</Button>
-        </div>
+                <span className="playtest-designations-picker__row-desc">{row.description}</span>
+              </span>
+              {active && (
+                <Check
+                  className="playtest-designations-picker__row-check"
+                  aria-hidden
+                  width={18}
+                  height={18}
+                  strokeWidth={2}
+                />
+              )}
+            </button>
+          );
+        })}
       </div>
-    </div>
+    </Sheet>
   );
 }

@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { Sheet } from '@/components/overlays/Sheet';
 import { usePressRepeat } from '@/lib/play/use-press-repeat';
 import { PlaytestCardFace } from '@/playtest/components/PlaytestCardFace';
 import { bossTickPhrase } from '@/lib/horde';
@@ -36,8 +35,6 @@ function clampDraft(raw: string, max: number): number {
  */
 export function HordeDamageSheet({ libraryCount, result, onConfirm, onDone, onClose }: Props) {
   const [draft, setDraft] = useState(() => String(Math.min(1, libraryCount)));
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(result ? onDone : onClose);
-  useLockBodyScroll();
 
   const clamped = clampDraft(draft, libraryCount);
   const after = Math.max(0, libraryCount - clamped);
@@ -61,114 +58,102 @@ export function HordeDamageSheet({ libraryCount, result, onConfirm, onDone, onCl
   }
 
   return (
-    <div className="card-picker-root">
-      <div
-        className="card-picker-backdrop"
-        role="presentation"
-        onClick={() => (result ? undefined : beginClose())}
-      />
-      <div
-        className={`card-picker-sheet horde-damage-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Damage the horde"
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <h2 className="card-picker-title">Damage the horde</h2>
-        </div>
-        <div className="card-picker-list horde-damage-body">
-          {!result ? (
-            <>
-              <div className="horde-damage-stepper">
-                <label htmlFor="horde-damage-amount">Damage</label>
-                <div className="play-stepper">
-                  <button
-                    type="button"
-                    className="play-stepper-btn"
-                    aria-label="Decrease"
-                    disabled={clamped <= 0}
-                    {...decRepeat}
-                  >
-                    −
-                  </button>
-                  <input
-                    id="horde-damage-amount"
-                    className="horde-damage-amount-input"
-                    type="text"
-                    inputMode="numeric"
-                    value={draft}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      if (raw !== '' && !/^\d+$/.test(raw)) return;
-                      setDraft(raw === '' ? '' : String(Math.min(libraryCount, Number(raw))));
-                    }}
-                    onBlur={() => {
-                      if (draft === '') setDraft('0');
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        confirm();
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="play-stepper-btn"
-                    aria-label="Increase"
-                    disabled={clamped >= libraryCount}
-                    {...incRepeat}
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-              <p id="horde-damage-amount-label">
-                Mills {clamped}. Library {libraryCount} → {after}.
-              </p>
-            </>
-          ) : (
-            <>
-              {result.bossesEntered.map((boss) => (
-                <p key={boss.name} className="horde-damage-boss-banner" role="status">
-                  {bossTickPhrase(boss.tick)} {boss.name} joins the battlefield.
-                </p>
-              ))}
-              {result.milled.length > 0 ? (
-                <>
-                  <p className="horde-damage-milled-heading">Milled {result.milled.length}.</p>
-                  <ul className="horde-damage-milled">
-                    {result.milled.map((card) => (
-                      <li key={card.id}>
-                        <PlaytestCardFace card={card} size="sm" />
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              ) : (
-                <p>The library was already empty.</p>
-              )}
-            </>
-          )}
-        </div>
-        <div className="card-picker-footer">
-          {!result ? (
-            <>
-              <Button onClick={() => beginClose()}>Cancel</Button>
-              <Button variant="primary" onClick={confirm}>
-                Confirm
-              </Button>
-            </>
-          ) : (
-            <Button variant="primary" onClick={() => beginClose()}>
-              Done
+    <Sheet
+      inPlace
+      onClose={result ? onDone : onClose}
+      className="horde-damage-sheet"
+      title="Damage the horde"
+      footer={(close) =>
+        !result ? (
+          <>
+            <Button onClick={() => close()}>Cancel</Button>
+            <Button variant="primary" onClick={confirm}>
+              Confirm
             </Button>
-          )}
-        </div>
+          </>
+        ) : (
+          <Button variant="primary" onClick={() => close()}>
+            Done
+          </Button>
+        )
+      }
+    >
+      <div className="card-picker-list horde-damage-body">
+        {!result ? (
+          <>
+            <div className="horde-damage-stepper">
+              <label htmlFor="horde-damage-amount">Damage</label>
+              <div className="play-stepper">
+                <button
+                  type="button"
+                  className="play-stepper-btn"
+                  aria-label="Decrease"
+                  disabled={clamped <= 0}
+                  {...decRepeat}
+                >
+                  −
+                </button>
+                <input
+                  id="horde-damage-amount"
+                  className="horde-damage-amount-input"
+                  type="text"
+                  inputMode="numeric"
+                  value={draft}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw !== '' && !/^\d+$/.test(raw)) return;
+                    setDraft(raw === '' ? '' : String(Math.min(libraryCount, Number(raw))));
+                  }}
+                  onBlur={() => {
+                    if (draft === '') setDraft('0');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      confirm();
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  className="play-stepper-btn"
+                  aria-label="Increase"
+                  disabled={clamped >= libraryCount}
+                  {...incRepeat}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+            <p id="horde-damage-amount-label">
+              Mills {clamped}. Library {libraryCount} → {after}.
+            </p>
+          </>
+        ) : (
+          <>
+            {result.bossesEntered.map((boss) => (
+              <p key={boss.name} className="horde-damage-boss-banner" role="status">
+                {bossTickPhrase(boss.tick)} {boss.name} joins the battlefield.
+              </p>
+            ))}
+            {result.milled.length > 0 ? (
+              <>
+                <p className="horde-damage-milled-heading">Milled {result.milled.length}.</p>
+                <ul className="horde-damage-milled">
+                  {result.milled.map((card) => (
+                    <li key={card.id}>
+                      <PlaytestCardFace card={card} size="sm" />
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p>The library was already empty.</p>
+            )}
+          </>
+        )}
       </div>
-    </div>
+    </Sheet>
   );
 }

@@ -1,5 +1,5 @@
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { useRef } from 'react';
+import { Sheet, type SheetHandle } from '@/components/overlays/Sheet';
 import type { PlaytestCard } from '@/lib/playtest';
 import './horde-sheets.css';
 import { Button } from '@/components/shared/Button';
@@ -18,37 +18,27 @@ interface Props {
  * `hordeOutcome` reach "won" once the library empties.
  */
 export function HordeCardMenu({ card, onMove, onClose }: Props) {
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose);
-  useLockBodyScroll();
+  const sheetRef = useRef<SheetHandle>(null);
 
   function act(to: 'graveyard' | 'exile' | 'library') {
     onMove(to);
-    beginClose();
+    sheetRef.current?.close();
   }
 
   return (
-    <div className="card-picker-root">
-      <div className="card-picker-backdrop" role="presentation" onClick={() => beginClose()} />
-      <div
-        className={`card-picker-sheet horde-card-menu${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label={card.name}
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <h2 className="card-picker-title">{card.name}</h2>
-        </div>
-        <div className="card-picker-list horde-card-menu-body">
-          <Button onClick={() => act('graveyard')}>Destroyed</Button>
-          <Button onClick={() => act('exile')}>Exiled</Button>
-          <Button onClick={() => act('library')}>Returned to the library</Button>
-        </div>
-        <div className="card-picker-footer">
-          <Button onClick={() => beginClose()}>Close</Button>
-        </div>
+    <Sheet
+      ref={sheetRef}
+      inPlace
+      onClose={onClose}
+      className="horde-card-menu"
+      title={card.name}
+      footer={(close) => <Button onClick={() => close()}>Close</Button>}
+    >
+      <div className="card-picker-list horde-card-menu-body">
+        <Button onClick={() => act('graveyard')}>Destroyed</Button>
+        <Button onClick={() => act('exile')}>Exiled</Button>
+        <Button onClick={() => act('library')}>Returned to the library</Button>
       </div>
-    </div>
+    </Sheet>
   );
 }

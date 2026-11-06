@@ -1,11 +1,9 @@
-import { createPortal } from 'react-dom';
-import { type JSX, useId } from 'react';
-import { X, Layers, Boxes } from 'lucide-react';
+import { type JSX } from 'react';
+import { Layers, Boxes } from 'lucide-react';
+import { Sheet } from '@/components/overlays/Sheet';
 import './SharedCopiesSheet.css';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useEscapeKey } from '@/lib/overlays/use-escape-key';
 import type { ContestedCard } from '@/lib/collection/allocations';
-import { Button, IconButton } from '@/components/shared/Button';
+import { Button } from '@/components/shared/Button';
 
 export interface SharedCopiesSheetProps {
   /** This deck's name (for the header). */
@@ -33,82 +31,56 @@ export function SharedCopiesSheet({
   onMove,
   onClose,
 }: SharedCopiesSheetProps): JSX.Element {
-  const titleId = useId();
-  useLockBodyScroll();
-  useEscapeKey(onClose);
-
-  return createPortal(
-    <div
-      className="card-picker-root shared-copies-root"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (e.target === e.currentTarget) onClose();
-      }}
-      role="presentation"
+  return (
+    <Sheet
+      onClose={onClose}
+      rootClassName="shared-copies-root"
+      className="shared-copies-sheet"
+      footerClassName="shared-copies-actions"
+      title="Shared with your other decks"
+      description={
+        <>
+          These cards are in <strong>{deckName}</strong>'s list, but their copies are committed to
+          other decks.
+        </>
+      }
+      closeButton
+      footer={(close) => (
+        <Button variant="primary" onClick={close}>
+          Done
+        </Button>
+      )}
     >
-      <div
-        className="card-picker-sheet shared-copies-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <header className="shared-copies-head">
-          <div className="text-stack">
-            <h2 id={titleId} className="shared-copies-title">
-              Shared with your other decks
-            </h2>
-            <p className="shared-copies-sub">
-              These cards are in <strong>{deckName}</strong>'s list, but their copies are committed
-              to other decks.
-            </p>
-          </div>
-          <IconButton
-            variant="quiet"
-            onClick={onClose}
-            label="Close"
-            icon={<X width={18} height={18} strokeWidth={2} />}
-          />
-        </header>
-
-        {contested.length === 0 ? (
-          <div className="shared-copies-empty">Every copy this deck needs is assigned here.</div>
-        ) : (
-          <ul className="shared-copies-list" role="list">
-            {contested.map((c) => (
-              <li key={c.slotId} className="shared-copies-row">
-                <span className="text-stack">
-                  <span className="truncate-name">{c.cardName}</span>
-                  <span className="shared-copies-row-where">
-                    {c.donorKind === 'cube' ? (
-                      <Boxes width={14} height={14} strokeWidth={1.8} aria-hidden />
-                    ) : (
-                      <Layers width={14} height={14} strokeWidth={1.8} aria-hidden />
-                    )}
-                    You own {c.owned} · also in {c.donorKind === 'cube' ? 'cube' : 'deck'}{' '}
-                    <span
-                      className="shared-copies-row-deck"
-                      style={{ ['--deck-color' as string]: c.donorDeckColor }}
-                    >
-                      {c.donorDeckName}
-                    </span>
+      {contested.length === 0 ? (
+        <div className="shared-copies-empty">Every copy this deck needs is assigned here.</div>
+      ) : (
+        <ul className="shared-copies-list" role="list">
+          {contested.map((c) => (
+            <li key={c.slotId} className="shared-copies-row">
+              <span className="text-stack">
+                <span className="truncate-name">{c.cardName}</span>
+                <span className="shared-copies-row-where">
+                  {c.donorKind === 'cube' ? (
+                    <Boxes width={14} height={14} strokeWidth={1.8} aria-hidden />
+                  ) : (
+                    <Layers width={14} height={14} strokeWidth={1.8} aria-hidden />
+                  )}
+                  You own {c.owned} · also in {c.donorKind === 'cube' ? 'cube' : 'deck'}{' '}
+                  <span
+                    className="shared-copies-row-deck"
+                    style={{ ['--deck-color' as string]: c.donorDeckColor }}
+                  >
+                    {c.donorDeckName}
                   </span>
                 </span>
-                <Button onClick={() => onMove(c.slotId)} className="shared-copies-row-btn">
-                  Move here…
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <div className="shared-copies-actions">
-          <Button variant="primary" onClick={onClose}>
-            Done
-          </Button>
-        </div>
-      </div>
-    </div>,
-    document.body
+              </span>
+              <Button onClick={() => onMove(c.slotId)} className="shared-copies-row-btn">
+                Move here…
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Sheet>
   );
 }

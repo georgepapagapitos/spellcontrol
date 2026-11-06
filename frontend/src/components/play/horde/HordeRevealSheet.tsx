@@ -1,5 +1,4 @@
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { Sheet } from '@/components/overlays/Sheet';
 import { PlaytestCardFace } from '@/playtest/components/PlaytestCardFace';
 import type { PlaytestCard } from '@/lib/playtest';
 import './horde-sheets.css';
@@ -21,55 +20,46 @@ interface Props {
  * other playtest sheet).
  */
 export function HordeRevealSheet({ revealed, toResolveIds, waveEndId, onConfirm }: Props) {
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onConfirm, undefined, {
-    escape: false,
-  });
-  useLockBodyScroll();
-
   const spells = revealed.filter((c) => toResolveIds.has(c.id));
 
   return (
-    <div className="card-picker-root">
-      <div
-        className={`card-picker-sheet horde-reveal-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="The horde reveals"
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <h2 className="card-picker-title">The horde reveals</h2>
-        </div>
-        {revealed.length === 0 ? (
-          <p className="horde-reveal-empty">The horde has nothing left to reveal.</p>
-        ) : (
-          <div className="card-picker-list horde-reveal-list">
-            {revealed.map((card, i) => (
-              <div
-                key={card.id}
-                className={`horde-reveal-card${card.id === waveEndId ? ' is-wave-end' : ''}`}
-              >
-                <PlaytestCardFace card={card} size="sm" />
-                <span className="horde-reveal-card-caption">
-                  {i + 1} · {card.id === waveEndId ? 'ends the wave' : card.name}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-        {spells.length > 0 && (
-          <p className="horde-reveal-callout" role="status">
-            The horde casts {spells.map((c) => c.name).join(', ')}. Resolve{' '}
-            {spells.length === 1 ? 'it' : 'them'}, then confirm.
-          </p>
-        )}
-        <div className="card-picker-footer">
-          <Button variant="primary" onClick={() => beginClose()}>
+    <Sheet
+      inPlace
+      dismissable={false}
+      onClose={onConfirm}
+      className="horde-reveal-sheet"
+      title="The horde reveals"
+      footer={(close) => (
+        <>
+          <Button variant="primary" onClick={() => close()}>
             Confirm
           </Button>
+        </>
+      )}
+    >
+      {revealed.length === 0 ? (
+        <p className="horde-reveal-empty">The horde has nothing left to reveal.</p>
+      ) : (
+        <div className="card-picker-list horde-reveal-list">
+          {revealed.map((card, i) => (
+            <div
+              key={card.id}
+              className={`horde-reveal-card${card.id === waveEndId ? ' is-wave-end' : ''}`}
+            >
+              <PlaytestCardFace card={card} size="sm" />
+              <span className="horde-reveal-card-caption">
+                {i + 1} · {card.id === waveEndId ? 'ends the wave' : card.name}
+              </span>
+            </div>
+          ))}
         </div>
-      </div>
-    </div>
+      )}
+      {spells.length > 0 && (
+        <p className="horde-reveal-callout" role="status">
+          The horde casts {spells.map((c) => c.name).join(', ')}. Resolve{' '}
+          {spells.length === 1 ? 'it' : 'them'}, then confirm.
+        </p>
+      )}
+    </Sheet>
   );
 }

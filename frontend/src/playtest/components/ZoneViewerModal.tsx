@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { Sheet } from '@/components/overlays/Sheet';
 import { useMediaQuery } from '@/lib/util/use-media-query';
 import { normalizeForSearch } from '@/lib/search/normalize-search';
 import { SearchPill } from '@/components/search/SearchPill';
@@ -102,8 +101,6 @@ export function ZoneViewerModal({
   libraryCount,
   cardLookup,
 }: Props) {
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  useLockBodyScroll();
   const [filter, setFilter] = useState('');
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   // A phone's soft keyboard pops over the grid before the sheet finishes
@@ -154,37 +151,55 @@ export function ZoneViewerModal({
   }
 
   return (
-    <div className="card-picker-root">
-      {/* The backdrop fully covers the root (both `inset: 0`), so it — not
-          root — is what a "click outside the sheet" actually lands on. */}
-      <div className="card-picker-backdrop" role="presentation" onClick={() => beginClose()} />
-      <div
-        className={`card-picker-sheet playtest-zone-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`${label} viewer`}
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <h2 className="card-picker-title playtest-zone-title-row">
+    <>
+      <Sheet
+        inPlace
+        onClose={onClose}
+        className="playtest-zone-sheet"
+        label={`${label} viewer`}
+        title={
+          <span className="playtest-zone-title-row">
             {label}
             <span className="playtest-zone-count">· {cards.length}</span>
-          </h2>
-          {hint && <p className="playtest-zone-hint">{hint}</p>}
-          <SearchPill
-            value={filter}
-            onChange={setFilter}
-            placeholder={`Search ${label.toLowerCase()}…`}
-            ariaLabel={`Search ${label}`}
-            autoFocus={finePointer}
-          />
-          {isFiltering && (
-            <p className="playtest-zone-match-count" aria-live="polite">
-              {ordered.length} of {cards.length} match
-            </p>
-          )}
-        </div>
+          </span>
+        }
+        toolbar={
+          <>
+            {hint && <p className="playtest-zone-hint">{hint}</p>}
+            <SearchPill
+              value={filter}
+              onChange={setFilter}
+              placeholder={`Search ${label.toLowerCase()}…`}
+              ariaLabel={`Search ${label}`}
+              autoFocus={finePointer}
+            />
+            {isFiltering && (
+              <p className="playtest-zone-match-count" aria-live="polite">
+                {ordered.length} of {cards.length} match
+              </p>
+            )}
+          </>
+        }
+        footer={(close) => (
+          <>
+            <Button onClick={() => close()}>Done</Button>
+            {zone === 'library' && onShuffleAfter && (
+              <Button variant="primary" onClick={onShuffleAfter}>
+                Shuffle and close
+              </Button>
+            )}
+            {(zone === 'graveyard' || zone === 'exile') && onShuffleIntoLibrary && (
+              <Button
+                variant="primary"
+                disabled={cards.length === 0}
+                onClick={onShuffleIntoLibrary}
+              >
+                Shuffle into library
+              </Button>
+            )}
+          </>
+        )}
+      >
         {cards.length === 0 ? (
           <p className="playtest-zone-empty">{EMPTY_TEXT[zone]}</p>
         ) : ordered.length === 0 ? (
@@ -217,21 +232,7 @@ export function ZoneViewerModal({
             ))}
           </ul>
         )}
-        <div className="card-picker-footer">
-          <Button onClick={() => beginClose()}>Done</Button>
-          {zone === 'library' && onShuffleAfter && (
-            <Button variant="primary" onClick={onShuffleAfter}>
-              Shuffle and close
-            </Button>
-          )}
-          {(zone === 'graveyard' || zone === 'exile') && onShuffleIntoLibrary && (
-            <Button variant="primary" disabled={cards.length === 0} onClick={onShuffleIntoLibrary}>
-              Shuffle into library
-            </Button>
-          )}
-        </div>
-      </div>
-
+      </Sheet>
       {previewIndex !== null && previewCards[previewIndex] && (
         <CardPreview
           source="playtest"
@@ -245,7 +246,7 @@ export function ZoneViewerModal({
           onClose={() => setPreviewIndex(null)}
         />
       )}
-    </div>
+    </>
   );
 }
 

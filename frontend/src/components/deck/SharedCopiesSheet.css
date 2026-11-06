@@ -1,32 +1,6 @@
-/* SharedCopiesSheet — deck-level review of owned-but-elsewhere cards. Reuses the
-   shared card-picker sheet shell; this file adds the header, the contested-card
-   rows, and the footer. Theme vars + --text-* scale only; see STYLE_GUIDE.md. */
-
-.shared-copies-head {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-1-5);
-  padding: var(--space-1) var(--space-1) var(--space-2-5);
-}
-
-.shared-copies-title {
-  margin: 0;
-  font-size: var(--text-md);
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.shared-copies-sub {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-}
-
-.shared-copies-sub strong {
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
+/* SharedCopiesSheet — deck-level review of owned-but-elsewhere cards. Built on
+   <Sheet>; this file adds the contested-card rows and the footer. Theme vars +
+   --text-* scale only; see STYLE_GUIDE.md. */
 .shared-copies-empty {
   padding: var(--space-6) var(--space-4);
   text-align: center;

@@ -1,11 +1,7 @@
-import { createPortal } from 'react-dom';
-import { type JSX, useId, useState } from 'react';
-import { X } from 'lucide-react';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useEscapeKey } from '@/lib/overlays/use-escape-key';
+import { type JSX, useState } from 'react';
+import { Sheet } from '@/components/overlays/Sheet';
 import type { DeckToken } from '@/lib/deck/deck-tokens';
 import './DeckTokensSheet.css';
-import { IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
 
 const tokenId = (t: DeckToken): string => `${t.name} ${t.typeLine ?? ''}`;
@@ -28,97 +24,61 @@ export function DeckTokensSheet({
   tokens: DeckToken[];
   onClose: () => void;
 }): JSX.Element {
-  const titleId = useId();
   const [openId, setOpenId] = useState<string | null>(null);
-  useLockBodyScroll();
-  useEscapeKey(onClose);
 
   const selected = tokens.find((t) => tokenId(t) === openId) ?? null;
 
-  return createPortal(
-    <div
-      className="card-picker-root deck-tokens-root"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (e.target === e.currentTarget) onClose();
-      }}
-      role="presentation"
+  return (
+    <Sheet
+      onClose={onClose}
+      rootClassName="deck-tokens-root"
+      className="deck-tokens-sheet"
+      title="Tokens to prep"
+      description={`${tokens.length} ${tokens.length === 1 ? 'token' : 'tokens'}`}
+      closeButton
     >
-      <div
-        className="card-picker-sheet deck-tokens-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <header className="deck-tokens-sheet-head">
-          <div className="text-stack text-stack--auto">
-            <h2 id={titleId} className="deck-tokens-sheet-title">
-              Tokens to prep
-            </h2>
-            {/* B6-17: the sheet only opens when the deck has tokens (the
-                deck-action row gates onTokens on deckTokens.length > 0), so
-                a zero-tokens empty state here can never render. Deleted
-                rather than kept as dead code. */}
-            <p className="deck-tokens-sheet-sub">
-              {tokens.length} {tokens.length === 1 ? 'token' : 'tokens'}
-            </p>
-          </div>
-          <IconButton
-            variant="quiet"
-            className="deck-tokens-sheet-close"
-            onClick={onClose}
-            label="Close"
-            icon={<X width={18} height={18} strokeWidth={2} />}
-          />
-        </header>
+      {tokens.length > 0 && (
+        <div className="deck-tokens-sheet-body">
+          <ul className="deck-tokens-chips">
+            {tokens.map((t) => {
+              const id = tokenId(t);
+              const open = id === openId;
+              return (
+                <li key={id}>
+                  <Chip
+                    className={`deck-tokens-chip${open ? ' deck-tokens-chip--open' : ''}`}
+                    pressed={open}
+                    onClick={() => setOpenId(open ? null : id)}
+                    labelClassName="deck-tokens-chip-name card-name-chip-text"
+                    labelTitle={t.name}
+                    trailing={<span className="deck-tokens-chip-count">×{t.producers.length}</span>}
+                  >
+                    {t.name}
+                  </Chip>
+                </li>
+              );
+            })}
+          </ul>
 
-        {tokens.length > 0 && (
-          <div className="deck-tokens-sheet-body">
-            <ul className="deck-tokens-chips">
-              {tokens.map((t) => {
-                const id = tokenId(t);
-                const open = id === openId;
-                return (
-                  <li key={id}>
-                    <Chip
-                      className={`deck-tokens-chip${open ? ' deck-tokens-chip--open' : ''}`}
-                      pressed={open}
-                      onClick={() => setOpenId(open ? null : id)}
-                      labelClassName="deck-tokens-chip-name card-name-chip-text"
-                      labelTitle={t.name}
-                      trailing={
-                        <span className="deck-tokens-chip-count">×{t.producers.length}</span>
-                      }
-                    >
-                      {t.name}
-                    </Chip>
-                  </li>
-                );
-              })}
-            </ul>
-
-            {selected && (
-              <div
-                className="deck-tokens-detail"
-                role="region"
-                aria-label={`${selected.name} details`}
-              >
-                {selected.typeLine && (
-                  <span className="deck-tokens-detail-type">
-                    {selected.typeLine.replace(/^Token\s+/i, '')}
-                  </span>
-                )}
-                <span className="deck-tokens-detail-producers">
-                  <span className="deck-tokens-detail-label">Made by</span>{' '}
-                  {selected.producers.join(' · ')}
+          {selected && (
+            <div
+              className="deck-tokens-detail"
+              role="region"
+              aria-label={`${selected.name} details`}
+            >
+              {selected.typeLine && (
+                <span className="deck-tokens-detail-type">
+                  {selected.typeLine.replace(/^Token\s+/i, '')}
                 </span>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>,
-    document.body
+              )}
+              <span className="deck-tokens-detail-producers">
+                <span className="deck-tokens-detail-label">Made by</span>{' '}
+                {selected.producers.join(' · ')}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+    </Sheet>
   );
 }

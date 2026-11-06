@@ -1,4 +1,5 @@
-import { useId, useMemo, useState } from 'react';
+import { Sheet, type SheetHandle } from '@/components/overlays/Sheet';
+import { useId, useMemo, useState, useRef } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -23,8 +24,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { ArrowLeft, ArrowRight, Hand, Minus, Plus, Undo2 } from 'lucide-react';
 import { SelectMenu } from '@/components/overlays/SelectMenu';
 import './ScrySheet.css';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import type { PlaytestCard, ScryMode } from '@/lib/playtest';
 import { Button, IconButton } from '@/components/shared/Button';
 
@@ -105,8 +104,7 @@ export function ScrySheet({
   onClose,
   onResolve,
 }: Props) {
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  useLockBodyScroll();
+  const sheetRef = useRef<SheetHandle>(null);
   const modeName = useId();
 
   const maxPeek = Math.min(MAX_PEEK, library.length);
@@ -226,7 +224,7 @@ export function ScrySheet({
           : { mode, top: keep, graveyard: away, hand, shuffle }
       );
     }
-    beginClose();
+    sheetRef.current?.close();
   }
 
   const confirmLabel =
@@ -237,22 +235,14 @@ export function ScrySheet({
   const activeCard = activeId ? byId.get(activeId) : undefined;
 
   return (
-    <div className="card-picker-root">
-      {/* The backdrop fully covers the root (both `inset: 0`), so it — not
-          root — is what a "click outside the sheet" actually lands on. */}
-      <div className="card-picker-backdrop" role="presentation" onClick={() => beginClose()} />
-      <div
-        className={`card-picker-sheet playtest-scry-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="playtest-scry-title"
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <h2 id="playtest-scry-title" className="card-picker-title">
-            {KEEP_LABEL[from]}
-          </h2>
+    <Sheet
+      ref={sheetRef}
+      inPlace
+      onClose={onClose}
+      className="playtest-scry-sheet"
+      title={KEEP_LABEL[from]}
+      toolbar={
+        <>
           <fieldset className="playtest-scry-modes" aria-label="Action">
             {MODES.map((m) => (
               <label key={m} className={`playtest-scry-mode${m === mode ? ' is-active' : ''}`}>
@@ -301,89 +291,90 @@ export function ScrySheet({
               <span>Shuffle your library afterward</span>
             </label>
           )}
-        </div>
-
-        {peeked.length === 0 ? (
-          <p className="playtest-scry-empty">Your library is empty.</p>
-        ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCorners}
-            onDragStart={(e: DragStartEvent) => setActiveId(String(e.active.id))}
-            onDragOver={handleDragOver}
-            onDragEnd={handleDragEnd}
-            onDragCancel={() => setActiveId(null)}
-          >
-            {columns.hand.length > 0 && (
-              <div className="playtest-scry-hand">
-                <h3 className="playtest-scry-column__heading">To hand</h3>
-                <ul className="pill-list" aria-label="To hand">
-                  {columns.hand.map((cardId) => {
-                    const card = byId.get(cardId);
-                    if (!card) return null;
-                    return (
-                      <li key={cardId} className="playtest-scry-hand__chip">
-                        <span>{card.name}</span>
-                        <IconButton
-                          className="playtest-scry-card__move"
-                          onClick={() => move(cardId, 'top')}
-                          label={`${card.name}: Back to ${KEEP_LABEL[from].toLowerCase()}`}
-                          icon={<Undo2 width={16} height={16} />}
-                        />
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-            <div className="playtest-scry-columns">
-              <ScryColumn
-                id="top"
-                heading={KEEP_LABEL[from]}
-                sub={
-                  from === 'top'
-                    ? 'First card drawn is at the top'
-                    : 'Goes back under your library, in this order'
-                }
-                ids={columns.top}
-                byId={byId}
-                moveLabel={`Move to ${AWAY_LABEL[from][mode].toLowerCase()}`}
-                moveIcon="right"
-                onMove={(cardId) => move(cardId, 'away')}
-                onHand={toHand}
-              />
-              <ScryColumn
-                id="away"
-                heading={AWAY_LABEL[from][mode]}
-                sub={
-                  mode === 'scry'
-                    ? from === 'top'
-                      ? 'Goes under your library, in this order'
-                      : 'Goes on top of your library, in this order'
-                    : undefined
-                }
-                ids={columns.away}
-                byId={byId}
-                moveLabel={`Move to ${KEEP_LABEL[from].toLowerCase()}`}
-                moveIcon="left"
-                onMove={(cardId) => move(cardId, 'top')}
-                onHand={toHand}
-              />
-            </div>
-            <DragOverlay dropAnimation={null}>
-              {activeCard && <ScryCardFace card={activeCard} dragging />}
-            </DragOverlay>
-          </DndContext>
-        )}
-
-        <div className="card-picker-footer">
-          <Button onClick={() => beginClose()}>Cancel</Button>
+        </>
+      }
+      footer={(close) => (
+        <>
+          <Button onClick={() => close()}>Cancel</Button>
           <Button variant="primary" onClick={handleConfirm} disabled={peeked.length === 0}>
             {confirmLabel}
           </Button>
-        </div>
-      </div>
-    </div>
+        </>
+      )}
+    >
+      {peeked.length === 0 ? (
+        <p className="playtest-scry-empty">Your library is empty.</p>
+      ) : (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={(e: DragStartEvent) => setActiveId(String(e.active.id))}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => setActiveId(null)}
+        >
+          {columns.hand.length > 0 && (
+            <div className="playtest-scry-hand">
+              <h3 className="playtest-scry-column__heading">To hand</h3>
+              <ul className="pill-list" aria-label="To hand">
+                {columns.hand.map((cardId) => {
+                  const card = byId.get(cardId);
+                  if (!card) return null;
+                  return (
+                    <li key={cardId} className="playtest-scry-hand__chip">
+                      <span>{card.name}</span>
+                      <IconButton
+                        className="playtest-scry-card__move"
+                        onClick={() => move(cardId, 'top')}
+                        label={`${card.name}: Back to ${KEEP_LABEL[from].toLowerCase()}`}
+                        icon={<Undo2 width={16} height={16} />}
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+          <div className="playtest-scry-columns">
+            <ScryColumn
+              id="top"
+              heading={KEEP_LABEL[from]}
+              sub={
+                from === 'top'
+                  ? 'First card drawn is at the top'
+                  : 'Goes back under your library, in this order'
+              }
+              ids={columns.top}
+              byId={byId}
+              moveLabel={`Move to ${AWAY_LABEL[from][mode].toLowerCase()}`}
+              moveIcon="right"
+              onMove={(cardId) => move(cardId, 'away')}
+              onHand={toHand}
+            />
+            <ScryColumn
+              id="away"
+              heading={AWAY_LABEL[from][mode]}
+              sub={
+                mode === 'scry'
+                  ? from === 'top'
+                    ? 'Goes under your library, in this order'
+                    : 'Goes on top of your library, in this order'
+                  : undefined
+              }
+              ids={columns.away}
+              byId={byId}
+              moveLabel={`Move to ${KEEP_LABEL[from].toLowerCase()}`}
+              moveIcon="left"
+              onMove={(cardId) => move(cardId, 'top')}
+              onHand={toHand}
+            />
+          </div>
+          <DragOverlay dropAnimation={null}>
+            {activeCard && <ScryCardFace card={activeCard} dragging />}
+          </DragOverlay>
+        </DndContext>
+      )}
+    </Sheet>
   );
 }
 

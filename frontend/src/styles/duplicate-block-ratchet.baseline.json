@@ -1,11 +1,4 @@
 {
-  "02eb2f6ff7": {
-    "size": 2,
-    "locations": [
-      "components/deck/CardFitPanel.css:.card-fit-title",
-      "components/deck/DeckSizePrompt.css:.deck-size-prompt-title"
-    ]
-  },
   "0a53b3599f": {
     "size": 2,
     "locations": [
@@ -228,7 +221,10 @@
   },
   "5ea9d09502": {
     "size": 2,
-    "locations": ["pages/PodHubPage.css:.pod-hub-wtpp-decks", "styles/auth.css:.auth-rules"]
+    "locations": [
+      "pages/PodHubPage.css:.pod-hub-wtpp-decks",
+      "styles/auth.css:.auth-rules"
+    ]
   },
   "5ee93f0e01": {
     "size": 2,
@@ -295,7 +291,10 @@
   },
   "7007223556": {
     "size": 2,
-    "locations": ["pages/DailyPage.css:.daily-dist", "pages/SearchPage.css:.search-syntax-list"]
+    "locations": [
+      "pages/DailyPage.css:.daily-dist",
+      "pages/SearchPage.css:.search-syntax-list"
+    ]
   },
   "7394b42b4b": {
     "size": 2,

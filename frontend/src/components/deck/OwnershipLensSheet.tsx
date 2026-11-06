@@ -1,7 +1,5 @@
-import { createPortal } from 'react-dom';
 import { useMemo } from 'react';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { Sheet } from '@/components/overlays/Sheet';
 import { formatMoney } from '@/lib/collection/format-money';
 import type { OwnershipLens } from '@/lib/collection/ownership-lens';
 import { Button } from '@/components/shared/Button';
@@ -29,14 +27,6 @@ interface BinderSummaryRow {
  * file needs no CSS of its own.
  */
 export function OwnershipLensSheet({ id, lens, missingCardPrices, onClose }: Props) {
-  useLockBodyScroll();
-
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
-    onClose,
-    'binder-sheet-slide-out',
-    { instantAt: '(min-width: 1024px)' }
-  );
-
   // Compact owned/binder summary: how many owned deck cards fall in each
   // binder (or own no binder at all) — grouped counts, not a full per-card
   // list (the missing list below is the detailed one). A card owned across
@@ -68,83 +58,65 @@ export function OwnershipLensSheet({ id, lens, missingCardPrices, onClose }: Pro
   const hasMissing = lens.missingCardNames.length > 0;
   const hasOwnedSummary = binderRows.length > 0 || uncategorizedCount > 0;
 
-  return createPortal(
-    <div
-      className="card-picker-root"
-      role="presentation"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (e.target === e.currentTarget) beginClose();
-      }}
-    >
-      <div
-        id={id}
-        className={`card-picker-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="What you own from this deck"
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <h2 className="card-picker-title">
-            {lens.ownedCount} of {lens.totalCount} cards owned
-          </h2>
-        </div>
-
-        {hasMissing && (
-          <ul className="card-picker-list" role="list" aria-label="Missing cards">
-            {lens.missingCardNames.map((name) => (
-              <li key={name} className="card-picker-row">
-                <span className="card-picker-name">{name}</span>
-                <span className="card-picker-meta">
-                  {formatMoney(missingCardPrices.get(name) ?? null)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {hasOwnedSummary && (
-          <ul className="card-picker-list" role="list" aria-label="Owned, by binder">
-            {binderRows.map((row) => (
-              <li key={row.id} className="card-picker-row">
-                <span
-                  className="card-picker-rarity"
-                  style={row.color ? { background: row.color } : undefined}
-                  aria-hidden
-                />
-                <span className="card-picker-name">{row.name}</span>
-                <span className="card-picker-meta">
-                  {row.count} card{row.count === 1 ? '' : 's'}
-                </span>
-              </li>
-            ))}
-            {uncategorizedCount > 0 && (
-              <li className="card-picker-row">
-                <span className="card-picker-rarity" aria-hidden />
-                <span className="card-picker-name">Uncategorized</span>
-                <span className="card-picker-meta">
-                  {uncategorizedCount} card{uncategorizedCount === 1 ? '' : 's'}
-                </span>
-              </li>
-            )}
-          </ul>
-        )}
-
-        {!hasMissing && !hasOwnedSummary && (
-          <p className="card-picker-empty">
-            Nothing to show yet. Add cards to this deck to see what you own and what's missing.
-          </p>
-        )}
-
-        <div className="card-picker-footer">
-          <Button variant="primary" onClick={() => beginClose()}>
+  return (
+    <Sheet
+      id={id}
+      onClose={onClose}
+      label="What you own from this deck"
+      title={`${lens.ownedCount} of ${lens.totalCount} cards owned`}
+      footer={(close) => (
+        <>
+          <Button variant="primary" onClick={() => close()}>
             Done
           </Button>
-        </div>
-      </div>
-    </div>,
-    document.body
+        </>
+      )}
+    >
+      {hasMissing && (
+        <ul className="card-picker-list" role="list" aria-label="Missing cards">
+          {lens.missingCardNames.map((name) => (
+            <li key={name} className="card-picker-row">
+              <span className="card-picker-name">{name}</span>
+              <span className="card-picker-meta">
+                {formatMoney(missingCardPrices.get(name) ?? null)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {hasOwnedSummary && (
+        <ul className="card-picker-list" role="list" aria-label="Owned, by binder">
+          {binderRows.map((row) => (
+            <li key={row.id} className="card-picker-row">
+              <span
+                className="card-picker-rarity"
+                style={row.color ? { background: row.color } : undefined}
+                aria-hidden
+              />
+              <span className="card-picker-name">{row.name}</span>
+              <span className="card-picker-meta">
+                {row.count} card{row.count === 1 ? '' : 's'}
+              </span>
+            </li>
+          ))}
+          {uncategorizedCount > 0 && (
+            <li className="card-picker-row">
+              <span className="card-picker-rarity" aria-hidden />
+              <span className="card-picker-name">Uncategorized</span>
+              <span className="card-picker-meta">
+                {uncategorizedCount} card{uncategorizedCount === 1 ? '' : 's'}
+              </span>
+            </li>
+          )}
+        </ul>
+      )}
+
+      {!hasMissing && !hasOwnedSummary && (
+        <p className="card-picker-empty">
+          Nothing to show yet. Add cards to this deck to see what you own and what's missing.
+        </p>
+      )}
+    </Sheet>
   );
 }

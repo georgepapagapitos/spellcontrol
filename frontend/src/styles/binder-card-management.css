@@ -505,6 +505,45 @@
   margin: 0;
 }
 
+/* Sheet's heading: eyebrow, title and description stacked, with the
+   optional close button at the end of the row. */
+.card-picker-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+/* Rides .text-stack (base-layout.css) for the column; only the gap differs. */
+.card-picker-heading-text {
+  gap: var(--space-1);
+}
+
+.card-picker-close {
+  flex: 0 0 auto;
+  margin: -0.15rem -0.4rem 0 0;
+}
+
+/* Sheet's `eyebrow` slot: a small label above a title that is a name. */
+.card-picker-eyebrow {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Sheet's `description` slot: a muted line under the title. A name inside
+   it (<strong>) reads in the title's color. */
+.card-picker-description {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.card-picker-description strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
 .card-picker-search {
   width: 100%;
   box-sizing: border-box;
@@ -614,20 +653,6 @@
 
 /* ── AddToBinderSheet ─────────────────────────────────────────────────────── */
 
-.add-to-binder-label {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  margin: 0;
-  font-weight: 600;
-}
-
-.add-to-binder-card-name {
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: var(--space-0-5) 0 0;
-}
-
 .add-to-binder-row {
   display: flex;
   align-items: center;
@@ -701,14 +726,19 @@
 
 /* ── Add card sheet ──────────────────────────────────────────────── */
 
-.add-card-sheet .card-picker-header {
-  gap: var(--space-1-5);
+/* AddCardSearchPanel owns its search field (the unified Add-cards modal
+   hosts the same panel), so in this sheet the field is a panel child, not a
+   header child. It takes the header's inset and the divider moves under it,
+   which reads as one header. Without this it ran edge to edge across the
+   dialog with the divider through it. */
+.add-card-sheet--panel-search > .card-picker-header {
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
-.add-card-sheet-hint {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  margin: 0;
+.add-card-sheet--panel-search .add-card-search-input-wrap {
+  padding: var(--space-2) var(--space-4) var(--space-3);
+  border-bottom: 0.5px solid var(--border);
 }
 
 .add-card-sheet-body {

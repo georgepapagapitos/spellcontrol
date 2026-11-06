@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom';
 import { ChevronRight, X } from 'lucide-react';
+import { Sheet } from '@/components/overlays/Sheet';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useCollectionStore } from '@/store/collection';
@@ -236,109 +237,70 @@ function closeToDoneDetail(row: CloseToDoneRow): string {
  * CSS of its own beyond the insight rows.
  */
 function SharedCopiesSheet({ rows, onClose }: { rows: SharedCopyRow[]; onClose: () => void }) {
-  useLockBodyScroll();
-  // Escape is useSheetExit's own (T147) — no separate useEscapeKey call; see
-  // that hook's doc and src/lib/overlays/use-sheet-exit.escape.test.tsx.
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  const dismiss = () => beginClose();
-
-  return createPortal(
-    <div
-      className="card-picker-root"
-      role="presentation"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (e.target === e.currentTarget) dismiss();
-      }}
-    >
-      <div
-        className={`card-picker-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Cards wanted by more decks than you own"
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <h2 className="card-picker-title">Shared copies</h2>
-        </div>
-        <ul className="card-picker-list" role="list" aria-label="Cards in shortfall">
-          {rows.map((row) => (
-            <li key={row.cardName} className="card-picker-row">
-              <span className="card-picker-name">{row.cardName}</span>
-              <span className="card-picker-meta">
-                {row.wantedBy.map((w, i) => (
-                  <span key={`${w.kind}-${w.id}`}>
-                    {i > 0 && ', '}
-                    {w.kind === 'deck' ? <Link to={`/decks/${w.id}`}>{w.name}</Link> : w.name}
-                  </span>
-                ))}
-                {' · you own '}
-                {row.owned}
-              </span>
-            </li>
-          ))}
-        </ul>
-        <div className="card-picker-footer">
-          <Button variant="primary" onClick={dismiss}>
+  return (
+    <Sheet
+      onClose={onClose}
+      label="Cards wanted by more decks than you own"
+      title="Shared copies"
+      footer={(close) => (
+        <>
+          <Button variant="primary" onClick={() => close()}>
             Done
           </Button>
-        </div>
-      </div>
-    </div>,
-    document.body
+        </>
+      )}
+    >
+      <ul className="card-picker-list" role="list" aria-label="Cards in shortfall">
+        {rows.map((row) => (
+          <li key={row.cardName} className="card-picker-row">
+            <span className="card-picker-name">{row.cardName}</span>
+            <span className="card-picker-meta">
+              {row.wantedBy.map((w, i) => (
+                <span key={`${w.kind}-${w.id}`}>
+                  {i > 0 && ', '}
+                  {w.kind === 'deck' ? <Link to={`/decks/${w.id}`}>{w.name}</Link> : w.name}
+                </span>
+              ))}
+              {' · you own '}
+              {row.owned}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Sheet>
   );
 }
 
 /** Decks missing 1-5 unowned cards (T164) — same card-picker shell as
  *  `SharedCopiesSheet`, listing decks instead of cards. */
 function CloseToDoneSheet({ rows, onClose }: { rows: CloseToDoneRow[]; onClose: () => void }) {
-  useLockBodyScroll();
-  // Escape is useSheetExit's own (T147) — see SharedCopiesSheet's note above.
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  const dismiss = () => beginClose();
-
-  return createPortal(
-    <div
-      className="card-picker-root"
-      role="presentation"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (e.target === e.currentTarget) dismiss();
-      }}
-    >
-      <div
-        className={`card-picker-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Decks close to done"
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <h2 className="card-picker-title">Close to done</h2>
-        </div>
-        <ul className="card-picker-list" role="list" aria-label="Decks missing a few cards">
-          {rows.map((row) => (
-            <li key={row.deckId} className="card-picker-row">
-              <Link to={`/decks/${row.deckId}`} className="card-picker-name">
-                {row.deckName}
-              </Link>
-              <span className="card-picker-meta">
-                Missing {row.missingNames.length}
-                {row.costToFinish > 0 ? ` · ${formatMoneyTally(row.costToFinish)}` : ''}
-              </span>
-            </li>
-          ))}
-        </ul>
-        <div className="card-picker-footer">
-          <Button variant="primary" onClick={dismiss}>
+  return (
+    <Sheet
+      onClose={onClose}
+      label="Decks close to done"
+      title="Close to done"
+      footer={(close) => (
+        <>
+          <Button variant="primary" onClick={() => close()}>
             Done
           </Button>
-        </div>
-      </div>
-    </div>,
-    document.body
+        </>
+      )}
+    >
+      <ul className="card-picker-list" role="list" aria-label="Decks missing a few cards">
+        {rows.map((row) => (
+          <li key={row.deckId} className="card-picker-row">
+            <Link to={`/decks/${row.deckId}`} className="card-picker-name">
+              {row.deckName}
+            </Link>
+            <span className="card-picker-meta">
+              Missing {row.missingNames.length}
+              {row.costToFinish > 0 ? ` · ${formatMoneyTally(row.costToFinish)}` : ''}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Sheet>
   );
 }
 

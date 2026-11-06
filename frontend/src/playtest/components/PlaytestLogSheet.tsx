@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { Swords } from 'lucide-react';
+import { Sheet } from '@/components/overlays/Sheet';
 import './PlaytestLogSheet.css';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { formatLogForClipboard, groupLogByTurn, type GameLogEntry } from '@/lib/playtest/game-log';
 import { Tabs } from '@/components/overlays/Tabs';
 import type { TickerItem } from '@/store/play';
@@ -23,8 +22,6 @@ interface Props {
 }
 
 export function PlaytestLogSheet({ log, table, onClose }: Props) {
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  useLockBodyScroll();
   // Online, the Table feed is the whole game (every seat's plays and the
   // chat), so it is the tab the sheet opens on; the same default as LogDock.
   const [view, setView] = useState<'you' | 'table'>(table ? 'table' : 'you');
@@ -34,90 +31,13 @@ export function PlaytestLogSheet({ log, table, onClose }: Props) {
   const showTable = table !== undefined && view === 'table';
 
   return (
-    <div className="card-picker-root" role="presentation">
-      <div className="card-picker-backdrop" role="presentation" onClick={() => beginClose()} />
-      <div
-        className={`card-picker-sheet playtest-log-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="playtest-log-title"
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-header">
-          <h2 id="playtest-log-title" className="card-picker-title">
-            Log
-          </h2>
-        </div>
-
-        {table !== undefined && (
-          <Tabs
-            tabs={[
-              { id: 'you' as const, label: 'You' },
-              { id: 'table' as const, label: 'Table' },
-            ]}
-            value={view}
-            onChange={setView}
-            ariaLabel="Log view"
-            className="playtest-log-tabs"
-          />
-        )}
-
-        <div className="playtest-log-body">
-          {showTable ? (
-            table.items.length === 0 ? (
-              <p className="playtest-log-empty">No table activity yet.</p>
-            ) : (
-              <ol className="list-stack list-stack--snug playtest-log-table">
-                {/* Newest first, matching the own-log view's reverse order. */}
-                {[...table.items].reverse().map((it) => (
-                  <TickerLine key={it.id} item={it} name={table.nameFor(it.seat)} />
-                ))}
-              </ol>
-            )
-          ) : log.length === 0 ? (
-            <p className="playtest-log-empty">Nothing yet. Play some cards.</p>
-          ) : (
-            groups.map((group) => (
-              <section key={`${group.turn}-${group.entries[0].seq}`} className="playtest-log-turn">
-                <h3 className="playtest-log-turn__heading">Turn {group.turn}</h3>
-                <ol className="list-stack list-stack--snug">
-                  {group.entries
-                    .filter((e) => e.kind !== 'turn')
-                    .map((e) => (
-                      <li
-                        key={e.seq}
-                        className={`playtest-log-entry${
-                          e.kind === 'resistance' ? ' playtest-log-entry--resistance' : ''
-                        }`}
-                      >
-                        {e.kind === 'resistance' && (
-                          <Swords
-                            className="playtest-log-entry__icon"
-                            aria-hidden
-                            size={14}
-                            strokeWidth={1.8}
-                          />
-                        )}
-                        <span>{e.text}</span>
-                      </li>
-                    ))}
-                </ol>
-              </section>
-            ))
-          )}
-        </div>
-
-        {/* The Table tab's composer. This is the phone's only path to table
-            chat — presence density renders the ticker as a transient portaled
-            flash with nowhere to hang an input (see TableTicker) — and it is
-            reachable on every viewport, so a tablet has both this and the
-            rail's. Outside the scrolling body so a long feed never pushes it
-            out of reach. `TableChat` self-gates on being online and seated,
-            so this is inert in solo playtest, where the tab isn't shown at
-            all. */}
-        {showTable && <TableChat idPrefix="log-sheet" />}
-
-        <div className="card-picker-footer">
+    <Sheet
+      inPlace
+      onClose={onClose}
+      className="playtest-log-sheet"
+      title="Log"
+      footer={(close) => (
+        <>
           {!showTable && (
             <CopyButton
               value={() => formatLogForClipboard(log)}
@@ -127,9 +47,77 @@ export function PlaytestLogSheet({ log, table, onClose }: Props) {
               disabled={log.length === 0}
             />
           )}
-          <Button onClick={() => beginClose()}>Close</Button>
-        </div>
+          <Button onClick={() => close()}>Close</Button>
+        </>
+      )}
+    >
+      {table !== undefined && (
+        <Tabs
+          tabs={[
+            { id: 'you' as const, label: 'You' },
+            { id: 'table' as const, label: 'Table' },
+          ]}
+          value={view}
+          onChange={setView}
+          ariaLabel="Log view"
+          className="playtest-log-tabs"
+        />
+      )}
+
+      <div className="playtest-log-body">
+        {showTable ? (
+          table.items.length === 0 ? (
+            <p className="playtest-log-empty">No table activity yet.</p>
+          ) : (
+            <ol className="list-stack list-stack--snug playtest-log-table">
+              {/* Newest first, matching the own-log view's reverse order. */}
+              {[...table.items].reverse().map((it) => (
+                <TickerLine key={it.id} item={it} name={table.nameFor(it.seat)} />
+              ))}
+            </ol>
+          )
+        ) : log.length === 0 ? (
+          <p className="playtest-log-empty">Nothing yet. Play some cards.</p>
+        ) : (
+          groups.map((group) => (
+            <section key={`${group.turn}-${group.entries[0].seq}`} className="playtest-log-turn">
+              <h3 className="playtest-log-turn__heading">Turn {group.turn}</h3>
+              <ol className="list-stack list-stack--snug">
+                {group.entries
+                  .filter((e) => e.kind !== 'turn')
+                  .map((e) => (
+                    <li
+                      key={e.seq}
+                      className={`playtest-log-entry${
+                        e.kind === 'resistance' ? ' playtest-log-entry--resistance' : ''
+                      }`}
+                    >
+                      {e.kind === 'resistance' && (
+                        <Swords
+                          className="playtest-log-entry__icon"
+                          aria-hidden
+                          size={14}
+                          strokeWidth={1.8}
+                        />
+                      )}
+                      <span>{e.text}</span>
+                    </li>
+                  ))}
+              </ol>
+            </section>
+          ))
+        )}
       </div>
-    </div>
+
+      {/* The Table tab's composer. This is the phone's only path to table
+            chat — presence density renders the ticker as a transient portaled
+            flash with nowhere to hang an input (see TableTicker) — and it is
+            reachable on every viewport, so a tablet has both this and the
+            rail's. Outside the scrolling body so a long feed never pushes it
+            out of reach. `TableChat` self-gates on being online and seated,
+            so this is inert in solo playtest, where the tab isn't shown at
+            all. */}
+      {showTable && <TableChat idPrefix="log-sheet" />}
+    </Sheet>
   );
 }

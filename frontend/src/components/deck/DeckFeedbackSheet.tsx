@@ -1,4 +1,3 @@
-import { createPortal } from 'react-dom';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSignInPath } from '@/lib/account/sign-in-path';
@@ -15,8 +14,7 @@ import {
 import { findSlotForCut, suggestionBlockedReason } from '@/lib/social/feedback-apply';
 import { formatRelativeTime } from '@/lib/util/format-time';
 import { canShare, openShareSheet } from '@/lib/util/web-share';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { Sheet } from '@/components/overlays/Sheet';
 import { useAuth } from '../../store/auth';
 import { useDeckHistoryStore } from '../../store/deck-history';
 import { useDecksStore, type Deck } from '../../store/decks';
@@ -46,13 +44,6 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const addCard = useDecksStore((s) => s.addCard);
   const removeCard = useDecksStore((s) => s.removeCard);
-
-  useLockBodyScroll();
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
-    onClose,
-    'binder-sheet-slide-out',
-    { instantAt: '(min-width: 1024px)' }
-  );
 
   useEffect(() => {
     if (isGuest) return;
@@ -166,171 +157,154 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
 
   const deckCards = useDecksStore((s) => s.decks.find((d) => d.id === deck.id)?.cards ?? []);
 
-  return createPortal(
-    <div
-      className="card-picker-root"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (e.target === e.currentTarget) beginClose();
-      }}
-      role="presentation"
-    >
-      <div
-        className={`card-picker-sheet deck-feedback-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Feedback for ${deck.name}`}
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <p className="deck-feedback-eyebrow">Deck feedback</p>
-          <p className="deck-feedback-deck-name">{deck.name}</p>
-        </div>
-
-        {isGuest ? (
-          <div className="card-picker-empty">
-            Feedback links need an account.{' '}
-            <Link to={signInHref} onClick={onClose}>
-              Sign in
-            </Link>{' '}
-            to use the feedback tool.
-          </div>
-        ) : (
-          <div className="deck-feedback-body">
-            <p className="deck-feedback-hint">
-              Anyone with this link can suggest cuts and adds, rate the bracket and comment. Nothing
-              changes until you accept it.
-            </p>
-            {linkError && (
-              <p role="alert" className="deck-feedback-error">
-                {linkError}
-              </p>
-            )}
-            {link && (
-              <div className="deck-feedback-link">
-                <input
-                  type="text"
-                  value={link}
-                  readOnly
-                  onFocus={(e) => e.currentTarget.select()}
-                  aria-label="Feedback link"
-                />
-                <CopyButton value={link} what="the feedback link" variant="primary" />
-                {canShare() && <Button onClick={handleShare}>Share…</Button>}
-              </div>
-            )}
-
-            <h3 className="deck-feedback-section-title">
-              Responses{responses ? ` (${responses.length})` : ''}
-            </h3>
-            {loadError && (
-              <p role="alert" className="deck-feedback-error">
-                {loadError}
-              </p>
-            )}
-            {responses && responses.length === 0 && (
-              <p className="deck-feedback-empty">No responses yet.</p>
-            )}
-            {responses?.map((response) => (
-              <article key={response.id} className="deck-feedback-response">
-                <header className="deck-feedback-response-head">
-                  <span className="deck-feedback-author">{response.authorName}</span>
-                  {response.bracketSuggestion != null && (
-                    <span className="deck-feedback-bracket">
-                      Bracket {response.bracketSuggestion}
-                    </span>
-                  )}
-                  <span className="deck-feedback-time">
-                    {formatRelativeTime(response.createdAt)}
-                  </span>
-                  <IconButton
-                    variant="quiet"
-                    className="deck-feedback-beginClose"
-                    onClick={() => handleDelete(response)}
-                    label={`Delete response from ${response.authorName}`}
-                    icon={<X width={14} height={14} strokeWidth={1.8} />}
-                  />
-                </header>
-                {response.comment && <p className="deck-feedback-comment">{response.comment}</p>}
-                {response.suggestions.length > 0 && (
-                  <ul className="list-stack list-stack--tight deck-feedback-suggestions">
-                    {response.suggestions.map((suggestion) => {
-                      const blocked =
-                        suggestion.status === 'pending'
-                          ? suggestionBlockedReason(deckCards, suggestion)
-                          : null;
-                      return (
-                        <li key={suggestion.id} className="deck-feedback-suggestion">
-                          {suggestion.imageUrl ? (
-                            <img
-                              src={suggestion.imageUrl}
-                              alt=""
-                              loading="lazy"
-                              className="deck-feedback-thumb"
-                            />
-                          ) : (
-                            <span
-                              className="deck-feedback-thumb deck-feedback-thumb--ph"
-                              aria-hidden
-                            />
-                          )}
-                          <span
-                            className={`deck-feedback-kind deck-feedback-kind--${suggestion.type}`}
-                          >
-                            {suggestion.type === 'add' ? 'Add' : 'Cut'}
-                          </span>
-                          <span className="truncate-fill deck-feedback-suggestion-name">
-                            {suggestion.cardName}
-                          </span>
-                          {suggestion.status === 'pending' ? (
-                            blocked ? (
-                              <span className="deck-feedback-blocked">{blocked}</span>
-                            ) : (
-                              <span className="deck-feedback-verdicts">
-                                <button
-                                  type="button"
-                                  className="deck-feedback-verdict deck-feedback-verdict--accept"
-                                  onClick={() => handleVerdict(response, suggestion, 'accepted')}
-                                >
-                                  <Check width={14} height={14} strokeWidth={1.8} aria-hidden />
-                                  Accept
-                                </button>
-                                <button
-                                  type="button"
-                                  className="deck-feedback-verdict"
-                                  onClick={() => handleVerdict(response, suggestion, 'rejected')}
-                                >
-                                  <X width={14} height={14} strokeWidth={1.8} aria-hidden />
-                                  Reject
-                                </button>
-                              </span>
-                            )
-                          ) : (
-                            <span
-                              className={`deck-feedback-status deck-feedback-status--${suggestion.status}`}
-                            >
-                              {suggestion.status === 'accepted' ? 'Accepted' : 'Rejected'}
-                            </span>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </article>
-            ))}
-            {!responses && !loadError && <p className="deck-feedback-empty">Loading responses…</p>}
-          </div>
-        )}
-
-        <div className="card-picker-footer">
-          <Button variant="primary" onClick={() => beginClose()}>
+  return (
+    <Sheet
+      onClose={onClose}
+      className="deck-feedback-sheet"
+      label={`Feedback for ${deck.name}`}
+      eyebrow="Deck feedback"
+      title={deck.name}
+      footer={(close) => (
+        <>
+          <Button variant="primary" onClick={() => close()}>
             Close
           </Button>
+        </>
+      )}
+    >
+      {isGuest ? (
+        <div className="card-picker-empty">
+          Feedback links need an account.{' '}
+          <Link to={signInHref} onClick={onClose}>
+            Sign in
+          </Link>{' '}
+          to use the feedback tool.
         </div>
-      </div>
-    </div>,
-    document.body
+      ) : (
+        <div className="deck-feedback-body">
+          <p className="deck-feedback-hint">
+            Anyone with this link can suggest cuts and adds, rate the bracket and comment. Nothing
+            changes until you accept it.
+          </p>
+          {linkError && (
+            <p role="alert" className="deck-feedback-error">
+              {linkError}
+            </p>
+          )}
+          {link && (
+            <div className="deck-feedback-link">
+              <input
+                type="text"
+                value={link}
+                readOnly
+                onFocus={(e) => e.currentTarget.select()}
+                aria-label="Feedback link"
+              />
+              <CopyButton value={link} what="the feedback link" variant="primary" />
+              {canShare() && <Button onClick={handleShare}>Share…</Button>}
+            </div>
+          )}
+
+          <h3 className="deck-feedback-section-title">
+            Responses{responses ? ` (${responses.length})` : ''}
+          </h3>
+          {loadError && (
+            <p role="alert" className="deck-feedback-error">
+              {loadError}
+            </p>
+          )}
+          {responses && responses.length === 0 && (
+            <p className="deck-feedback-empty">No responses yet.</p>
+          )}
+          {responses?.map((response) => (
+            <article key={response.id} className="deck-feedback-response">
+              <header className="deck-feedback-response-head">
+                <span className="deck-feedback-author">{response.authorName}</span>
+                {response.bracketSuggestion != null && (
+                  <span className="deck-feedback-bracket">
+                    Bracket {response.bracketSuggestion}
+                  </span>
+                )}
+                <span className="deck-feedback-time">{formatRelativeTime(response.createdAt)}</span>
+                <IconButton
+                  variant="quiet"
+                  className="deck-feedback-beginClose"
+                  onClick={() => handleDelete(response)}
+                  label={`Delete response from ${response.authorName}`}
+                  icon={<X width={14} height={14} strokeWidth={1.8} />}
+                />
+              </header>
+              {response.comment && <p className="deck-feedback-comment">{response.comment}</p>}
+              {response.suggestions.length > 0 && (
+                <ul className="list-stack list-stack--tight deck-feedback-suggestions">
+                  {response.suggestions.map((suggestion) => {
+                    const blocked =
+                      suggestion.status === 'pending'
+                        ? suggestionBlockedReason(deckCards, suggestion)
+                        : null;
+                    return (
+                      <li key={suggestion.id} className="deck-feedback-suggestion">
+                        {suggestion.imageUrl ? (
+                          <img
+                            src={suggestion.imageUrl}
+                            alt=""
+                            loading="lazy"
+                            className="deck-feedback-thumb"
+                          />
+                        ) : (
+                          <span
+                            className="deck-feedback-thumb deck-feedback-thumb--ph"
+                            aria-hidden
+                          />
+                        )}
+                        <span
+                          className={`deck-feedback-kind deck-feedback-kind--${suggestion.type}`}
+                        >
+                          {suggestion.type === 'add' ? 'Add' : 'Cut'}
+                        </span>
+                        <span className="truncate-fill deck-feedback-suggestion-name">
+                          {suggestion.cardName}
+                        </span>
+                        {suggestion.status === 'pending' ? (
+                          blocked ? (
+                            <span className="deck-feedback-blocked">{blocked}</span>
+                          ) : (
+                            <span className="deck-feedback-verdicts">
+                              <button
+                                type="button"
+                                className="deck-feedback-verdict deck-feedback-verdict--accept"
+                                onClick={() => handleVerdict(response, suggestion, 'accepted')}
+                              >
+                                <Check width={14} height={14} strokeWidth={1.8} aria-hidden />
+                                Accept
+                              </button>
+                              <button
+                                type="button"
+                                className="deck-feedback-verdict"
+                                onClick={() => handleVerdict(response, suggestion, 'rejected')}
+                              >
+                                <X width={14} height={14} strokeWidth={1.8} aria-hidden />
+                                Reject
+                              </button>
+                            </span>
+                          )
+                        ) : (
+                          <span
+                            className={`deck-feedback-status deck-feedback-status--${suggestion.status}`}
+                          >
+                            {suggestion.status === 'accepted' ? 'Accepted' : 'Rejected'}
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </article>
+          ))}
+          {!responses && !loadError && <p className="deck-feedback-empty">Loading responses…</p>}
+        </div>
+      )}
+    </Sheet>
   );
 }

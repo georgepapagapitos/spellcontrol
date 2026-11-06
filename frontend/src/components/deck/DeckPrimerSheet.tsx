@@ -1,11 +1,7 @@
-import { createPortal } from 'react-dom';
 import { type JSX, useEffect, useId, useRef, useState } from 'react';
-import { X } from 'lucide-react';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { Sheet } from '@/components/overlays/Sheet';
 import { useDecksStore, type Deck } from '../../store/decks';
 import './DeckPrimerSheet.css';
-import { IconButton } from '@/components/shared/Button';
 
 const PRIMER_MAX = 4000;
 const COUNTER_THRESHOLD = 200;
@@ -30,16 +26,8 @@ export function DeckPrimerSheet({ deck, onClose }: Props): JSX.Element {
   const [text, setText] = useState(deck.primer ?? '');
   const savedRef = useRef(deck.primer ?? '');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const titleId = useId();
   const textareaId = useId();
   const counterId = useId();
-
-  useLockBodyScroll();
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
-    onClose,
-    'binder-sheet-slide-out',
-    { instantAt: '(min-width: 1024px)' }
-  );
 
   // Cursor at the end on open, whether the primer is empty or pre-filled —
   // a controlled textarea's default autoFocus lands the caret at position 0.
@@ -62,68 +50,38 @@ export function DeckPrimerSheet({ deck, onClose }: Props): JSX.Element {
   const remaining = PRIMER_MAX - text.length;
   const showCounter = remaining < COUNTER_THRESHOLD;
 
-  return createPortal(
-    <div
-      className="card-picker-root"
-      role="presentation"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (e.target === e.currentTarget) beginClose();
-      }}
-    >
-      <div
-        className={`card-picker-sheet deck-primer-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <header className="deck-primer-sheet-head">
-          <h2 id={titleId} className="deck-primer-sheet-title">
-            Primer
-          </h2>
-          <IconButton
-            variant="quiet"
-            className="deck-primer-sheet-close"
-            onClick={() => beginClose()}
-            label="Close"
-            icon={<X width={18} height={18} strokeWidth={2} />}
-          />
-        </header>
-
-        <div className="deck-primer-sheet-body">
-          <label className="deck-primer-sheet-label" htmlFor={textareaId}>
-            Strategy notes
-          </label>
-          <textarea
-            id={textareaId}
-            ref={textareaRef}
-            className="deck-primer-sheet-textarea"
-            value={text}
-            maxLength={PRIMER_MAX}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Add strategy notes for people viewing this deck"
-            aria-describedby={showCounter ? counterId : undefined}
-          />
-          <p className="deck-primer-sheet-hint">
-            Markdown-lite: <strong>**bold**</strong>, <em>*italic*</em>, blank-line paragraphs, -
-            lists
+  return (
+    <Sheet onClose={onClose} className="deck-primer-sheet" title="Primer" closeButton>
+      <div className="deck-primer-sheet-body">
+        <label className="deck-primer-sheet-label" htmlFor={textareaId}>
+          Strategy notes
+        </label>
+        <textarea
+          id={textareaId}
+          ref={textareaRef}
+          className="deck-primer-sheet-textarea"
+          value={text}
+          maxLength={PRIMER_MAX}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Add strategy notes for people viewing this deck"
+          aria-describedby={showCounter ? counterId : undefined}
+        />
+        <p className="deck-primer-sheet-hint">
+          Markdown-lite: <strong>**bold**</strong>, <em>*italic*</em>, blank-line paragraphs, -
+          lists
+        </p>
+        {showCounter && (
+          <p
+            id={counterId}
+            className={`deck-primer-sheet-counter${
+              remaining < COUNTER_WARN ? ' deck-primer-sheet-counter--warn' : ''
+            }`}
+            aria-live="polite"
+          >
+            {remaining} character{remaining === 1 ? '' : 's'} left
           </p>
-          {showCounter && (
-            <p
-              id={counterId}
-              className={`deck-primer-sheet-counter${
-                remaining < COUNTER_WARN ? ' deck-primer-sheet-counter--warn' : ''
-              }`}
-              aria-live="polite"
-            >
-              {remaining} character{remaining === 1 ? '' : 's'} left
-            </p>
-          )}
-        </div>
+        )}
       </div>
-    </div>,
-    document.body
+    </Sheet>
   );
 }

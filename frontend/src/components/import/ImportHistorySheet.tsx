@@ -1,10 +1,8 @@
-import { createPortal } from 'react-dom';
 import { Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import './ImportHistorySheet.css';
 import { useCollectionStore } from '@/store/collection';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { Sheet } from '@/components/overlays/Sheet';
 import { formatRelativeTime } from '@/lib/util/format-time';
 import { prettyImportName } from '@/lib/import-export/import-history-name';
 import type { ImportHistoryEntry } from '@/lib/sync/local-cards';
@@ -29,13 +27,6 @@ export function ImportHistorySheet({ onClose }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState(false);
 
-  useLockBodyScroll();
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
-    onClose,
-    'binder-sheet-slide-out',
-    { instantAt: '(min-width: 1024px)' }
-  );
-
   const toggle = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -53,28 +44,30 @@ export function ImportHistorySheet({ onClose }: Props) {
     setConfirming(false);
   };
 
-  return createPortal(
-    <div
-      className="card-picker-root"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (e.target === e.currentTarget) beginClose();
-      }}
-      role="presentation"
-    >
-      <div
-        className={`card-picker-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="import-history-title"
-        onAnimationEnd={onAnimationEnd}
+  return (
+    <>
+      <Sheet
+        onClose={onClose}
+        title="Import history"
+        footer={(close) => (
+          <>
+            {selected.size > 0 ? (
+              <Button
+                variant="danger"
+                onClick={() => setConfirming(true)}
+                disabled={isLoading}
+                icon={<Trash2 width={14} height={14} strokeWidth={1.8} aria-hidden />}
+              >
+                Delete selected ({selected.size})
+              </Button>
+            ) : (
+              <Button variant="primary" onClick={() => close()}>
+                Done
+              </Button>
+            )}
+          </>
+        )}
       >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <h2 id="import-history-title" className="card-picker-title">
-            Import history
-          </h2>
-        </div>
         <div className="card-picker-list import-history-sheet-body">
           {importHistory.length > 0 ? (
             <ul className="list-stack import-history-list">
@@ -122,23 +115,7 @@ export function ImportHistorySheet({ onClose }: Props) {
             <p className="import-history-empty">No imports recorded for this collection.</p>
           )}
         </div>
-        <div className="card-picker-footer">
-          {selected.size > 0 ? (
-            <Button
-              variant="danger"
-              onClick={() => setConfirming(true)}
-              disabled={isLoading}
-              icon={<Trash2 width={14} height={14} strokeWidth={1.8} aria-hidden />}
-            >
-              Delete selected ({selected.size})
-            </Button>
-          ) : (
-            <Button variant="primary" onClick={() => beginClose()}>
-              Done
-            </Button>
-          )}
-        </div>
-      </div>
+      </Sheet>
       {confirming && (
         <DeleteImportsDialog
           imports={importHistory.filter((h) => selected.has(h.id))}
@@ -146,8 +123,7 @@ export function ImportHistorySheet({ onClose }: Props) {
           onCancel={() => setConfirming(false)}
         />
       )}
-    </div>,
-    document.body
+    </>
   );
 }
 

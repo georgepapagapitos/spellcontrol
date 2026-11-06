@@ -1,22 +1,3 @@
-/* CardFitPanel — E20 audition / what-if fit preview. Reuses the house
-   .card-picker-* overlay (bottom sheet on mobile, centered ≥600px); this file
-   styles the title block, the signal rows, the cut list head, and the footer.
-   Theme vars + --text-* scale only; see STYLE_GUIDE.md. */
-
-.card-fit-title {
-  margin: 0;
-  font-family: var(--font-serif);
-  font-size: var(--text-md, 1rem);
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.card-fit-subtitle {
-  margin: var(--space-0-5) 0 0;
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-}
-
 /* Desktop: the shell's 480px default is a phone column; this is a working
    dialog (verdict rows + ranked cut rows) and follows the dense-dialog ruling
    (STYLE_GUIDE § Overlays) at DeckSizePrompt's width — its closest sibling.

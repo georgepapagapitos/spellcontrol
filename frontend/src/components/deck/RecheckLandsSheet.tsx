@@ -1,9 +1,7 @@
-import { createPortal } from 'react-dom';
 import './ReviewSheet.css';
 import './RecheckLandsSheet.css';
-import { type JSX, useCallback, useEffect, useId, useRef, useState } from 'react';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { type JSX, useCallback, useEffect, useRef, useState } from 'react';
+import { Sheet, type SheetHandle } from '@/components/overlays/Sheet';
 import { userMessage } from '@/lib/util/user-error';
 import { recheckLands, type LandRecheck, type RecheckEnv } from '@/lib/deck/recheck-lands';
 import type { Change, ChangeOwnership } from '@/lib/coach/deck-change';
@@ -48,8 +46,7 @@ export function RecheckLandsSheet({
   onClose,
   onApply,
 }: RecheckLandsSheetProps): JSX.Element {
-  useLockBodyScroll();
-  const titleId = useId();
+  const sheetRef = useRef<SheetHandle>(null);
   const [phase, setPhase] = useState<Phase>({
     kind: 'building',
     message: 'Reading your collection',
@@ -67,12 +64,6 @@ export function RecheckLandsSheet({
       alive.current = false;
     };
   }, []);
-
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
-    onClose,
-    'binder-sheet-slide-out',
-    { instantAt: '(min-width: 1024px)' }
-  );
 
   // The deck and collection as they were when the sheet opened: a re-run is
   // the Retry button's job, not every store tick's.
@@ -124,7 +115,7 @@ export function RecheckLandsSheet({
     setApplying(true);
     try {
       await onApply(chosen, declined);
-      beginClose();
+      sheetRef.current?.close();
     } finally {
       if (alive.current) setApplying(false);
     }
@@ -132,119 +123,25 @@ export function RecheckLandsSheet({
 
   const strategy = deck.generationContext?.customization?.collectionStrategy ?? 'full';
 
-  return createPortal(
-    <div
-      className="card-picker-root"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (e.target === e.currentTarget && !applying) beginClose();
-      }}
-      role="presentation"
-    >
-      <div
-        className={`card-picker-sheet review-sheet recheck-lands-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <p id={titleId} className="review-sheet-title">
-            Re-check lands
-          </p>
-          <p className="review-sheet-subtitle">
-            This deck&apos;s build settings, against your collection today.{' '}
-            {RULE_LINE[strategy] ?? ''}
-          </p>
-        </div>
-
-        <div className="review-sheet-body">
-          {phase.kind === 'building' && (
-            <div className="review-sheet-progress" aria-live="polite">
-              <MeterBar
-                value={phase.percent}
-                size="md"
-                role="progressbar"
-                label="Re-checking the lands"
-              />
-              <p className="review-sheet-progress-text">{phase.message}</p>
-            </div>
-          )}
-
-          {phase.kind === 'error' && (
-            <div className="error-banner" role="alert">
-              {phase.message}
-            </div>
-          )}
-
-          {phase.kind === 'review' && (
-            <>
-              {swaps.length === 0 ? (
-                <p className="review-sheet-lead">
-                  {hidden.length > 0
-                    ? 'No new swaps.'
-                    : "No changes. These are still the lands this deck's settings pick from your collection."}
-                </p>
-              ) : (
-                <ul className="list-stack list-stack--tight recheck-lands-list" role="list">
-                  {swaps.map((s, i) => {
-                    const change: Change = {
-                      id: `${s.out.name}>${s.in.name}#${i}`,
-                      type: 'swap',
-                      lane: 'lands',
-                      name: s.in.name,
-                      card: s.in,
-                      inName: s.out.name,
-                      inCard: s.out,
-                      reason: `Replaces ${s.out.name}`,
-                      ownership: ownershipFor(s.in.name),
-                      inclusion: phase.result.inclusion[s.in.name],
-                      typeLine: s.in.type_line,
-                      manaCost: s.in.mana_cost,
-                    };
-                    const on = !skipped.has(i);
-                    return (
-                      <li key={change.id} className={`recheck-lands-row${on ? '' : ' is-off'}`}>
-                        <label className="recheck-lands-hit">
-                          <input
-                            type="checkbox"
-                            className="recheck-lands-check"
-                            checked={on}
-                            onChange={() => toggle(i)}
-                            aria-label={`Swap ${s.out.name} for ${s.in.name}`}
-                          />
-                        </label>
-                        <DeckCardRow as="div" change={change} />
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-              {hidden.length > 0 && !showHidden && (
-                <p className="review-sheet-note">
-                  {hidden.length === 1
-                    ? '1 swap you turned down before is hidden.'
-                    : `${hidden.length} swaps you turned down before are hidden.`}{' '}
-                  <Button variant="link" onClick={reveal}>
-                    {hidden.length === 1 ? 'Show it' : 'Show them'}
-                  </Button>
-                </p>
-              )}
-              {phase.result.kept.length > 0 && (
-                <p className="review-sheet-note">
-                  Kept the lands you added: {phase.result.kept.join(', ')}.
-                </p>
-              )}
-            </>
-          )}
-        </div>
-
-        <div className="card-picker-footer">
-          {phase.kind === 'building' && <Button onClick={() => beginClose()}>Cancel</Button>}
+  return (
+    <Sheet
+      ref={sheetRef}
+      onClose={onClose}
+      dismissable={!applying}
+      className="review-sheet recheck-lands-sheet"
+      title="Re-check lands"
+      description={
+        <>
+          This deck&apos;s build settings, against your collection today.{' '}
+          {RULE_LINE[strategy] ?? ''}
+        </>
+      }
+      footer={(close) => (
+        <>
+          {phase.kind === 'building' && <Button onClick={() => close()}>Cancel</Button>}
           {phase.kind === 'error' && (
             <>
-              <Button onClick={() => beginClose()}>Close</Button>
+              <Button onClick={() => close()}>Close</Button>
               <Button variant="primary" onClick={() => void run()}>
                 Retry
               </Button>
@@ -252,7 +149,7 @@ export function RecheckLandsSheet({
           )}
           {phase.kind === 'review' && (
             <>
-              <Button disabled={applying} onClick={() => beginClose()}>
+              <Button disabled={applying} onClick={() => close()}>
                 {swaps.length === 0 ? 'Close' : 'Cancel'}
               </Button>
               {swaps.length > 0 && (
@@ -266,9 +163,89 @@ export function RecheckLandsSheet({
               )}
             </>
           )}
-        </div>
+        </>
+      )}
+    >
+      <div className="review-sheet-body">
+        {phase.kind === 'building' && (
+          <div className="review-sheet-progress" aria-live="polite">
+            <MeterBar
+              value={phase.percent}
+              size="md"
+              role="progressbar"
+              label="Re-checking the lands"
+            />
+            <p className="review-sheet-progress-text">{phase.message}</p>
+          </div>
+        )}
+
+        {phase.kind === 'error' && (
+          <div className="error-banner" role="alert">
+            {phase.message}
+          </div>
+        )}
+
+        {phase.kind === 'review' && (
+          <>
+            {swaps.length === 0 ? (
+              <p className="review-sheet-lead">
+                {hidden.length > 0
+                  ? 'No new swaps.'
+                  : "No changes. These are still the lands this deck's settings pick from your collection."}
+              </p>
+            ) : (
+              <ul className="list-stack list-stack--tight recheck-lands-list" role="list">
+                {swaps.map((s, i) => {
+                  const change: Change = {
+                    id: `${s.out.name}>${s.in.name}#${i}`,
+                    type: 'swap',
+                    lane: 'lands',
+                    name: s.in.name,
+                    card: s.in,
+                    inName: s.out.name,
+                    inCard: s.out,
+                    reason: `Replaces ${s.out.name}`,
+                    ownership: ownershipFor(s.in.name),
+                    inclusion: phase.result.inclusion[s.in.name],
+                    typeLine: s.in.type_line,
+                    manaCost: s.in.mana_cost,
+                  };
+                  const on = !skipped.has(i);
+                  return (
+                    <li key={change.id} className={`recheck-lands-row${on ? '' : ' is-off'}`}>
+                      <label className="recheck-lands-hit">
+                        <input
+                          type="checkbox"
+                          className="recheck-lands-check"
+                          checked={on}
+                          onChange={() => toggle(i)}
+                          aria-label={`Swap ${s.out.name} for ${s.in.name}`}
+                        />
+                      </label>
+                      <DeckCardRow as="div" change={change} />
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {hidden.length > 0 && !showHidden && (
+              <p className="review-sheet-note">
+                {hidden.length === 1
+                  ? '1 swap you turned down before is hidden.'
+                  : `${hidden.length} swaps you turned down before are hidden.`}{' '}
+                <Button variant="link" onClick={reveal}>
+                  {hidden.length === 1 ? 'Show it' : 'Show them'}
+                </Button>
+              </p>
+            )}
+            {phase.result.kept.length > 0 && (
+              <p className="review-sheet-note">
+                Kept the lands you added: {phase.result.kept.join(', ')}.
+              </p>
+            )}
+          </>
+        )}
       </div>
-    </div>,
-    document.body
+    </Sheet>
   );
 }
