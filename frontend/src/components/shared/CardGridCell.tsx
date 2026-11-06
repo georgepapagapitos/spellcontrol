@@ -243,6 +243,7 @@ export function CardGridCell({
   // name-bearing placeholder shows behind it.
   const [loadedArt, setLoadedArt] = useState<string | undefined>(undefined);
   const artReady = !!art && loadedArt === art;
+  const status = !!card.proxy || card.priceOverride !== undefined;
   const corner = !(badges && badgesHoldCorner) && ((qty > 1 && !hideQty) || !!cornerExtras);
 
   return (
@@ -300,26 +301,21 @@ export function CardGridCell({
         )}
         {card.foil && <FoilShimmer seed={card.copyId} />}
         {/* The Set & rarity caption line carries rarity (glyph tint) and set
-            code, so the on-card overlays that duplicate them are suppressed
-            while it's shown. The proxy chip is independent of that toggle —
-            it must stay legible regardless of caption prefs or select mode,
-            so it lives in its own top-right cluster alongside rarity. */}
-        {(card.proxy ||
-          card.priceOverride !== undefined ||
-          (setLabel === null && printing && rarityOnArt)) && (
+            code, so the on-art rarity badge is suppressed while it's shown.
+            It takes the top-right, beside the ⋮. */}
+        {setLabel === null && printing && rarityOnArt && (
           <div className="collection-grid-topright">
-            <ProxyBadge card={card} className="collection-grid-proxy" />
-            <PriceOverrideBadge card={card} className="collection-grid-price-override" />
-            {setLabel === null && printing && rarityOnArt && (
-              <RarityBadge rarity={card.rarity} className="collection-grid-rarity" />
-            )}
+            <RarityBadge rarity={card.rarity} className="collection-grid-rarity" />
           </div>
         )}
         {/* The ×qty corner and the badge cluster share the bottom edge as one
             row, so neither is drawn over the other: the cluster sits beside
             the corner where it fits and wraps to the line above where it
-            doesn't (collection.css .collection-grid-foot). */}
-        {(corner || badges) && (
+            doesn't (collection.css .collection-grid-foot). The proxy and
+            manual-price chips take their own line just above, at the left:
+            they are facts about this copy, like the plate under them, and
+            they stay legible whatever the caption prefs or select mode. */}
+        {(corner || badges || status) && (
           <div className="collection-grid-foot">
             {corner && (
               <div className="collection-grid-corner">
@@ -335,6 +331,12 @@ export function CardGridCell({
               </div>
             )}
             {badges && <div className="collection-grid-badges">{badges}</div>}
+            {status && (
+              <div className="collection-grid-status">
+                <ProxyBadge card={card} className="collection-grid-proxy" />
+                <PriceOverrideBadge card={card} className="collection-grid-price-override" />
+              </div>
+            )}
           </div>
         )}
       </div>
