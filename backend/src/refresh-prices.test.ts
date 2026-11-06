@@ -5,6 +5,7 @@ import {
   createRefreshPricesHandler,
   REFRESH_LIVE_PER_IP,
   REFRESH_LIVE_PER_REQUEST,
+  REFRESH_UNPRICED_TTL_MS,
 } from './refresh-prices';
 import type { ScryfallCard } from './types';
 
@@ -14,14 +15,30 @@ vi.mock('./logger', () => ({
 
 const uuid = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
 
-function setup(found: (id: string) => boolean = () => true) {
+function setup(
+  found: (id: string) => boolean = () => true,
+  opts: {
+    cached?: Map<string, ScryfallCard>;
+    livePrice?: (id: string) => string | null;
+    now?: () => number;
+  } = {}
+) {
   const fetchLive = vi.fn(async (ids: string[]) =>
-    ids.filter(found).map((id) => ({ id }) as unknown as ScryfallCard)
+    ids
+      .filter(found)
+      .map(
+        (id) => ({ id, prices: { usd: opts.livePrice?.(id) ?? null } }) as unknown as ScryfallCard
+      )
   );
   const handler = createRefreshPricesHandler({
-    getCached: () => new Map(),
+    getCached: (ids) =>
+      new Map(ids.flatMap((id) => (opts.cached?.has(id) ? [[id, opts.cached.get(id)!]] : []))),
+    now: opts.now,
     fetchLive,
-    buildPayload: (cards) => ({ n: cards.length }),
+    buildPayload: (cards) => ({
+      n: cards.length,
+      usd: Object.fromEntries(cards.map((c) => [c.id, c.prices?.usd ?? null])),
+    }),
   });
   const app = express();
   app.use(express.json());
@@ -77,6 +94,52 @@ describe('POST /api/refresh-prices live fallback', () => {
     const { app, fetchLive } = setup(() => false);
     const body = { scryfallIds: [uuid(1), uuid(2)] };
     await request(app).post('/api/refresh-prices').send(body);
+    await request(app).post('/api/refresh-prices').send(body);
+    expect(fetchLive).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('POST /api/refresh-prices unpriced bulk rows', () => {
+  // Temporal Tribulation (TRC #51): the dump held the card with no price a week
+  // before release, while Scryfall's live API already had $2.72 (2026-11-06).
+  const tt = uuid(51);
+  const row = (id: string, usd: string | null) =>
+    ({ id, prices: { usd, usd_foil: null, eur: null } }) as unknown as ScryfallCard;
+
+  it('asks Scryfall for a printing the dump holds without a price, and serves the live price', async () => {
+    const { app, fetchLive } = setup(() => true, {
+      cached: new Map([[tt, row(tt, null)]]),
+      livePrice: () => '2.72',
+    });
+    const res = await request(app)
+      .post('/api/refresh-prices')
+      .send({ scryfallIds: [tt] });
+    expect(fetchLive).toHaveBeenCalledWith([tt]);
+    expect(res.body).toEqual({ n: 1, usd: { [tt]: '2.72' } });
+  });
+
+  it('serves a priced dump row without going live', async () => {
+    const { app, fetchLive } = setup(() => true, { cached: new Map([[tt, row(tt, '1.00')]]) });
+    const res = await request(app)
+      .post('/api/refresh-prices')
+      .send({ scryfallIds: [tt] });
+    expect(fetchLive).not.toHaveBeenCalled();
+    expect(res.body.usd[tt]).toBe('1.00');
+  });
+
+  it('does not re-ask for a printing Scryfall has no price for until the memo expires', async () => {
+    let t = 1_000_000;
+    const { app, fetchLive } = setup(() => true, {
+      cached: new Map([[tt, row(tt, null)]]),
+      livePrice: () => null,
+      now: () => t,
+    });
+    const body = { scryfallIds: [tt] };
+    await request(app).post('/api/refresh-prices').send(body);
+    const res = await request(app).post('/api/refresh-prices').send(body);
+    expect(fetchLive).toHaveBeenCalledTimes(1);
+    expect(res.body.n).toBe(1); // still answered from the dump
+    t += REFRESH_UNPRICED_TTL_MS + 1;
     await request(app).post('/api/refresh-prices').send(body);
     expect(fetchLive).toHaveBeenCalledTimes(2);
   });
