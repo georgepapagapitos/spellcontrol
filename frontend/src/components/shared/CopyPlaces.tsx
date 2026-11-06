@@ -24,6 +24,7 @@ import { printedName } from '@spellcontrol/binder-routing';
 import { Modal } from '@/components/overlays/Modal';
 import { Button } from './Button';
 import { ArtBadge } from './ArtBadge';
+import { ProxySegment } from './ProxySegment';
 import { Surface } from './Surface';
 import { SectionHeader } from './SectionHeader';
 import './CopyPlaces.css';
@@ -66,14 +67,14 @@ function PlateMark({ group }: { group: MarkGroup }) {
 }
 
 /**
- * The grid tile's one plate: ×qty and its chips, a divider, then a disc per
+ * The grid tile's one plate: the proxy segment, ×qty and its chips, a divider, then a disc per
  * kind of place. It never wraps; on a tile too narrow for all of it, it gives
  * up the counts, then the set code, then lets the discs overlap
  * (CopyPlaces.css).
  */
 function ArtPlate({ groups, lead }: { groups: MarkGroup[]; lead?: PlateLead }) {
   const { full, lean } = plateWidths(groups, lead);
-  const showLead = lead && (lead.qty > 1 || !!lead.set || !!lead.surplus);
+  const showLead = lead && (lead.qty > 1 || !!lead.set || !!lead.surplus || !!lead.proxy);
   return (
     <ArtBadge
       className="copy-places-plate"
@@ -82,6 +83,7 @@ function ArtPlate({ groups, lead }: { groups: MarkGroup[]; lead?: PlateLead }) {
     >
       {showLead && (
         <>
+          {lead.proxy && <ProxySegment />}
           {lead.qty > 1 && (
             <span className="copy-places-qty">
               <span className="collection-grid-qty-x">×</span>

@@ -322,12 +322,19 @@ is $0, not real"), never color-only (the letter carries the meaning).
   `FoilBadge` sit beside the card name because they're identity flags; a price
   override is a price annotation, so it sits beside the number it explains
   (`CardRow`'s `.collection-list-price`, `CardPreview`'s price line, the grid
-  tile's top-right corner cluster alongside `ProxyBadge`, `CardSlot`'s hover
-  tooltip).
-- **Grid tiles fold it into the existing `ProxyBadge` top-right cluster and
-  the tile's constructed `aria-label`** (`, manually priced`) rather than a
-  new prop — `CardGridCell` already reads `card.proxy` directly for the same
-  purpose, so `card.priceOverride` follows the identical path.
+  tile's price caption, `CardSlot`'s hover tooltip).
+- **On a grid tile it is a pencil after the price caption**
+  (`variant="pencil"`), not a chip on the art: the price is already on
+  screen, so the mark needs no chip of its own. It shows only while the
+  caption is the price (`gridCaptionIsPrice`); a date or rank caption has no
+  price to annotate. The tile's `aria-label` says `, manually priced` either
+  way.
+- **A proxy on a grid tile is the first segment of the tile's one plate**
+  (`ProxySegment`, a warn-toned "Proxy" stamp in the scrim), ahead of the
+  ×qty and the place discs, or alone in the corner on a tile with no plate.
+  It was a loose "P" chip pushed in off the ⋮ onto the name line, then a
+  line of its own above the plate. On the plate it costs no width or line,
+  and every fact about the copy reads as one object.
 - **One chip, two states, not two components.** A currency-mismatched
   override (recorded in EUR, viewed in USD, or vice versa — this app has no
   FX conversion, see `applyPrices` in `lib/collection/card-prices.ts`) dims the same chip

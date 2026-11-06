@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom';
 import type { EnrichedCard } from '@/types/index';
 import { makeDeckAllocationInfo } from '@/lib/collection/allocations-core';
-import { breakdownCopies } from '@/lib/collection/copy-locations';
+import { breakdownCopies, markGroups } from '@/lib/collection/copy-locations';
 import type { CardLocation } from '@/lib/binder/card-locations';
 import { plateWidths, type PlateLead } from '@/lib/collection/plate-widths';
 import { CopyPlaces } from './CopyPlaces';
@@ -131,6 +131,16 @@ describe('CopyPlaces marks', () => {
     const { container } = renderPlaces('art', { lead: { qty: 1 } });
     expect(container.querySelector('.copy-places-qty')).toBeNull();
     expect(container.querySelector('.copy-places-sep')).toBeNull();
+  });
+
+  it('opens the plate with a Proxy segment, and widens it to fit', () => {
+    stubViewport(false);
+    const { container } = renderPlaces('art', { lead: { qty: 1, proxy: true } });
+    const plate = container.querySelector('.copy-places-plate') as HTMLElement;
+    expect(plate.firstElementChild?.textContent).toBe('Proxy');
+    expect(plate.querySelector('.copy-places-sep')).not.toBeNull();
+    const plain = plateWidths(markGroups(breakdown, []), { qty: 1 });
+    expect(parseFloat(plate.style.getPropertyValue('--plate-full'))).toBeGreaterThan(plain.full);
   });
 
   it('counts the row chips the same way', () => {

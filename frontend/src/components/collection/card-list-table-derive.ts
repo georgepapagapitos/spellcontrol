@@ -228,6 +228,11 @@ export function gridCaptionFor(
   }
 }
 
+/** Whether `gridCaptionFor` shows the card's price for this sort. */
+export function gridCaptionIsPrice(sortKey: SortKey): boolean {
+  return !['added', 'edited', 'release', 'edhrec'].includes(sortKey);
+}
+
 /** Language filter options — derived from what's actually in the user's
  *  collection, not a fixed enum (LANGUAGE_OPTIONS is the full add-card
  *  vocabulary, most of which a given collection never uses). Absent

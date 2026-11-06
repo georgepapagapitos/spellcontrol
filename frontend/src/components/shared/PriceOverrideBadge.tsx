@@ -1,10 +1,14 @@
 import './PriceOverrideBadge.css';
 import type { JSX } from 'react';
+import { Pencil } from 'lucide-react';
 import { getCurrency } from '@/lib/collection/currency';
 
 export interface PriceOverrideBadgeProps {
   card: { priceOverride?: number; priceOverrideCurrency?: string };
   className?: string;
+  /** `chip` (default): the "M" chip. `pencil`: a pencil after a price that
+   *  is already on screen, as on a grid tile's price caption. */
+  variant?: 'chip' | 'pencil';
 }
 
 /**
@@ -27,13 +31,16 @@ export interface PriceOverrideBadgeProps {
 export function PriceOverrideBadge({
   card,
   className,
+  variant = 'chip',
 }: PriceOverrideBadgeProps): JSX.Element | null {
   if (card.priceOverride === undefined) return null;
   const overrideCurrency = card.priceOverrideCurrency ?? 'USD';
   const active = overrideCurrency === getCurrency();
   return (
     <span
-      className={`price-override-badge${active ? '' : ' is-dormant'}${className ? ` ${className}` : ''}`}
+      className={`price-override-badge${variant === 'pencil' ? ' price-override-badge--pencil' : ''}${
+        active ? '' : ' is-dormant'
+      }${className ? ` ${className}` : ''}`}
       role="img"
       aria-label={active ? 'Manually priced' : `Manually priced in ${overrideCurrency}`}
       title={
@@ -41,6 +48,8 @@ export function PriceOverrideBadge({
           ? "Manually priced, overrides Scryfall's market price"
           : `Manually priced in ${overrideCurrency}. Switch display currency to see it.`
       }
-    />
+    >
+      {variant === 'pencil' && <Pencil width={12} height={12} strokeWidth={2} aria-hidden />}
+    </span>
   );
 }

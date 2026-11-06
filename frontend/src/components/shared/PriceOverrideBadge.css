@@ -37,9 +37,17 @@
   margin-left: var(--space-1-5);
 }
 
-/* Grid tile: beside ProxyBadge at the start of the bottom row of marks. */
-.collection-grid-price-override {
-  width: 1.1rem;
-  height: 1.1rem;
-  box-shadow: var(--shadow-raised);
+/* A pencil after a price already on screen (a grid tile's price caption):
+   the price is the thing it marks, so it needs no chip of its own. */
+.price-override-badge--pencil {
+  width: auto;
+  height: auto;
+  margin-left: var(--space-1);
+  vertical-align: -1px;
+  background: none;
+  border: 0;
+}
+
+.price-override-badge--pencil::before {
+  content: none;
 }
