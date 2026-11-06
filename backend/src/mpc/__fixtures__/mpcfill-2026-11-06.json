@@ -1,0 +1,199 @@
+{
+  "sources": {
+    "results": {
+      "1": {
+        "description": "Consistently updated high quality Proxyshop library",
+        "key": "MrTeferi",
+        "name": "MrTeferi",
+        "pk": 1,
+        "sourceType": "Google Drive",
+        "externalLink": ""
+      },
+      "2": {
+        "description": "Borderless versions of known magic cards. Frequently updated.",
+        "key": "JohnPrime",
+        "name": "JohnPrime",
+        "pk": 2,
+        "sourceType": "Google Drive",
+        "externalLink": "https://drive.google.com/open?id=1dEnuJ48PRAt6U576iy1GqR4VeqMPNFdA"
+      },
+      "3": {
+        "description": "The original expansive autoproxy library",
+        "key": "Chilli_Axe",
+        "name": "Chilli_Axe",
+        "pk": 3,
+        "sourceType": "Google Drive",
+        "externalLink": ""
+      },
+      "4": {
+        "description": "A true legend.",
+        "key": "WillieTanner",
+        "name": "WillieTanner",
+        "pk": 4,
+        "sourceType": "Google Drive",
+        "externalLink": ""
+      }
+    }
+  },
+  "editorSearch": {
+    "results": {
+      "delver of secrets": {
+        "CARD": [
+          "1k4w07AFcKua0ldRpmTgXx0pTsEGv4kxg",
+          "1d-xh7Ao_HbhpkLsKxLnQqN0OpKu0Lt4j",
+          "1tmBBS9iIeEV0wPmUGlWsEJf0Uj_SJVNC"
+        ]
+      },
+      "fire // ice": {
+        "CARD": [
+          "11v6Fmkha9Y0W_WeOMnsPt0Xm_Kc7OTNh",
+          "17uHSq3QuTuaHZAtWXVvXu-JEl8Bu3orC",
+          "1pGN_80YCbK7Vy5VvvaP7ApMKEkvtE_UF"
+        ]
+      },
+      "insectile aberration": {
+        "CARD": [
+          "1GVqgFNgCnwJt7oO494FGfCOHO-0tt2ID",
+          "1C3S43C2XXfGFosz-dvhWJZQgjD8T3blC",
+          "198mnaFSLUzPUs0v3p5bJqLRoW-OsbGRY"
+        ]
+      },
+      "not a real card xyzzy": {
+        "CARD": []
+      },
+      "sol ring": {
+        "CARD": [
+          "1O6s0C_XyLXsrGQEhg04kSPnWhjqMMBCE",
+          "1OL6SMZsPWYv3z-9P29HOrW1F0dqOUwVC",
+          "1OQkhsnMZlZrKFZyXOYOWfAwpoIRmdqlP"
+        ]
+      }
+    }
+  },
+  "cardbacks": {
+    "cardbacks": [
+      "1LrVX0pUcye9n_0RtaDNVl2xPrQgn7CYf",
+      "1xTnSx8FhtZX1IV_OXUeorFaJS8iYwV45",
+      "1k2Ko1GuZc15Kl7gXsGp2wlt71TD86wUJ"
+    ]
+  },
+  "cards": {
+    "results": {
+      "1LrVX0pUcye9n_0RtaDNVl2xPrQgn7CYf": {
+        "cardType": "CARDBACK",
+        "dateCreated": "11th October, 2019",
+        "dateModified": "24th April, 2026",
+        "downloadLink": "https://drive.google.com/uc?id=1LrVX0pUcye9n_0RtaDNVl2xPrQgn7CYf&export=download",
+        "dpi": 800,
+        "extension": "jpg",
+        "identifier": "1LrVX0pUcye9n_0RtaDNVl2xPrQgn7CYf",
+        "language": "EN",
+        "mediumThumbnailUrl": "https://drive.google.com/thumbnail?sz=w800-h800&id=1LrVX0pUcye9n_0RtaDNVl2xPrQgn7CYf",
+        "name": "Black Lotus",
+        "priority": 17,
+        "searchq": "black lotus",
+        "size": 3246285,
+        "smallThumbnailUrl": "https://drive.google.com/thumbnail?sz=w400-h400&id=1LrVX0pUcye9n_0RtaDNVl2xPrQgn7CYf",
+        "source": "Chilli_Axe",
+        "sourceId": 3,
+        "sourceName": "Chilli_Axe",
+        "sourceVerbose": "Chilli_Axe Cardbacks",
+        "tags": [],
+        "sourceExternalLink": null,
+        "sourceType": "Google Drive"
+      },
+      "11v6Fmkha9Y0W_WeOMnsPt0Xm_Kc7OTNh": {
+        "cardType": "CARD",
+        "dateCreated": "27th March, 2020",
+        "dateModified": "27th March, 2020",
+        "downloadLink": "https://drive.google.com/uc?id=11v6Fmkha9Y0W_WeOMnsPt0Xm_Kc7OTNh&export=download",
+        "dpi": 1210,
+        "extension": "png",
+        "identifier": "11v6Fmkha9Y0W_WeOMnsPt0Xm_Kc7OTNh",
+        "language": "EN",
+        "mediumThumbnailUrl": "https://drive.google.com/thumbnail?sz=w800-h800&id=11v6Fmkha9Y0W_WeOMnsPt0Xm_Kc7OTNh",
+        "name": "Fire & Ice",
+        "priority": 2,
+        "searchq": "fire ice",
+        "size": 10981381,
+        "smallThumbnailUrl": "https://drive.google.com/thumbnail?sz=w400-h400&id=11v6Fmkha9Y0W_WeOMnsPt0Xm_Kc7OTNh",
+        "source": "Chilli_Axe",
+        "sourceId": 3,
+        "sourceName": "Chilli_Axe",
+        "sourceVerbose": "Chilli_Axe",
+        "tags": [],
+        "sourceExternalLink": null,
+        "sourceType": "Google Drive"
+      },
+      "1k4w07AFcKua0ldRpmTgXx0pTsEGv4kxg": {
+        "cardType": "CARD",
+        "dateCreated": "20th February, 2023",
+        "dateModified": "29th March, 2022",
+        "downloadLink": "https://drive.google.com/uc?id=1k4w07AFcKua0ldRpmTgXx0pTsEGv4kxg&export=download",
+        "dpi": 1200,
+        "extension": "jpg",
+        "identifier": "1k4w07AFcKua0ldRpmTgXx0pTsEGv4kxg",
+        "language": "EN",
+        "mediumThumbnailUrl": "https://drive.google.com/thumbnail?sz=w800-h800&id=1k4w07AFcKua0ldRpmTgXx0pTsEGv4kxg",
+        "name": "Delver of Secrets",
+        "priority": 2,
+        "searchq": "delver of secrets",
+        "size": 3848898,
+        "smallThumbnailUrl": "https://drive.google.com/thumbnail?sz=w400-h400&id=1k4w07AFcKua0ldRpmTgXx0pTsEGv4kxg",
+        "source": "MrTeferi",
+        "sourceId": 1,
+        "sourceName": "MrTeferi",
+        "sourceVerbose": "MrTeferi",
+        "tags": [],
+        "sourceExternalLink": null,
+        "sourceType": "Google Drive"
+      },
+      "1GVqgFNgCnwJt7oO494FGfCOHO-0tt2ID": {
+        "cardType": "CARD",
+        "dateCreated": "20th February, 2023",
+        "dateModified": "29th March, 2022",
+        "downloadLink": "https://drive.google.com/uc?id=1GVqgFNgCnwJt7oO494FGfCOHO-0tt2ID&export=download",
+        "dpi": 1200,
+        "extension": "jpg",
+        "identifier": "1GVqgFNgCnwJt7oO494FGfCOHO-0tt2ID",
+        "language": "EN",
+        "mediumThumbnailUrl": "https://drive.google.com/thumbnail?sz=w800-h800&id=1GVqgFNgCnwJt7oO494FGfCOHO-0tt2ID",
+        "name": "Insectile Aberration",
+        "priority": 2,
+        "searchq": "insectile aberration",
+        "size": 4117142,
+        "smallThumbnailUrl": "https://drive.google.com/thumbnail?sz=w400-h400&id=1GVqgFNgCnwJt7oO494FGfCOHO-0tt2ID",
+        "source": "MrTeferi",
+        "sourceId": 1,
+        "sourceName": "MrTeferi",
+        "sourceVerbose": "MrTeferi",
+        "tags": [],
+        "sourceExternalLink": null,
+        "sourceType": "Google Drive"
+      },
+      "1O6s0C_XyLXsrGQEhg04kSPnWhjqMMBCE": {
+        "cardType": "CARD",
+        "dateCreated": "20th February, 2023",
+        "dateModified": "17th February, 2022",
+        "downloadLink": "https://drive.google.com/uc?id=1O6s0C_XyLXsrGQEhg04kSPnWhjqMMBCE&export=download",
+        "dpi": 1200,
+        "extension": "png",
+        "identifier": "1O6s0C_XyLXsrGQEhg04kSPnWhjqMMBCE",
+        "language": "EN",
+        "mediumThumbnailUrl": "https://drive.google.com/thumbnail?sz=w800-h800&id=1O6s0C_XyLXsrGQEhg04kSPnWhjqMMBCE",
+        "name": "Sol Ring (Dom)",
+        "priority": 1,
+        "searchq": "sol ring",
+        "size": 12652704,
+        "smallThumbnailUrl": "https://drive.google.com/thumbnail?sz=w400-h400&id=1O6s0C_XyLXsrGQEhg04kSPnWhjqMMBCE",
+        "source": "MrTeferi",
+        "sourceId": 1,
+        "sourceName": "MrTeferi",
+        "sourceVerbose": "MrTeferi",
+        "tags": [],
+        "sourceExternalLink": null,
+        "sourceType": "Google Drive"
+      }
+    }
+  }
+}

@@ -1,10 +1,11 @@
 import './ExportDialog.css';
-import { useMemo } from 'react';
-import { Download, Printer, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Download, FileDown, Printer, X } from 'lucide-react';
 import { canShare, openShareSheet } from '@/lib/util/web-share';
 import { Modal } from '@/components/overlays/Modal';
 import { SelectMenu } from '@/components/overlays/SelectMenu';
 import type { ExportFormat } from '@/lib/import-export/deck-export';
+import { fetchMpcOrder, type MpcOrder } from '@/lib/import-export/mpc-order';
 import { Button, IconButton } from '@/components/shared/Button';
 import { CopyButton } from '@/components/shared/CopyButton';
 
@@ -43,15 +44,13 @@ interface Props {
 export function DeckExportDialog({ text, format, onFormatChange, title, onClose }: Props) {
   const lineCount = useMemo(() => text.split('\n').filter(Boolean).length, [text]);
 
+  const safeName = title.replace(/[^a-z0-9-_ ]/gi, '').trim() || 'deck';
   const handleDownload = () => {
-    const blob = new Blob([text], { type: format === 'mtgo' ? 'application/xml' : 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const safeName = title.replace(/[^a-z0-9-_ ]/gi, '').trim() || 'deck';
-    a.download = `${safeName}.${format === 'mtgo' ? 'dek' : 'txt'}`;
-    a.click();
-    URL.revokeObjectURL(url);
+    saveFile(
+      text,
+      format === 'mtgo' ? 'application/xml' : 'text/plain',
+      `${safeName}.${format === 'mtgo' ? 'dek' : 'txt'}`
+    );
   };
   // Print the deck list behind this dialog as a checklist — close first so
   // the modal overlay itself doesn't print; @media print hides everything
@@ -93,7 +92,7 @@ export function DeckExportDialog({ text, format, onFormatChange, title, onClose 
                 f === 'mtgo'
                   ? `${EXPORT_FORMAT_LABEL[f]} (.dek file for Magic Online)`
                   : f === 'mpc'
-                    ? `${EXPORT_FORMAT_LABEL[f]} (search list for printing proxies)`
+                    ? `${EXPORT_FORMAT_LABEL[f]} (list and order file for printing proxies)`
                     : undefined,
             }))}
           />
@@ -127,6 +126,7 @@ export function DeckExportDialog({ text, format, onFormatChange, title, onClose 
             )}
           </div>
         </div>
+        {format === 'mpc' && <MpcOrderSection list={text} fileName={`${safeName}.xml`} />}
         <textarea
           className="export-dialog-preview"
           aria-label="Exported decklist"
@@ -137,5 +137,98 @@ export function DeckExportDialog({ text, format, onFormatChange, title, onClose 
         />
       </div>
     </Modal>
+  );
+}
+
+function saveFile(body: string, type: string, name: string) {
+  const url = URL.createObjectURL(new Blob([body], { type }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+type OrderState =
+  | { kind: 'idle' }
+  | { kind: 'busy' }
+  | { kind: 'done'; order: MpcOrder }
+  | { kind: 'error'; message: string };
+
+/**
+ * The MPC Autofill order file: the list above with an image already picked
+ * for every card, so the desktop tool can upload the order as is. A list
+ * that changes (the format flips back and forth) starts over.
+ */
+function MpcOrderSection({ list, fileName }: { list: string; fileName: string }) {
+  const [state, setState] = useState<OrderState>({ kind: 'idle' });
+  const [forList, setForList] = useState(list);
+  if (forList !== list) {
+    setForList(list);
+    setState({ kind: 'idle' });
+  }
+  const busy = state.kind === 'busy';
+
+  const handleOrder = async () => {
+    setState({ kind: 'busy' });
+    try {
+      const order = await fetchMpcOrder(list);
+      if (order.slots > 0) saveFile(order.xml, 'application/xml', fileName);
+      setState({ kind: 'done', order });
+    } catch (err) {
+      setState({ kind: 'error', message: err instanceof Error ? err.message : String(err) });
+    }
+  };
+
+  return (
+    <section className="export-dialog-mpc" aria-labelledby="export-mpc-title">
+      <div className="export-dialog-mpc-text">
+        <h3 id="export-mpc-title" className="export-dialog-mpc-title">
+          Order file
+        </h3>
+        <p className="export-dialog-hint">
+          Picks the top-ranked MPC Autofill image for every card. Run the file with the MPC Autofill
+          desktop tool to fill a MakePlayingCards order, or import it at{' '}
+          <a href="https://mpcfill.com/editor" target="_blank" rel="noopener noreferrer">
+            mpcfill.com
+          </a>{' '}
+          to change any art first.
+        </p>
+        <p className="export-dialog-mpc-status" role="status">
+          {state.kind === 'done' && <OrderSummary order={state.order} fileName={fileName} />}
+        </p>
+        {state.kind === 'error' && (
+          <p className="export-dialog-mpc-error" role="alert">
+            {state.message}
+          </p>
+        )}
+      </div>
+      <Button
+        onClick={handleOrder}
+        disabled={busy}
+        aria-busy={busy}
+        icon={<FileDown width={14} height={14} strokeWidth={1.8} />}
+      >
+        {busy ? 'Matching images…' : 'Download order file'}
+      </Button>
+    </section>
+  );
+}
+
+function OrderSummary({ order, fileName }: { order: MpcOrder; fileName: string }) {
+  const { slots, missing } = order;
+  const cards = (n: number) => `${n} ${n === 1 ? 'card' : 'cards'}`;
+  if (slots === 0) return <>MPC Autofill has no image for any card on this list.</>;
+  return (
+    <>
+      Saved {fileName} with {cards(slots)}.
+      {missing.length > 0 && (
+        <>
+          {' '}
+          No image for {missing.length === 1 ? 'this one, so it' : 'these, so they'} stayed out:{' '}
+          {missing.join(', ')}.
+        </>
+      )}
+    </>
   );
 }

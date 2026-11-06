@@ -21,7 +21,7 @@ Plan your Magic: The Gathering collection. Import a collection export from any p
 - **Look up rules** — a built-in Comprehensive Rules reference: keywords, glossary, and rule-number search at `/rules` (header, ⌘K, and You › Help), plus a quick-look sheet from the Play page and the in-game menu. It also steps through how the stack resolves (`/rules/walkthroughs`), every step citing the rules.
 - **Scan paper cards** — add cards to the collection by pointing a phone camera at them.
 - **Browse your collection** in a sortable, filterable table with breakdowns by color, type, rarity, and price.
-- **Export it all** — the collection (or one binder) as a one-row-per-copy CSV for SpellControl/ManaBox, Moxfield or Archidekt, or an Arena text list, a JSON backup that carries binders, lists and every deck, decks as Arena / Moxfield / MTGO `.dek` text, and a printable checklist of any deck or binder.
+- **Export it all** — the collection (or one binder) as a one-row-per-copy CSV for SpellControl/ManaBox, Moxfield or Archidekt, or an Arena text list, a JSON backup that carries binders, lists and every deck, decks as Arena / Moxfield / MTGO `.dek` text or an MPC Autofill list and ready-to-run order file for printing proxies, and a printable checklist of any deck or binder.
 - **Sign in and sync** — create an account to store your collection, binders, and decks on the server. Changes push automatically and pull on login. Add a verified email and you can reset a forgotten password, set a password on a Google-only account, or change either from Settings.
 - **Skin the app** with a guild theme — accents, surfaces, and warning / error colors all re-tint per theme.
 
@@ -211,6 +211,7 @@ The table below documents the collection-import, auth, and sync core. The rest o
 | `GET`    | `/health`                    | Liveness + cache stats                                                                              |
 | `GET`    | `/api/sets`                  | Cached Scryfall set list (1h browser cache)                                                         |
 | `GET`    | `/api/edhrec/top`            | EDHREC's top commanders, top cards or salt list (`kind`, `period`, `colors`, `type`), from our copy |
+| `POST`   | `/api/mpc/order`             | JSON `{ list }` (the MPC export). Returns an MPC Autofill order XML, top-ranked image per card      |
 | `POST`   | `/api/import`                | Multipart `file` or JSON `{ text }`. Returns enriched cards, format detection, unresolved names     |
 | `POST`   | `/api/import-deck`           | Same shape as `/api/import` but parses commander / companion / sideboard sections                   |
 | `GET`    | `/api/cards/:name/printings` | All printings of a card (for finish / treatment swaps)                                              |
