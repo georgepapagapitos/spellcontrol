@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { useState } from 'react';
 import { ScannerQueueSheet } from './ScannerQueueSheet';
-import type { ScannedEntry } from '@/lib/scanner/use-scan-queue';
+import { rekeyedId, type ScannedEntry } from '@/lib/scanner/use-scan-queue';
 import type { BinderDef, BinderFilter } from '@/types/index';
 import type { ScryfallCard } from '@/deck-builder/types';
 
@@ -296,11 +297,56 @@ describe('ScannerQueueSheet', () => {
         ['card-1::nonfoil', 'card-2::nonfoil'],
         true
       );
+    });
+
+    // A bulk finish or proxy change re-keys the rows. The selection used to
+    // keep the old ids, so the rows fell out of it and a second change in the
+    // same Edit dialog reached nothing.
+    it('keeps re-keyed rows selected through finish and proxy changes', () => {
+      const calls: string[][] = [];
+      function Host() {
+        const [entries, setEntries] = useState<ScannedEntry[]>([bolt, greaves]);
+        const rekey = (ids: string[], patch: (e: ScannedEntry) => ScannedEntry) => {
+          calls.push(ids);
+          setEntries((cur) =>
+            cur.map((e) => {
+              if (!ids.includes(e.id)) return e;
+              const next = patch(e);
+              return { ...next, id: rekeyedId(next.card, next.finish, next.proxy) };
+            })
+          );
+        };
+        return (
+          <ScannerQueueSheet
+            entries={entries}
+            binders={[]}
+            onClose={vi.fn()}
+            onEdit={vi.fn()}
+            onRemove={vi.fn()}
+            onClearAll={vi.fn()}
+            onChangeFinish={(ids, finish) => rekey(ids, (e) => ({ ...e, finish }))}
+            onChangeCondition={vi.fn()}
+            onChangeLanguage={vi.fn()}
+            onChangeProxy={(ids, proxy) => rekey(ids, (e) => ({ ...e, proxy: proxy || undefined }))}
+            onAddCard={vi.fn()}
+            onConfirm={vi.fn()}
+          />
+        );
+      }
+      render(<Host />);
+      enterSelect();
+      fireEvent.click(screen.getAllByRole('checkbox')[1]); // bolt
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      const dialog = screen.getByRole('dialog', { name: 'Edit 2 cards' });
+      fireEvent.click(within(dialog).getByRole('radio', { name: 'Proxy' }));
+      fireEvent.click(within(dialog).getByRole('radio', { name: 'Foil' }));
       fireEvent.click(within(dialog).getByRole('radio', { name: 'Real' }));
-      expect(props.onChangeProxy).toHaveBeenLastCalledWith(
-        ['card-1::nonfoil', 'card-2::nonfoil'],
-        false
-      );
+      expect(calls).toEqual([
+        ['card-1::nonfoil'],
+        ['card-1::nonfoil::proxy'],
+        ['card-1::foil::proxy'],
+      ]);
+      expect(screen.getByRole('heading', { name: '2 cards selected' })).toBeTruthy();
     });
 
     it('sets a language on the selection', () => {
