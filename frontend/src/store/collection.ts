@@ -243,7 +243,7 @@ interface CollectionState {
   addCard: (
     card: ScryfallCard,
     finish?: Finish,
-    extras?: { quantity?: number; condition?: Condition; language?: string }
+    extras?: { quantity?: number; condition?: Condition; language?: string; proxy?: boolean }
   ) => Promise<string[]>;
   clearCards: () => Promise<void>;
   setLoading: (loading: boolean) => void;
@@ -904,9 +904,11 @@ export const useCollectionStore = create<CollectionState>()(
           const enriched = { ...scryfallToEnrichedCard(card, landed), updatedAt: now };
           if (condition && condition !== 'nm') enriched.condition = condition;
           if (language) enriched.language = language;
+          if (extras?.proxy) enriched.proxy = true;
           return enriched;
         });
-        set({ cards: [...get().cards, ...rows] });
+        // applyPrices is the proxy-to-$0 chokepoint; a real copy passes through.
+        set({ cards: [...get().cards, ...applyPrices(rows)] });
         try {
           await saveCollection(buildStored({ ...get() }));
         } catch (err) {

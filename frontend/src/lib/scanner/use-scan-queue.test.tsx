@@ -167,6 +167,14 @@ describe('useScanQueue', () => {
       expect(result.current.queue[0]).toMatchObject({ id: NONFOIL_1, qty: 1 });
     });
 
+    it('carries a picked proxy flag onto the new row', () => {
+      const { result } = renderHook(() => useScanQueue());
+      act(() => {
+        result.current.addManual(makeCard(), { proxy: true });
+      });
+      expect(result.current.queue[0]).toMatchObject({ id: NONFOIL_1, proxy: true });
+    });
+
     it('increments instead of deduping when the same card is added twice in a row', () => {
       const { result } = renderHook(() => useScanQueue());
       const card = makeCard();
