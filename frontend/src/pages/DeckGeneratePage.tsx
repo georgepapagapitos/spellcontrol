@@ -11,6 +11,8 @@ import { useDeckBuilderStore } from '@/deck-builder/store';
 import { CommanderSearch } from '../components/deck/CommanderSearch';
 import { CommanderProfileCard } from '../components/deck/CommanderProfileCard';
 import { StepCard, StepPlaceholders } from '../components/deck/StepCard';
+import { YourDeckAside } from '../components/deck/YourDeckAside';
+import { useMediaQuery } from '@/lib/util/use-media-query';
 import { PartnerCommanderSelector } from '../components/deck/PartnerCommanderSelector';
 import { ThemePicker } from '../components/deck/ThemePicker';
 import { DeckCustomizer } from '../components/deck/DeckCustomizer';
@@ -119,6 +121,8 @@ export function DeckGeneratePage() {
     parseDeckFormat(searchParams.get('format')) ?? prefill?.format ?? 'commander';
   const formatConfig = DECK_FORMAT_CONFIGS[format];
   const isPdh = format === 'paupercommander';
+  // From 1024px the choices recap in a sticky aside; below it, in the bottom bar.
+  const wide = useMediaQuery('(min-width: 1024px)');
 
   const setCommander = useDeckBuilderStore((s) => s.setCommander);
   const updateCustomizationStore = useDeckBuilderStore((s) => s.updateCustomization);
@@ -482,6 +486,49 @@ export function DeckGeneratePage() {
         .join(' · ')
     : '';
 
+  const stepNo = isPdh
+    ? { method: 2, settings: 3, visibility: 4 }
+    : { method: 3, settings: 4, visibility: 5 };
+  const blockingMessage = ineligible
+    ? ineligible.message
+    : colorChooser && !colorReady
+      ? `Choose ${colorChooser.name.split(' // ')[0]}'s color to build.`
+      : null;
+  const cardsFrom = !customization.collectionMode
+    ? 'Any card'
+    : customization.collectionStrategy === 'full'
+      ? 'Only mine'
+      : customization.collectionStrategy === 'prefer'
+        ? 'Mine first'
+        : 'Custom';
+  const recap: Array<[string, string]> = commander
+    ? [
+        [
+          'Commander',
+          partnerCommander ? `${commander.name} + ${partnerCommander.name}` : commander.name,
+        ],
+        ...(!isPdh
+          ? [
+              [
+                'Theme',
+                genMode !== 'edhrec'
+                  ? 'Not used by this method'
+                  : selectedThemes.length > 0
+                    ? selectedThemes.map((t) => t.name).join(', ')
+                    : 'None picked',
+              ] as [string, string],
+            ]
+          : []),
+        ['Method', genMode === 'historical' ? `From ${customization.historicalYear}` : methodLabel],
+        ['Bracket', bracket === 'all' ? 'Any' : String(bracket)],
+        ['Cards', `${cardsFrom} · ${customization.landCount} lands`],
+        [
+          'Who sees it',
+          visibility === 'public' ? 'Public' : visibility === 'friends' ? 'Friends' : 'Private',
+        ],
+      ]
+    : [];
+
   // Full card images for the takeover panel — it shows the actual card(s).
   const commanderCardUrl = commander ? imageFromCard(commander, 'normal') : undefined;
   const partnerCardUrl = partnerCommander ? imageFromCard(partnerCommander, 'normal') : undefined;
@@ -555,147 +602,175 @@ export function DeckGeneratePage() {
         />
       )}
 
-      <StepCard n={1} title="Choose a commander" className="deck-generate-step-commander">
-        <CommanderSearch
-          key={format}
-          value={commander}
-          onSelect={chooseCommander}
-          format={format}
-          initialSearchMode={commanderSource}
-          ideaFinder={
-            format === 'commander'
-              ? {
-                  initialSlug: ideaSlug,
-                  onPickWithIdea: pickWithIdea,
-                  selectedNote: ideaNote,
-                  selectedExtra: ideaContext ? (
-                    <Button variant="link" onClick={changeIdea}>
-                      Change idea
-                    </Button>
-                  ) : undefined,
-                }
-              : undefined
-          }
-          onSelectFromBinder={(card) => {
-            // E283: a "From my collection" pick is a build-from-what-I-own
-            // intent, so land with collection mode on and "Only my cards".
-            updateCustomization({ collectionMode: true, collectionStrategy: 'full' });
-            chooseCommander(card);
-          }}
-        />
-        {commander && commanderProfile && (
-          <CommanderProfileCard
-            profile={commanderProfile}
-            title={`What ${commander.name.split(',')[0].split(' // ')[0]} wants`}
-          />
-        )}
-        {choosesColorBeforeGame(commander) && (
-          <ChosenColorPicker commander={commander} partner={null} onChoose={setChosenColor} />
-        )}
-        {/* Partner picker searches legendary partner mechanics: not a PDH surface. */}
-        {!isPdh && commander && (
-          <PartnerCommanderSelector
-            key={commander.id}
-            commander={commander}
-            partner={partnerCommander}
-            onSelect={setPartnerCommander}
-            collectionMode={buildsFromOwnedCards(customization)}
-          />
-        )}
-        {!choosesColorBeforeGame(commander) && choosesColorBeforeGame(partnerCommander) && (
-          <ChosenColorPicker
-            commander={null}
-            partner={partnerCommander}
-            onChoose={setChosenColor}
-          />
-        )}
-      </StepCard>
-
-      {!commander && (
-        <StepPlaceholders
-          steps={[
-            ...(isPdh ? [] : [{ n: 2, title: 'Theme', hint: 'After you choose a commander' }]),
-            { n: isPdh ? 2 : 3, title: 'How to build', hint: 'After you choose a commander' },
-            { n: isPdh ? 3 : 4, title: 'Settings', hint: 'After you choose a commander' },
-            { n: isPdh ? 4 : 5, title: 'Who can see it', hint: 'After you choose a commander' },
-          ]}
-        />
-      )}
-
-      {commander && (
-        <GenerationModePicker
-          customization={customization}
-          update={updateCustomization}
-          colorIdentity={colorIdentity}
-          commanderName={commander.name}
-          pdh={isPdh}
-        />
-      )}
-
-      {/* Themes come right after the build method they depend on, ahead of
-          Customize: most builds pick a theme and never open the settings.
-          Themes only steer the EDHREC generator — the Scryfall-driven modes
-          define their own pool, so the theme picker is irrelevant there. */}
-      {/* The idea this commander came from has no theme of its slug on EDHREC: say so where
-          the theme would have been chosen. */}
-      {commander && ideaContext && !ideaContext.themeSelected && (
-        <p className="deck-generate-step-note" role="status">
-          {commander.name.split(',')[0]} has no {ideaContext.name} theme on EDHREC, so none is
-          chosen.
-        </p>
-      )}
-
-      {!isPdh && commander && customization.generationMode === 'edhrec' && (
-        <ThemePicker
-          commanderName={commander.name}
-          selectedSlugs={selectedThemeSlugs}
-          onToggle={toggleTheme}
-        />
-      )}
-
-      {commander && <DeckCustomizer customization={customization} update={updateCustomization} />}
-
-      {commander && (
-        <>
-          {/* The full choice, every hint visible (STYLE_GUIDE "Visibility is
-              one choice"): a compact menu in the bar would hide the reason
-              Public is unavailable. The bar echoes the pick instead. */}
-          <section className="deck-builder-section">
-            <h2 className="deck-builder-section-title">Visibility</h2>
-            <VisibilityChoice
-              ariaLabel="Deck visibility"
-              value={visibility}
-              options={[
-                {
-                  value: 'public',
-                  label: 'Public',
-                  hint: canPublish
-                    ? 'Anyone can find it at a stable link and on your profile.'
-                    : publicDisabledReason!,
-                  disabled: !canPublish,
-                },
-                {
-                  value: 'friends',
-                  label: 'Friends',
-                  hint: canPublish
-                    ? 'Only your friends can find it, on your page in their Friends list.'
-                    : publicDisabledReason!,
-                  disabled: !canPublish,
-                },
-                { value: 'private', label: 'Private', hint: 'Only you can see this deck.' },
-              ]}
-              onChange={setVisibility}
+      <div className={commander ? 'deck-generate-layout' : undefined}>
+        <div className="deck-generate-main">
+          <StepCard n={1} title="Choose a commander" className="deck-generate-step-commander">
+            <CommanderSearch
+              key={format}
+              value={commander}
+              onSelect={chooseCommander}
+              format={format}
+              initialSearchMode={commanderSource}
+              ideaFinder={
+                format === 'commander'
+                  ? {
+                      initialSlug: ideaSlug,
+                      onPickWithIdea: pickWithIdea,
+                      selectedNote: ideaNote,
+                      selectedExtra: ideaContext ? (
+                        <Button variant="link" onClick={changeIdea}>
+                          Change idea
+                        </Button>
+                      ) : undefined,
+                    }
+                  : undefined
+              }
+              onSelectFromBinder={(card) => {
+                // E283: a "From my collection" pick is a build-from-what-I-own
+                // intent, so land with collection mode on and "Only my cards".
+                updateCustomization({ collectionMode: true, collectionStrategy: 'full' });
+                chooseCommander(card);
+              }}
             />
-          </section>
+            {commander && commanderProfile && (
+              <CommanderProfileCard
+                profile={commanderProfile}
+                title={`What ${commander.name.split(',')[0].split(' // ')[0]} wants`}
+              />
+            )}
+            {choosesColorBeforeGame(commander) && (
+              <ChosenColorPicker commander={commander} partner={null} onChoose={setChosenColor} />
+            )}
+            {/* Partner picker searches legendary partner mechanics: not a PDH surface. */}
+            {!isPdh && commander && (
+              <PartnerCommanderSelector
+                key={commander.id}
+                commander={commander}
+                partner={partnerCommander}
+                onSelect={setPartnerCommander}
+                collectionMode={buildsFromOwnedCards(customization)}
+              />
+            )}
+            {!choosesColorBeforeGame(commander) && choosesColorBeforeGame(partnerCommander) && (
+              <ChosenColorPicker
+                commander={null}
+                partner={partnerCommander}
+                onChoose={setChosenColor}
+              />
+            )}
+          </StepCard>
+
+          {!commander && (
+            <StepPlaceholders
+              steps={[
+                ...(isPdh ? [] : [{ n: 2, title: 'Theme', hint: 'After you choose a commander' }]),
+                { n: isPdh ? 2 : 3, title: 'How to build', hint: 'After you choose a commander' },
+                { n: isPdh ? 3 : 4, title: 'Settings', hint: 'After you choose a commander' },
+                { n: isPdh ? 4 : 5, title: 'Who can see it', hint: 'After you choose a commander' },
+              ]}
+            />
+          )}
+
+          {commander && (
+            <>
+              {!isPdh && (
+                <StepCard n={2} title="Theme">
+                  {genMode === 'edhrec' ? (
+                    <ThemePicker
+                      bare
+                      commanderName={commander.name}
+                      selectedSlugs={selectedThemeSlugs}
+                      onToggle={toggleTheme}
+                    />
+                  ) : (
+                    <p className="deck-generate-step-note">
+                      Themes steer the Standard method. Choose it in step {stepNo.method} to pick
+                      one.
+                    </p>
+                  )}
+                  {ideaContext && !ideaContext.themeSelected && genMode === 'edhrec' && (
+                    <p className="deck-generate-step-note" role="status">
+                      {commander.name.split(',')[0]} has no {ideaContext.name} theme on EDHREC, so
+                      none is chosen.
+                    </p>
+                  )}
+                </StepCard>
+              )}
+
+              <StepCard n={stepNo.method} title="How to build">
+                <GenerationModePicker
+                  bare
+                  groupLabel="Build method"
+                  customization={customization}
+                  update={updateCustomization}
+                  colorIdentity={colorIdentity}
+                  commanderName={commander.name}
+                  pdh={isPdh}
+                />
+              </StepCard>
+
+              <StepCard n={stepNo.settings} title="Settings">
+                <DeckCustomizer step customization={customization} update={updateCustomization} />
+              </StepCard>
+
+              <StepCard n={stepNo.visibility} title="Who can see it">
+                {/* The full choice, every hint visible (STYLE_GUIDE "Visibility is one choice"): a
+                compact menu would hide the reason Public is unavailable. */}
+                <VisibilityChoice
+                  ariaLabel="Deck visibility"
+                  value={visibility}
+                  options={[
+                    {
+                      value: 'public',
+                      label: 'Public',
+                      hint: canPublish
+                        ? 'Anyone can find it at a stable link and on your profile.'
+                        : publicDisabledReason!,
+                      disabled: !canPublish,
+                    },
+                    {
+                      value: 'friends',
+                      label: 'Friends',
+                      hint: canPublish
+                        ? 'Only your friends can find it, on your page in their Friends list.'
+                        : publicDisabledReason!,
+                      disabled: !canPublish,
+                    },
+                    { value: 'private', label: 'Private', hint: 'Only you can see this deck.' },
+                  ]}
+                  onChange={setVisibility}
+                />
+              </StepCard>
+            </>
+          )}
+        </div>
+        {commander && wide && (
+          <YourDeckAside
+            card={commander}
+            partner={partnerCommander}
+            recap={recap}
+            hint={generateHint}
+            blocking={blockingMessage}
+            error={error}
+            generateLabel={generateLabel}
+            busy={isBuilding || publishing}
+            canBuild={buildReady}
+            canGenerate={modeReady && buildReady}
+            publishing={publishing}
+            isBuilding={isBuilding}
+            onBlank={() => void handleStartBlank()}
+            onGenerate={build}
+          />
+        )}
+      </div>
+
+      {commander && !wide && (
+        <>
           <p className="deck-generate-hint">{generateHint}</p>
 
           <div className="deck-generate-bar" role="group" aria-label="Build this deck">
             <p className={`deck-generate-bar-summary${buildReady ? '' : ' is-blocking'}`}>
-              {ineligible
-                ? ineligible.message
-                : colorChooser && !colorReady
-                  ? `Choose ${colorChooser.name.split(' // ')[0]}'s color to build.`
-                  : summary}
+              {blockingMessage ?? summary}
             </p>
             {error && (
               <div className="error-banner deck-builder-error deck-generate-bar-error" role="alert">

@@ -85,8 +85,27 @@
   }
 }
 
+/* The steps and "Your deck" side by side from 1024px; one column below, with the build bar. */
+.deck-generate-main {
+  min-width: 0;
+}
+
 .deck-generate-step-note {
   margin: 0 0 var(--space-3);
   font-size: var(--text-sm);
   color: var(--text-secondary);
+}
+
+@media (min-width: 1024px) {
+  .deck-generate-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 20rem;
+    gap: var(--space-4);
+    align-items: start;
+  }
+
+  .deck-generate-layout > .your-deck {
+    position: sticky;
+    top: var(--space-4);
+  }
 }

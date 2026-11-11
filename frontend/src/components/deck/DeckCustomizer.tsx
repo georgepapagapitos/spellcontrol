@@ -2,7 +2,6 @@ import { Check, ChevronDown, RotateCcw, X } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type {
   BudgetOption,
-  CollectionStrategy,
   Customization,
   GameChangerLimit,
   ManaPhilosophy,
@@ -22,6 +21,7 @@ import { SelectMenu } from '@/components/overlays/SelectMenu';
 import { IconButton } from '../shared/Button';
 import { Chip } from '../shared/Chip';
 import { useSearchCards } from '@/lib/search/use-search-cards';
+import { CardsFromGroup, CollectionGroup } from './customizer-collection';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { useCollectionStore } from '../../store/collection';
 import { useCubeStore } from '../../store/cube';
@@ -34,9 +34,15 @@ type Update = (patch: Partial<Customization>) => void;
 interface DeckCustomizerProps {
   customization: Customization;
   update: Update;
+  /**
+   * The body of a numbered generator step (E1113): no section chrome or title (the step has
+   * them), and bracket, where the cards come from, lands and budget up front with the rest
+   * under More settings.
+   */
+  step?: boolean;
 }
 
-export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
+export function DeckCustomizer({ customization, update, step = false }: DeckCustomizerProps) {
   const suggestion = useDeckBuilderStore((s) => s.edhrecLandSuggestion);
   const setUserEditedLands = useDeckBuilderStore((s) => s.setUserEditedLands);
   // Bracket, the dial and the collection toggle are the levers most builds
@@ -126,10 +132,38 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
     setUserEditedLands(false);
   };
 
+  const landsGroup = (
+    <div className="deck-customizer-group">
+      <div className="deck-customizer-group-header">
+        <h3 className="deck-customizer-group-title">Lands</h3>
+        {suggestion && (
+          <button
+            type="button"
+            className="deck-customizer-group-reset"
+            onClick={handleResetLands}
+            title={`Reset to EDHREC suggestion (${suggestion.landCount} / ${suggestion.nonBasicLandCount})`}
+          >
+            <RotateCcw width={12} height={12} strokeWidth={2} aria-hidden />
+            Reset
+          </button>
+        )}
+      </div>
+      <div className="deck-customizer-group-body">
+        <SizeAndLandsGroup customization={customization} update={update} />
+      </div>
+    </div>
+  );
+  const budgetGroup = (
+    <Disclosure title="Budget" summary={budgetSummary(customization)} defaultOpen={step}>
+      <BudgetGroup customization={customization} update={update} />
+    </Disclosure>
+  );
+  const Shell = step ? 'div' : 'section';
+
   return (
-    <section className="deck-builder-section deck-customizer">
+    <Shell className={step ? 'deck-customizer' : 'deck-builder-section deck-customizer'}>
       <header className="deck-customizer-title-row">
-        <h2 className="deck-builder-section-title">Customize</h2>
+        {!step && <h2 className="deck-builder-section-title">Customize</h2>}
         <button
           type="button"
           className="deck-customizer-group-reset"
@@ -143,8 +177,18 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
 
       <div className="deck-customizer-body">
         <BracketGroup customization={customization} update={update} />
-        <BrewGroup customization={customization} update={update} />
-        <CollectionGroup customization={customization} update={update} />
+        {step ? (
+          <>
+            <CardsFromGroup customization={customization} update={update} />
+            {landsGroup}
+            {budgetGroup}
+          </>
+        ) : (
+          <>
+            <BrewGroup customization={customization} update={update} />
+            <CollectionGroup customization={customization} update={update} />
+          </>
+        )}
 
         <div className={`deck-customizer-more${moreCollapsed ? '' : ' open'}`}>
           <button
@@ -164,33 +208,25 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
           </button>
           {!moreCollapsed && (
             <div id={moreBodyId} className="deck-customizer-more-body">
-              <div className="deck-customizer-group">
-                <div className="deck-customizer-group-header">
-                  <h3 className="deck-customizer-group-title">Lands</h3>
-                  {suggestion && (
-                    <button
-                      type="button"
-                      className="deck-customizer-group-reset"
-                      onClick={handleResetLands}
-                      title={`Reset to EDHREC suggestion (${suggestion.landCount} / ${suggestion.nonBasicLandCount})`}
-                    >
-                      <RotateCcw width={12} height={12} strokeWidth={2} aria-hidden />
-                      Reset
-                    </button>
-                  )}
-                </div>
-                <div className="deck-customizer-group-body">
-                  <SizeAndLandsGroup customization={customization} update={update} />
-                </div>
-              </div>
+              {step ? (
+                <>
+                  <BrewGroup customization={customization} update={update} />
+                  <Disclosure
+                    title="Collection strategy"
+                    summary={customization.collectionMode ? 'On' : 'Off'}
+                  >
+                    <CollectionGroup customization={customization} update={update} />
+                  </Disclosure>
+                </>
+              ) : (
+                landsGroup
+              )}
 
               <Disclosure title="Mana philosophy" summary={manaPhilosophySummary(customization)}>
                 <ManaPhilosophyGroup customization={customization} update={update} />
               </Disclosure>
 
-              <Disclosure title="Budget" summary={budgetSummary(customization)}>
-                <BudgetGroup customization={customization} update={update} />
-              </Disclosure>
+              {!step && budgetGroup}
               <Disclosure title="Card pool" summary={poolSummary(customization)}>
                 <PoolGroup customization={customization} update={update} />
               </Disclosure>
@@ -245,7 +281,7 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
           )}
         </div>
       </div>
-    </section>
+    </Shell>
   );
 }
 
@@ -477,104 +513,6 @@ function BrewGroup({ customization, update }: DeckCustomizerProps) {
           <p className="deck-customizer-slider-desc">{description}</p>
         </div>
       </div>
-    </div>
-  );
-}
-
-function CollectionGroup({ customization, update }: DeckCustomizerProps) {
-  const collectionCards = useCollectionStore((s) => s.cards);
-  const uniqueCount = new Set(collectionCards.map((c) => c.name)).size;
-  const active = customization.collectionMode;
-  const empty = uniqueCount === 0;
-  const strategy = customization.collectionStrategy;
-  const pct = customization.collectionOwnedPercent;
-  const sub = empty
-    ? 'Import cards on the Collection page to enable this.'
-    : active
-      ? strategy === 'partial'
-        ? `Aims for about ${pct}% owned.`
-        : strategy === 'available'
-          ? 'Uses only copies not committed to other decks.'
-          : strategy === 'prefer'
-            ? 'Leans on cards you own.'
-            : strategy === 'exclude'
-              ? 'Leaves out every card you own, except basic lands and your must-includes.'
-              : 'Uses only cards you own.'
-      : 'Build from the cards you own, or leave them out.';
-  return (
-    <div className={`deck-customizer-group collection-group${active ? ' active' : ''}`}>
-      <label className="collection-group-row">
-        <input
-          type="checkbox"
-          className="collection-group-checkbox"
-          checked={active}
-          disabled={empty}
-          // Explicit aria-label: the implicit <label> wrapping would
-          // otherwise concatenate the sub-description text below into the
-          // accessible name too, which reads as a run-on to a screen reader
-          // (same pattern as ManaPhilosophyGroup below).
-          aria-label="Use my collection"
-          onChange={(e) => update({ collectionMode: e.target.checked })}
-        />
-        <span className="collection-group-text">
-          <span className="row-between row-between--snug">
-            <span className="collection-group-title">Use my collection</span>
-            <span className="collection-group-badge" aria-hidden>
-              {uniqueCount.toLocaleString()} unique
-            </span>
-          </span>
-          <span className="collection-group-sub">{sub}</span>
-        </span>
-      </label>
-
-      {active && (
-        <div className="collection-group-controls">
-          <Field label="Collection strategy">
-            <ChoiceList<CollectionStrategy>
-              ariaLabel="Collection strategy"
-              value={strategy}
-              options={[
-                { value: 'prefer', label: 'Lean on mine', hint: 'Owned-first' },
-                { value: 'full', label: 'Only my cards', hint: 'Owned only' },
-                { value: 'partial', label: 'Owned share %', hint: 'Target %' },
-                { value: 'available', label: 'Available only', hint: 'Free copies' },
-                { value: 'exclude', label: 'Skip my cards', hint: 'None owned' },
-              ]}
-              onChange={(v) => update({ collectionStrategy: v })}
-            />
-          </Field>
-
-          {strategy === 'partial' && (
-            <div className="deck-customizer-slider">
-              <div className="deck-customizer-slider-header">
-                <span className="deck-customizer-slider-label">Target owned</span>
-                <span className="deck-customizer-slider-value">{pct}%</span>
-              </div>
-              <input
-                type="range"
-                className="deck-customizer-range"
-                min={25}
-                max={100}
-                step={5}
-                value={pct}
-                aria-label="Target owned percent"
-                onChange={(e) => update({ collectionOwnedPercent: Number(e.target.value) })}
-                style={{
-                  ['--range-progress' as string]: `${((pct - 25) / 75) * 100}%`,
-                }}
-              />
-              <div className="deck-customizer-slider-anchors">
-                <span className="deck-customizer-slider-anchor" data-align="start">
-                  <span className="deck-customizer-slider-anchor-label">25%</span>
-                </span>
-                <span className="deck-customizer-slider-anchor" data-align="end">
-                  <span className="deck-customizer-slider-anchor-label">100%</span>
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { fetchCommanderThemes } from '@/deck-builder/services/edhrec/client';
 import type { EDHRECTheme } from '@/deck-builder/types';
 import { formatCount } from '@/lib/util/format-count';
@@ -12,9 +12,23 @@ interface ThemePickerProps {
   commanderName: string;
   selectedSlugs: Set<string>;
   onToggle: (theme: EDHRECTheme) => void;
+  /** The body of a numbered generator step (E1113): the step has the title, and a commander
+   *  with no themes says so instead of rendering nothing under it. */
+  bare?: boolean;
 }
 
-export function ThemePicker({ commanderName, selectedSlugs, onToggle }: ThemePickerProps) {
+/** The picker's frame: its own titled section, or a bare body inside a step card. */
+function Frame({ bare, children }: { bare?: boolean; children: ReactNode }) {
+  if (bare) return <div className="deck-builder-themes-body">{children}</div>;
+  return (
+    <section className="deck-builder-section">
+      <h2 className="deck-builder-section-title">Themes</h2>
+      {children}
+    </section>
+  );
+}
+
+export function ThemePicker({ commanderName, selectedSlugs, onToggle, bare }: ThemePickerProps) {
   const [themes, setThemes] = useState<EDHRECTheme[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [errored, setErrored] = useState(false);
@@ -51,10 +65,9 @@ export function ThemePicker({ commanderName, selectedSlugs, onToggle }: ThemePic
 
   if (loading) {
     return (
-      <section className="deck-builder-section">
-        <h2 className="deck-builder-section-title">Themes</h2>
+      <Frame bare={bare}>
         <p className="deck-builder-themes-status">Loading themes…</p>
-      </section>
+      </Frame>
     );
   }
 
@@ -64,20 +77,25 @@ export function ThemePicker({ commanderName, selectedSlugs, onToggle }: ThemePic
   // the honest empty state.
   if (errored) {
     return (
-      <section className="deck-builder-section">
-        <h2 className="deck-builder-section-title">Themes</h2>
+      <Frame bare={bare}>
         <p className="deck-builder-themes-status">
           Couldn't load themes.{' '}
           <Button variant="link" onClick={() => setReloadKey((k) => k + 1)}>
             Retry
           </Button>
         </p>
-      </section>
+      </Frame>
     );
   }
 
   if (!themes || themes.length === 0) {
-    return null;
+    return bare ? (
+      <Frame bare>
+        <p className="deck-builder-themes-status">
+          EDHREC has no themes for this commander. The build uses its top cards.
+        </p>
+      </Frame>
+    ) : null;
   }
 
   return (
@@ -87,6 +105,7 @@ export function ThemePicker({ commanderName, selectedSlugs, onToggle }: ThemePic
       onToggle={onToggle}
       visibleCount={visibleCount}
       setVisibleCount={setVisibleCount}
+      bare={bare}
     />
   );
 }
@@ -97,7 +116,9 @@ function ThemePickerList({
   onToggle,
   visibleCount,
   setVisibleCount,
+  bare,
 }: {
+  bare?: boolean;
   themes: EDHRECTheme[];
   selectedSlugs: Set<string>;
   onToggle: (theme: EDHRECTheme) => void;
@@ -118,8 +139,7 @@ function ThemePickerList({
   const nextStep = Math.min(EXPAND_STEP, remaining);
 
   return (
-    <section className="deck-builder-section">
-      <h2 className="deck-builder-section-title">Themes</h2>
+    <Frame bare={bare}>
       {selectedSlugs.size === 0 && (
         <p className="deck-builder-themes-hint">
           No theme picked. The build uses this commander's top cards.
@@ -159,6 +179,6 @@ function ThemePickerList({
           </Chip>
         )}
       </div>
-    </section>
+    </Frame>
   );
 }
