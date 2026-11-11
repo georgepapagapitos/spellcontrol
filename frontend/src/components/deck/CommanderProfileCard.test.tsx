@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { CommanderProfileCard } from './CommanderProfileCard';
 import { Archetype } from '@/deck-builder/types';
@@ -57,5 +57,19 @@ describe('CommanderProfileCard', () => {
       <CommanderProfileCard profile={makeProfile({ suggestedThemes: ['Enchantress', 'Aura'] })} />
     );
     expect(container.textContent).not.toMatch(/preselected/i);
+  });
+
+  // Inside generator step 1 (E1113) it is a disclosure that starts closed, whatever was saved.
+  it('as a step disclosure it starts collapsed, opens on demand, and is a level-3 heading', () => {
+    localStorage.setItem('spellcontrol-game-plan-collapsed', 'false');
+    render(<CommanderProfileCard profile={makeProfile()} title="What Giada wants" />);
+    const toggle = screen.getByRole('button', { name: /What Giada wants/ });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.getByRole('heading', { level: 3, name: /What Giada wants/ })).toBeTruthy();
+    const saved = localStorage.getItem('spellcontrol-game-plan-collapsed');
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    // The choice is not saved over the stand-alone card's.
+    expect(localStorage.getItem('spellcontrol-game-plan-collapsed')).toBe(saved);
   });
 });

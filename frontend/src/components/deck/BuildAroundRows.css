@@ -1,0 +1,159 @@
+/* "Build around" rows on the commander finder: each idea is a chip that applies it as a
+   filter. Loads with the generator chunk, not the boot payload. */
+
+.build-around {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.build-around-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.build-around-label {
+  flex: 0 0 9rem;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.build-around-list {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.build-around-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  padding: 0 var(--space-3) 0 var(--space-1);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.build-around-choice:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .build-around-choice:hover {
+    border-color: var(--accent);
+  }
+}
+
+.build-around-art {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  overflow: hidden;
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--surface-raised);
+}
+
+.build-around-art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.build-around-name {
+  font-weight: 600;
+}
+
+.build-around-note {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* A phone stacks the label over its row. */
+@media (max-width: 599px) {
+  .build-around-label {
+    flex-basis: 100%;
+  }
+}
+
+/* The strip under the filters while an idea is applied. */
+.idea-strip {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.idea-strip-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.idea-strip-art {
+  flex: none;
+  width: 3.5rem;
+  height: 3.5rem;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+
+.idea-strip-art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.idea-strip-body {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.idea-strip-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.idea-strip-name {
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.idea-strip-facts {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.idea-strip-own {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.idea-strip-pairs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}

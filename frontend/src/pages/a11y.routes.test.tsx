@@ -217,7 +217,7 @@ const CASES: RouteCase[] = [
   {
     path: '/decks/new/generate',
     routes: <Route path="/decks/new/generate" element={<DeckGeneratePage />} />,
-    ready: /find a commander/i,
+    ready: /choose a commander/i,
   },
   { path: '/play', routes: <Route path="/play" element={<PlayPage />} />, ready: /Play/ },
   { path: '/rules', routes: <Route path="/rules" element={<RulesPage />} />, ready: /rules/i },

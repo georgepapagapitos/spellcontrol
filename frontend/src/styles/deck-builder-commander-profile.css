@@ -98,3 +98,14 @@
   color: var(--text-primary);
   text-transform: capitalize;
 }
+
+/* Inside generator step 1 (E1113): a disclosure under the summary row, not a section of its own. */
+.cmdr-profile.is-in-step {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 0.5px solid var(--border);
+}
+
+.cmdr-profile.is-in-step .cmdr-profile-heading {
+  font-size: var(--text-base);
+}

@@ -84,3 +84,9 @@
     justify-content: center;
   }
 }
+
+.deck-generate-step-note {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}

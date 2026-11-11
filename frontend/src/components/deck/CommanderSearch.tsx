@@ -5,15 +5,14 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   commanderFinderSupportsRegex,
   getCardByName,
-  getCardPrice,
   getOwnedPrinting,
   searchCommanderFinder,
 } from '@/deck-builder/services/scryfall/client';
 import {
+  backfillColorIdentities,
   fetchAllCommanderNames,
-  fetchCommandersWithinColors,
   fetchPlaystyleCommanders,
-  fetchTopCommanders,
+  fetchTagPageData,
 } from '@/deck-builder/services/edhrec/client';
 import type { ScryfallCard, DeckFormat, EDHRECTopCommander } from '@/deck-builder/types';
 import { useCollectionStore } from '../../store/collection';
@@ -54,7 +53,6 @@ import {
   matchReason,
   relaxations,
   type ColorMode,
-  type FinderEntry,
   type FinderQuery,
   type FinderSort,
   type FinderSource,
@@ -63,18 +61,11 @@ import {
 import { buildCollectionSearch } from '@/lib/search/deck-add-search';
 import { useDebouncedValue } from '@/lib/util/use-debounced-value';
 import { useMediaQuery } from '@/lib/util/use-media-query';
-import { CommanderReadiness } from './CommanderReadiness';
 import { CommanderResultCard } from './CommanderResultCard';
-import type { EnrichedCard } from '../../types';
-import { ManaCost } from '@/components/shared/ManaCost';
 import { ManaColorPicker, colorModeOptions } from '@/components/filter-kit';
 import { SearchPill } from '@/components/search/SearchPill';
 import { SelectMenu } from '@/components/overlays/SelectMenu';
-import { InfoTip } from '@/components/overlays/InfoTip';
-import { buildCommanderKey } from '@/lib/deck/commander-key';
-import { getCommanderStatsBatch, type CommanderStats } from '@/lib/discover/aggregates-client';
-import { getCurrency } from '@/lib/collection/currency';
-import { formatMoney } from '@/lib/collection/format-money';
+import { getCommanderStatsBatch } from '@/lib/discover/aggregates-client';
 import { userMessage } from '@/lib/util/user-error';
 import { Button } from '@/components/shared/Button';
 import { CommanderRandomButton } from './CommanderRandomButton';
@@ -82,50 +73,25 @@ import { Chip } from '@/components/shared/Chip';
 import { Count } from '@/components/shared/Count';
 import { FilterChipsRow, type FilterChipDescriptor } from '@/components/shared/FilterChipsRow';
 import { SegmentedControl } from '@/components/shared/form';
-import { RulesTextParagraphs } from '@/components/card/RulesText';
-import { CommanderPickArt } from './CommanderPickArt';
 import { CommanderLeans } from './CommanderLeans';
+import { BuildAroundRows } from './BuildAroundRows';
+import { CommanderPick } from './CommanderPick';
+import { useBuyCandidates } from './use-buy-candidates';
+import {
+  fetchPopular,
+  identityOf,
+  popularEntry,
+  resolvePlatformCounts,
+  runPool,
+  type Entry,
+  type IdeaFinderProps,
+} from './commander-finder-shared';
 
-/**
- * Resolves the commander-picker platform-deck-count badge (social W4) for a
- * settled list of visible commanders: looks up each one's oracle id via the
- * already cache-backed `getCardByName`, builds each commander key, and fires
- * ONE batch lookup — never per row. A candidate whose name fails to resolve
- * (offline, or a name Scryfall doesn't recognize) is skipped rather than
- * failing the whole batch.
- *
- * Exported and dependency-injected so it's directly unit-testable.
- */
-export async function resolvePlatformCounts(
-  candidates: Array<{ name: string }>,
-  deps: {
-    getCardByName: (name: string) => Promise<ScryfallCard>;
-    getCommanderStatsBatch: (keys: string[]) => Promise<Map<string, CommanderStats>>;
-  }
-): Promise<Map<string, number>> {
-  const resolved = await Promise.all(
-    candidates.map(async (c) => {
-      try {
-        return await deps.getCardByName(c.name);
-      } catch {
-        return null;
-      }
-    })
-  );
-  const keyToName = new Map<string, string>();
-  resolved.forEach((card, i) => {
-    if (card) keyToName.set(buildCommanderKey(card.oracle_id), candidates[i].name);
-  });
-  if (keyToName.size === 0) return new Map();
-
-  const stats = await deps.getCommanderStatsBatch([...keyToName.keys()]);
-  const out = new Map<string, number>();
-  for (const [key, name] of keyToName) {
-    const s = stats.get(key);
-    if (s) out.set(name.toLowerCase(), s.deckCount);
-  }
-  return out;
-}
+export { resolvePlatformCounts, type IdeaFinderProps };
+import { CommanderSummaryRow } from './CommanderSummaryRow';
+import { IdeaSearchBox } from './IdeaSearchBox';
+import { IdeaStrip } from './IdeaStrip';
+import { findIdea, normalizeQuery, useIdeaIndex, type Idea } from '@/lib/deck/idea-index';
 
 type SearchMode = 'name' | 'playstyle' | 'binder';
 
@@ -151,14 +117,9 @@ interface Props {
    * name tabs of the old picker and open the default view.
    */
   initialSearchMode?: SearchMode;
+  /** Turns on the idea-aware generator layout; see {@link IdeaFinderProps}. */
+  ideaFinder?: IdeaFinderProps;
 }
-
-/** A result, with whatever it came from: an owned copy, a Scryfall card, or only a name. */
-type Entry = FinderEntry & {
-  owned?: EnrichedCard;
-  card?: ScryfallCard;
-  imageUrl?: string;
-};
 
 interface RemoteResult {
   key: string;
@@ -168,6 +129,10 @@ interface RemoteResult {
   /** The popular list comes from EDHREC; a search from Scryfall. */
   from: 'edhrec' | 'scryfall';
   error?: string;
+  /** The idea's list had no page in the chosen colors, so it shows every color. */
+  colorFallback?: boolean;
+  /** The idea this list is for, so a list never shows under another idea's name. */
+  idea?: string | null;
 }
 
 // "In my collection" keeps the old "Commanders I own" key, so a returning
@@ -178,13 +143,8 @@ const COLOR_MODE_KEY = 'commander-search-color-mode';
 
 /** Tiles shown before "Show more"; each press adds two pages. */
 const PAGE = 12;
-/** Parallel EDHREC page fetches while scoring a whole list (the client throttles too). */
-const SCORE_CONCURRENCY = 4;
 /** Re-sort by coverage after this many new scores, not after each one. */
 const SCORE_RESORT_EVERY = 12;
-/** Commanders "Worth buying the commander for" scores, and how many it shows. */
-const BUY_POOL = 30;
-const BUY_SHOWN = 6;
 /**
  * Most commanders one "Most of the deck owned" pass scores, most-played first.
  * Each costs an EDHREC page; the list says so when it stops short.
@@ -216,42 +176,8 @@ function pickRandom<T>(arr: readonly T[]): T | null {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-async function runPool<T>(
-  items: readonly T[],
-  fn: (item: T) => Promise<void>,
-  cancelled: () => boolean
-): Promise<void> {
-  let next = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(SCORE_CONCURRENCY, items.length) }, async () => {
-      while (!cancelled() && next < items.length) await fn(items[next++]);
-    })
-  );
-}
-
 // The finder's two readings of a color identity: Scryfall `id=` and `id<=`.
 const COMMANDER_COLOR_MODES = colorModeOptions(['all', 'within']);
-
-/** EDHREC's popular list for the color filter. */
-function fetchPopular(colors: ReadonlySet<string>, mode: ColorMode): Promise<EDHRECTopCommander[]> {
-  if (colors.size === 0) return fetchTopCommanders([]);
-  return mode === 'within' && !colors.has('C')
-    ? fetchCommandersWithinColors([...colors])
-    : fetchTopCommanders([...colors]);
-}
-
-const identityOf = (ci: readonly string[] | undefined): string[] =>
-  ci && ci.length > 0 ? [...ci] : ['C'];
-
-const popularEntry = (c: EDHRECTopCommander, i: number): Entry => ({
-  key: c.sanitized || c.name,
-  name: c.name,
-  colors: c.colorsUnknown ? [] : identityOf(c.colorIdentity),
-  colorsUnknown: c.colorsUnknown,
-  popularity: i,
-  numDecks: c.numDecks,
-  playstyleIds: [],
-});
 
 const playstyleLabels = (ids: readonly string[]): string[] =>
   ids.flatMap((id) => {
@@ -272,6 +198,7 @@ export function CommanderSearch({
   format = 'commander',
   onSelectFromBinder,
   initialSearchMode,
+  ideaFinder,
 }: Props) {
   const pdh = format === 'paupercommander';
   const isPhone = useMediaQuery('(max-width: 599px)');
@@ -304,6 +231,10 @@ export function CommanderSearch({
   );
   const ownedLegendNames = useMemo(
     () => new Set(collectionLegends.map((c) => c.name.toLowerCase())),
+    [collectionLegends]
+  );
+  const legendByName = useMemo(
+    () => new Map(collectionLegends.map((c) => [c.name.toLowerCase(), c])),
     [collectionLegends]
   );
   // Readiness scores a commander's staples against the WHOLE collection.
@@ -361,6 +292,34 @@ export function CommanderSearch({
   const [showAllStyles, setShowAllStyles] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+
+  // ── Deck idea (generator layout only) ─────────────────────────────────
+  const ideaOn = !!ideaFinder;
+  const ideaState = useIdeaIndex(ideaOn);
+  const ideaIndex = ideaState.status === 'ready' ? ideaState.index : null;
+  // `undefined` until the player picks or removes one: the `?idea=` link applies by derivation,
+  // once the closed list has loaded (an unknown slug applies nothing).
+  const [ideaPick, setIdea] = useState<Idea | null | undefined>(undefined);
+  const initialSlug = ideaFinder?.initialSlug ?? null;
+  const idea: Idea | null =
+    ideaPick !== undefined
+      ? ideaPick
+      : ideaIndex && initialSlug
+        ? (findIdea(ideaIndex, initialSlug) ?? null)
+        : null;
+  const [commanderNames, setCommanderNames] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!ideaOn) return;
+    let cancelled = false;
+    fetchAllCommanderNames()
+      .then((names) => {
+        if (!cancelled) setCommanderNames(names);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [ideaOn]);
 
   // "In my collection" needs something to show; with no legends it's "All".
   const hasLegends = collectionLegends.length > 0;
@@ -440,7 +399,9 @@ export function CommanderSearch({
   const remoteKey = JSON.stringify([
     activeSource,
     pdh,
-    query.text.trim().length >= 2 ? query.text.trim() : '',
+    idea?.slug ?? null,
+    // With an idea applied, typed text only narrows the list by name here, so it is not a fetch.
+    !idea && query.text.trim().length >= 2 ? query.text.trim() : '',
     [...query.colors].sort(),
     query.colorMode,
     [...query.playstyleIds].sort(),
@@ -451,26 +412,52 @@ export function CommanderSearch({
   useEffect(() => {
     queryRef.current = query;
   }, [query]);
+  const ideaRef = useRef(idea);
+  useEffect(() => {
+    ideaRef.current = idea;
+  }, [idea]);
 
   useEffect(() => {
-    if (activeSource !== 'all') return;
+    const ideaNow = ideaRef.current;
+    if (activeSource !== 'all' && !ideaNow) return;
     let cancelled = false;
     const q = queryRef.current;
-    const browse = !isSearching(q) && !pdh;
+    const browse = ideaNow ? true : !isSearching(q) && !pdh;
     const from = browse ? 'edhrec' : 'scryfall';
-    const settle = (next: Omit<RemoteResult, 'key' | 'from'>) => {
-      if (!cancelled) setRemote({ key: remoteKey, from, ...next });
+    const ideaSlug = ideaNow?.slug ?? null;
+    const settle = (next: Omit<RemoteResult, 'key' | 'from' | 'idea'>) => {
+      if (!cancelled) setRemote({ key: remoteKey, from, idea: ideaSlug, ...next });
     };
     void (async () => {
       // Keep the previous tiles up, dimmed, instead of collapsing the grid.
       setRemote((prev) => ({
         key: remoteKey,
         from,
+        idea: ideaSlug,
         status: 'loading',
-        entries: prev?.entries ?? [],
-        total: prev?.total ?? 0,
+        entries: prev && prev.idea === ideaSlug ? prev.entries : [],
+        total: prev && prev.idea === ideaSlug ? prev.total : 0,
       }));
       try {
+        if (ideaNow) {
+          // The idea's EDHREC list, with deck counts for that idea. One color combination asks
+          // EDHREC for that page; a page it lacks falls back to every color, and says so.
+          const exact = q.colors.size > 0 && q.colorMode === 'exact';
+          const data = await fetchTagPageData(ideaNow.slug, exact ? [...q.colors] : [], Infinity);
+          if (!data) throw new Error('offline');
+          const commanders = await backfillColorIdentities(data.commanders);
+          const fellBack = exact && data.colorSlug === null;
+          const entries = commanders
+            .filter(
+              (c) =>
+                fellBack ||
+                (!(c.colorsUnknown && q.colors.size > 0) &&
+                  colorIdentityMatches(c.colorIdentity, q.colors, q.colorMode))
+            )
+            .map(popularEntry);
+          settle({ status: 'done', entries, total: entries.length, colorFallback: fellBack });
+          return;
+        }
         if (browse) {
           const list = await fetchPopular(q.colors, q.colorMode);
           const entries = list.filter((c) => !c.name.includes('//')).map(popularEntry);
@@ -567,9 +554,11 @@ export function CommanderSearch({
           status: 'error',
           entries: [],
           total: 0,
-          error: browse
-            ? "Couldn't reach EDHREC for popular commanders. Search by name instead."
-            : userMessage(e, "Couldn't run that search. Check your connection and try again."),
+          error: ideaNow
+            ? "Couldn't reach EDHREC for this idea's commanders. Check your connection and try again."
+            : browse
+              ? "Couldn't reach EDHREC for popular commanders. Search by name instead."
+              : userMessage(e, "Couldn't run that search. Check your connection and try again."),
         });
       }
     })();
@@ -579,12 +568,27 @@ export function CommanderSearch({
   }, [remoteKey, activeSource, pdh]);
 
   const current = remote?.key === remoteKey ? remote : null;
-  const loading = activeSource === 'all' && (current === null || current.status === 'loading');
-  const entries = useMemo<Entry[]>(
-    () => (activeSource === 'owned' ? ownedEntries : (remote?.entries ?? [])),
-    [activeSource, ownedEntries, remote]
-  );
-  const total = activeSource === 'owned' ? ownedEntries.length : (remote?.total ?? 0);
+  const fetchesRemote = activeSource === 'all' || !!idea;
+  const loading = fetchesRemote && (current === null || current.status === 'loading');
+  // The idea's whole list, before the box's name narrowing and "In my collection".
+  const ideaList = useMemo<Entry[]>(() => (idea ? (remote?.entries ?? []) : []), [idea, remote]);
+  const entries = useMemo<Entry[]>(() => {
+    if (idea) {
+      const q = normalizeQuery(query.text);
+      return ideaList.flatMap((e) => {
+        if (q.length >= 2 && !normalizeQuery(e.name).includes(q)) return [];
+        if (activeSource !== 'owned') return [e];
+        const legend = legendByName.get(e.name.toLowerCase());
+        return legend ? [{ ...e, owned: legend, imageUrl: legend.imageNormal }] : [];
+      });
+    }
+    return activeSource === 'owned' ? ownedEntries : (remote?.entries ?? []);
+  }, [idea, ideaList, query.text, activeSource, legendByName, ownedEntries, remote]);
+  const total = idea
+    ? entries.length
+    : activeSource === 'owned'
+      ? ownedEntries.length
+      : (remote?.total ?? 0);
 
   // ── Scoring the whole list for "Most of the deck owned" ───────────────
   // The sort reads a snapshot taken every few scores rather than the live
@@ -705,79 +709,15 @@ export function CommanderSearch({
   }, [pdh, visibleNames]);
 
   // ── "Worth buying the commander for" ──────────────────────────────────
-  // Popular commanders you don't own, ranked by how much of their deck you do.
   const showBuy = activeSource === 'owned' && sort === 'owned' && canScore && !searching;
-  const buyKey = JSON.stringify([showBuy, [...colors].sort(), colorMode]);
-  const [buyPool, setBuyPool] = useState<{ key: string; entries: Entry[] }>({
-    key: '',
-    entries: [],
+  const { buyShown, buyPrices } = useBuyCandidates({
+    showBuy,
+    colors,
+    colorMode,
+    ownedLegendNames,
+    readiness,
+    ensureReadiness,
   });
-  const ownedLegendNamesRef = useRef(ownedLegendNames);
-  useEffect(() => {
-    ownedLegendNamesRef.current = ownedLegendNames;
-  }, [ownedLegendNames]);
-  useEffect(() => {
-    if (!showBuy) return;
-    let cancelled = false;
-    const [, colorList, mode] = JSON.parse(buyKey) as [boolean, string[], ColorMode];
-    void (async () => {
-      const list = await fetchPopular(new Set(colorList), mode).catch(
-        (): EDHRECTopCommander[] => []
-      );
-      const pool = list
-        .filter(
-          (c) => !c.name.includes('//') && !ownedLegendNamesRef.current.has(c.name.toLowerCase())
-        )
-        .slice(0, BUY_POOL)
-        .map(popularEntry);
-      if (cancelled) return;
-      setBuyPool({ key: buyKey, entries: pool });
-      await runPool(
-        pool,
-        (e) => ensureReadiness(e.name),
-        () => cancelled
-      );
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [showBuy, buyKey, ensureReadiness]);
-  const buyShown = useMemo(() => {
-    if (!showBuy || buyPool.key !== buyKey) return [];
-    return buyPool.entries
-      .flatMap((e) => {
-        const r = readiness.get(e.name.toLowerCase());
-        return r && r !== 'loading' && r.available && r.percent > 0 ? [{ e, pct: r.percent }] : [];
-      })
-      .sort((a, b) => b.pct - a.pct)
-      .slice(0, BUY_SHOWN)
-      .map(({ e }) => e);
-  }, [showBuy, buyKey, buyPool, readiness]);
-  const buyNames = buyShown.map((e) => e.name).join('|');
-  const [buyPrices, setBuyPrices] = useState<Map<string, string | null>>(new Map());
-  const pricedRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    if (!buyNames) return;
-    let cancelled = false;
-    void (async () => {
-      for (const name of buyNames.split('|')) {
-        if (cancelled) return;
-        if (pricedRef.current.has(name)) continue;
-        pricedRef.current.add(name);
-        let price: string | null = null;
-        try {
-          const raw = getCardPrice(await getCardByName(name), getCurrency());
-          price = raw ? formatMoney(Number(raw), { wholeDollars: Number(raw) >= 10 }) : null;
-        } catch {
-          price = null;
-        }
-        setBuyPrices((prev) => new Map(prev).set(name, price));
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [buyNames]);
 
   // ── Selection ─────────────────────────────────────────────────────────
   const [selecting, setSelecting] = useState<string | null>(null);
@@ -786,8 +726,11 @@ export function CommanderSearch({
   // intent, so the caller preselects owned-only settings for that pick.
   const fromBinder = activeSource === 'owned' && sort === 'owned' && !!onSelectFromBinder;
 
-  const finish = (card: ScryfallCard, viaBinder: boolean) => {
-    (viaBinder && onSelectFromBinder ? onSelectFromBinder : onSelect)(card);
+  const finish = async (card: ScryfallCard, viaBinder: boolean, numDecks?: number) => {
+    if (viaBinder && onSelectFromBinder) onSelectFromBinder(card);
+    // With an idea applied the page also preselects the commander's theme of that idea.
+    if (idea && ideaFinder) await ideaFinder.onPickWithIdea(card, idea, numDecks);
+    else if (!(viaBinder && onSelectFromBinder)) onSelect(card);
     setText('');
   };
 
@@ -797,11 +740,15 @@ export function CommanderSearch({
     try {
       if (entry.owned) {
         // The exact printing you own, so the deck binds the copy on screen.
-        finish(await getOwnedPrinting(entry.owned.scryfallId, entry.owned.name), fromBinder);
+        await finish(
+          await getOwnedPrinting(entry.owned.scryfallId, entry.owned.name),
+          fromBinder,
+          entry.numDecks
+        );
       } else if (entry.card) {
-        finish(entry.card, false);
+        await finish(entry.card, false, entry.numDecks);
       } else {
-        finish(await getCardByName(entry.name), false);
+        await finish(await getCardByName(entry.name), false, entry.numDecks);
       }
     } catch (e) {
       setError(userMessage(e, "Couldn't load that card. Try again in a moment."));
@@ -817,13 +764,13 @@ export function CommanderSearch({
     try {
       // With nothing set, any commander EDHREC knows; otherwise one from the
       // list on screen, so Random respects every filter.
-      if (activeSource === 'all' && !pdh && !searching && colors.size === 0) {
+      if (activeSource === 'all' && !pdh && !searching && colors.size === 0 && !idea) {
         const pick = pickRandom((await fetchAllCommanderNames()).filter((n) => !n.includes('//')));
         if (!pick) {
           setError("Couldn't load EDHREC's commander list. Try again.");
           return;
         }
-        finish(await getCardByName(pick), false);
+        await finish(await getCardByName(pick), false);
         return;
       }
       const pick = pickRandom(sorted);
@@ -840,75 +787,29 @@ export function CommanderSearch({
   };
 
   // ── Selected commander ────────────────────────────────────────────────
-  if (value) {
-    const selectedReadiness = readiness.get(value.name.toLowerCase());
-    // Two-faced commanders keep oracle text on card_faces; fall back to the
-    // front face. Both faces belong to the card preview, not here.
-    const front = value.card_faces?.[0];
-    const manaCost = value.mana_cost ?? front?.mana_cost ?? '';
-    const oracleText = value.oracle_text ?? front?.oracle_text ?? '';
-    const power = value.power ?? front?.power;
-    const toughness = value.toughness ?? front?.toughness;
-    const loyalty = value.loyalty;
-    const playstyleMatches = classifyCommanderPlaystyles(value, {
-      voltronVetoed:
-        isVoltronVetoedByName(voltronVeto, value.name) || !!pickedProfile?.voltronVetoed,
-    }).slice(0, 3);
+  if (value && ideaFinder) {
     return (
-      <div className="commander-pick">
-        <CommanderPickArt card={value} label="Commander" />
-        <div className="commander-pick-body">
-          <div className="commander-pick-headline">
-            <span className="commander-pick-name">{value.name}</span>
-            {manaCost && <ManaCost cost={manaCost} className="commander-pick-mana" />}
-            {power && toughness && (
-              <span className="commander-pick-stat">
-                <span className="commander-pick-stat-value">
-                  {power}/{toughness}
-                </span>
-              </span>
-            )}
-            {loyalty && (
-              <span className="commander-pick-stat">
-                <span className="commander-pick-stat-label">Loyalty</span>
-                <span className="commander-pick-stat-value">{loyalty}</span>
-              </span>
-            )}
-          </div>
-          <div className="commander-pick-type">{value.type_line}</div>
-          {oracleText && (
-            <div className="commander-pick-oracle">
-              <RulesTextParagraphs text={oracleText} names={[value.name]} />
-            </div>
-          )}
-          {playstyleMatches.length > 0 && (
-            <div className="commander-pick-playstyles">
-              <span className="commander-pick-playstyles-label">
-                Plays like
-                <InfoTip
-                  label="Plays like"
-                  text="How this commander tends to win, read from its rules text."
-                />
-              </span>
-              {playstyleMatches.map((m) => (
-                <Chip key={m.playstyle.id} className="commander-pick-playstyle-tag" tone="neutral">
-                  {m.playstyle.label}
-                </Chip>
-              ))}
-            </div>
-          )}
-          {canScore && (
-            <div className="commander-pick-readiness">
-              <CommanderReadiness
-                score={selectedReadiness === 'loading' ? undefined : selectedReadiness}
-              />
-            </div>
-          )}
-        </div>
-        <Button onClick={() => onSelect(null)} className="commander-pick-change">
-          Change
-        </Button>
+      <div className="commander-search commander-finder is-ideas">
+        <CommanderSummaryRow
+          card={value}
+          note={ideaFinder.selectedNote}
+          onChange={() => onSelect(null)}
+          extra={ideaFinder.selectedExtra}
+        />
       </div>
+    );
+  }
+  if (value) {
+    return (
+      <CommanderPick
+        value={value}
+        canScore={canScore}
+        readiness={readiness.get(value.name.toLowerCase())}
+        voltronVetoed={
+          isVoltronVetoedByName(voltronVeto, value.name) || !!pickedProfile?.voltronVetoed
+        }
+        onChange={() => onSelect(null)}
+      />
     );
   }
 
@@ -929,7 +830,7 @@ export function CommanderSearch({
       : []),
     { value: 'name', label: 'Name' },
     // The popular list carries no mana values.
-    ...(activeSource === 'owned' || searching || pdh
+    ...(!idea && (activeSource === 'owned' || searching || pdh)
       ? [{ value: 'mv' as const, label: 'Mana value' }]
       : []),
   ];
@@ -944,12 +845,23 @@ export function CommanderSearch({
   // or the line names the new query over a list that isn't its answer (E635).
   const status = loading
     ? 'Searching…'
-    : activeSource === 'owned'
-      ? `${count(total)} you own${checking}`
-      : browsingPopular
-        ? `Popular ${comboName ? `${comboName} ` : ''}commanders on EDHREC${checking}`
-        : `${count(total)}${checking}`;
+    : idea
+      ? `${count(total)}${activeSource === 'owned' ? ' you own' : ''}${checking}`
+      : activeSource === 'owned'
+        ? `${count(total)} you own${checking}`
+        : browsingPopular
+          ? `Popular ${comboName ? `${comboName} ` : ''}commanders on EDHREC${checking}`
+          : `${count(total)}${checking}`;
 
+  const gridTitle = idea
+    ? idea.kind === 'typal'
+      ? `Commanders that lead ${idea.name.toLowerCase()}`
+      : `Commanders built around ${idea.name}`
+    : activeSource === 'owned'
+      ? 'Commanders you own'
+      : searching || colors.size > 0
+        ? 'Matching commanders'
+        : 'Most built commanders';
   const popularBrowse = browsingPopular && colors.size === 0;
   const coverageHint = coverageHintFor(entries.length, SCORE_CAP, bracket, nouns, popularBrowse);
 
@@ -998,48 +910,39 @@ export function CommanderSearch({
           {comboName && <span className="commander-finder-combo">{comboName}</span>}
         </div>
       </div>
-      <div className="commander-finder-row">
-        <span className="commander-finder-label" id={`${baseId}-styles`}>
-          Playstyle
-        </span>
-        <div className="commander-finder-control" role="group" aria-labelledby={`${baseId}-styles`}>
-          {stylesShown.map((p) => (
-            <Chip
-              key={p.id}
-              className="filter-chip"
-              pressed={playstyleIds.includes(p.id)}
-              onClick={() => togglePlaystyle(p.id)}
-            >
-              {p.label}
-            </Chip>
-          ))}
-          {!isPhone && PLAYSTYLES.length > STYLE_PREVIEW && (
-            <Button variant="link" onClick={() => setShowAllStyles((v) => !v)}>
-              {showAllStyles ? 'Fewer' : `${PLAYSTYLES.length - stylesShown.length} more`}
-            </Button>
-          )}
+      {!ideaFinder && (
+        <div className="commander-finder-row">
+          <span className="commander-finder-label" id={`${baseId}-styles`}>
+            Playstyle
+          </span>
+          <div
+            className="commander-finder-control"
+            role="group"
+            aria-labelledby={`${baseId}-styles`}
+          >
+            {stylesShown.map((p) => (
+              <Chip
+                key={p.id}
+                className="filter-chip"
+                pressed={playstyleIds.includes(p.id)}
+                onClick={() => togglePlaystyle(p.id)}
+              >
+                {p.label}
+              </Chip>
+            ))}
+            {!isPhone && PLAYSTYLES.length > STYLE_PREVIEW && (
+              <Button variant="link" onClick={() => setShowAllStyles((v) => !v)}>
+                {showAllStyles ? 'Fewer' : `${PLAYSTYLES.length - stylesShown.length} more`}
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 
-  return (
-    <div className="commander-search commander-finder">
-      <SearchPill
-        className="commander-finder-search"
-        inputType="text"
-        placeholder="Name, creature type or rules text"
-        value={text}
-        onChange={setText}
-        ariaLabel={`Search ${nouns} by name, type or rules text`}
-      />
-      {text.trim().length > 0 && (
-        <p className="commander-finder-syntax">
-          Scryfall syntax works too: <code>o:&quot;dies&quot;</code> <code>t:vampire</code>{' '}
-          <code>pow&gt;=5</code>
-        </p>
-      )}
-
+  const filterBody = (
+    <>
       {(hasLegends || isPhone) && (
         <div className="row-between row-between--snug">
           {hasLegends && (
@@ -1051,7 +954,7 @@ export function CommanderSearch({
                 { value: 'all', label: isPhone ? 'All' : `All ${nouns}` },
                 {
                   value: 'owned',
-                  label: `${isPhone ? 'Mine' : 'In my collection'} · ${collectionLegends.length.toLocaleString()}`,
+                  label: `${isPhone || ideaFinder ? 'Mine' : 'In my collection'} · ${collectionLegends.length.toLocaleString()}`,
                 },
               ]}
             />
@@ -1082,20 +985,22 @@ export function CommanderSearch({
         <FilterChipsRow chips={filterChips} onClearAll={clearAll} />
       )}
 
-      <div className="commander-finder-toolbar">
-        <p className="commander-finder-status" role="status" aria-live="polite">
-          <span className="commander-finder-status-count">{status}</span>
-          {summary && !isPhone && !browsingPopular && (
-            <span className="commander-finder-summary"> · {summary}</span>
-          )}
-        </p>
+      <div className={`commander-finder-toolbar${ideaFinder ? ' is-filter-row' : ''}`}>
+        {!ideaFinder && (
+          <p className="commander-finder-status" role="status" aria-live="polite">
+            <span className="commander-finder-status-count">{status}</span>
+            {summary && !isPhone && !browsingPopular && (
+              <span className="commander-finder-summary"> · {summary}</span>
+            )}
+          </p>
+        )}
         <div className="commander-finder-actions">
           {anyFilter && !isPhone && (
             <Button variant="link" onClick={clearAll}>
               Clear all
             </Button>
           )}
-          {coverageShown && (
+          {(coverageShown || ideaFinder) && (
             <SelectMenu
               label="Bracket"
               ariaLabel="Target bracket for coverage"
@@ -1119,6 +1024,85 @@ export function CommanderSearch({
           />
         </div>
       </div>
+    </>
+  );
+
+  return (
+    <div className={`commander-search commander-finder${ideaFinder ? ' is-ideas' : ''}`}>
+      {ideaFinder ? (
+        <IdeaSearchBox
+          index={ideaIndex}
+          commanderNames={commanderNames}
+          ownedNames={ownedLegendNames}
+          text={text}
+          onText={setText}
+          idea={idea}
+          onIdea={setIdea}
+          onPickCommander={async (name) => {
+            await finish(await getCardByName(name), false);
+          }}
+          nouns={nouns}
+        />
+      ) : (
+        <SearchPill
+          className="commander-finder-search"
+          inputType="text"
+          placeholder="Name, creature type or rules text"
+          value={text}
+          onChange={setText}
+          ariaLabel={`Search ${nouns} by name, type or rules text`}
+        />
+      )}
+      {text.trim().length > 0 && !idea && (
+        <p className="commander-finder-syntax">
+          Scryfall syntax works too: <code>o:&quot;dies&quot;</code> <code>t:vampire</code>{' '}
+          <code>pow&gt;=5</code>
+        </p>
+      )}
+
+      {ideaFinder && !isPhone ? (
+        <div className="commander-finder-filterbar">{filterBody}</div>
+      ) : (
+        filterBody
+      )}
+
+      {ideaFinder && !idea && !text.trim() && ideaIndex && (
+        <BuildAroundRows index={ideaIndex} onPick={setIdea} />
+      )}
+      {ideaFinder && idea && ideaIndex && (
+        <IdeaStrip
+          idea={idea}
+          index={ideaIndex}
+          leaders={ideaList.map((e) => e.name)}
+          onIdea={setIdea}
+          busy={selecting !== null}
+          onPickForMe={
+            ideaList.length > 0
+              ? () => {
+                  // The most built commander you own, else the most built.
+                  const pick = ideaList.find((e) => ownedLegendNames.has(e.name.toLowerCase()));
+                  const entry = pick ?? ideaList[0];
+                  const legend = legendByName.get(entry.name.toLowerCase());
+                  void selectEntry(legend ? { ...entry, owned: legend } : entry);
+                }
+              : null
+          }
+        />
+      )}
+      {ideaFinder && current?.colorFallback && idea && (
+        <p className="commander-finder-note" role="status">
+          EDHREC has no {comboName.toLowerCase()} list for {idea.name.toLowerCase()}. Showing every
+          color.
+        </p>
+      )}
+      {ideaFinder && (
+        <div className="commander-finder-gridhead">
+          <h3 className="commander-finder-gridtitle">{gridTitle}</h3>
+          <p className="commander-finder-status" role="status" aria-live="polite">
+            <span className="commander-finder-status-count">{status}</span>
+          </p>
+        </div>
+      )}
 
       {coverageShown && coverageHint && <p className="commander-finder-hint">{coverageHint}</p>}
 
@@ -1167,11 +1151,13 @@ export function CommanderSearch({
         ) : sorted.length === 0 ? (
           <div className="commander-finder-empty">
             <p className="commander-finder-empty-title">
-              {activeSource === 'owned' && !anyFilter
-                ? `No ${nouns} in your collection yet.`
-                : activeSource === 'owned'
-                  ? `None of your ${nouns} match these filters.`
-                  : `No ${nouns} match these filters.`}
+              {idea
+                ? `No ${idea.name.toLowerCase()} ${nouns} match these filters.`
+                : activeSource === 'owned' && !anyFilter
+                  ? `No ${nouns} in your collection yet.`
+                  : activeSource === 'owned'
+                    ? `None of your ${nouns} match these filters.`
+                    : `No ${nouns} match these filters.`}
             </p>
             {emptyReasons.length > 0 && (
               <div className="commander-finder-empty-actions">

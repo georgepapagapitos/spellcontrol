@@ -20,7 +20,7 @@ export interface Idea {
   type?: string;
   /** Commander decks carrying the tag. */
   decks: number;
-  /** Commanders on the tag page (the page shows its top 18). */
+  /** Commanders on the tag page (the generator's idea grid lists all of them). */
   commanders: number;
   /** A card name for the tile's art: the idea's most-built commander. */
   card: string;
@@ -33,6 +33,8 @@ export interface IdeaSeedContext {
   kind: IdeaKind;
   /** The commander's EDHREC theme of this idea was found and preselected. */
   themeSelected: boolean;
+  /** Decks the chosen commander has under this idea (the grid tile's count), when known. */
+  decks?: number;
 }
 
 export interface IdeaIndex {
@@ -93,11 +95,15 @@ export function __resetIdeaIndexForTests(): void {
 export type IdeaIndexState =
   { status: 'loading' } | { status: 'error' } | { status: 'ready'; index: IdeaIndex };
 
-/** The snapshot as component state, with a retry for the one failure surface. */
-export function useIdeaIndex(): IdeaIndexState & { retry: () => void } {
+/**
+ * The snapshot as component state, with a retry for the one failure surface. `enabled: false`
+ * (a finder with no idea support) never fetches it and stays `loading`.
+ */
+export function useIdeaIndex(enabled = true): IdeaIndexState & { retry: () => void } {
   const [state, setState] = useState<IdeaIndexState>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
     void loadIdeaIndex().then((index) => {
       if (!cancelled) setState(index ? { status: 'ready', index } : { status: 'error' });
@@ -105,7 +111,7 @@ export function useIdeaIndex(): IdeaIndexState & { retry: () => void } {
     return () => {
       cancelled = true;
     };
-  }, [attempt]);
+  }, [attempt, enabled]);
   const retry = useCallback(() => {
     setState({ status: 'loading' });
     setAttempt((n) => n + 1);
@@ -282,4 +288,28 @@ export function shortCommanderName(name: string): string {
   if (front.includes(',') || beforeComma.length <= 16) return beforeComma;
   const words = beforeComma.split(' ');
   return /^(the|a|an)$/i.test(words[0]) ? words.slice(0, 2).join(' ') : words[0];
+}
+
+/**
+ * Ideas that show up among the themes of an idea's leading commanders, most shared first
+ * ("Pairs well with"). `themeLists` is one EDHREC theme list per commander; the idea itself is
+ * left out, and only slugs on the closed idea list count.
+ */
+export function relatedIdeas(
+  index: IdeaIndex,
+  self: Idea,
+  themeLists: ReadonlyArray<ReadonlyArray<{ slug: string; count?: number }>>,
+  limit = 4
+): Idea[] {
+  const score = new Map<string, number>();
+  for (const themes of themeLists) {
+    for (const t of themes) {
+      if (t.slug === self.slug) continue;
+      score.set(t.slug, (score.get(t.slug) ?? 0) + 1_000_000 + (t.count ?? 0));
+    }
+  }
+  return index.ideas
+    .filter((i) => score.has(i.slug))
+    .sort((a, b) => (score.get(b.slug) ?? 0) - (score.get(a.slug) ?? 0))
+    .slice(0, limit);
 }

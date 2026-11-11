@@ -424,6 +424,21 @@ describe('fetchTagPageData — the whole tag page, not just the commanders', () 
     expect(page?.cardlists.creatures).toHaveLength(1);
   });
 
+  it('caps the commanders at 18 unless asked for all, from one cached page (E1113)', async () => {
+    const cardviews = Array.from({ length: 24 }, (_, i) => ({
+      name: `Commander ${i}`,
+      sanitized: `commander-${i}`,
+      num_decks: 1000 - i,
+    }));
+    const calls = mockFetch(() => ({
+      ok: true,
+      body: { container: { json_dict: { cardlists: [{ tag: 'topcommanders', cardviews }] } } },
+    }));
+    expect((await fetchTagPageData('e1113-limit'))?.commanders).toHaveLength(18);
+    expect((await fetchTagPageData('e1113-limit', [], Infinity))?.commanders).toHaveLength(24);
+    expect(calls).toHaveLength(1);
+  });
+
   it('serves a repeat read from cache without a second request', async () => {
     const calls = mockFetch(() => ({ ok: true, body: tagPage() }));
     await fetchTagPageData('e220-cache');
