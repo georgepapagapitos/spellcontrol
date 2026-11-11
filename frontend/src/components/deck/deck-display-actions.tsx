@@ -49,9 +49,9 @@ export function buildCardMenuCtx(args: {
 }): DeckCardActionCtx {
   const { row, zone, isSingleton, hasSideboard, hasBox, onSetQty, handlers: h } = args;
   // In the box holds the box's own cards: remove, re-count, give or release a
-  // copy, and move out to the sideboard or Considering (and back in from
-  // either, below). Not into the deck, and
-  // nothing that tags, proxies or seats it (DeckZoneSection).
+  // copy, and move to the mainboard, the sideboard or Considering (and back in
+  // from any of them, below). Nothing that tags, proxies or seats it while it
+  // sits in the box (DeckZoneSection); a moved card picks those up in its zone.
   if (zone === 'extras') {
     const moveOut = (to: DeckZone) =>
       h.onBulkMove ? (slotIds: string[]) => h.onBulkMove!(slotIds, 'extras', to) : undefined;
@@ -59,6 +59,7 @@ export function buildCardMenuCtx(args: {
       row,
       isSingleton: false,
       onSetQty,
+      onMoveToDeck: moveOut('cards'),
       moveZone: hasSideboard ? 'sideboard' : undefined,
       onMoveToZone: hasSideboard ? moveOut('sideboard') : undefined,
       onMoveToConsidering: moveOut('considering'),
@@ -92,12 +93,10 @@ export function buildCardMenuCtx(args: {
           ? h.onMoveToMainboard
           : h.onMoveFromConsidering,
     onMoveToConsidering: zone === 'cards' ? h.onMoveToConsidering : undefined,
-    // A pile card goes back into the box it came out of. Not a deck card: it
-    // reaches the box by way of the sideboard or Considering.
+    // Any card goes into the box on a deck that has one: a box card moved out
+    // comes back, and a deck card can be set aside with what the box came with.
     onMoveToBox:
-      hasBox && zone !== 'cards' && h.onBulkMove
-        ? (slotIds) => h.onBulkMove!(slotIds, zone, 'extras')
-        : undefined,
+      hasBox && h.onBulkMove ? (slotIds) => h.onBulkMove!(slotIds, zone, 'extras') : undefined,
     onUseOwnCopy: h.onUseOwnCopy,
     onMoveToAnotherDeck: h.onMoveToAnotherDeck,
     onReleaseCopy: h.onReleaseCopy,
@@ -162,7 +161,7 @@ export function buildBulkActions(args: {
               },
             ]
           : []),
-        ...(onBulkMove && selection.zone !== 'cards' && selection.zone !== 'extras'
+        ...(onBulkMove && selection.zone !== 'cards'
           ? [
               {
                 key: 'mainboard',
@@ -174,9 +173,7 @@ export function buildBulkActions(args: {
               },
             ]
           : []),
-        ...(onBulkMove &&
-        hasBox &&
-        (selection.zone === 'sideboard' || selection.zone === 'considering')
+        ...(onBulkMove && hasBox && selection.zone !== 'extras'
           ? [
               {
                 key: 'box',
