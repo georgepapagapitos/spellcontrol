@@ -2084,9 +2084,21 @@ i.ss.set-symbol--mythic {
   flex-shrink: 0;
 }
 
+/* The floor is the SMALLER of 6ch and the name itself. A bare
+   `min(6ch, 100%)` grew a short name ("Bayou", "Plateau": narrower than 6ch,
+   since a ch is a "0") past its own text, which left a gap after it and
+   pushed the badges past the line's edge, where `overflow: hidden` clipped
+   them. Browsers without calc-size() get no floor, which only matters on a
+   row whose badges alone fill the line. */
 .collection-list-name > .collection-list-name-text {
   flex-shrink: 1;
-  min-width: min(6ch, 100%);
+  min-width: 0;
+}
+
+@supports (min-width: calc-size(max-content, size)) {
+  .collection-list-name > .collection-list-name-text {
+    min-width: calc-size(max-content, min(size, 6ch));
+  }
 }
 
 /* Every other name-line badge carries its own leading margin; the Lists
