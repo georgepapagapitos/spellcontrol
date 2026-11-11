@@ -58,7 +58,10 @@ export interface DeckCardActionCtx {
   onRemoveCard?: (slotId: string) => void;
   onMoveToZone?: (slotIds: string[]) => void;
   onMoveToConsidering?: (slotIds: string[]) => void;
-  /** Back into In the box, for a box card moved out to a pile. */
+  /** Into the mainboard, for an In the box row (its own zone move is the
+   *  sideboard, so the deck needs a second slot). */
+  onMoveToDeck?: (slotIds: string[]) => void;
+  /** Into In the box, for a deck or pile card on a deck that has a box. */
   onMoveToBox?: (slotIds: string[]) => void;
   onUseOwnCopy?: (card: ScryfallCard) => void;
   onMoveToAnotherDeck?: (card: ScryfallCard) => void;
@@ -94,6 +97,7 @@ export function deckCardActions(ctx: DeckCardActionCtx): DeckCardAction[] {
     onRemoveCard,
     onMoveToZone,
     onMoveToConsidering,
+    onMoveToDeck,
     onMoveToBox,
     onUseOwnCopy,
     onMoveToAnotherDeck,
@@ -157,6 +161,22 @@ export function deckCardActions(ctx: DeckCardActionCtx): DeckCardAction[] {
     });
   }
 
+  if (onMoveToDeck && hasSlots) {
+    out.push({
+      key: 'move-deck-one',
+      label: row.qty > 1 ? 'Move one copy to mainboard' : 'Move to mainboard',
+      section: 'move',
+      run: () => onMoveToDeck([row.slotIds[0]]),
+    });
+    if (row.qty > 1) {
+      out.push({
+        key: 'move-deck-all',
+        label: `Move all ${row.qty} copies to mainboard`,
+        section: 'move',
+        run: () => onMoveToDeck(row.slotIds),
+      });
+    }
+  }
   if (onMoveToZone && moveZone && hasSlots) {
     out.push({
       key: 'move-zone-one',

@@ -168,19 +168,21 @@ where every section lives.
     display commander or a Secret Lair's oversized one (`Deck.extras`, icon
     `Package`). Its cards claim a copy like any slot, so the whole box is
     accounted for. It is the exception to "an empty pile stays on the page":
-    nothing in the deck moves there, so an empty one would be a header every
-    deck carries for the few that came with extras. A sideboard or Considering
-    card can move into it ("Move into the box", menu and bulk bar) on a deck
-    built from a product, or one whose box holds a card, so a box card moved
-    out can go back even when that left the box empty. Cards reach it from a
+    a deck without a box has nothing that moves there, so an empty one would
+    be a header every deck carries for the few that came with extras. Any
+    deck, sideboard or Considering card can move into it ("Move into the
+    box", menu and bulk bar) on a deck built from a product, or one whose box
+    holds a card, so a box card moved out can go back even when that left the
+    box empty. Cards reach it from a
     product import, the add sheet's "In the box" zone, or the Edit menu's "Add
     the rest of the box" on a deck built from a product, which adds only what
     the box doesn't hold yet (a Secret Lair's bonus card, which MTGJSON's deck
     files omit, reaches an older deck this way). Its rows can be
-    removed, re-counted, given or released a copy, and moved to the sideboard
-    or Considering (2026-10-30: a box card is sometimes worth playing, and
-    the piles are where that starts); they cannot be moved straight into the
-    deck, tagged, proxied or seated as commander. The hero counts it as "+N
+    removed, re-counted, given or released a copy, and moved to the mainboard,
+    the sideboard or Considering (2026-10-30 for the piles; 2026-11-10 for the
+    mainboard: a display copy is sometimes the one you sleeve, and routing it
+    through a pile was two moves for one intent). While in the box they cannot
+    be tagged, proxied or seated as commander. The hero counts it as "+N
     in the box", and it feeds nothing the other two piles don't.
 - **`BinderTabs.tsx` is a deliberate, permanent exception to "all tabbed
   surfaces go through `Tabs.tsx`" above (E164).** It hand-rolls plain

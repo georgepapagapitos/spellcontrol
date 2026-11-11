@@ -30,6 +30,21 @@ const byKey = (ctx: DeckCardActionCtx, key: string) =>
   deckCardActions(ctx).find((a) => a.key === key);
 
 describe('deckCardActions', () => {
+  // In the box reaches the deck directly, and a deck card reaches the box.
+  it('labels the mainboard and box moves by quantity', () => {
+    const onMoveToDeck = vi.fn();
+    const onMoveToBox = vi.fn();
+    const one = { row: row(), onMoveToDeck, onMoveToBox };
+    expect(byKey(one, 'move-deck-one')!.label).toBe('Move to mainboard');
+    expect(byKey(one, 'move-box-one')!.label).toBe('Move into the box');
+    const many = { row: row({ qty: 2, slotIds: ['a', 'b'] }), onMoveToDeck, onMoveToBox };
+    expect(byKey(many, 'move-deck-one')!.label).toBe('Move one copy to mainboard');
+    byKey(many, 'move-deck-all')!.run!();
+    expect(onMoveToDeck).toHaveBeenCalledWith(['a', 'b']);
+    byKey(many, 'move-box-one')!.run!();
+    expect(onMoveToBox).toHaveBeenCalledWith(['a']);
+  });
+
   it('omits an action whose handler is absent, rather than showing a dead row', () => {
     expect(keys({ row: row() })).toEqual(['remove-one']);
     expect(keys({ row: row(), onEditCard: vi.fn() })).toContain('edit-printing');
