@@ -310,7 +310,7 @@ function highSynergyNamesOf(rawLists: RawCardList[]): string[] {
  * fetching the missing names from Scryfall. Mutates the passed array in-place
  * and returns the updated array.
  */
-async function backfillColorIdentities(
+export async function backfillColorIdentities(
   commanders: EDHRECTopCommander[]
 ): Promise<EDHRECTopCommander[]> {
   if (!commanders.some((c) => c.colorIdentity.length === 0)) return commanders;

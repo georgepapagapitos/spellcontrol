@@ -1,0 +1,58 @@
+/* A deck idea as a tile: art on top, name and a fact under it. Used by the generator's
+   browse shelves; the frame is the sleeve plate's (base-layout.css). */
+
+.idea-tile {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: box-shadow var(--motion-fast) ease;
+}
+
+.idea-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .idea-tile:hover {
+    box-shadow: var(--shadow-card-hover);
+  }
+}
+
+.idea-tile-art {
+  display: block;
+  aspect-ratio: 16 / 9;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.idea-tile-art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.idea-tile-art-skeleton {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--surface);
+}
+
+.idea-tile-name {
+  padding: var(--space-2) var(--space-3) 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.idea-tile-sub {
+  padding: 0 var(--space-3) var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}

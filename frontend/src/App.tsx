@@ -60,6 +60,7 @@ const DiscoverDecksPage = lazyPage(() => import('./pages/DiscoverDecksPage'), 'D
 const SavedDecksPage = lazyPage(() => import('./pages/SavedDecksPage'), 'SavedDecksPage');
 const DeckNewPage = lazyPage(() => import('./pages/DeckNewPage'), 'DeckNewPage');
 const DeckGeneratePage = lazyPage(() => import('./pages/DeckGeneratePage'), 'DeckGeneratePage');
+const DeckIdeaPage = lazyPage(() => import('./pages/DeckIdeaPage'), 'DeckIdeaPage');
 const BrewBuildPage = lazyPage(() => import('./pages/BrewBuildPage'), 'BrewBuildPage');
 const DeckEditorPage = lazyPage(() => import('./pages/DeckEditorPage'), 'DeckEditorPage');
 const DeckComparePage = lazyPage(() => import('./pages/DeckComparePage'), 'DeckComparePage');
@@ -408,6 +409,7 @@ export default function App() {
             <Route path="/decks/saved" element={<SavedDecksPage />} />
             <Route path="/decks/new" element={<DeckNewPage />} />
             <Route path="/decks/new/generate" element={<DeckGeneratePage />} />
+            <Route path="/decks/new/generate/idea/:slug" element={<DeckIdeaPage />} />
             <Route path="/decks/new/brew" element={<BrewBuildPage />} />
             <Route path="/decks/goldfish" element={<GoldfishListPage />} />
             {/* A precon on a board, owned by nobody. Ahead of `/decks/:id` so
