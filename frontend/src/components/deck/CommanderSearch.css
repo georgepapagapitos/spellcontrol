@@ -336,3 +336,54 @@
   grid-template-columns: auto minmax(0, 1fr);
   column-gap: var(--space-4);
 }
+
+/* Generator desktop: source switch, colors with their reading, Bracket, Sort and Random on one
+   wrapping row, with no divider (E1113). */
+.commander-finder-filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.commander-finder-filterbar > .row-between {
+  flex: none;
+}
+
+.commander-finder-filterbar .commander-finder-filters,
+.commander-finder-filterbar .commander-finder-row {
+  display: contents;
+}
+
+/* The group keeps its name (aria-labelledby reads hidden text); the row needs no visible label. */
+.commander-finder-filterbar .commander-finder-label {
+  display: none;
+}
+
+.commander-finder-filterbar .filter-kit-color {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.commander-finder-filterbar .filter-kit-hint {
+  flex-basis: 100%;
+}
+
+.commander-finder-filterbar .filter-kit-hint:empty {
+  display: none;
+}
+
+.commander-finder-filterbar .commander-finder-toolbar {
+  /* The toolbar is a size container elsewhere, which would give it no intrinsic width here. */
+  container-type: normal;
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.commander-finder-filterbar .commander-finder-actions {
+  flex-wrap: nowrap;
+}

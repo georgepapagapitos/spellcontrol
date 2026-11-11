@@ -443,7 +443,7 @@ export function CommanderSearch({
           // The idea's EDHREC list, with deck counts for that idea. One color combination asks
           // EDHREC for that page; a page it lacks falls back to every color, and says so.
           const exact = q.colors.size > 0 && q.colorMode === 'exact';
-          const data = await fetchTagPageData(ideaNow.slug, exact ? [...q.colors] : []);
+          const data = await fetchTagPageData(ideaNow.slug, exact ? [...q.colors] : [], Infinity);
           if (!data) throw new Error('offline');
           const commanders = await backfillColorIdentities(data.commanders);
           const fellBack = exact && data.colorSlug === null;
@@ -941,39 +941,8 @@ export function CommanderSearch({
     </div>
   );
 
-  return (
-    <div className={`commander-search commander-finder${ideaFinder ? ' is-ideas' : ''}`}>
-      {ideaFinder ? (
-        <IdeaSearchBox
-          index={ideaIndex}
-          commanderNames={commanderNames}
-          ownedNames={ownedLegendNames}
-          text={text}
-          onText={setText}
-          idea={idea}
-          onIdea={setIdea}
-          onPickCommander={async (name) => {
-            await finish(await getCardByName(name), false);
-          }}
-          nouns={nouns}
-        />
-      ) : (
-        <SearchPill
-          className="commander-finder-search"
-          inputType="text"
-          placeholder="Name, creature type or rules text"
-          value={text}
-          onChange={setText}
-          ariaLabel={`Search ${nouns} by name, type or rules text`}
-        />
-      )}
-      {text.trim().length > 0 && !idea && (
-        <p className="commander-finder-syntax">
-          Scryfall syntax works too: <code>o:&quot;dies&quot;</code> <code>t:vampire</code>{' '}
-          <code>pow&gt;=5</code>
-        </p>
-      )}
-
+  const filterBody = (
+    <>
       {(hasLegends || isPhone) && (
         <div className="row-between row-between--snug">
           {hasLegends && (
@@ -985,7 +954,7 @@ export function CommanderSearch({
                 { value: 'all', label: isPhone ? 'All' : `All ${nouns}` },
                 {
                   value: 'owned',
-                  label: `${isPhone ? 'Mine' : 'In my collection'} · ${collectionLegends.length.toLocaleString()}`,
+                  label: `${isPhone || ideaFinder ? 'Mine' : 'In my collection'} · ${collectionLegends.length.toLocaleString()}`,
                 },
               ]}
             />
@@ -1055,6 +1024,47 @@ export function CommanderSearch({
           />
         </div>
       </div>
+    </>
+  );
+
+  return (
+    <div className={`commander-search commander-finder${ideaFinder ? ' is-ideas' : ''}`}>
+      {ideaFinder ? (
+        <IdeaSearchBox
+          index={ideaIndex}
+          commanderNames={commanderNames}
+          ownedNames={ownedLegendNames}
+          text={text}
+          onText={setText}
+          idea={idea}
+          onIdea={setIdea}
+          onPickCommander={async (name) => {
+            await finish(await getCardByName(name), false);
+          }}
+          nouns={nouns}
+        />
+      ) : (
+        <SearchPill
+          className="commander-finder-search"
+          inputType="text"
+          placeholder="Name, creature type or rules text"
+          value={text}
+          onChange={setText}
+          ariaLabel={`Search ${nouns} by name, type or rules text`}
+        />
+      )}
+      {text.trim().length > 0 && !idea && (
+        <p className="commander-finder-syntax">
+          Scryfall syntax works too: <code>o:&quot;dies&quot;</code> <code>t:vampire</code>{' '}
+          <code>pow&gt;=5</code>
+        </p>
+      )}
+
+      {ideaFinder && !isPhone ? (
+        <div className="commander-finder-filterbar">{filterBody}</div>
+      ) : (
+        filterBody
+      )}
 
       {ideaFinder && !idea && !text.trim() && ideaIndex && (
         <BuildAroundRows index={ideaIndex} onPick={setIdea} />

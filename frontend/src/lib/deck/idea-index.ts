@@ -20,7 +20,7 @@ export interface Idea {
   type?: string;
   /** Commander decks carrying the tag. */
   decks: number;
-  /** Commanders on the tag page (the page shows its top 18). */
+  /** Commanders on the tag page (the generator's idea grid lists all of them). */
   commanders: number;
   /** A card name for the tile's art: the idea's most-built commander. */
   card: string;

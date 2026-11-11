@@ -46,30 +46,34 @@ vi.mock('../components/deck/CommanderSearch', () => ({
       initialSlug?: string | null;
       onPickWithIdea: (card: unknown, idea: unknown, decks?: number) => Promise<void>;
       selectedNote?: string | null;
+      selectedExtra?: React.ReactNode;
     };
   }) => {
     finderProps.current = props as unknown as Record<string, unknown>;
     const f = props.ideaFinder;
     return f ? (
-      <button
-        type="button"
-        onClick={() =>
-          void f.onPickWithIdea(
-            { id: 'lyra', name: 'Lyra Dawnbringer', color_identity: ['W'], type_line: 'Angel' },
-            {
-              slug: 'angels',
-              name: 'Angels',
-              kind: 'typal',
-              decks: 10806,
-              commanders: 24,
-              card: 'x',
-            },
-            175
-          )
-        }
-      >
-        finder with ideas ({f.initialSlug ?? 'none'}) {f.selectedNote}
-      </button>
+      <>
+        <button
+          type="button"
+          onClick={() =>
+            void f.onPickWithIdea(
+              { id: 'lyra', name: 'Lyra Dawnbringer', color_identity: ['W'], type_line: 'Angel' },
+              {
+                slug: 'angels',
+                name: 'Angels',
+                kind: 'typal',
+                decks: 10806,
+                commanders: 24,
+                card: 'x',
+              },
+              175
+            )
+          }
+        >
+          finder with ideas ({f.initialSlug ?? 'none'}) {f.selectedNote}
+        </button>
+        {f.selectedExtra}
+      </>
     ) : (
       <p>plain finder</p>
     );
@@ -134,32 +138,41 @@ describe('DeckGeneratePage ideas', () => {
     expect(later.textContent).toContain('2How to build');
   });
 
-  it('a commander picked under an idea gets that idea theme and the idea context', async () => {
+  it('a commander picked under an idea gets that idea theme; the summary row carries the idea, no banner', async () => {
     renderAt('?format=commander');
     fireEvent.click(screen.getByRole('button', { name: /finder with ideas/ }));
     await waitFor(() =>
       expect(useDeckBuilderStore.getState().commander?.name).toBe('Lyra Dawnbringer')
     );
-    const banner = await screen.findByRole('region', { name: 'Building around an idea' });
-    expect(banner.textContent).toContain('Its theme is chosen below.');
-    // The finder is told what to say under the commander's name.
-    expect(screen.getByRole('button', { name: /From the Angels idea · 175 decks/ })).toBeTruthy();
+    // The finder is told what to say under the commander's name, and gets Change idea.
+    expect(
+      await screen.findByRole('button', { name: /From the Angels idea · 175 decks/ })
+    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Change idea' })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Building around an idea' })).toBeNull();
+    expect(screen.queryByText(/has no Angels theme/)).toBeNull();
     // No step placeholders once a commander is chosen.
     expect(screen.queryByRole('list', { name: 'Steps after you choose a commander' })).toBeNull();
   });
 
-  it('discloses the idea a prefilled build came from and where its theme went', () => {
+  it('a prefilled idea build shows the idea in the summary row and says nothing more when its theme was chosen', () => {
     renderAt('?format=commander', {
       prefill: {
         commander: giada,
         themes: [theme],
-        ideaContext: { slug: 'angels', name: 'Angels', kind: 'typal', themeSelected: true },
+        ideaContext: {
+          slug: 'angels',
+          name: 'Angels',
+          kind: 'typal',
+          themeSelected: true,
+          decks: 3982,
+        },
       },
     });
-    const banner = screen.getByRole('region', { name: 'Building around an idea' });
-    expect(banner.textContent).toContain('Angels');
-    expect(banner.textContent).toContain('Its theme is chosen below.');
+    expect(screen.queryByRole('region', { name: 'Building around an idea' })).toBeNull();
+    expect(screen.getByRole('button', { name: /From the Angels idea · 4k decks/ })).toBeTruthy();
     expect(useDeckBuilderStore.getState().commander?.name).toBe('Giada, Font of Hope');
+    expect(screen.queryByText(/has no Angels theme/)).toBeNull();
   });
 
   it('says so, rather than staying silent, when the commander has no such theme', () => {
@@ -169,7 +182,7 @@ describe('DeckGeneratePage ideas', () => {
         ideaContext: { slug: 'angels', name: 'Angels', kind: 'typal', themeSelected: false },
       },
     });
-    expect(screen.getByRole('region', { name: 'Building around an idea' }).textContent).toContain(
+    expect(screen.getByRole('status').textContent).toContain(
       'Giada has no Angels theme on EDHREC, so none is chosen.'
     );
   });
@@ -183,7 +196,7 @@ describe('DeckGeneratePage ideas', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Change idea' }));
     await waitFor(() => expect(useDeckBuilderStore.getState().commander).toBeNull());
-    expect(screen.queryByText('Building around an idea')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Change idea' })).toBeNull();
     expect(screen.getByRole('button', { name: /finder with ideas/ })).toBeTruthy();
   });
 });

@@ -63,7 +63,9 @@ const tagPage = (commanders = ANGELS, colorSlug: string | null = null) => ({
   highSynergyNames: [],
   colorSlug,
 });
-const fetchTagPageData = vi.fn(async (_slug: string, _colors?: string[]) => tagPage());
+const fetchTagPageData = vi.fn(async (_slug: string, _colors?: string[], _limit?: number) =>
+  tagPage()
+);
 const fetchCommanderThemes = vi.fn(async (_name: string) => [
   { name: 'Angels', slug: 'angels', count: 3982, url: '' },
   { name: 'Lifegain', slug: 'lifegain', count: 900, url: '' },
@@ -77,7 +79,7 @@ vi.mock('@/deck-builder/services/edhrec/client', () => ({
   fetchCommanderData: async () => null,
   fetchPlaystyleCommanders: async () => [],
   isPoolTooThin: () => false,
-  fetchTagPageData: (s: string, c?: string[]) => fetchTagPageData(s, c),
+  fetchTagPageData: (s: string, c?: string[], l?: number) => fetchTagPageData(s, c, l),
   fetchCommanderThemes: (n: string) => fetchCommanderThemes(n),
   backfillColorIdentities: async (c: unknown) => c,
 }));
@@ -210,7 +212,7 @@ describe('an idea applied', () => {
   it('puts a chip in the box, swaps the grid to the idea list and shows the strip', async () => {
     finder();
     await applyAngels();
-    expect(fetchTagPageData).toHaveBeenCalledWith('angels', []);
+    expect(fetchTagPageData).toHaveBeenCalledWith('angels', [], Infinity);
     expect(screen.getByRole('button', { name: 'Remove Angels' })).toBeTruthy();
     expect(box().getAttribute('placeholder')).toBe('Narrow by name');
     expect(screen.getByText('4k decks')).toBeTruthy();
@@ -227,7 +229,7 @@ describe('an idea applied', () => {
     expect(within(pairs).getByRole('button', { name: 'Lifegain' })).toBeTruthy();
     expect(within(pairs).queryByRole('button', { name: 'Angels' })).toBeNull();
     fireEvent.click(within(pairs).getByRole('button', { name: 'Lifegain' }));
-    await waitFor(() => expect(fetchTagPageData).toHaveBeenCalledWith('lifegain', []));
+    await waitFor(() => expect(fetchTagPageData).toHaveBeenCalledWith('lifegain', [], Infinity));
   });
 
   it('removing the chip goes back to the rows and the popular list', async () => {
@@ -241,7 +243,7 @@ describe('an idea applied', () => {
   it('applies the ?idea= link once the list has loaded, and ignores a slug it does not know', async () => {
     finder({ ideaFinder: { initialSlug: 'angels', onPickWithIdea: vi.fn(async () => {}) } });
     await screen.findByRole('button', { name: 'Remove Angels' });
-    expect(fetchTagPageData).toHaveBeenCalledWith('angels', []);
+    expect(fetchTagPageData).toHaveBeenCalledWith('angels', [], Infinity);
   });
 
   it('ignores an unknown ?idea= slug', async () => {
@@ -270,7 +272,9 @@ describe('an idea applied', () => {
     // Within is the default reading: the full list is filtered here.
     await waitFor(() => expect(names()).toEqual(['Giada, Font of Hope', 'Avacyn, Angel of Hope']));
     fireEvent.click(screen.getByRole('radio', { name: 'Exactly these' }));
-    await waitFor(() => expect(fetchTagPageData).toHaveBeenLastCalledWith('angels', ['W']));
+    await waitFor(() =>
+      expect(fetchTagPageData).toHaveBeenLastCalledWith('angels', ['W'], Infinity)
+    );
   });
 
   it('says so when EDHREC has no page in those colors and shows every color', async () => {
@@ -290,7 +294,7 @@ describe('an idea applied', () => {
     collectionCards = [legend('Avacyn, Angel of Hope', ['W'], 'Legendary Creature — Angel')];
     finder();
     await applyAngels();
-    fireEvent.click(screen.getByRole('radio', { name: /In my collection/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Mine/ }));
     await waitFor(() => expect(names()).toEqual(['Avacyn, Angel of Hope']));
   });
 
@@ -301,7 +305,7 @@ describe('an idea applied', () => {
     ];
     finder();
     await applyAngels();
-    fireEvent.click(screen.getByRole('radio', { name: /In my collection/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /Mine/ }));
     await screen.findByText('No angels commanders match these filters.');
     expect(screen.getByRole('button', { name: 'Search all commanders' })).toBeTruthy();
   });

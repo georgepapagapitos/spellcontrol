@@ -1212,11 +1212,20 @@ function findTagPageList(
  * which one it read via `colorSlug`.
  *
  * Returns null when offline. Cached for 30 minutes per tag × color.
+ *
+ * `limit` caps the commander list (the page's top 18 by default); the cache keeps the whole
+ * list, so the generator's idea grid can ask for all of it.
  */
 export async function fetchTagPageData(
   tagSlug: string,
-  colors: string[] = []
+  colors: string[] = [],
+  limit = 18
 ): Promise<EDHRECTagPageData | null> {
+  const data = await readTagPage(tagSlug, colors);
+  return data && { ...data, commanders: data.commanders.slice(0, limit) };
+}
+
+async function readTagPage(tagSlug: string, colors: string[]): Promise<EDHRECTagPageData | null> {
   const tag = tagSlug.toLowerCase().trim();
   const colorKey = colors.includes('C') ? 'C' : sortWUBRG(colors, /* excludeC */ true).join('');
   const requestedSlug = colorKey ? (COLOR_SLUG_MAP[colorKey] ?? null) : null;
@@ -1255,7 +1264,6 @@ export async function fetchTagPageData(
 
   const commanders: EDHRECTopCommander[] = (commanderList?.cardviews ?? [])
     .filter((e) => !e.name.includes('//'))
-    .slice(0, 18)
     .map((entry, i) => ({
       rank: i + 1,
       name: entry.name,

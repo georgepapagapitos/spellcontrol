@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Lightbulb, Zap } from 'lucide-react';
+import { Zap } from 'lucide-react';
 // Generate-only stylesheets ship with this chunk, not the boot payload (E265).
 import '@/styles/deck-builder-guided.css';
 import '@/styles/deck-builder-customizer.css';
@@ -547,29 +547,6 @@ export function DeckGeneratePage() {
         </section>
       )}
 
-      {/* Idea-seed disclosure (E1112): the same job as the combo banner above, for a build that
-          began on a creature type or a way to play. */}
-      {commander && ideaContext && (
-        <section
-          className="deck-builder-section combo-seed-banner"
-          aria-label="Building around an idea"
-        >
-          <p className="combo-seed-banner-label">
-            <Lightbulb width={14} height={14} strokeWidth={1.8} aria-hidden />
-            Building around an idea
-          </p>
-          <p className="combo-seed-banner-pieces">{ideaContext.name}</p>
-          <p className="combo-seed-banner-hint">
-            {ideaContext.themeSelected
-              ? 'Its theme is chosen below. '
-              : `${commander.name.split(',')[0]} has no ${ideaContext.name} theme on EDHREC, so none is chosen. `}
-            <Button variant="link" onClick={changeIdea}>
-              Change idea
-            </Button>
-          </p>
-        </section>
-      )}
-
       {sourceEdits && (
         <KeepEditsToggle
           edits={sourceEdits}
@@ -591,7 +568,11 @@ export function DeckGeneratePage() {
                   initialSlug: ideaSlug,
                   onPickWithIdea: pickWithIdea,
                   selectedNote: ideaNote,
-                  selectedExtra: undefined,
+                  selectedExtra: ideaContext ? (
+                    <Button variant="link" onClick={changeIdea}>
+                      Change idea
+                    </Button>
+                  ) : undefined,
                 }
               : undefined
           }
@@ -602,6 +583,12 @@ export function DeckGeneratePage() {
             chooseCommander(card);
           }}
         />
+        {commander && commanderProfile && (
+          <CommanderProfileCard
+            profile={commanderProfile}
+            title={`What ${commander.name.split(',')[0].split(' // ')[0]} wants`}
+          />
+        )}
         {choosesColorBeforeGame(commander) && (
           <ChosenColorPicker commander={commander} partner={null} onChoose={setChosenColor} />
         )}
@@ -635,8 +622,6 @@ export function DeckGeneratePage() {
         />
       )}
 
-      {commander && commanderProfile && <CommanderProfileCard profile={commanderProfile} />}
-
       {commander && (
         <GenerationModePicker
           customization={customization}
@@ -651,6 +636,15 @@ export function DeckGeneratePage() {
           Customize: most builds pick a theme and never open the settings.
           Themes only steer the EDHREC generator — the Scryfall-driven modes
           define their own pool, so the theme picker is irrelevant there. */}
+      {/* The idea this commander came from has no theme of its slug on EDHREC: say so where
+          the theme would have been chosen. */}
+      {commander && ideaContext && !ideaContext.themeSelected && (
+        <p className="deck-generate-step-note" role="status">
+          {commander.name.split(',')[0]} has no {ideaContext.name} theme on EDHREC, so none is
+          chosen.
+        </p>
+      )}
+
       {!isPdh && commander && customization.generationMode === 'edhrec' && (
         <ThemePicker
           commanderName={commander.name}
