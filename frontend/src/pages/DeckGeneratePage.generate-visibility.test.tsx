@@ -129,6 +129,8 @@ const visibilityRadio = (name: string) => screen.getByRole('radio', { name: byLa
 
 describe('DeckGeneratePage — generated decks obey the visibility choice', () => {
   beforeEach(() => {
+    // Below 1024px the choices recap in the bottom bar.
+    window.innerWidth = 800;
     localStorage.clear();
     navigateMock.mockClear();
     capturedOnCreated = undefined;

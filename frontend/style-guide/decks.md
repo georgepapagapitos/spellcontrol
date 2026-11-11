@@ -1140,6 +1140,23 @@ bolted on. Rulings:
   commander without one builds without a theme and the banner says so.
 - **Partner and chosen-color pickers belong to step 1**: they decide who the
   commander is, so they sit with it and not among the build settings.
+- **Steps 2 to 5 are the same card, in one order**: **Theme** (the commander's
+  EDHREC themes with deck counts; the idea's theme is already chosen; for a method
+  that doesn't use themes the step says so rather than vanishing, so numbers never
+  shift), **How to build** (the methods as radio cards with a one-line hint),
+  **Settings** and **Who can see it**. A picker that also lives elsewhere takes a
+  `bare` prop for use as a step body: the step supplies the title, the picker keeps
+  its own states (loading, retry, empty).
+- **Settings leads with four levers and folds the rest.** Bracket, **Cards from**
+  (Any card, Mine first, Only mine; a strategy only the full control sets reads
+  "Custom, set under More settings" and never a wrong choice), Lands and Budget
+  are up front; Staples/Synergy, the full collection strategy, card pool, tempo,
+  salt, filters and card lists sit under **More settings**.
+- **"Your deck" is the recap and the two buttons.** From 1024px a sticky aside
+  beside the steps (commander art, each choice made, the one-line hint, **Generate**
+  as the primary and **Start blank**, with the reason when either is held); below
+  1024px the existing bottom bar. The page renders one or the other, never both, so
+  there is only ever one "Build this deck" group.
 
 ## Deck analysis tabs — first-impression states
 

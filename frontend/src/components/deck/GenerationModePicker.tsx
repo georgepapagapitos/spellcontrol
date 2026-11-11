@@ -70,6 +70,10 @@ interface Props {
   /** PDH build: the default mode sources from the PDH-legal Scryfall pool,
    *  not EDHREC — the Standard card says so. */
   pdh?: boolean;
+  /** The body of a numbered generator step (E1113): the step supplies the title, so this
+   *  renders no section of its own and the group is named by `groupLabel` instead. */
+  bare?: boolean;
+  groupLabel?: string;
 }
 
 /** Live online/offline flag (the Scryfall modes need a connection). */
@@ -97,6 +101,8 @@ export function GenerationModePicker({
   commanderName,
   section = 'all',
   pdh = false,
+  bare = false,
+  groupLabel = 'Pick a build method',
 }: Props) {
   const online = useOnline();
   const mode = customization.generationMode;
@@ -110,14 +116,21 @@ export function GenerationModePicker({
   // The 'config' section may render standalone (guided wizard) with nothing else;
   // give it its own card-style container in that case for a complete surface.
   const configStandalone = section === 'config';
+  const Shell = bare ? 'div' : 'section';
 
   return (
-    <section className="deck-builder-section gen-mode">
+    <Shell className={bare ? 'gen-mode' : 'deck-builder-section gen-mode'}>
       {showCards && (
         <>
-          <h2 className="deck-builder-section-title" id={groupLabelId}>
-            Pick a build method
-          </h2>
+          {bare ? (
+            <span className="sr-only" id={groupLabelId}>
+              {groupLabel}
+            </span>
+          ) : (
+            <h2 className="deck-builder-section-title" id={groupLabelId}>
+              {groupLabel}
+            </h2>
+          )}
           {!online && (
             <p className="gen-mode-offline" role="status">
               <WifiOff width={14} height={14} strokeWidth={1.8} aria-hidden /> These modes need a
@@ -196,7 +209,7 @@ export function GenerationModePicker({
           )}
         </div>
       )}
-    </section>
+    </Shell>
   );
 }
 

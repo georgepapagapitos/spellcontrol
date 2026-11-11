@@ -190,7 +190,7 @@ const ALLOWED: Record<Shape, Record<string, Entry>> = {
     'components/deck/ForkedFromBadge.tsx': { count: 1, why: FALSE_FRIEND },
     'components/play/GameNights.tsx': { count: 1, why: FALSE_FRIEND },
     'components/overlays/Tabs.tsx': { count: 1, why: SHOWS_ZERO },
-    'components/deck/DeckCustomizer.tsx': { count: 1, why: SHOWS_ZERO },
+    'components/deck/customizer-collection.tsx': { count: 1, why: SHOWS_ZERO },
     'components/deck/VerdictBadge.tsx': { count: 1, why: LAYOUT_WRAPPER },
     'components/play/GameBoard.tsx': { count: 2, why: BOARD_CHROME },
     'components/play/OnlineGameView.tsx': { count: 6, why: BOARD_CHROME },

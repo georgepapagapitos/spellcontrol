@@ -7,7 +7,7 @@
  * bar at the foot of the page. Brew is a door on the start page, not here.
  */
 import 'fake-indexeddb/auto';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -61,9 +61,9 @@ const krenko = {
 const before = (a: Element, b: Element) =>
   (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
 
-function renderPage(commander?: ScryfallCard) {
+function renderPage(commander?: ScryfallCard, format?: string) {
   const entry = commander
-    ? { pathname: '/decks/new/generate', state: { prefill: { commander } } }
+    ? { pathname: '/decks/new/generate', state: { prefill: { commander, format } } }
     : '/decks/new/generate';
   return render(
     <MemoryRouter initialEntries={[entry]}>
@@ -76,15 +76,43 @@ describe('DeckGeneratePage order', () => {
   beforeEach(() => {
     localStorage.clear();
     useDeckBuilderStore.getState().reset();
+    // Below 1024px the choices recap in the bottom bar.
+    window.innerWidth = 800;
   });
 
-  it('puts Themes right after the build method, ahead of Customize', () => {
+  it('runs the steps in order: commander, Theme, How to build, Settings, Who can see it', () => {
     renderPage(krenko);
-    const method = screen.getByTestId('method');
+    const headings = screen
+      .getAllByRole('heading', { level: 2 })
+      .map((h) => h.textContent)
+      .filter((t) => ['Theme', 'How to build', 'Settings', 'Who can see it'].includes(t ?? ''));
+    expect(headings).toEqual(['Theme', 'How to build', 'Settings', 'Who can see it']);
     const themes = screen.getByTestId('themes');
+    const method = screen.getByTestId('method');
     const customize = screen.getByTestId('customize');
-    expect(before(method, themes)).toBe(true);
-    expect(before(themes, customize)).toBe(true);
+    expect(before(themes, method)).toBe(true);
+    expect(before(method, customize)).toBe(true);
+  });
+
+  it('numbers the steps', () => {
+    renderPage(krenko);
+    expect([...document.querySelectorAll('.deck-step-head')].map((h) => h.textContent)).toEqual([
+      '1Choose a commander',
+      '2Theme',
+      '3How to build',
+      '4Settings',
+      '5Who can see it',
+    ]);
+  });
+
+  it('Pauper Commander has no Theme step and renumbers', () => {
+    renderPage(krenko, 'paupercommander');
+    expect([...document.querySelectorAll('.deck-step-head')].map((h) => h.textContent)).toEqual([
+      '1Choose a commander',
+      '2How to build',
+      '3Settings',
+      '4Who can see it',
+    ]);
   });
 
   it('puts Generate and Start blank in the build bar, after every setting', () => {
@@ -104,6 +132,23 @@ describe('DeckGeneratePage order', () => {
     const bar = screen.getByRole('group', { name: 'Build this deck' });
     expect(bar.textContent).toContain('Krenko · EDHREC');
     expect(bar.textContent).toMatch(/Any bracket|Bracket \d/);
+  });
+
+  it('from 1024px recaps the choices in the sticky "Your deck" aside instead of the bar', () => {
+    window.innerWidth = 1280;
+    renderPage(krenko);
+    const aside = screen.getByRole('complementary', { name: 'Your deck' });
+    for (const label of ['Commander', 'Theme', 'Method', 'Bracket', 'Cards', 'Who sees it']) {
+      expect(within(aside).getByText(label)).toBeTruthy();
+    }
+    expect(aside.textContent).toContain('Krenko, Mob Boss');
+    expect(aside.textContent).toContain('EDHREC');
+    // The two buttons live in the aside; there is one build group, not two.
+    const groups = screen.getAllByRole('group', { name: 'Build this deck' });
+    expect(groups).toHaveLength(1);
+    expect(aside.contains(groups[0])).toBe(true);
+    expect(within(aside).getByRole('button', { name: 'Generate deck' })).toBeTruthy();
+    expect(within(aside).getByRole('button', { name: 'Start blank' })).toBeTruthy();
   });
 
   it('has no build bar and no Brew door before a commander is picked', () => {
