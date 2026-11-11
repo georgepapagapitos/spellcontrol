@@ -1,5 +1,5 @@
 import type { CollectionStrategy, Customization } from '@/deck-builder/types';
-import { Field, ChoiceList } from '../shared/form';
+import { Field, ChoiceList, SegmentedControl } from '../shared/form';
 import { useCollectionStore } from '../../store/collection';
 
 export interface CollectionGroupProps {
@@ -137,10 +137,13 @@ export function CardsFromGroup({ customization, update }: CollectionGroupProps) 
         <h3 className="deck-customizer-group-title">Cards from</h3>
       </div>
       <div className="deck-customizer-group-body">
-        <ChoiceList<CardsFrom>
+        <SegmentedControl<CardsFrom>
           ariaLabel="Cards from"
           value={value}
-          options={empty ? options.filter((o) => o.value === 'any') : options}
+          options={(empty ? options.filter((o) => o.value === 'any') : options).map((o) => ({
+            value: o.value,
+            label: o.label,
+          }))}
           onChange={(v) => {
             if (v === 'custom') return;
             update(
@@ -153,6 +156,7 @@ export function CardsFromGroup({ customization, update }: CollectionGroupProps) 
             );
           }}
         />
+        <p className="deck-customizer-hint">{options.find((o) => o.value === value)?.hint}</p>
         {empty && (
           <p className="deck-customizer-hint">Import cards on the Collection page to use them.</p>
         )}

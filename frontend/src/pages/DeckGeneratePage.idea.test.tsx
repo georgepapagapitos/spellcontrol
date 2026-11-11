@@ -182,7 +182,7 @@ describe('DeckGeneratePage ideas', () => {
         ideaContext: { slug: 'angels', name: 'Angels', kind: 'typal', themeSelected: false },
       },
     });
-    expect(screen.getByRole('status').textContent).toContain(
+    expect(screen.getByText(/has no Angels theme/).textContent).toContain(
       'Giada has no Angels theme on EDHREC, so none is chosen.'
     );
   });
