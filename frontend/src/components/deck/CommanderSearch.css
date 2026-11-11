@@ -303,3 +303,36 @@
     white-space: nowrap;
   }
 }
+
+/* The generator layout (E1113): the toolbar is the filter row's second half (Bracket, Sort,
+   Random), and the grid gets its own title line. */
+.commander-finder-toolbar.is-filter-row {
+  justify-content: flex-start;
+}
+
+.commander-finder-gridhead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 0.5px solid var(--border);
+}
+
+.commander-finder-gridtitle {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.commander-finder.is-ideas {
+  max-width: none;
+  margin: 0;
+}
+
+.is-ideas .commander-finder-row {
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--space-4);
+}

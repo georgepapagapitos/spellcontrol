@@ -10,7 +10,7 @@ import { BackLink } from '@/components/app-shell/BackLink';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { CommanderSearch } from '../components/deck/CommanderSearch';
 import { CommanderProfileCard } from '../components/deck/CommanderProfileCard';
-import { IdeaStart } from '../components/deck/IdeaStart';
+import { StepCard, StepPlaceholders } from '../components/deck/StepCard';
 import { PartnerCommanderSelector } from '../components/deck/PartnerCommanderSelector';
 import { ThemePicker } from '../components/deck/ThemePicker';
 import { DeckCustomizer } from '../components/deck/DeckCustomizer';
@@ -29,7 +29,8 @@ import { usePublishOnCreate, type PublishOutcome } from '@/lib/social/use-publis
 import { VisibilityChoice } from '@/components/share/VisibilityChoice';
 import type { ScryfallCard, DeckFormat, EDHRECTheme, Customization } from '@/deck-builder/types';
 import type { ComboSeedContext } from '../types/combos';
-import type { IdeaSeedContext } from '@/lib/deck/idea-index';
+import type { Idea, IdeaSeedContext } from '@/lib/deck/idea-index';
+import { formatCount } from '@/lib/util/format-count';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { Button } from '@/components/shared/Button';
 import { KeepEditsToggle } from '@/components/deck/KeepEditsToggle';
@@ -37,6 +38,7 @@ import { keepEditsPatch, type DeckEdits } from '@/lib/deck/regenerate-edits';
 import { parseDeckFormat } from '@/lib/deck/deck-format-param';
 import { fillFormatSettings } from '@/lib/coach/fill-deck';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
+import { fetchCommanderThemes } from '@/deck-builder/services/edhrec/client';
 import { commanderIneligibility } from '@/deck-builder/services/deckBuilder/commanderEligibility';
 import { buildsFromOwnedCards } from '@/deck-builder/services/deckBuilder/deckFilters';
 
@@ -344,22 +346,49 @@ export function DeckGeneratePage() {
     routerState?.ownedFirst,
   ]);
 
-  // ── Deck ideas (E1112) ─────────────────────────────────────────────────
-  // The idea section starts a commander build, so it shows for Commander only and until a
-  // commander is chosen; a pick from its search box lands as if typed into the finder below.
-  const showIdeas = format === 'commander' && !commander;
-  const pickCommanderByName = useCallback(
-    async (name: string) => {
-      selectCommander(await getCardByName(name));
+  // ── Deck ideas (E1112, E1113) ──────────────────────────────────────────
+  // An idea is a filter inside the commander finder (Commander only: tag pages are Commander
+  // data). This page keeps what the build needs from it: which idea the chosen commander came
+  // from, and that commander's theme of the same slug, preselected.
+  const [ideaContext, setIdeaContext] = useState<IdeaSeedContext | null>(
+    prefill?.ideaContext ?? null
+  );
+  const chooseCommander = useCallback(
+    (card: ScryfallCard | null) => {
+      setIdeaContext(null);
+      selectCommander(card);
     },
     [selectCommander]
   );
-  // "Change idea" drops the seeded commander and the route's prefill, which puts the idea
-  // section back at the top.
+  const pickWithIdea = useCallback(
+    async (card: ScryfallCard, idea: Idea, numDecks?: number) => {
+      // A tag page's deck count for a commander equals its theme count, so the theme of the same
+      // slug is the one the player was looking at. A commander without one builds without a theme
+      // and the banner says so.
+      const themes = await fetchCommanderThemes(card.name).catch(() => []);
+      const theme = themes.find((t) => t.slug === idea.slug);
+      selectCommander(card);
+      if (theme) toggleTheme(theme);
+      setIdeaContext({
+        slug: idea.slug,
+        name: idea.name,
+        kind: idea.kind,
+        themeSelected: !!theme,
+        decks: numDecks,
+      });
+    },
+    [selectCommander, toggleTheme]
+  );
+  // "Change idea" drops the commander and the seeded route state; the finder comes back with the
+  // idea still applied, ready to pick another commander or remove it.
   const changeIdea = useCallback(() => {
-    selectCommander(null);
+    chooseCommander(null);
     navigate(`/decks/new/generate?format=${format}`, { replace: true, state: null });
-  }, [selectCommander, navigate, format]);
+  }, [chooseCommander, navigate, format]);
+  const ideaSlug = searchParams.get('idea') ?? prefill?.ideaContext?.slug ?? null;
+  const ideaNote = ideaContext
+    ? `From the ${ideaContext.name} idea${ideaContext.decks ? ` · ${formatCount(ideaContext.decks)} decks` : ''}`
+    : null;
 
   // ── Start blank: this commander, no cards ──────────────────────────────
   const handleStartBlank = useCallback(async () => {
@@ -520,7 +549,7 @@ export function DeckGeneratePage() {
 
       {/* Idea-seed disclosure (E1112): the same job as the combo banner above, for a build that
           began on a creature type or a way to play. */}
-      {prefill?.ideaContext && (
+      {commander && ideaContext && (
         <section
           className="deck-builder-section combo-seed-banner"
           aria-label="Building around an idea"
@@ -529,11 +558,11 @@ export function DeckGeneratePage() {
             <Lightbulb width={14} height={14} strokeWidth={1.8} aria-hidden />
             Building around an idea
           </p>
-          <p className="combo-seed-banner-pieces">{prefill.ideaContext.name}</p>
+          <p className="combo-seed-banner-pieces">{ideaContext.name}</p>
           <p className="combo-seed-banner-hint">
-            {prefill.ideaContext.themeSelected
+            {ideaContext.themeSelected
               ? 'Its theme is chosen below. '
-              : `${commander?.name.split(',')[0] ?? 'This commander'} has no ${prefill.ideaContext.name} theme on EDHREC, so none is chosen. `}
+              : `${commander.name.split(',')[0]} has no ${ideaContext.name} theme on EDHREC, so none is chosen. `}
             <Button variant="link" onClick={changeIdea}>
               Change idea
             </Button>
@@ -549,29 +578,61 @@ export function DeckGeneratePage() {
         />
       )}
 
-      {showIdeas && <IdeaStart format={format} onPickCommander={pickCommanderByName} />}
-
-      <section className="deck-builder-section">
-        <h2 className="deck-builder-section-title">
-          {showIdeas ? 'Or find a commander' : 'Find a commander'}
-        </h2>
+      <StepCard n={1} title="Choose a commander" className="deck-generate-step-commander">
         <CommanderSearch
           key={format}
           value={commander}
-          onSelect={selectCommander}
+          onSelect={chooseCommander}
           format={format}
           initialSearchMode={commanderSource}
+          ideaFinder={
+            format === 'commander'
+              ? {
+                  initialSlug: ideaSlug,
+                  onPickWithIdea: pickWithIdea,
+                  selectedNote: ideaNote,
+                  selectedExtra: undefined,
+                }
+              : undefined
+          }
           onSelectFromBinder={(card) => {
             // E283: a "From my collection" pick is a build-from-what-I-own
             // intent, so land with collection mode on and "Only my cards".
             updateCustomization({ collectionMode: true, collectionStrategy: 'full' });
-            selectCommander(card);
+            chooseCommander(card);
           }}
         />
-      </section>
+        {choosesColorBeforeGame(commander) && (
+          <ChosenColorPicker commander={commander} partner={null} onChoose={setChosenColor} />
+        )}
+        {/* Partner picker searches legendary partner mechanics: not a PDH surface. */}
+        {!isPdh && commander && (
+          <PartnerCommanderSelector
+            key={commander.id}
+            commander={commander}
+            partner={partnerCommander}
+            onSelect={setPartnerCommander}
+            collectionMode={buildsFromOwnedCards(customization)}
+          />
+        )}
+        {!choosesColorBeforeGame(commander) && choosesColorBeforeGame(partnerCommander) && (
+          <ChosenColorPicker
+            commander={null}
+            partner={partnerCommander}
+            onChoose={setChosenColor}
+          />
+        )}
+      </StepCard>
 
-      {choosesColorBeforeGame(commander) && (
-        <ChosenColorPicker commander={commander} partner={null} onChoose={setChosenColor} />
+      {!commander && (
+        <StepPlaceholders
+          steps={[
+            ...(isPdh ? [] : [{ n: 2, title: 'Theme', hint: 'After you choose a commander' }]),
+            { n: isPdh ? 2 : 3, title: 'How to build', hint: 'After you choose a commander' },
+            { n: isPdh ? 3 : 4, title: 'Settings', hint: 'After you choose a commander' },
+            { n: isPdh ? 4 : 5, title: 'Who can see it', hint: 'After you choose a commander' },
+          ]}
+        />
       )}
 
       {commander && commanderProfile && <CommanderProfileCard profile={commanderProfile} />}
@@ -598,25 +659,7 @@ export function DeckGeneratePage() {
         />
       )}
 
-      {/* Customizer sits ahead of the partner picker so collection-mode is
-          decided before partner selection — the picker filters its
-          suggestions (and warns) based on what's owned. */}
       {commander && <DeckCustomizer customization={customization} update={updateCustomization} />}
-
-      {/* Partner picker searches legendary partner mechanics — not a PDH surface. */}
-      {!isPdh && commander && (
-        <PartnerCommanderSelector
-          key={commander.id}
-          commander={commander}
-          partner={partnerCommander}
-          onSelect={setPartnerCommander}
-          collectionMode={buildsFromOwnedCards(customization)}
-        />
-      )}
-
-      {!choosesColorBeforeGame(commander) && choosesColorBeforeGame(partnerCommander) && (
-        <ChosenColorPicker commander={null} partner={partnerCommander} onChoose={setChosenColor} />
-      )}
 
       {commander && (
         <>

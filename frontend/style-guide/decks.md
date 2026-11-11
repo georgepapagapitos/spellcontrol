@@ -1099,6 +1099,48 @@ one question and made you pick which. Rulings:
   combination's name in words ("Golgari"), because a pip names itself only on
   hover.
 
+## The generator is one flow of numbered steps (E1113, 2026-11-10)
+
+`/decks/new/generate` reads down as one page, not as a finder with a form
+bolted on. Rulings:
+
+- **An idea is a filter on the one commander grid, never a second place to
+  browse.** A deck idea (a creature type or a way to play, from the closed list
+  in `lib/deck/idea-index.ts`) is chosen from the finder's own search box and
+  lives in it as a removable chip ("Leads Angels ×"). There is no idea page and
+  no idea shelf: `/decks/new/generate/idea/:slug` redirects to
+  `/decks/new/generate?idea=slug`. Typed text under a chip narrows the list by
+  name; every shared filter (colors and their Within/Exactly reading, All /
+  Mine, Bracket, Sort, Random) applies with or without a chip. With a chip the
+  grid's source is EDHREC's tag page for the idea, so each tile's deck count is
+  for that idea. A color pick EDHREC has no page for shows every color and says
+  so under the filters.
+- **Playstyle chips and ideas are one vocabulary.** The Commander finder drops
+  its playstyle chip row; each playstyle with an EDHREC tag is an idea, and a
+  guard test (`idea-index.finder.test.ts`) fails if one stops being on the list.
+  Tribal has no tag and is the Creature types row. Pauper Commander has no EDHREC
+  data, so its finder keeps the playstyle chips and shows no ideas.
+- **Nothing applied shows "build around" rows, an idea applied shows a strip.**
+  With no chip and nothing typed: Creature types, Ways to play and (only when the
+  collection is big enough) From your cards, seven each with "All N" in place.
+  With a chip: the idea's kind, name, "N decks across M commanders", what you own
+  of it, **Pick one for me** (most built you own, else most built) and **Pairs
+  well with**, read from the leading commanders' own themes.
+- **A numbered step card is the flow's one container.** Step N is a `StepCard`: a
+  raised sleeve with a small numeral stamp (a label, never a control, and not
+  tape: tape stays the nav's), the step's name as the `h2`, then its body. The
+  steps still to come while no commander is chosen are `StepPlaceholders`: muted,
+  dashed, "After you choose a commander". Pauper Commander has no Theme step and
+  the rest renumber.
+- **Step 1 collapses to a summary row once a commander is chosen**: art, name,
+  pips, "From the Angels idea · N decks" when it came from one, and **Change
+  commander**. The finder stays mounted behind it, so Change commander returns to
+  the same chip and filters. A pick made under an idea preselects the commander's
+  theme of the same slug (a tag page's deck count equals that theme's count); a
+  commander without one builds without a theme and the banner says so.
+- **Partner and chosen-color pickers belong to step 1**: they decide who the
+  commander is, so they sit with it and not among the build settings.
+
 ## Deck analysis tabs — first-impression states
 
 **Skeleton while analysis is pending (UX-310).** The Tune and Power tabs render
