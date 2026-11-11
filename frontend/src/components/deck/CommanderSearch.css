@@ -355,8 +355,11 @@
   display: contents;
 }
 
-/* The group keeps its name (aria-labelledby reads hidden text); the row needs no visible label. */
-.commander-finder-filterbar .commander-finder-label {
+/* The group keeps its name (aria-labelledby reads hidden text); the row needs no visible label.
+   Three classes, so it outranks `.commander-finder-row.is-stacked .commander-finder-label`,
+   which otherwise shows "Color" and pushes Bracket, Sort and Random onto a second line at
+   1280px. */
+.commander-finder-filterbar .commander-finder-row .commander-finder-label {
   display: none;
 }
 
