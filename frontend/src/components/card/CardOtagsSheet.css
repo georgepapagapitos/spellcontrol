@@ -1,21 +1,3 @@
-/* CardOtagsSheet — content styles only; the shell (scrim, sheet, handle,
-   header, list, footer) comes from the shared .card-picker-* classes in
-   styles/binder-card-management.css. */
-
-.card-otags-eyebrow {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  margin: 0;
-  font-weight: 600;
-}
-
-.card-otags-card-name {
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-}
-
 .card-otags-row {
   padding: var(--space-2) var(--space-4);
   border-bottom: 0.5px solid var(--border);

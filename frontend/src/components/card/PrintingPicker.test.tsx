@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { PrintingPicker } from './PrintingPicker';
 import { useScannerSettings } from '@/lib/scanner/scanner-settings';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -68,5 +68,35 @@ describe('PrintingPicker initial state', () => {
       name: 'Non-foil',
     })) as HTMLInputElement;
     expect(nonfoilRadio.checked).toBe(true);
+  });
+});
+
+describe('PrintingPicker proxy', () => {
+  it('adds as a proxy once the switch is on, and the add bar says so', async () => {
+    const p = printing({ prices: { usd: '1649.66' } } as Partial<ScryfallCard>);
+    fetchPrintingsMock.mockResolvedValue([p]);
+    const onAdd = vi.fn();
+    render(<PrintingPicker cardName="Dark Ritual" fallback={p} showExtras onAdd={onAdd} />);
+
+    const sw = await screen.findByRole('switch', { name: 'Proxy' });
+    expect(sw.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(screen.getByRole('button', { name: /^Add / }));
+    expect(onAdd.mock.calls[0][2]).not.toHaveProperty('proxy');
+
+    fireEvent.click(sw);
+    expect(sw.getAttribute('aria-checked')).toBe('true');
+    const add = screen.getByRole('button', { name: /^Add / });
+    expect(add.textContent).toContain('Proxy');
+    expect(add.textContent).not.toContain('1,649');
+    fireEvent.click(add);
+    expect(onAdd.mock.calls[1][2]).toMatchObject({ quantity: 1, proxy: true });
+  });
+
+  it('has no proxy switch where the add has no per-copy details', async () => {
+    const p = printing();
+    fetchPrintingsMock.mockResolvedValue([p]);
+    render(<PrintingPicker cardName="Dark Ritual" fallback={p} onAdd={() => {}} />);
+    await screen.findByRole('radio', { name: 'Non-foil' });
+    expect(screen.queryByRole('switch', { name: 'Proxy' })).toBeNull();
   });
 });

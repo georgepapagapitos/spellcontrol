@@ -437,3 +437,26 @@ describe('withFrontFaces (E576)', () => {
     expect(withFrontFaces(undefined)).toBeUndefined();
   });
 });
+
+describe('notLegalForFormat: previews', () => {
+  // Temporal Tribulation (TRC #51) a week before Star Trek Commander released.
+  const preview = makeCard({
+    name: 'Temporal Tribulation',
+    released_at: '2099-06-01',
+    legalities: { commander: 'not_legal', brawl: 'not_legal' },
+  });
+
+  it('keeps a preview out unless the commander is one too', () => {
+    expect(notLegalForFormat(preview, 'commander')).toBe(true);
+    expect(notLegalForFormat(preview, 'commander', true)).toBe(false);
+  });
+
+  it('never lets a preview into a format that takes only some sets', () => {
+    expect(notLegalForFormat(preview, 'brawl', true)).toBe(true);
+  });
+
+  it('never lets a banned card in', () => {
+    const banned = makeCard({ released_at: '2099-06-01', legalities: { commander: 'banned' } });
+    expect(notLegalForFormat(banned, 'commander', true)).toBe(true);
+  });
+});

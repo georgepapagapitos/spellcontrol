@@ -1,6 +1,5 @@
-import { useState } from 'react';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { useState, useRef } from 'react';
+import { Sheet, type SheetHandle } from '@/components/overlays/Sheet';
 // `HordeSetupFields` reuses the Local setup form's `Stepper`/`RulePill`
 // (`.play-stepper`/`.play-rule-pill`) — an explicit import so the playtest
 // page chunks that mount this sheet actually load that stylesheet too (see
@@ -33,11 +32,10 @@ interface Props {
  * just Cancel there.
  */
 export function HordeSetupSheet({ horde, hordeLoad, cardNames, resistanceOn, onClose }: Props) {
+  const sheetRef = useRef<SheetHandle>(null);
   const armHorde = usePlaytestStore((s) => s.armHorde);
   const disarmHorde = usePlaytestStore((s) => s.disarmHorde);
   const retryHordeLoad = usePlaytestStore((s) => s.retryHordeLoad);
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose);
-  useLockBodyScroll();
 
   const [hordeId, setHordeId] = useState(horde?.config.hordeId ?? 'zombies');
   const [level, setLevel] = useState<HordeLevel>(horde?.config.level ?? 'standard');
@@ -48,59 +46,37 @@ export function HordeSetupSheet({ horde, hordeLoad, cardNames, resistanceOn, onC
 
   async function fight() {
     await armHorde(hordeId, level, overrides);
-    if (usePlaytestStore.getState().hordeLoad.status !== 'error') beginClose();
+    if (usePlaytestStore.getState().hordeLoad.status !== 'error') sheetRef.current?.close();
   }
 
   return (
-    <div className="card-picker-root">
-      <div className="card-picker-backdrop" role="presentation" onClick={() => beginClose()} />
-      <div
-        className={`card-picker-sheet horde-setup-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Fight a horde"
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <h2 className="card-picker-title">Fight a horde</h2>
+    <Sheet
+      ref={sheetRef}
+      inPlace
+      onClose={onClose}
+      className="horde-setup-sheet"
+      title="Fight a horde"
+      toolbar={
+        <>
           <p className="horde-setup-sheet__intro">
             A deck that plays itself and attacks you each turn. Damage you deal mills its library.
           </p>
           {resistanceOn && <p className="horde-setup-sheet__exclusive">Turns Resistance off.</p>}
-        </div>
-        <div className="horde-setup-sheet__body">
-          <HordeSetupFields
-            hordeId={hordeId}
-            onHordeChange={setHordeId}
-            level={level}
-            onLevelChange={setLevel}
-            survivorCount={1}
-            customiseOpen={customiseOpen}
-            onToggleCustomise={() => setCustomiseOpen((o) => !o)}
-            overrides={overrides}
-            onOverridesChange={setOverrides}
-            warnings={warnings}
-          />
-          {hordeLoad.status === 'error' && (
-            <p className="horde-setup-sheet__error" role="alert">
-              {hordeLoad.error ?? "Couldn't load that horde."}{' '}
-              <Button onClick={() => retryHordeLoad()}>Retry</Button>
-            </p>
-          )}
-        </div>
-        <div className="card-picker-footer">
+        </>
+      }
+      footer={(close) => (
+        <>
           {horde && (
             <Button
               onClick={() => {
                 disarmHorde();
-                beginClose();
+                close();
               }}
             >
               Stop the fight
             </Button>
           )}
-          <Button onClick={() => beginClose()}>Cancel</Button>
+          <Button onClick={() => close()}>Cancel</Button>
           <Button
             variant="primary"
             disabled={hordeLoad.status === 'loading'}
@@ -108,8 +84,29 @@ export function HordeSetupSheet({ horde, hordeLoad, cardNames, resistanceOn, onC
           >
             {hordeLoad.status === 'loading' ? 'Fighting the horde…' : 'Fight the horde'}
           </Button>
-        </div>
+        </>
+      )}
+    >
+      <div className="horde-setup-sheet__body">
+        <HordeSetupFields
+          hordeId={hordeId}
+          onHordeChange={setHordeId}
+          level={level}
+          onLevelChange={setLevel}
+          survivorCount={1}
+          customiseOpen={customiseOpen}
+          onToggleCustomise={() => setCustomiseOpen((o) => !o)}
+          overrides={overrides}
+          onOverridesChange={setOverrides}
+          warnings={warnings}
+        />
+        {hordeLoad.status === 'error' && (
+          <p className="horde-setup-sheet__error" role="alert">
+            {hordeLoad.error ?? "Couldn't load that horde."}{' '}
+            <Button onClick={() => retryHordeLoad()}>Retry</Button>
+          </p>
+        )}
       </div>
-    </div>
+    </Sheet>
   );
 }

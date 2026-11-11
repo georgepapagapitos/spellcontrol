@@ -83,25 +83,30 @@ describe('CardGridCell captions', () => {
     expect(screen.getByRole('button').getAttribute('aria-label')).toContain('CMR · 472');
   });
 
-  it('shows the proxy chip for a proxy card and not for a normal one, with an accessible name', () => {
+  it('marks a proxy card and not a normal one, and names it proxy', () => {
     const proxyCard = { ...card, proxy: true };
     const { container, unmount } = render(
       <CardGridCell card={proxyCard} qty={1} size="1x" onActivate={() => {}} />
     );
-    const badge = container.querySelector('.proxy-badge');
-    expect(badge).not.toBeNull();
-    expect(badge?.getAttribute('aria-label')).toBe('Proxy');
+    expect(container.querySelector('.art-proxy')?.textContent).toBe('Proxy');
     expect(screen.getByRole('button').getAttribute('aria-label')).toContain('proxy');
     unmount();
 
     render(<CardGridCell card={card} qty={1} size="1x" onActivate={() => {}} />);
-    expect(document.querySelector('.proxy-badge')).toBeNull();
+    expect(document.querySelector('.art-proxy')).toBeNull();
   });
 
   it('shows the manual-price-override chip for an overridden card, with an accessible name (E204)', () => {
     const overriddenCard = { ...card, priceOverride: 25 };
     const { container, unmount } = render(
-      <CardGridCell card={overriddenCard} qty={1} size="1x" onActivate={() => {}} />
+      <CardGridCell
+        card={overriddenCard}
+        qty={1}
+        size="1x"
+        caption="$25.00"
+        priceCaption
+        onActivate={() => {}}
+      />
     );
     const badge = container.querySelector('.price-override-badge');
     expect(badge).not.toBeNull();
@@ -109,7 +114,16 @@ describe('CardGridCell captions', () => {
     expect(screen.getByRole('button').getAttribute('aria-label')).toContain('manually priced');
     unmount();
 
-    render(<CardGridCell card={card} qty={1} size="1x" onActivate={() => {}} />);
+    render(
+      <CardGridCell
+        card={card}
+        qty={1}
+        size="1x"
+        caption="$1.75"
+        priceCaption
+        onActivate={() => {}}
+      />
+    );
     expect(document.querySelector('.price-override-badge')).toBeNull();
   });
 });
@@ -134,5 +148,72 @@ describe('guard: every card grid renders the shared tile', () => {
       read('lists/ListDetailView.tsx'),
       'The bespoke .list-entries-grid-cell tile is gone; only the skeleton placeholder keeps that class'
     ).not.toMatch(/className="list-entries-grid-cell"/);
+  });
+});
+
+describe('CardGridCell proxy and manual-price marks', () => {
+  // The proxy mark was a loose "P" chip: first pushed in off the ⋮ onto the
+  // name line, then a line of its own above the plate. It is a segment of
+  // the tile's one plate now, so it costs no width or line of its own.
+  const proxy = { ...card, proxy: true, priceOverride: 2 } as EnrichedCard;
+
+  it('opens the corner with a Proxy segment when no plate holds the corner', () => {
+    render(
+      <CardGridCell
+        card={proxy}
+        qty={2}
+        size="1x"
+        caption="$2.00"
+        setLabel={null}
+        onActivate={() => {}}
+      />
+    );
+    const corner = document.querySelector('.collection-grid-corner');
+    expect(corner?.firstElementChild?.textContent).toBe('Proxy');
+    expect(document.querySelector('.proxy-badge')).toBeNull();
+  });
+
+  it('leaves the segment to the plate when the plate holds the corner', () => {
+    render(
+      <CardGridCell
+        card={proxy}
+        qty={2}
+        size="1x"
+        caption={null}
+        setLabel={null}
+        badges={<span className="plate-stub" />}
+        badgesHoldCorner
+        onActivate={() => {}}
+      />
+    );
+    expect(document.querySelector('.collection-grid-corner')).toBeNull();
+    expect(document.querySelector('.art-proxy')).toBeNull();
+  });
+
+  it('marks a manual price with a pencil on a price caption, and nowhere else', () => {
+    const { rerender } = render(
+      <CardGridCell
+        card={proxy}
+        qty={1}
+        size="1x"
+        caption="$2.00"
+        priceCaption
+        setLabel={null}
+        onActivate={() => {}}
+      />
+    );
+    const pencil = document.querySelector('.collection-grid-caption .price-override-badge--pencil');
+    expect(pencil?.getAttribute('aria-label')).toMatch(/Manually priced/);
+    rerender(
+      <CardGridCell
+        card={proxy}
+        qty={1}
+        size="1x"
+        caption="Nov 6, 2026"
+        setLabel={null}
+        onActivate={() => {}}
+      />
+    );
+    expect(document.querySelector('.price-override-badge')).toBeNull();
   });
 });

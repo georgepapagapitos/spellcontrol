@@ -36,7 +36,7 @@ import { formatRelativeTime } from '@/lib/util/format-time';
 import { CONDITIONS, FINISH_LABELS, entryUnitPrice } from '@/lib/scanner/scanner-feedback';
 import { scryfallToEnrichedCard } from '@/lib/cards/scryfall-to-enriched';
 import { bindersUseTags, useCardsWithTags } from '@/lib/cards/card-tags';
-import type { ScannedEntry } from '@/lib/scanner/use-scan-queue';
+import { rekeyedId, type ScannedEntry } from '@/lib/scanner/use-scan-queue';
 import { PROXY_HINT } from '@/lib/util/shared-copy';
 
 /** Every scanner sheet sits over the full-screen camera, which is above the
@@ -69,7 +69,35 @@ interface Props {
    * list can hold rows added from search, not just camera scans.
    */
   heading?: string;
+  /**
+   * Where the list was opened. `scanner` (the default) is the camera's list;
+   * `add-list` is the Add cards sheet's Review, whose rows came from search or
+   * a pasted list, so the copy drops the camera ("Keep adding", not "Keep
+   * scanning").
+   */
+  source?: 'scanner' | 'add-list';
 }
+
+const COPY = {
+  scanner: {
+    emptyHeading: 'Scanned cards',
+    dismiss: 'Keep scanning',
+    emptyTitle: 'No cards scanned yet',
+    emptyHint:
+      'Each card you scan lands here, then files itself into your binders when you add it.',
+    filterLabel: 'Filter scanned cards',
+    noMatch: 'No scanned cards match',
+  },
+  'add-list': {
+    emptyHeading: 'Cards to add',
+    dismiss: 'Keep adding',
+    emptyTitle: 'No cards here yet',
+    emptyHint:
+      'Cards you pick land here, then file themselves into your binders when you add them.',
+    filterLabel: 'Filter cards',
+    noMatch: 'No cards match',
+  },
+} as const;
 
 type Mode = 'list' | 'search' | 'select';
 type Sort = 'newest' | 'price';
@@ -121,7 +149,9 @@ export function ScannerQueueSheet({
   onAddCard,
   onConfirm,
   heading,
+  source = 'scanner',
 }: Props) {
+  const copy = COPY[source];
   const [mode, setMode] = useState<Mode>('list');
   const [sort, setSort] = useState<Sort>('newest');
   const [filter, setFilter] = useState('');
@@ -164,9 +194,15 @@ export function ScannerQueueSheet({
     );
   }, [entries, filter, sort]);
 
-  // Rows can merge or disappear under a selection (a bulk finish change
-  // re-keys them), so only ids still in the list count as selected.
+  // Rows can merge or disappear under a selection (a bulk finish or proxy
+  // change re-keys them), so only ids still in the list count as selected.
   const selectedIds = entries.filter((e) => selected.has(e.id)).map((e) => e.id);
+
+  // A bulk finish or proxy change re-keys each selected row (identity is
+  // printing + finish + proxy), so move the selection to the ids the rows
+  // land on; rows that merge land on one id and stay selected as one.
+  const rekeySelection = (nextId: (e: ScannedEntry) => string) =>
+    setSelected(new Set(entries.filter((e) => selected.has(e.id)).map(nextId)));
   const selectedCount = entries.filter((e) => selected.has(e.id)).reduce((n, e) => n + e.qty, 0);
 
   const toggle = useCallback((id: string) => {
@@ -186,7 +222,7 @@ export function ScannerQueueSheet({
   const clearAll = async () => {
     const ok = await confirm({
       title: `Clear ${countLabel(totalCount)}?`,
-      body: "Scanned cards aren't in your collection yet. This can't be undone.",
+      body: "These cards aren't in your collection yet. This can't be undone.",
       confirmLabel: 'Clear',
       cancelLabel: 'Keep them',
       danger: true,
@@ -198,7 +234,7 @@ export function ScannerQueueSheet({
   const removeSelected = async () => {
     const ok = await confirm({
       title: `Remove ${countLabel(selectedCount)}?`,
-      body: "Scanned cards aren't in your collection yet. This can't be undone.",
+      body: "These cards aren't in your collection yet. This can't be undone.",
       confirmLabel: 'Remove',
       cancelLabel: 'Keep them',
       danger: true,
@@ -214,7 +250,7 @@ export function ScannerQueueSheet({
       ? `${countLabel(selectedCount)} selected`
       : totalCount > 0
         ? (heading ?? `${countLabel(totalCount)} scanned`)
-        : 'Scanned cards';
+        : copy.emptyHeading;
 
   return (
     <Modal
@@ -278,7 +314,7 @@ export function ScannerQueueSheet({
                 placeholder="Filter cards"
                 value={filter}
                 onChange={setFilter}
-                ariaLabel="Filter scanned cards"
+                ariaLabel={copy.filterLabel}
               />
               <Button
                 icon={<Plus width={14} height={14} strokeWidth={1.8} />}
@@ -292,12 +328,13 @@ export function ScannerQueueSheet({
           <div className="modal-body scanner-sheet-body">
             {totalCount === 0 ? (
               <div className="scanner-sheet-empty">
-                <Camera width={32} height={32} strokeWidth={1.6} aria-hidden />
-                <p className="scanner-sheet-empty-title">No cards scanned yet</p>
-                <p className="scanner-sheet-empty-hint">
-                  Each card you scan lands here, then files itself into your binders when you add
-                  it.
-                </p>
+                {source === 'scanner' ? (
+                  <Camera width={32} height={32} strokeWidth={1.6} aria-hidden />
+                ) : (
+                  <ListChecks width={32} height={32} strokeWidth={1.6} aria-hidden />
+                )}
+                <p className="scanner-sheet-empty-title">{copy.emptyTitle}</p>
+                <p className="scanner-sheet-empty-hint">{copy.emptyHint}</p>
                 <Button
                   icon={<Plus width={14} height={14} strokeWidth={1.8} />}
                   onClick={() => setMode('search')}
@@ -306,7 +343,9 @@ export function ScannerQueueSheet({
                 </Button>
               </div>
             ) : rows.length === 0 ? (
-              <p className="scanner-sheet-none">No scanned cards match “{filter.trim()}”.</p>
+              <p className="scanner-sheet-none">
+                {copy.noMatch} “{filter.trim()}”.
+              </p>
             ) : (
               <ul className="scan-rows">
                 {rows.map((e) => (
@@ -356,7 +395,7 @@ export function ScannerQueueSheet({
               </>
             ) : (
               <>
-                <Button onClick={onClose}>Keep scanning</Button>
+                <Button onClick={onClose}>{copy.dismiss}</Button>
                 <Button
                   variant="primary"
                   className="scanner-sheet-add"
@@ -375,10 +414,16 @@ export function ScannerQueueSheet({
       {bulkEditOpen && (
         <BulkEdit
           count={selectedCount}
-          onFinish={(f) => onChangeFinish(selectedIds, f)}
+          onFinish={(f) => {
+            onChangeFinish(selectedIds, f);
+            rekeySelection((e) => rekeyedId(e.card, f, e.proxy));
+          }}
           onCondition={(c) => onChangeCondition(selectedIds, c)}
           onLanguage={(l) => onChangeLanguage(selectedIds, l)}
-          onProxy={(p) => onChangeProxy(selectedIds, p)}
+          onProxy={(p) => {
+            onChangeProxy(selectedIds, p);
+            rekeySelection((e) => rekeyedId(e.card, e.finish, p));
+          }}
           onClose={() => setBulkEditOpen(false)}
         />
       )}
@@ -492,7 +537,9 @@ function ScanRow({
         aria-label={`Edit ${entry.qty} ${card.name}, ${card.set_name}`}
       >
         {body}
-        <Pencil className="scan-row-pencil" width={16} height={16} strokeWidth={2} aria-hidden />
+        <span className="scan-row-pencil" aria-hidden>
+          <Pencil width={18} height={18} strokeWidth={2} />
+        </span>
       </button>
       <IconButton
         className="scan-row-remove"

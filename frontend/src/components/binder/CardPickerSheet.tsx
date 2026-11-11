@@ -1,8 +1,6 @@
-import { createPortal } from 'react-dom';
 import { useMemo, useState } from 'react';
 import { useCollectionStore } from '@/store/collection';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { Sheet } from '@/components/overlays/Sheet';
 import { normalizeForSearch } from '@/lib/search/normalize-search';
 import type { EnrichedCard } from '@/types/index';
 import { FoilBadge } from '@/components/shared/FoilBadge';
@@ -23,19 +21,6 @@ export function CardPickerSheet({ binderId, allCards, currentBoundSet, onClose }
   const pinCardToBinder = useCollectionStore((s) => s.pinCardToBinder);
   // Track locally which cards were just added this session for instant "Added" feedback.
   const [addedThisSession, setAddedThisSession] = useState<Set<string>>(() => new Set());
-
-  useLockBodyScroll();
-
-  // Below 1024px this is a bottom sheet with a slide-up entry, so dismissal
-  // plays the symmetric `binder-sheet-slide-out` before unmount. On desktop
-  // it's a centered panel with `animation: none` (and a centering transform
-  // the fall keyframe would clobber) — exits stay instant there, symmetric
-  // with its entry.
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
-    onClose,
-    'binder-sheet-slide-out',
-    { instantAt: '(min-width: 1024px)' }
-  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -67,73 +52,61 @@ export function CardPickerSheet({ binderId, allCards, currentBoundSet, onClose }
     });
   };
 
-  return createPortal(
-    <div
-      className="card-picker-root"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (e.target === e.currentTarget) beginClose();
-      }}
-      role="presentation"
-    >
-      <div
-        className={`card-picker-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Add cards to binder"
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <h2 className="card-picker-title">Add cards</h2>
-          <SearchPill
-            value={query}
-            onChange={setQuery}
-            placeholder="Search by name, set, or number…"
-            ariaLabel="Search collection"
-            autoFocus
-          />
-        </div>
-        <ul className="card-picker-list" role="list">
-          {filtered.map((card) => {
-            const isAdded = currentBoundSet.has(card.copyId) || addedThisSession.has(card.copyId);
-            return (
-              <li key={card.copyId} className="card-picker-row">
-                <span className={`card-picker-rarity rarity-${card.rarity}`} aria-hidden />
-                <span className="card-picker-name">
-                  <CardName card={card} />
-                </span>
-                <span className="card-picker-meta">
-                  {card.setCode.toUpperCase()} #{card.collectorNumber}
-                  {card.foil ? <FoilBadge card={card} /> : null}
-                </span>
-                {isAdded ? (
-                  <span className="card-picker-added" aria-label="Already added" role="img">
-                    Added
-                  </span>
-                ) : (
-                  <Button
-                    onClick={() => handleAdd(card.copyId)}
-                    aria-label={`Add ${card.name} to binder`}
-                    className="card-picker-add"
-                  >
-                    Add
-                  </Button>
-                )}
-              </li>
-            );
-          })}
-          {filtered.length === 0 && (
-            <li className="card-picker-empty">No cards match &ldquo;{query}&rdquo;</li>
-          )}
-        </ul>
-        <div className="card-picker-footer">
-          <Button variant="primary" onClick={() => beginClose()}>
+  return (
+    <Sheet
+      onClose={onClose}
+      label="Add cards to binder"
+      title="Add cards"
+      toolbar={
+        <SearchPill
+          value={query}
+          onChange={setQuery}
+          placeholder="Search by name, set, or number…"
+          ariaLabel="Search collection"
+          autoFocus
+        />
+      }
+      footer={(close) => (
+        <>
+          <Button variant="primary" onClick={() => close()}>
             Done
           </Button>
-        </div>
-      </div>
-    </div>,
-    document.body
+        </>
+      )}
+    >
+      <ul className="card-picker-list" role="list">
+        {filtered.map((card) => {
+          const isAdded = currentBoundSet.has(card.copyId) || addedThisSession.has(card.copyId);
+          return (
+            <li key={card.copyId} className="card-picker-row">
+              <span className={`card-picker-rarity rarity-${card.rarity}`} aria-hidden />
+              <span className="card-picker-name">
+                <CardName card={card} />
+              </span>
+              <span className="card-picker-meta">
+                {card.setCode.toUpperCase()} #{card.collectorNumber}
+                {card.foil ? <FoilBadge card={card} /> : null}
+              </span>
+              {isAdded ? (
+                <span className="card-picker-added" aria-label="Already added" role="img">
+                  Added
+                </span>
+              ) : (
+                <Button
+                  onClick={() => handleAdd(card.copyId)}
+                  aria-label={`Add ${card.name} to binder`}
+                  className="card-picker-add"
+                >
+                  Add
+                </Button>
+              )}
+            </li>
+          );
+        })}
+        {filtered.length === 0 && (
+          <li className="card-picker-empty">No cards match &ldquo;{query}&rdquo;</li>
+        )}
+      </ul>
+    </Sheet>
   );
 }

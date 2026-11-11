@@ -1037,11 +1037,10 @@ i.ss.set-symbol--mythic {
   box-shadow: var(--shadow-raised);
 }
 
-/* CardGridCell-only: when the proxy chip and rarity badge can coexist, both
-   ride inside this positioned flex cluster instead — the rarity badge's own
-   position:absolute above is overridden back to static so the two chips sit
-   side by side rather than stacking on the same coordinates. Other grid
-   tiles (e.g. SetsPage) that render RarityBadge standalone are unaffected. */
+/* CardGridCell's rarity badge rides in this positioned cluster so the ⋮
+   rule below can step it aside; its own position:absolute above is reset to
+   static. Other grid tiles (e.g. SetsPage) that render RarityBadge
+   standalone are unaffected. */
 .collection-grid-topright {
   position: absolute;
   top: 5px;
@@ -1105,8 +1104,7 @@ i.ss.set-symbol--mythic {
   display: none;
 }
 
-/* The ⋮ holds the corner, so the proxy / price / rarity chips sit beside it
-   for good rather than jumping aside when it appears on hover. */
+/* The ⋮ holds the corner, so the rarity badge sits beside it for good rather than jumping aside when it appears on hover. */
 .collection-grid-cell.has-menu .collection-grid-topright {
   right: var(--space-6);
 }
@@ -2086,9 +2084,21 @@ i.ss.set-symbol--mythic {
   flex-shrink: 0;
 }
 
+/* The floor is the SMALLER of 6ch and the name itself. A bare
+   `min(6ch, 100%)` grew a short name ("Bayou", "Plateau": narrower than 6ch,
+   since a ch is a "0") past its own text, which left a gap after it and
+   pushed the badges past the line's edge, where `overflow: hidden` clipped
+   them. Browsers without calc-size() get no floor, which only matters on a
+   row whose badges alone fill the line. */
 .collection-list-name > .collection-list-name-text {
   flex-shrink: 1;
-  min-width: min(6ch, 100%);
+  min-width: 0;
+}
+
+@supports (min-width: calc-size(max-content, size)) {
+  .collection-list-name > .collection-list-name-text {
+    min-width: calc-size(max-content, min(size, 6ch));
+  }
 }
 
 /* Every other name-line badge carries its own leading margin; the Lists

@@ -201,9 +201,9 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
 
     // T153 Add-list target: qty already queued for the printing+finish a
     // quick add (no picker) or an explicit picker pick would land in.
-    const listQtyFor = (card: ScryfallCard, finish?: Finish): number => {
+    const listQtyFor = (card: ScryfallCard, finish?: Finish, proxy = false): number => {
       const f = finish ?? landedFinish(card, undefined, true);
-      return addListQueue.find((e) => e.id === entryKey(card.id, f))?.qty ?? 0;
+      return addListQueue.find((e) => e.id === entryKey(card.id, f, proxy))?.qty ?? 0;
     };
 
     // Context line under the art: what this session added, else what the
@@ -259,7 +259,8 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
           copyIds.length,
           finish,
           Boolean(binderId),
-          extras === undefined
+          extras === undefined,
+          Boolean(extras?.proxy)
         ),
         tone: 'success',
         durationMs: 4000,
@@ -301,11 +302,12 @@ export const CardSearchResults = forwardRef<CardSearchResultsHandle, Props>(
       extras: AddExtras
     ) => {
       if (addToList) {
-        const newQty = listQtyFor(printing, finish) + (extras.quantity ?? 1);
+        const newQty = listQtyFor(printing, finish, extras.proxy) + (extras.quantity ?? 1);
         addToAddList(printing, {
           finish,
           condition: extras.condition,
           language: extras.language,
+          proxy: extras.proxy,
           qty: extras.quantity,
           source: 'searched',
         });

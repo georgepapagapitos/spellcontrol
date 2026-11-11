@@ -53,6 +53,7 @@ import {
   buildLanguageOptions,
   buildRows,
   gridCaptionFor,
+  gridCaptionIsPrice,
   sortRows,
 } from './card-list-table-derive';
 import {
@@ -603,6 +604,7 @@ export function CardListTable({
                   row={r}
                   size={effectiveGridSize}
                   caption={gridCaptionPrefs.sortValue ? captionFor(r) : null}
+                  priceCaption={gridCaptionIsPrice(sortKey)}
                   captionPrefs={gridCaptionPrefs}
                   selectMode={selectMode}
                   selected={selectedRowKeys.has(r.key)}

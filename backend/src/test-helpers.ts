@@ -40,6 +40,7 @@ import { brewersRouter } from './routes/brewers';
 import { aiRouter } from './routes/ai';
 import { eventsRouter } from './routes/events';
 import { edhrecRouter } from './routes/edhrec';
+import { mpcRouter } from './routes/mpc';
 import { spellbookRouter } from './routes/spellbook';
 
 /**
@@ -694,6 +695,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/combos', combosRouter);
   app.use('/api/aggregates', aggregatesRouter);
   app.use('/api/edhrec', edhrecRouter);
+  app.use('/api/mpc', mpcRouter);
   app.use('/api/spellbook', spellbookRouter);
   app.use('/api/shares', sharesRouter);
   app.use('/api/feedback', feedbackRouter);

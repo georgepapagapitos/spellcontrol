@@ -1,11 +1,9 @@
-import { createPortal } from 'react-dom';
 import './ReviewSheet.css';
 import './FillDeckSheet.css';
 import { type JSX, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { Sheet } from '@/components/overlays/Sheet';
 import { imageFromCard } from '@/lib/cards/card-thumbs';
 import { buildFill, fillCollectionRule, type FillResult } from '@/lib/coach/fill-deck';
 import { userMessage } from '@/lib/util/user-error';
@@ -100,8 +98,6 @@ export function FillDeckSheet({
   onClose,
   onAdd,
 }: FillDeckSheetProps): JSX.Element {
-  useLockBodyScroll();
-  const titleId = useId();
   const leanGroup = useId();
   const open = Math.max(0, target - deck.cards.length);
   const [lean, setLean] = useState<number>(0.5);
@@ -119,12 +115,6 @@ export function FillDeckSheet({
       alive.current = false;
     };
   }, []);
-
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
-    onClose,
-    'binder-sheet-slide-out',
-    { instantAt: '(min-width: 1024px)' }
-  );
 
   const run = async () => {
     setPhase({ kind: 'building', message: 'Reading your deck…', percent: 2 });
@@ -159,154 +149,26 @@ export function FillDeckSheet({
 
   const additions = phase.kind === 'review' ? phase.result.plan.additions : [];
 
-  return createPortal(
-    <div
-      className="card-picker-root"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (e.target === e.currentTarget) beginClose();
-      }}
-      role="presentation"
-    >
-      <div
-        className={`card-picker-sheet review-sheet fill-deck-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <p id={titleId} className="review-sheet-title">
-            Fill the rest
-          </p>
-          <p className="review-sheet-subtitle">
-            {open === 1 ? '1 open slot' : `${open} open slots`} · {deck.cards.length} of {target}{' '}
-            cards picked
-          </p>
-        </div>
-
-        <div className="review-sheet-body">
+  return (
+    <Sheet
+      onClose={onClose}
+      className="review-sheet fill-deck-sheet"
+      title="Fill the rest"
+      description={`${open === 1 ? '1 open slot' : `${open} open slots`} · ${deck.cards.length} of ${target} cards picked`}
+      footer={(close) => (
+        <>
           {phase.kind === 'setup' && (
             <>
-              <p className="review-sheet-lead">Your picks stay.</p>
-              <fieldset className="bracket-pill-row fill-deck-lean" aria-label="Lean toward">
-                {LEANS.map((l) => (
-                  <label
-                    key={l.value}
-                    className={`bracket-pill${lean === l.value ? ' active' : ''}`}
-                  >
-                    <input
-                      className="overlay-input"
-                      type="radio"
-                      name={leanGroup}
-                      value={l.value}
-                      checked={lean === l.value}
-                      onChange={() => setLean(l.value)}
-                    />
-                    <span className="bracket-pill-label">{l.label}</span>
-                    <span className="bracket-pill-sub">{l.hint}</span>
-                  </label>
-                ))}
-              </fieldset>
-              {rule && <p className="review-sheet-lead fill-deck-rule">{RULE_LINE[rule]}</p>}
-              {!rule && ownedNames.size > 0 && (
-                <label className="field-checkbox fill-deck-owned">
-                  <input
-                    type="checkbox"
-                    checked={preferOwned}
-                    onChange={(e) => setPreferOwned(e.target.checked)}
-                  />
-                  <span>Favor cards I own</span>
-                </label>
-              )}
-            </>
-          )}
-
-          {phase.kind === 'building' && (
-            <div className="review-sheet-progress" aria-live="polite">
-              <MeterBar
-                value={phase.percent}
-                size="md"
-                role="progressbar"
-                label="Building the rest of the deck"
-              />
-              <p className="review-sheet-progress-text">{phase.message}</p>
-            </div>
-          )}
-
-          {phase.kind === 'error' && (
-            <div className="error-banner" role="alert">
-              {phase.message}
-            </div>
-          )}
-
-          {phase.kind === 'review' && (
-            <>
-              {phase.result.notes.map((n) => (
-                <p key={n} className="review-sheet-note">
-                  {n}
-                </p>
-              ))}
-              {additions.length === 0 ? (
-                <p className="review-sheet-lead">
-                  Nothing to add. Try another lean, or add cards by hand.
-                </p>
-              ) : (
-                groups.map(({ group, cards }) => (
-                  <section key={group} className="fill-deck-group" aria-label={PLURAL[group]}>
-                    <h3 className="fill-deck-group-title">
-                      {PLURAL[group]} <span className="fill-deck-group-count">{cards.length}</span>
-                    </h3>
-                    <ul className="list-stack list-stack--tight fill-deck-list" role="list">
-                      {cards.map((c, i) => (
-                        <li key={`${c.name}-${i}`} className="fill-deck-row">
-                          <Thumb card={c} />
-                          <span className="fill-deck-card">
-                            <span className="truncate-name">{c.name}</span>
-                            {phase.result.reasons[c.name] && (
-                              <span className="fill-deck-why">{phase.result.reasons[c.name]}</span>
-                            )}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                ))
-              )}
-              {phase.result.plan.declined.length > 0 && (
-                <p className="review-sheet-note">
-                  Left out: {phase.result.plan.declined.map((d) => d.card.name).join(', ')}. They
-                  score worse here or break a build rule.
-                </p>
-              )}
-              {phase.result.plan.stillOpen > 0 && (
-                <p className="review-sheet-note">
-                  {phase.result.plan.stillOpen === 1
-                    ? '1 slot stays open'
-                    : `${phase.result.plan.stillOpen} slots stay open`}
-                  {phase.result.plan.declined.length > 0
-                    ? '.'
-                    : `: ${(rule && OUT_OF_POOL[rule]) ?? 'the card pool ran out'}.`}
-                </p>
-              )}
-            </>
-          )}
-        </div>
-
-        <div className="card-picker-footer">
-          {phase.kind === 'setup' && (
-            <>
-              <Button onClick={() => beginClose()}>Cancel</Button>
+              <Button onClick={() => close()}>Cancel</Button>
               <Button variant="primary" onClick={() => void run()}>
                 Find {open} {open === 1 ? 'card' : 'cards'}
               </Button>
             </>
           )}
-          {phase.kind === 'building' && <Button onClick={() => beginClose()}>Cancel</Button>}
+          {phase.kind === 'building' && <Button onClick={() => close()}>Cancel</Button>}
           {phase.kind === 'error' && (
             <>
-              <Button onClick={() => beginClose()}>Close</Button>
+              <Button onClick={() => close()}>Close</Button>
               <Button variant="primary" onClick={() => void run()}>
                 Retry
               </Button>
@@ -324,9 +186,113 @@ export function FillDeckSheet({
               </Button>
             </>
           )}
-        </div>
+        </>
+      )}
+    >
+      <div className="review-sheet-body">
+        {phase.kind === 'setup' && (
+          <>
+            <p className="review-sheet-lead">Your picks stay.</p>
+            <fieldset className="bracket-pill-row fill-deck-lean" aria-label="Lean toward">
+              {LEANS.map((l) => (
+                <label key={l.value} className={`bracket-pill${lean === l.value ? ' active' : ''}`}>
+                  <input
+                    className="overlay-input"
+                    type="radio"
+                    name={leanGroup}
+                    value={l.value}
+                    checked={lean === l.value}
+                    onChange={() => setLean(l.value)}
+                  />
+                  <span className="bracket-pill-label">{l.label}</span>
+                  <span className="bracket-pill-sub">{l.hint}</span>
+                </label>
+              ))}
+            </fieldset>
+            {rule && <p className="review-sheet-lead fill-deck-rule">{RULE_LINE[rule]}</p>}
+            {!rule && ownedNames.size > 0 && (
+              <label className="field-checkbox fill-deck-owned">
+                <input
+                  type="checkbox"
+                  checked={preferOwned}
+                  onChange={(e) => setPreferOwned(e.target.checked)}
+                />
+                <span>Favor cards I own</span>
+              </label>
+            )}
+          </>
+        )}
+
+        {phase.kind === 'building' && (
+          <div className="review-sheet-progress" aria-live="polite">
+            <MeterBar
+              value={phase.percent}
+              size="md"
+              role="progressbar"
+              label="Building the rest of the deck"
+            />
+            <p className="review-sheet-progress-text">{phase.message}</p>
+          </div>
+        )}
+
+        {phase.kind === 'error' && (
+          <div className="error-banner" role="alert">
+            {phase.message}
+          </div>
+        )}
+
+        {phase.kind === 'review' && (
+          <>
+            {phase.result.notes.map((n) => (
+              <p key={n} className="review-sheet-note">
+                {n}
+              </p>
+            ))}
+            {additions.length === 0 ? (
+              <p className="review-sheet-lead">
+                Nothing to add. Try another lean, or add cards by hand.
+              </p>
+            ) : (
+              groups.map(({ group, cards }) => (
+                <section key={group} className="fill-deck-group" aria-label={PLURAL[group]}>
+                  <h3 className="fill-deck-group-title">
+                    {PLURAL[group]} <span className="fill-deck-group-count">{cards.length}</span>
+                  </h3>
+                  <ul className="list-stack list-stack--tight fill-deck-list" role="list">
+                    {cards.map((c, i) => (
+                      <li key={`${c.name}-${i}`} className="fill-deck-row">
+                        <Thumb card={c} />
+                        <span className="fill-deck-card">
+                          <span className="truncate-name">{c.name}</span>
+                          {phase.result.reasons[c.name] && (
+                            <span className="fill-deck-why">{phase.result.reasons[c.name]}</span>
+                          )}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))
+            )}
+            {phase.result.plan.declined.length > 0 && (
+              <p className="review-sheet-note">
+                Left out: {phase.result.plan.declined.map((d) => d.card.name).join(', ')}. They
+                score worse here or break a build rule.
+              </p>
+            )}
+            {phase.result.plan.stillOpen > 0 && (
+              <p className="review-sheet-note">
+                {phase.result.plan.stillOpen === 1
+                  ? '1 slot stays open'
+                  : `${phase.result.plan.stillOpen} slots stay open`}
+                {phase.result.plan.declined.length > 0
+                  ? '.'
+                  : `: ${(rule && OUT_OF_POOL[rule]) ?? 'the card pool ran out'}.`}
+              </p>
+            )}
+          </>
+        )}
       </div>
-    </div>,
-    document.body
+    </Sheet>
   );
 }

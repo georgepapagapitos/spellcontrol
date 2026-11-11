@@ -746,3 +746,29 @@ describe('validateDeckZones', () => {
     expect(sideboardOnly).toEqual([]);
   });
 });
+
+describe('validateDeck: previewed cards', () => {
+  // Star Trek Commander (TRC) cards read not_legal until 2026-11-13; a deck
+  // built from the set the week before flagged each one (2026-11-06).
+  const preview = card({
+    name: 'Temporal Tribulation',
+    set: 'trc',
+    released_at: '2026-11-13',
+    legalities: { commander: 'not_legal', standard: 'not_legal' },
+  });
+  const now = new Date(2026, 10, 6);
+
+  it('does not flag a card that is not legal only because it is unreleased', () => {
+    expect(validateDeck([slot(preview)], [], DECK_FORMAT_CONFIGS.commander, { now })).toEqual([]);
+  });
+
+  it('still flags it once it has released, and in a format that takes only some sets', () => {
+    const after = new Date(2026, 10, 13);
+    expect(
+      validateDeck([slot(preview)], [], DECK_FORMAT_CONFIGS.commander, { now: after })
+    ).toHaveLength(1);
+    expect(
+      validateDeck([slot(preview)], [], DECK_FORMAT_CONFIGS.standard, { now }).map((i) => i.issue)
+    ).toContain('not-legal');
+  });
+});

@@ -51,6 +51,8 @@ export interface TypePassContext {
    *  commander. Threaded through to both the EDHREC-pool pick and the
    *  Scryfall-only fallback below. */
   mtgFormat?: string;
+  /** The commander is a preview (GenerationConfig.allowPreviewCards). */
+  allowPreviewCards?: boolean;
   strictCurve: boolean;
   collectionStrategy: CollectionStrategy;
   collectionOwnedPercent: number;
@@ -169,7 +171,8 @@ export function pickEdhrecTypePass(
     ctx.mtgFormat,
     ctx.protectionAdmits?.(),
     ctx.comboLinePieces,
-    ctx.e532Off
+    ctx.e532Off,
+    ctx.allowPreviewCards
   );
 }
 

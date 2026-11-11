@@ -237,30 +237,26 @@ describe('DeckDisplay "Not in the deck" zone (E176)', () => {
       }
     );
 
-    it("a box card's menu removes it from the box and offers no move into the deck or proxy", () => {
+    it("a box card's menu removes it from the box and offers no proxy or tag", () => {
       const onBulkRemove = vi.fn();
-      const onMoveToMainboard = vi.fn();
-      const onMoveFromConsidering = vi.fn();
       const { getByRole, queryByRole } = renderDeck({
         extras: ['Display Commander'],
         view: 'grid',
         onBulkRemove,
-        onMoveToMainboard,
-        onMoveFromConsidering,
         onSetProxy: vi.fn(),
       });
       fireEvent.click(getByRole('button', { name: 'Actions for Display Commander' }));
-      expect(queryByRole('menuitem', { name: 'Move to mainboard' })).toBeNull();
       expect(queryByRole('menuitem', { name: /proxy/i })).toBeNull();
       expect(queryByRole('menuitem', { name: /tag/i })).toBeNull();
       fireEvent.click(getByRole('menuitem', { name: 'Remove from deck' }));
       expect(onBulkRemove).toHaveBeenCalledWith('extras', ['slot-Display Commander-0']);
-      expect(onMoveToMainboard).not.toHaveBeenCalled();
-      expect(onMoveFromConsidering).not.toHaveBeenCalled();
     });
 
-    // A box card can leave for a pile (the user's call, 2026-10-30), never the deck.
+    // A box card can leave for a pile (the user's call, 2026-10-30) or the
+    // deck itself (2026-11-10).
     it.each([
+      ['grid', 'Move to mainboard', 'cards'],
+      ['list', 'Move to mainboard', 'cards'],
       ['grid', 'Move to considering', 'considering'],
       ['list', 'Move to considering', 'considering'],
       ['grid', 'Move to sideboard', 'sideboard'],
@@ -278,8 +274,10 @@ describe('DeckDisplay "Not in the deck" zone (E176)', () => {
       expect(onBulkMove).toHaveBeenCalledWith(['slot-Display Commander-0'], 'extras', to);
     });
 
-    // And back: a pile card returns to the box, even one the move left empty.
+    // And back: a deck or pile card goes into the box, even one left empty.
     it.each([
+      ['grid', 'cards'],
+      ['list', 'cards'],
       ['grid', 'sideboard'],
       ['list', 'sideboard'],
       ['grid', 'considering'],
@@ -287,18 +285,23 @@ describe('DeckDisplay "Not in the deck" zone (E176)', () => {
     ] as const)('a %s %s card moves into an empty box', (view, from) => {
       const onBulkMove = vi.fn();
       const { getByRole } = renderDeck({
-        [from]: ['Pile Card'],
+        ...(from === 'cards' ? {} : { [from]: ['Pile Card'] }),
         fromProduct: true,
         view,
         onBulkMove,
       });
+      const name = from === 'cards' ? 'Mainboard Card' : 'Pile Card';
       const trigger =
         view === 'list'
-          ? document.querySelector<HTMLElement>('.deck-outzone .deck-row-menu-trigger')!
-          : getByRole('button', { name: 'Actions for Pile Card' });
+          ? document.querySelector<HTMLElement>(
+              from === 'cards'
+                ? '.deck-section:not(.deck-outzone *) .deck-row-menu-trigger'
+                : '.deck-outzone .deck-row-menu-trigger'
+            )!
+          : getByRole('button', { name: `Actions for ${name}` });
       fireEvent.click(trigger);
       fireEvent.click(getByRole('menuitem', { name: 'Move into the box' }));
-      expect(onBulkMove).toHaveBeenCalledWith(['slot-Pile Card-0'], from, 'extras');
+      expect(onBulkMove).toHaveBeenCalledWith([`slot-${name}-0`], from, 'extras');
     });
 
     it('offers no move into the box on a deck without one', () => {

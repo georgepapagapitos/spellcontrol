@@ -38,6 +38,21 @@ describe('collection row name line — only the name truncates', () => {
     expect(name).toMatch(/min-width:/);
   });
 
+  it('the floor never exceeds the name, so a short name cannot push its badges out', () => {
+    // `min-width: min(6ch, 100%)` grew "Bayou" past its own text and the
+    // line's overflow clipped the proxy chip after it. Any floor must be
+    // capped by the name's own max-content width.
+    const floors = [...css.matchAll(/\.collection-list-name-text\s*\{([^}]*)\}/g)]
+      .map((m) => m[1].match(/min-width:\s*([^;]+);/)?.[1].trim())
+      .filter((v): v is string => !!v);
+    expect(floors.length).toBeGreaterThan(0);
+    for (const floor of floors) {
+      expect(floor === '0' || /^calc-size\(max-content,\s*min\(size,/.test(floor), floor).toBe(
+        true
+      );
+    }
+  });
+
   it('the Owned verdict badge is spaced off the name like every other badge', () => {
     expect(rule('.collection-list-name > .verdict-badge')).toMatch(/margin-left:\s*var\(--space-/);
   });

@@ -14,7 +14,16 @@ export const REFRESH_LIVE_PER_IP = 600;
 const IP_WINDOW_MS = 60_000;
 /** How long an id Scryfall did not return is skipped before asking again. */
 export const REFRESH_NOT_FOUND_TTL_MS = 10 * 60_000;
+/** How long a printing that came back with no price is served unpriced before
+ *  Scryfall is asked again. */
+export const REFRESH_UNPRICED_TTL_MS = 6 * 60 * 60_000;
 const MAX_TRACKED = 20_000;
+
+/** Any market price at all, in any finish or currency. */
+function hasPrice(card: ScryfallCard): boolean {
+  const p = card.prices ?? {};
+  return [p.usd, p.usd_foil, p.usd_etched, p.eur, p.eur_foil].some((v) => Number(v) > 0);
+}
 
 export interface RefreshPricesDeps {
   getCached: (ids: string[]) => Map<string, ScryfallCard>;
@@ -32,12 +41,15 @@ export interface RefreshPricesDeps {
 export function createRefreshPricesHandler(deps: RefreshPricesDeps): RequestHandler {
   const now = deps.now ?? Date.now;
   const notFound = new Map<string, number>(); // id -> expiry
+  const unpriced = new Map<string, number>(); // id -> expiry
   const ipSpend = new Map<string, { resetAt: number; spent: number }>();
 
   function sweep(t: number) {
-    if (notFound.size > MAX_TRACKED) {
-      for (const [id, exp] of notFound) if (exp <= t) notFound.delete(id);
-      if (notFound.size > MAX_TRACKED) notFound.clear();
+    for (const memo of [notFound, unpriced]) {
+      if (memo.size > MAX_TRACKED) {
+        for (const [id, exp] of memo) if (exp <= t) memo.delete(id);
+        if (memo.size > MAX_TRACKED) memo.clear();
+      }
     }
     if (ipSpend.size > MAX_TRACKED) {
       for (const [ip, s] of ipSpend) if (s.resetAt <= t) ipSpend.delete(ip);
@@ -57,13 +69,22 @@ export function createRefreshPricesHandler(deps: RefreshPricesDeps): RequestHand
 
       // Daily bulk dump first; only ids it doesn't cover are candidates for the
       // live API (see scryfall-bulk.ts for why the old all-live path 429'd).
+      // A row the dump holds with no price counts as not covered: a new set's
+      // cards land in the dump before their prices do, and the next ingest is
+      // up to a day away (Star Trek Commander's cards read $0.00 that way,
+      // 2026-11-06). `unpriced` keeps a printing that really has no price from
+      // going live on every request.
       const cached = deps.getCached(ids);
       const t = now();
       sweep(t);
-      const candidates = ids.filter((id) => {
-        if (cached.has(id)) return false;
-        const exp = notFound.get(id);
+      const liveOk = (memo: Map<string, number>, id: string) => {
+        const exp = memo.get(id);
         return !(exp !== undefined && exp > t);
+      };
+      const candidates = ids.filter((id) => {
+        const row = cached.get(id);
+        if (row) return !hasPrice(row) && liveOk(unpriced, id);
+        return liveOk(notFound, id);
       });
 
       const ip = req.ip ?? 'unknown';
@@ -87,6 +108,9 @@ export function createRefreshPricesHandler(deps: RefreshPricesDeps): RequestHand
         if (fetched.length > 0) {
           for (const id of live) if (!got.has(id)) notFound.set(id, t + REFRESH_NOT_FOUND_TTL_MS);
         }
+        for (const card of fetched) {
+          if (!hasPrice(card)) unpriced.set(card.id, t + REFRESH_UNPRICED_TTL_MS);
+        }
         logger.info(
           `[refresh-prices] ${cached.size}/${ids.length} from bulk cache, ${live.length} live` +
             (candidates.length > live.length
@@ -94,7 +118,10 @@ export function createRefreshPricesHandler(deps: RefreshPricesDeps): RequestHand
               : '')
         );
       }
-      res.json(deps.buildPayload([...cached.values(), ...fetched], t));
+      // A live answer replaces the dump's unpriced row for the same printing.
+      const byId = new Map(cached);
+      for (const card of fetched) byId.set(card.id, card);
+      res.json(deps.buildPayload([...byId.values()], t));
     } catch (err) {
       logger.error('[refresh-prices] error:', err);
       res.status(500).json({ error: 'Price refresh failed.' });

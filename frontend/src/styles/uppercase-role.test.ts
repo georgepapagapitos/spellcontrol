@@ -63,6 +63,9 @@ const ROLES: Record<string, Record<string, [Role, string]>> = {
   'components/home/HomeHero.css': {
     '.home-hero-caption-tape': ['tape', "the day's card's name on its tape label"],
   },
+  'components/shared/ProxySegment.css': {
+    '.art-proxy': ['stamp', "the PROXY stamp on a grid tile's plate"],
+  },
   'components/play/OnlineGameView.css': {
     '.ogv-you-label': ['stamp', 'the "You" tag on your own seat'],
   },

@@ -3,7 +3,7 @@ import { Check } from 'lucide-react';
 import type { EnrichedCard } from '../../types';
 import { classifyFoil } from '@/lib/cards/foil-style';
 import { useCardThumb } from '@/lib/cards/card-thumbs';
-import { ProxyBadge } from './ProxyBadge';
+import { ProxySegment } from './ProxySegment';
 import { PriceOverrideBadge } from './PriceOverrideBadge';
 import { RarityBadge } from './RarityBadge';
 import { SetSymbol } from './SetSymbol';
@@ -150,6 +150,12 @@ interface CardGridCellProps {
    * `CopyPlaces` with a `lead`), so the tile skips its own corner.
    */
   badgesHoldCorner?: boolean;
+  /**
+   * The caption is the card's price (the default sort's caption), so a
+   * manual price shows as a pencil beside it. Other captions (dates, rank)
+   * are not a price, and the mark has nothing to annotate.
+   */
+  priceCaption?: boolean;
   /** Appended to the tile's aria-label (e.g. surplus copies). */
   ariaExtra?: string;
   /**
@@ -223,6 +229,7 @@ export function CardGridCell({
   cornerExtras,
   badges,
   badgesHoldCorner = false,
+  priceCaption = false,
   ariaExtra,
   hideQty = false,
   menu,
@@ -243,7 +250,11 @@ export function CardGridCell({
   // name-bearing placeholder shows behind it.
   const [loadedArt, setLoadedArt] = useState<string | undefined>(undefined);
   const artReady = !!art && loadedArt === art;
-  const corner = !(badges && badgesHoldCorner) && ((qty > 1 && !hideQty) || !!cornerExtras);
+  // The plate holds the proxy segment when it holds the corner; otherwise the
+  // corner opens with it.
+  const holdsCorner = !!(badges && badgesHoldCorner);
+  const cornerProxy = !holdsCorner && !!card.proxy;
+  const corner = !holdsCorner && ((qty > 1 && !hideQty) || !!cornerExtras || cornerProxy);
 
   return (
     <div
@@ -300,29 +311,28 @@ export function CardGridCell({
         )}
         {card.foil && <FoilShimmer seed={card.copyId} />}
         {/* The Set & rarity caption line carries rarity (glyph tint) and set
-            code, so the on-card overlays that duplicate them are suppressed
-            while it's shown. The proxy chip is independent of that toggle —
-            it must stay legible regardless of caption prefs or select mode,
-            so it lives in its own top-right cluster alongside rarity. */}
-        {(card.proxy ||
-          card.priceOverride !== undefined ||
-          (setLabel === null && printing && rarityOnArt)) && (
+            code, so the on-art rarity badge is suppressed while it's shown.
+            It takes the top-right, beside the ⋮. */}
+        {setLabel === null && printing && rarityOnArt && (
           <div className="collection-grid-topright">
-            <ProxyBadge card={card} className="collection-grid-proxy" />
-            <PriceOverrideBadge card={card} className="collection-grid-price-override" />
-            {setLabel === null && printing && rarityOnArt && (
-              <RarityBadge rarity={card.rarity} className="collection-grid-rarity" />
-            )}
+            <RarityBadge rarity={card.rarity} className="collection-grid-rarity" />
           </div>
         )}
         {/* The ×qty corner and the badge cluster share the bottom edge as one
             row, so neither is drawn over the other: the cluster sits beside
             the corner where it fits and wraps to the line above where it
-            doesn't (collection.css .collection-grid-foot). */}
+            doesn't (collection.css .collection-grid-foot). A proxy says so as
+            the first segment of that row: on the plate when the plate holds
+            the corner (CopyPlaces' lead), else at the start of the corner. */}
         {(corner || badges) && (
           <div className="collection-grid-foot">
             {corner && (
               <div className="collection-grid-corner">
+                {cornerProxy && (
+                  <ArtBadge className="collection-grid-proxy-plate">
+                    <ProxySegment />
+                  </ArtBadge>
+                )}
                 {qty > 1 && !hideQty && (
                   <ArtBadge className="collection-grid-qty">
                     <span className="collection-grid-qty-x" aria-hidden="true">
@@ -345,7 +355,18 @@ export function CardGridCell({
       {menu}
       {(caption !== null || setLabel !== null || note || action) && (
         <div className="collection-grid-captions" aria-hidden="true">
-          {caption !== null && <div className="collection-grid-caption">{caption}</div>}
+          {caption !== null && (
+            <div className="collection-grid-caption">
+              {caption}
+              {priceCaption && (
+                <PriceOverrideBadge
+                  card={card}
+                  variant="pencil"
+                  className="collection-grid-override"
+                />
+              )}
+            </div>
+          )}
           {setLabel !== null && (
             <div className="collection-grid-caption collection-grid-caption--set">
               <SetSymbol setCode={card.setCode} rarity={card.rarity} />

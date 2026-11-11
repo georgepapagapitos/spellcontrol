@@ -1,5 +1,4 @@
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { Sheet } from '@/components/overlays/Sheet';
 import { usePlayStore } from '@/store/play';
 import { aggregateHordeRecords } from '@/lib/horde/horde-records';
 import './horde-sheets.css';
@@ -54,10 +53,6 @@ export function HordeEndSheet({
   doneLabel = 'Done',
   playAgainHint,
 }: Props) {
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onDone, undefined, {
-    escape: false,
-  });
-  useLockBodyScroll();
   const history = usePlayStore((s) => s.history);
   const record = hideRecord
     ? undefined
@@ -67,48 +62,15 @@ export function HordeEndSheet({
     outcome === 'won' ? 'The horde is gone' : `Overrun on turn ${endedOnTurn ?? hordeTurns}`;
 
   return (
-    <div className="card-picker-root">
-      <div
-        className={`card-picker-sheet horde-end-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label={headline}
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <h2 className="card-picker-title">{headline}</h2>
-        </div>
-        <div className="card-picker-list horde-end-body">
-          <ul className="horde-end-stats">
-            <li>
-              <span>Horde turns</span>
-              <span>{hordeTurns}</span>
-            </li>
-            <li>
-              <span>Damage taken</span>
-              <span>{damageTaken}</span>
-            </li>
-            <li>
-              <span>Cards milled by damage</span>
-              <span>{cardsMilledByDamage}</span>
-            </li>
-            <li>
-              <span>Bosses beaten</span>
-              <span>{bossesBeaten}</span>
-            </li>
-            {record && (
-              <li>
-                <span>Record against this horde</span>
-                <span>
-                  {record.won}-{record.lost}
-                </span>
-              </li>
-            )}
-          </ul>
-        </div>
-        <div className="card-picker-footer">
-          <Button onClick={() => beginClose()}>{doneLabel}</Button>
+    <Sheet
+      inPlace
+      dismissable={false}
+      onClose={onDone}
+      className="horde-end-sheet"
+      title={headline}
+      footer={(close) => (
+        <>
+          <Button onClick={() => close()}>{doneLabel}</Button>
           {onPlayAgain ? (
             <Button variant="primary" onClick={onPlayAgain}>
               {playAgainLabel}
@@ -116,8 +78,37 @@ export function HordeEndSheet({
           ) : (
             playAgainHint && <p className="horde-end-hint">{playAgainHint}</p>
           )}
-        </div>
+        </>
+      )}
+    >
+      <div className="card-picker-list horde-end-body">
+        <ul className="horde-end-stats">
+          <li>
+            <span>Horde turns</span>
+            <span>{hordeTurns}</span>
+          </li>
+          <li>
+            <span>Damage taken</span>
+            <span>{damageTaken}</span>
+          </li>
+          <li>
+            <span>Cards milled by damage</span>
+            <span>{cardsMilledByDamage}</span>
+          </li>
+          <li>
+            <span>Bosses beaten</span>
+            <span>{bossesBeaten}</span>
+          </li>
+          {record && (
+            <li>
+              <span>Record against this horde</span>
+              <span>
+                {record.won}-{record.lost}
+              </span>
+            </li>
+          )}
+        </ul>
       </div>
-    </div>
+    </Sheet>
   );
 }

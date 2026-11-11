@@ -27,12 +27,14 @@ export function addedCardMessage(
   qty: number,
   finish?: Finish,
   pinned = false,
-  quickAdd = false
+  quickAdd = false,
+  proxy = false
 ): string {
   const landed = landedFinish(card, finish, quickAdd);
   const detail = [
     `${card.set.toUpperCase()} #${card.collector_number}`,
     FINISH_LABELS[landed],
+    ...(proxy ? ['proxy'] : []),
     ...(pinned ? ['pinned to this binder'] : []),
   ];
   return `Added ${qty > 1 ? `${qty} × ` : ''}${card.name} · ${detail.join(' · ')}`;

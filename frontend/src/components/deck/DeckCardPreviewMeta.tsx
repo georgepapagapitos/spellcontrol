@@ -7,6 +7,7 @@ import { getRoleBadge, rolesForCard, multiRoleTitle } from '@/lib/deck-analysis/
 import { classifyInclusion, OFFMETA_TOOLTIP } from '@/lib/deck-analysis/inclusion-label';
 import { chanceLine, chanceOdds } from '@/lib/deck-analysis/chance-cards';
 import { withTagAdded, withTagRemoved } from '@/lib/deck/deck-tags';
+import { formatReleaseDate, upcomingReleaseDate } from '@/lib/deck/card-release';
 import './DeckCardPreviewMeta.css';
 import { IconButton } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
@@ -95,6 +96,9 @@ export function DeckCardPreviewMeta({
   const roleText =
     roleBadge && rolesForCard(card).length > 1 ? multiRoleTitle(card) : roleBadge?.title;
   const ownership = ownershipNote(status);
+  // A previewed card isn't out yet: say when, as a plain fact rather than a
+  // warning (deck validation doesn't flag it in formats that take every set).
+  const releaseDate = upcomingReleaseDate(card);
   const chance = useMemo(() => {
     const odds = deckCards
       ? chanceOdds(
@@ -153,6 +157,7 @@ export function DeckCardPreviewMeta({
   if (
     segments.length === 0 &&
     !chance &&
+    !releaseDate &&
     !ownership &&
     !legality &&
     reasons.length === 0 &&
@@ -179,6 +184,12 @@ export function DeckCardPreviewMeta({
       )}
 
       {chance && <div className="deck-card-preview-meta-chance">{chance}</div>}
+
+      {releaseDate && (
+        <div className="deck-card-preview-meta-release">
+          Releases {formatReleaseDate(releaseDate)}
+        </div>
+      )}
 
       {(ownership || legality) && (
         <div className="deck-card-preview-meta-warn">{legality?.detail ?? ownership}</div>

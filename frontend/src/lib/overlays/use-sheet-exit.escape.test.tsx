@@ -154,7 +154,12 @@ function walk(dir: string, out: string[] = []): string[] {
 describe('sheets do not hand-roll Escape', () => {
   const consumers = walk(SRC)
     .filter((p) => !p.endsWith(`${sep}use-sheet-exit.ts`))
-    .filter((p) => readFileSync(p, 'utf8').includes('useSheetExit('));
+    // A sheet on the shared <Sheet> reaches the hook through it, and must not
+    // hand-roll Escape either.
+    .filter((p) => {
+      const src = readFileSync(p, 'utf8');
+      return src.includes('useSheetExit(') || src.includes('<Sheet');
+    });
 
   it('finds the sheets', () => {
     expect(consumers.length).toBeGreaterThan(30);

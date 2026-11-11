@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './PlaytestStatsSheet.css';
+import { Sheet } from '@/components/overlays/Sheet';
 import { Hourglass, Loader2 } from 'lucide-react';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import type { PlaytestState } from '@/lib/playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Deck } from '@/store/decks';
@@ -733,74 +732,59 @@ function HistorySection({ deck }: { deck: Deck | undefined }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function PlaytestStatsSheet({ state, deck, cardLookup, mulliganCount, onClose }: Props) {
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  useLockBodyScroll();
   const [activeTab, setActiveTab] = useState<StatsTab>('hand');
 
   return (
-    <div className="card-picker-root" role="presentation">
-      <div className="card-picker-backdrop" role="presentation" onClick={() => beginClose()} />
-      <div
-        className={`card-picker-sheet playtest-stats-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="playtest-stats-title"
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-header">
-          <h2 id="playtest-stats-title" className="card-picker-title">
-            Stats
-          </h2>
-        </div>
+    <Sheet
+      inPlace
+      onClose={onClose}
+      className="playtest-stats-sheet"
+      title="Stats"
+      footer={(close) => (
+        <>
+          <Button onClick={() => close()}>Close</Button>
+        </>
+      )}
+    >
+      <Tabs
+        tabs={TABS}
+        value={activeTab}
+        onChange={setActiveTab}
+        ariaLabel="Stats view"
+        variant="underline"
+      />
 
-        <Tabs
-          tabs={TABS}
-          value={activeTab}
-          onChange={setActiveTab}
-          ariaLabel="Stats view"
-          variant="underline"
-        />
-
-        <div className="playtest-stats-body">
-          {activeTab === 'hand' && (
-            <div role="tabpanel" id="playtest-stats-panel-hand" aria-labelledby="sc-tab-hand">
-              <HandStatsSection state={state} cardLookup={cardLookup} />
-            </div>
-          )}
-          {activeTab === 'battlefield' && (
-            <div
-              role="tabpanel"
-              id="playtest-stats-panel-battlefield"
-              aria-labelledby="sc-tab-battlefield"
-            >
-              <BattlefieldStatsSection state={state} />
-            </div>
-          )}
-          {activeTab === 'deck' && (
-            <div role="tabpanel" id="playtest-stats-panel-deck" aria-labelledby="sc-tab-deck">
-              <DeckStatsSection state={state} deck={deck} mulliganCount={mulliganCount} />
-            </div>
-          )}
-          {activeTab === 'simulate' && (
-            <div
-              role="tabpanel"
-              id="playtest-stats-panel-simulate"
-              aria-labelledby="sc-tab-simulate"
-            >
-              <SimulateSection deck={deck} />
-            </div>
-          )}
-          {activeTab === 'history' && (
-            <div role="tabpanel" id="playtest-stats-panel-history" aria-labelledby="sc-tab-history">
-              <HistorySection deck={deck} />
-            </div>
-          )}
-        </div>
-
-        <div className="card-picker-footer" style={{ justifyContent: 'flex-end' }}>
-          <Button onClick={() => beginClose()}>Close</Button>
-        </div>
+      <div className="playtest-stats-body">
+        {activeTab === 'hand' && (
+          <div role="tabpanel" id="playtest-stats-panel-hand" aria-labelledby="sc-tab-hand">
+            <HandStatsSection state={state} cardLookup={cardLookup} />
+          </div>
+        )}
+        {activeTab === 'battlefield' && (
+          <div
+            role="tabpanel"
+            id="playtest-stats-panel-battlefield"
+            aria-labelledby="sc-tab-battlefield"
+          >
+            <BattlefieldStatsSection state={state} />
+          </div>
+        )}
+        {activeTab === 'deck' && (
+          <div role="tabpanel" id="playtest-stats-panel-deck" aria-labelledby="sc-tab-deck">
+            <DeckStatsSection state={state} deck={deck} mulliganCount={mulliganCount} />
+          </div>
+        )}
+        {activeTab === 'simulate' && (
+          <div role="tabpanel" id="playtest-stats-panel-simulate" aria-labelledby="sc-tab-simulate">
+            <SimulateSection deck={deck} />
+          </div>
+        )}
+        {activeTab === 'history' && (
+          <div role="tabpanel" id="playtest-stats-panel-history" aria-labelledby="sc-tab-history">
+            <HistorySection deck={deck} />
+          </div>
+        )}
       </div>
-    </div>
+    </Sheet>
   );
 }

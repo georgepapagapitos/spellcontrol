@@ -322,12 +322,19 @@ is $0, not real"), never color-only (the letter carries the meaning).
   `FoilBadge` sit beside the card name because they're identity flags; a price
   override is a price annotation, so it sits beside the number it explains
   (`CardRow`'s `.collection-list-price`, `CardPreview`'s price line, the grid
-  tile's top-right corner cluster alongside `ProxyBadge`, `CardSlot`'s hover
-  tooltip).
-- **Grid tiles fold it into the existing `ProxyBadge` top-right cluster and
-  the tile's constructed `aria-label`** (`, manually priced`) rather than a
-  new prop — `CardGridCell` already reads `card.proxy` directly for the same
-  purpose, so `card.priceOverride` follows the identical path.
+  tile's price caption, `CardSlot`'s hover tooltip).
+- **On a grid tile it is a pencil after the price caption**
+  (`variant="pencil"`), not a chip on the art: the price is already on
+  screen, so the mark needs no chip of its own. It shows only while the
+  caption is the price (`gridCaptionIsPrice`); a date or rank caption has no
+  price to annotate. The tile's `aria-label` says `, manually priced` either
+  way.
+- **A proxy on a grid tile is the first segment of the tile's one plate**
+  (`ProxySegment`, a warn-toned "Proxy" stamp in the scrim), ahead of the
+  ×qty and the place discs, or alone in the corner on a tile with no plate.
+  It was a loose "P" chip pushed in off the ⋮ onto the name line, then a
+  line of its own above the plate. On the plate it costs no width or line,
+  and every fact about the copy reads as one object.
 - **One chip, two states, not two components.** A currency-mismatched
   override (recorded in EUR, viewed in USD, or vice versa — this app has no
   FX conversion, see `applyPrices` in `lib/collection/card-prices.ts`) dims the same chip
@@ -703,6 +710,16 @@ modal-backdrop--over-sheet`, and their menus portal to `<body>` anyway.
 - **Rare actions live in the list's ⋮**: select, sort, and "Clear the list"
   last and red behind a confirm. The footer carries only Keep scanning and
   the primary Add.
+- **A list row is one surface** (2026-11-06). Hover and selection fill the
+  whole row, its actions included; a fill that stopped at the edit button left
+  the bin floating in an unlit strip. Edit (the pencil drawn inside the row
+  button) and remove (its own button) sit bottom-right as a matched pair of
+  `--scan-action` squares (36px, 44px on touch), and the price column above
+  them is at least as wide as the pair, so text never runs under the icons.
+- **The list speaks for where it was opened.** The Add cards sheet's Review
+  reuses this list with `source="add-list"`: "Keep adding" in the footer and
+  "No cards here yet" when empty, since those cards came from search or a
+  pasted list, not the camera.
 - **Repeat scans teach every time.** "Already added. Tap the screen to add
   another copy" shows whenever the matcher sees the card it just added, not
   once per session.

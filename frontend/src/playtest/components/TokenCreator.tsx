@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { Sheet, type SheetHandle } from '@/components/overlays/Sheet';
 import type { ScryfallCard } from '@/deck-builder/types';
 import {
   resolveTokenOption,
@@ -50,8 +49,7 @@ const SEARCH_DEBOUNCE_MS = 300;
  * token, and you can still make a "Goblin 1/1" because you said so.
  */
 export function TokenCreator({ deckCards, onCreate, onClose }: Props) {
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  useLockBodyScroll();
+  const sheetRef = useRef<SheetHandle>(null);
   const [query, setQuery] = useState('');
   // Results carry the term they are FOR, which is what lets "still
   // searching" be derived rather than tracked: if the landed term is not the
@@ -112,27 +110,21 @@ export function TokenCreator({ deckCards, onCreate, onClose }: Props) {
 
   const create = (token: CreatedToken) => {
     onCreate(token);
-    beginClose();
+    sheetRef.current?.close();
   };
 
   const typed = query.trim();
   const searching = typed !== '' && results.term !== typed;
 
   return (
-    <div className="card-picker-root">
-      {/* The backdrop fully covers the root (both `inset: 0`), so it — not
-          root — is what a "click outside the sheet" actually lands on. */}
-      <div className="card-picker-backdrop" role="presentation" onClick={() => beginClose()} />
-      <div
-        className={`card-picker-sheet playtest-token-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Create token"
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <div className="card-picker-header">
-          <h2 className="card-picker-title">Create token</h2>
+    <Sheet
+      ref={sheetRef}
+      inPlace
+      onClose={onClose}
+      className="playtest-token-sheet"
+      title="Create token"
+      toolbar={
+        <>
           <input
             type="text"
             value={query}
@@ -147,38 +139,39 @@ export function TokenCreator({ deckCards, onCreate, onClose }: Props) {
             }}
             autoFocus
           />
-        </div>
-
-        <div className="playtest-token-body">
-          {!typed && (
-            <TokenGrid
-              heading="Deck tokens"
-              empty="This deck makes no tokens."
-              tokens={wanted.map(
-                (t) => faces[t.key] ?? { id: t.key, name: t.name, typeLine: t.typeLine }
-              )}
-              onPick={create}
-            />
-          )}
-
-          {typed && (
-            <TokenGrid
-              heading="Search results"
-              empty={searching ? 'Searching…' : `No token called “${typed}”.`}
-              tokens={searching ? [] : results.list}
-              onPick={create}
-            />
-          )}
-        </div>
-
-        <div className="card-picker-footer">
+        </>
+      }
+      footer={
+        <>
           {/* Always available, never gated on a search landing. */}
           <Button variant="primary" disabled={!typed} onClick={() => create({ name: typed })}>
             Create “{typed || 'token'}”
           </Button>
-        </div>
+        </>
+      }
+    >
+      <div className="playtest-token-body">
+        {!typed && (
+          <TokenGrid
+            heading="Deck tokens"
+            empty="This deck makes no tokens."
+            tokens={wanted.map(
+              (t) => faces[t.key] ?? { id: t.key, name: t.name, typeLine: t.typeLine }
+            )}
+            onPick={create}
+          />
+        )}
+
+        {typed && (
+          <TokenGrid
+            heading="Search results"
+            empty={searching ? 'Searching…' : `No token called “${typed}”.`}
+            tokens={searching ? [] : results.list}
+            onPick={create}
+          />
+        )}
       </div>
-    </div>
+    </Sheet>
   );
 }
 
