@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Zap } from 'lucide-react';
+import { Lightbulb, Zap } from 'lucide-react';
 // Generate-only stylesheets ship with this chunk, not the boot payload (E265).
 import '@/styles/deck-builder-guided.css';
 import '@/styles/deck-builder-customizer.css';
@@ -10,6 +10,7 @@ import { BackLink } from '@/components/app-shell/BackLink';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { CommanderSearch } from '../components/deck/CommanderSearch';
 import { CommanderProfileCard } from '../components/deck/CommanderProfileCard';
+import { IdeaStart } from '../components/deck/IdeaStart';
 import { PartnerCommanderSelector } from '../components/deck/PartnerCommanderSelector';
 import { ThemePicker } from '../components/deck/ThemePicker';
 import { DeckCustomizer } from '../components/deck/DeckCustomizer';
@@ -28,6 +29,7 @@ import { usePublishOnCreate, type PublishOutcome } from '@/lib/social/use-publis
 import { VisibilityChoice } from '@/components/share/VisibilityChoice';
 import type { ScryfallCard, DeckFormat, EDHRECTheme, Customization } from '@/deck-builder/types';
 import type { ComboSeedContext } from '../types/combos';
+import type { IdeaSeedContext } from '@/lib/deck/idea-index';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { Button } from '@/components/shared/Button';
 import { KeepEditsToggle } from '@/components/deck/KeepEditsToggle';
@@ -62,6 +64,9 @@ export interface GeneratePrefill {
    *  disclose it. Absent for a plain must-include (e.g. a future non-combo
    *  caller) and for every other prefill shape. Never persisted. */
   comboContext?: ComboSeedContext;
+  /** Set when the build started from a deck idea (Angels, Landfall): names it so this page can
+   *  disclose it, and says whether the commander's theme of that idea was preselected. Never persisted. */
+  ideaContext?: IdeaSeedContext;
   /** The deck this regenerate ran from — lands the completed build on the compare diff instead of the editor. */
   sourceDeckId?: string;
   /** Format of the source deck — a PDH regenerate must stay PDH. */
@@ -339,6 +344,23 @@ export function DeckGeneratePage() {
     routerState?.ownedFirst,
   ]);
 
+  // ── Deck ideas (E1112) ─────────────────────────────────────────────────
+  // The idea section starts a commander build, so it shows for Commander only and until a
+  // commander is chosen; a pick from its search box lands as if typed into the finder below.
+  const showIdeas = format === 'commander' && !commander;
+  const pickCommanderByName = useCallback(
+    async (name: string) => {
+      selectCommander(await getCardByName(name));
+    },
+    [selectCommander]
+  );
+  // "Change idea" drops the seeded commander and the route's prefill, which puts the idea
+  // section back at the top.
+  const changeIdea = useCallback(() => {
+    selectCommander(null);
+    navigate(`/decks/new/generate?format=${format}`, { replace: true, state: null });
+  }, [selectCommander, navigate, format]);
+
   // ── Start blank: this commander, no cards ──────────────────────────────
   const handleStartBlank = useCallback(async () => {
     if (!commander || !buildReady) return;
@@ -496,6 +518,29 @@ export function DeckGeneratePage() {
         </section>
       )}
 
+      {/* Idea-seed disclosure (E1112): the same job as the combo banner above, for a build that
+          began on a creature type or a way to play. */}
+      {prefill?.ideaContext && (
+        <section
+          className="deck-builder-section combo-seed-banner"
+          aria-label="Building around an idea"
+        >
+          <p className="combo-seed-banner-label">
+            <Lightbulb width={14} height={14} strokeWidth={1.8} aria-hidden />
+            Building around an idea
+          </p>
+          <p className="combo-seed-banner-pieces">{prefill.ideaContext.name}</p>
+          <p className="combo-seed-banner-hint">
+            {prefill.ideaContext.themeSelected
+              ? 'Its theme is chosen below. '
+              : `${commander?.name.split(',')[0] ?? 'This commander'} has no ${prefill.ideaContext.name} theme on EDHREC, so none is chosen. `}
+            <Button variant="link" onClick={changeIdea}>
+              Change idea
+            </Button>
+          </p>
+        </section>
+      )}
+
       {sourceEdits && (
         <KeepEditsToggle
           edits={sourceEdits}
@@ -504,8 +549,12 @@ export function DeckGeneratePage() {
         />
       )}
 
+      {showIdeas && <IdeaStart format={format} onPickCommander={pickCommanderByName} />}
+
       <section className="deck-builder-section">
-        <h2 className="deck-builder-section-title">Find a commander</h2>
+        <h2 className="deck-builder-section-title">
+          {showIdeas ? 'Or find a commander' : 'Find a commander'}
+        </h2>
         <CommanderSearch
           key={format}
           value={commander}

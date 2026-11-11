@@ -87,6 +87,11 @@ jobs:
       - name: Refresh Secret Lair drops (MTGJSON)
         working-directory: frontend
         run: node scripts/refresh-sld-drops.mjs
+      # About 270 EDHREC tag pages, two at a time with a pause: under a minute. Age-gated.
+      - name: Refresh deck ideas (EDHREC tags)
+        working-directory: frontend
+        run: node scripts/refresh-idea-index.mjs
+
       - name: Refresh cube power signal (CubeCobra)
         working-directory: frontend
         run: node scripts/refresh-cube-signal.mjs
@@ -127,6 +132,7 @@ jobs:
               ["public/keyword-glossary.json", (d) => (d.keywords || []).length > 200],
               ["public/rules-glossary.json", (d) => (d.terms || []).length > 300],
               ["public/sld-drops.json", (d) => !!d.generatedAt && (d.drops || []).length >= 400 && new Set((d.drops || []).flatMap((x) => x.numbers)).size >= 2300],
+              ["public/idea-index.json", (d) => !!d.generatedAt && (d.ideas || []).length >= 50],
               ["public/cube-signal.json", (d) => Object.keys(d.cards || {}).length > 20000],
               ["public/cube-signal-pauper.json", (d) => Object.keys(d.cards || {}).length > 500],
               ["public/cube-signal-peasant.json", (d) => Object.keys(d.cards || {}).length > 500],
@@ -178,6 +184,7 @@ jobs:
               ["public/otag-index.json", "scripts/refresh-otag-index.mjs"],
               ["public/comprehensive-rules.json", "scripts/refresh-rules.mjs"],
               ["public/sld-drops.json", "scripts/refresh-sld-drops.mjs"],
+              ["public/idea-index.json", "scripts/refresh-idea-index.mjs"],
               ["public/cube-signal.json", "scripts/refresh-cube-signal.mjs"],
               ["public/cube-signal-pauper.json", "scripts/refresh-cube-signal-budget.mjs"],
               ["public/cube-signal-peasant.json", "scripts/refresh-cube-signal-budget.mjs"],
@@ -227,6 +234,7 @@ jobs:
             frontend/public/keyword-glossary.json
             frontend/public/rules-glossary.json
             frontend/public/sld-drops.json
+            frontend/public/idea-index.json
             frontend/public/cube-signal.json
             frontend/public/cube-signal-pauper.json
             frontend/public/cube-signal-peasant.json

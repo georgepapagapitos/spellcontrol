@@ -1,0 +1,2273 @@
+{
+  "generatedAt": "2026-11-11T00:58:31.091Z",
+  "source": "json.edhrec.com/pages/tags.json and /pages/tags/{slug}.json, Scryfall creature-types",
+  "minDecks": 500,
+  "aliases": {
+    "aristocrats": ["sac", "sac outlet", "sacrifice outlet", "death triggers"],
+    "tokens": ["go wide", "token", "populate"],
+    "plus-1-plus-1-counters": ["+1/+1", "plus one counters", "counters", "p1p1"],
+    "lands-matter": ["land", "lands"],
+    "landfall": ["land drop", "landfall"],
+    "spellslinger": ["spells", "instants and sorceries", "storm"],
+    "lifegain": ["life gain", "gain life"],
+    "lifedrain": ["drain"],
+    "reanimator": ["reanimate", "recursion", "graveyard"],
+    "extra-turns": ["time walk", "time travel"],
+    "blink": ["flicker", "etb"],
+    "voltron": ["equipment aura", "suit up"],
+    "ramp": ["mana", "big mana"],
+    "treasure": ["treasures"],
+    "group-hug": ["hug"],
+    "group-slug": ["slug", "pingers"],
+    "go-wide": ["wide", "swarm"],
+    "x-spells": ["x spell"],
+    "card-draw": ["draw", "cantrips"],
+    "flying": ["fliers", "flyers", "evasion"],
+    "pillow-fort": ["fort", "propaganda"],
+    "big-mana": ["mana rocks"],
+    "clones": ["copy", "copies"],
+    "self-mill": ["mill myself", "dredge"],
+    "tap-untap": ["untap"]
+  },
+  "ideas": [
+    {
+      "slug": "tokens",
+      "name": "Tokens",
+      "kind": "playstyle",
+      "decks": 208753,
+      "commanders": 23,
+      "card": "Baylen, the Haymaker"
+    },
+    {
+      "slug": "plus-1-plus-1-counters",
+      "name": "+1/+1 Counters",
+      "kind": "playstyle",
+      "decks": 168483,
+      "commanders": 23,
+      "card": "The Wise Mothman"
+    },
+    {
+      "slug": "combo",
+      "name": "Combo",
+      "kind": "playstyle",
+      "decks": 123591,
+      "commanders": 21,
+      "card": "K'rrik, Son of Yawgmoth"
+    },
+    {
+      "slug": "artifacts",
+      "name": "Artifacts",
+      "kind": "playstyle",
+      "decks": 114733,
+      "commanders": 24,
+      "card": "Breya, Etherium Shaper"
+    },
+    {
+      "slug": "reanimator",
+      "name": "Reanimator",
+      "kind": "playstyle",
+      "decks": 89275,
+      "commanders": 24,
+      "card": "Teval, the Balanced Scale"
+    },
+    {
+      "slug": "spellslinger",
+      "name": "Spellslinger",
+      "kind": "playstyle",
+      "decks": 89144,
+      "commanders": 24,
+      "card": "Vivi Ornitier"
+    },
+    {
+      "slug": "lifegain",
+      "name": "Lifegain",
+      "kind": "playstyle",
+      "decks": 81020,
+      "commanders": 23,
+      "card": "Giada, Font of Hope"
+    },
+    {
+      "slug": "control",
+      "name": "Control",
+      "kind": "playstyle",
+      "decks": 73141,
+      "commanders": 24,
+      "card": "Y'shtola, Night's Blessed"
+    },
+    {
+      "slug": "aristocrats",
+      "name": "Aristocrats",
+      "kind": "playstyle",
+      "decks": 69240,
+      "commanders": 24,
+      "card": "Teysa Karlov"
+    },
+    {
+      "slug": "burn",
+      "name": "Burn",
+      "kind": "playstyle",
+      "decks": 68577,
+      "commanders": 24,
+      "card": "Ghyrson Starn, Kelermorph"
+    },
+    {
+      "slug": "ramp",
+      "name": "Ramp",
+      "kind": "playstyle",
+      "decks": 65894,
+      "commanders": 24,
+      "card": "Hearthhull, the Worldseed"
+    },
+    {
+      "slug": "lands-matter",
+      "name": "Lands Matter",
+      "kind": "playstyle",
+      "decks": 64251,
+      "commanders": 24,
+      "card": "Hearthhull, the Worldseed"
+    },
+    {
+      "slug": "voltron",
+      "name": "Voltron",
+      "kind": "playstyle",
+      "decks": 61730,
+      "commanders": 23,
+      "card": "Cloud, Ex-SOLDIER"
+    },
+    {
+      "slug": "enchantress",
+      "name": "Enchantress",
+      "kind": "playstyle",
+      "decks": 53612,
+      "commanders": 24,
+      "card": "Go-Shintai of Life's Origin"
+    },
+    {
+      "slug": "equipment",
+      "name": "Equipment",
+      "kind": "playstyle",
+      "decks": 53054,
+      "commanders": 23,
+      "card": "Cloud, Ex-SOLDIER"
+    },
+    {
+      "slug": "mill",
+      "name": "Mill",
+      "kind": "playstyle",
+      "decks": 46857,
+      "commanders": 24,
+      "card": "The Wise Mothman"
+    },
+    {
+      "slug": "blink",
+      "name": "Blink",
+      "kind": "playstyle",
+      "decks": 38420,
+      "commanders": 23,
+      "card": "Brago, King Eternal"
+    },
+    {
+      "slug": "graveyard",
+      "name": "Graveyard",
+      "kind": "playstyle",
+      "decks": 35278,
+      "commanders": 24,
+      "card": "Teval, the Balanced Scale"
+    },
+    {
+      "slug": "discard",
+      "name": "Discard",
+      "kind": "playstyle",
+      "decks": 33690,
+      "commanders": 24,
+      "card": "Kefka, Court Mage"
+    },
+    {
+      "slug": "legends",
+      "name": "Legends",
+      "kind": "playstyle",
+      "decks": 33134,
+      "commanders": 22,
+      "card": "Jodah, the Unifier"
+    },
+    {
+      "slug": "sacrifice",
+      "name": "Sacrifice",
+      "kind": "playstyle",
+      "decks": 32487,
+      "commanders": 24,
+      "card": "Ygra, Eater of All"
+    },
+    {
+      "slug": "treasure",
+      "name": "Treasure",
+      "kind": "playstyle",
+      "decks": 31707,
+      "commanders": 24,
+      "card": "Mr. House, President and CEO"
+    },
+    {
+      "slug": "clones",
+      "name": "Clones",
+      "kind": "playstyle",
+      "decks": 31384,
+      "commanders": 24,
+      "card": "Miirym, Sentinel Wyrm"
+    },
+    {
+      "slug": "auras",
+      "name": "Auras",
+      "kind": "playstyle",
+      "decks": 29763,
+      "commanders": 24,
+      "card": "Eriette of the Charmed Apple"
+    },
+    {
+      "slug": "card-draw",
+      "name": "Card Draw",
+      "kind": "playstyle",
+      "decks": 29407,
+      "commanders": 24,
+      "card": "Nekusar, the Mindrazer"
+    },
+    {
+      "slug": "flying",
+      "name": "Flying",
+      "kind": "playstyle",
+      "decks": 29378,
+      "commanders": 24,
+      "card": "Kaalia of the Vast"
+    },
+    {
+      "slug": "group-slug",
+      "name": "Group Slug",
+      "kind": "playstyle",
+      "decks": 25319,
+      "commanders": 24,
+      "card": "Valgavoth, Harrower of Souls"
+    },
+    {
+      "slug": "historic",
+      "name": "Historic",
+      "kind": "playstyle",
+      "decks": 24846,
+      "commanders": 23,
+      "card": "Jodah, the Unifier"
+    },
+    {
+      "slug": "wheels",
+      "name": "Wheels",
+      "kind": "playstyle",
+      "decks": 24145,
+      "commanders": 23,
+      "card": "Nekusar, the Mindrazer"
+    },
+    {
+      "slug": "storm",
+      "name": "Storm",
+      "kind": "playstyle",
+      "decks": 23613,
+      "commanders": 22,
+      "card": "Vivi Ornitier"
+    },
+    {
+      "slug": "self-mill",
+      "name": "Self-Mill",
+      "kind": "playstyle",
+      "decks": 22953,
+      "commanders": 24,
+      "card": "Teval, the Balanced Scale"
+    },
+    {
+      "slug": "stax",
+      "name": "Stax",
+      "kind": "playstyle",
+      "decks": 22843,
+      "commanders": 24,
+      "card": "Grand Arbiter Augustin IV"
+    },
+    {
+      "slug": "landfall",
+      "name": "Landfall",
+      "kind": "playstyle",
+      "decks": 22686,
+      "commanders": 24,
+      "card": "Omnath, Locus of Creation"
+    },
+    {
+      "slug": "theft",
+      "name": "Theft",
+      "kind": "playstyle",
+      "decks": 22038,
+      "commanders": 23,
+      "card": "Maralen, Fae Ascendant"
+    },
+    {
+      "slug": "extra-combats",
+      "name": "Extra Combats",
+      "kind": "playstyle",
+      "decks": 20959,
+      "commanders": 20,
+      "card": "Isshin, Two Heavens as One"
+    },
+    {
+      "slug": "group-hug",
+      "name": "Group Hug",
+      "kind": "playstyle",
+      "decks": 20913,
+      "commanders": 24,
+      "card": "Ms. Bumbleflower"
+    },
+    {
+      "slug": "dragons",
+      "name": "Dragons",
+      "kind": "typal",
+      "type": "Dragon",
+      "decks": 20377,
+      "commanders": 22,
+      "card": "The Ur-Dragon"
+    },
+    {
+      "slug": "infect",
+      "name": "Infect",
+      "kind": "playstyle",
+      "decks": 20180,
+      "commanders": 24,
+      "card": "Atraxa, Praetors' Voice"
+    },
+    {
+      "slug": "big-mana",
+      "name": "Big Mana",
+      "kind": "playstyle",
+      "decks": 19141,
+      "commanders": 24,
+      "card": "Zhulodok, Void Gorger"
+    },
+    {
+      "slug": "forced-combat",
+      "name": "Forced Combat",
+      "kind": "playstyle",
+      "decks": 16825,
+      "commanders": 22,
+      "card": "Nelly Borca, Impulsive Accuser"
+    },
+    {
+      "slug": "commander-matters",
+      "name": "Commander Matters",
+      "kind": "playstyle",
+      "decks": 16378,
+      "commanders": 24,
+      "card": "Y'shtola, Night's Blessed"
+    },
+    {
+      "slug": "elves",
+      "name": "Elves",
+      "kind": "typal",
+      "type": "Elf",
+      "decks": 16158,
+      "commanders": 24,
+      "card": "Lathril, Blade of the Elves"
+    },
+    {
+      "slug": "chaos",
+      "name": "Chaos",
+      "kind": "playstyle",
+      "decks": 15474,
+      "commanders": 22,
+      "card": "Yusri, Fortune's Flame"
+    },
+    {
+      "slug": "planeswalkers",
+      "name": "Planeswalkers",
+      "kind": "playstyle",
+      "decks": 15061,
+      "commanders": 23,
+      "card": "Atraxa, Praetors' Voice"
+    },
+    {
+      "slug": "x-spells",
+      "name": "X Spells",
+      "kind": "playstyle",
+      "decks": 15026,
+      "commanders": 24,
+      "card": "Zaxara, the Exemplary"
+    },
+    {
+      "slug": "zombies",
+      "name": "Zombies",
+      "kind": "typal",
+      "type": "Zombie",
+      "decks": 14867,
+      "commanders": 24,
+      "card": "Wilhelt, the Rotcleaver"
+    },
+    {
+      "slug": "vehicles",
+      "name": "Vehicles",
+      "kind": "playstyle",
+      "decks": 14779,
+      "commanders": 24,
+      "card": "Shorikai, Genesis Engine"
+    },
+    {
+      "slug": "lifedrain",
+      "name": "Lifedrain",
+      "kind": "playstyle",
+      "decks": 14598,
+      "commanders": 23,
+      "card": "Y'shtola, Night's Blessed"
+    },
+    {
+      "slug": "toolbox",
+      "name": "Toolbox",
+      "kind": "playstyle",
+      "decks": 14394,
+      "commanders": 24,
+      "card": "Sisay, Weatherlight Captain"
+    },
+    {
+      "slug": "pillow-fort",
+      "name": "Pillow Fort",
+      "kind": "playstyle",
+      "decks": 13273,
+      "commanders": 24,
+      "card": "Queen Marchesa"
+    },
+    {
+      "slug": "minus-1-minus-1-counters",
+      "name": "-1/-1 Counters",
+      "kind": "playstyle",
+      "decks": 13101,
+      "commanders": 24,
+      "card": "Auntie Ool, Cursewretch"
+    },
+    {
+      "slug": "cascade",
+      "name": "Cascade",
+      "kind": "playstyle",
+      "decks": 12968,
+      "commanders": 22,
+      "card": "Zhulodok, Void Gorger"
+    },
+    {
+      "slug": "humans",
+      "name": "Humans",
+      "kind": "typal",
+      "type": "Human",
+      "decks": 12665,
+      "commanders": 23,
+      "card": "Éowyn, Shieldmaiden"
+    },
+    {
+      "slug": "vampires",
+      "name": "Vampires",
+      "kind": "typal",
+      "type": "Vampire",
+      "decks": 12355,
+      "commanders": 24,
+      "card": "Edgar Markov"
+    },
+    {
+      "slug": "tempo",
+      "name": "Tempo",
+      "kind": "playstyle",
+      "decks": 12217,
+      "commanders": 23,
+      "card": "Yuriko, the Tiger's Shadow"
+    },
+    {
+      "slug": "hatebears",
+      "name": "Hatebears",
+      "kind": "playstyle",
+      "decks": 11525,
+      "commanders": 23,
+      "card": "Winota, Joiner of Forces"
+    },
+    {
+      "slug": "exile",
+      "name": "Exile",
+      "kind": "playstyle",
+      "decks": 11196,
+      "commanders": 20,
+      "card": "Ketramose, the New Dawn"
+    },
+    {
+      "slug": "dredge",
+      "name": "Dredge",
+      "kind": "playstyle",
+      "decks": 11182,
+      "commanders": 24,
+      "card": "The Necrobloom"
+    },
+    {
+      "slug": "populate",
+      "name": "Populate",
+      "kind": "playstyle",
+      "decks": 11181,
+      "commanders": 23,
+      "card": "Trostani, Selesnya's Voice"
+    },
+    {
+      "slug": "etb",
+      "name": "ETB",
+      "kind": "playstyle",
+      "decks": 10914,
+      "commanders": 24,
+      "card": "Ashling, the Limitless"
+    },
+    {
+      "slug": "extra-turns",
+      "name": "Extra Turns",
+      "kind": "playstyle",
+      "decks": 10853,
+      "commanders": 22,
+      "card": "Narset, Enlightened Master"
+    },
+    {
+      "slug": "angels",
+      "name": "Angels",
+      "kind": "typal",
+      "type": "Angel",
+      "decks": 10806,
+      "commanders": 24,
+      "card": "Giada, Font of Hope"
+    },
+    {
+      "slug": "stompy",
+      "name": "Stompy",
+      "kind": "playstyle",
+      "decks": 10785,
+      "commanders": 23,
+      "card": "The Gitrog, Ravenous Ride"
+    },
+    {
+      "slug": "self-damage",
+      "name": "Self-Damage",
+      "kind": "playstyle",
+      "decks": 10408,
+      "commanders": 24,
+      "card": "Betor, Ancestor's Voice"
+    },
+    {
+      "slug": "birthing-pod",
+      "name": "Birthing Pod",
+      "kind": "playstyle",
+      "decks": 10287,
+      "commanders": 19,
+      "card": "Tasigur, the Golden Fang"
+    },
+    {
+      "slug": "goblins",
+      "name": "Goblins",
+      "kind": "typal",
+      "type": "Goblin",
+      "decks": 10058,
+      "commanders": 23,
+      "card": "Krenko, Mob Boss"
+    },
+    {
+      "slug": "proliferate",
+      "name": "Proliferate",
+      "kind": "playstyle",
+      "decks": 10050,
+      "commanders": 23,
+      "card": "Atraxa, Praetors' Voice"
+    },
+    {
+      "slug": "eldrazi",
+      "name": "Eldrazi",
+      "kind": "typal",
+      "type": "Eldrazi",
+      "decks": 9628,
+      "commanders": 24,
+      "card": "Ulalek, Fused Atrocity"
+    },
+    {
+      "slug": "spell-copy",
+      "name": "Spell Copy",
+      "kind": "playstyle",
+      "decks": 9264,
+      "commanders": 23,
+      "card": "Fire Lord Azula"
+    },
+    {
+      "slug": "dinosaurs",
+      "name": "Dinosaurs",
+      "kind": "typal",
+      "type": "Dinosaur",
+      "decks": 8778,
+      "commanders": 23,
+      "card": "Pantlaza, Sun-Favored"
+    },
+    {
+      "slug": "attack-triggers",
+      "name": "Attack Triggers",
+      "kind": "playstyle",
+      "decks": 8467,
+      "commanders": 24,
+      "card": "Isshin, Two Heavens as One"
+    },
+    {
+      "slug": "toughness-matters",
+      "name": "Toughness Matters",
+      "kind": "playstyle",
+      "decks": 8278,
+      "commanders": 19,
+      "card": "Arcades, the Strategist"
+    },
+    {
+      "slug": "cantrips",
+      "name": "Cantrips",
+      "kind": "playstyle",
+      "decks": 8250,
+      "commanders": 24,
+      "card": "Ms. Bumbleflower"
+    },
+    {
+      "slug": "affinity",
+      "name": "Affinity",
+      "kind": "playstyle",
+      "decks": 8058,
+      "commanders": 24,
+      "card": "Witherbloom, the Balancer"
+    },
+    {
+      "slug": "food",
+      "name": "Food",
+      "kind": "playstyle",
+      "decks": 7833,
+      "commanders": 20,
+      "card": "Ygra, Eater of All"
+    },
+    {
+      "slug": "topdeck",
+      "name": "Topdeck",
+      "kind": "playstyle",
+      "decks": 7780,
+      "commanders": 22,
+      "card": "Aminatou, Veil Piercer"
+    },
+    {
+      "slug": "energy",
+      "name": "Energy",
+      "kind": "playstyle",
+      "decks": 7728,
+      "commanders": 23,
+      "card": "Satya, Aetherflux Genius"
+    },
+    {
+      "slug": "land-destruction",
+      "name": "Land Destruction",
+      "kind": "playstyle",
+      "decks": 7712,
+      "commanders": 24,
+      "card": "Hearthhull, the Worldseed"
+    },
+    {
+      "slug": "defenders",
+      "name": "Defenders",
+      "kind": "playstyle",
+      "decks": 6919,
+      "commanders": 22,
+      "card": "Arcades, the Strategist"
+    },
+    {
+      "slug": "wizards",
+      "name": "Wizards",
+      "kind": "typal",
+      "type": "Wizard",
+      "decks": 6894,
+      "commanders": 23,
+      "card": "Inalla, Archmage Ritualist"
+    },
+    {
+      "slug": "sagas",
+      "name": "Sagas",
+      "kind": "playstyle",
+      "decks": 6478,
+      "commanders": 23,
+      "card": "Tom Bombadil"
+    },
+    {
+      "slug": "modified-creatures",
+      "name": "Modified Creatures",
+      "kind": "playstyle",
+      "decks": 6154,
+      "commanders": 23,
+      "card": "Cloud, Ex-SOLDIER"
+    },
+    {
+      "slug": "monarch",
+      "name": "Monarch",
+      "kind": "playstyle",
+      "decks": 6104,
+      "commanders": 23,
+      "card": "Queen Marchesa"
+    },
+    {
+      "slug": "cycling",
+      "name": "Cycling",
+      "kind": "playstyle",
+      "decks": 5993,
+      "commanders": 22,
+      "card": "Gavi, Nest Warden"
+    },
+    {
+      "slug": "activated-abilities",
+      "name": "Activated Abilities",
+      "kind": "playstyle",
+      "decks": 5773,
+      "commanders": 24,
+      "card": "Agatha of the Vile Cauldron"
+    },
+    {
+      "slug": "anthems",
+      "name": "Anthems",
+      "kind": "playstyle",
+      "decks": 5680,
+      "commanders": 24,
+      "card": "Kudo, King Among Bears"
+    },
+    {
+      "slug": "tap-untap",
+      "name": "Tap / Untap",
+      "kind": "playstyle",
+      "decks": 5607,
+      "commanders": 23,
+      "card": "Hylda of the Icy Crown"
+    },
+    {
+      "slug": "ninjutsu",
+      "name": "Ninjutsu",
+      "kind": "playstyle",
+      "decks": 5491,
+      "commanders": 22,
+      "card": "Yuriko, the Tiger's Shadow"
+    },
+    {
+      "slug": "go-wide",
+      "name": "Go Wide",
+      "kind": "playstyle",
+      "decks": 5476,
+      "commanders": 23,
+      "card": "Trostani, Selesnya's Voice"
+    },
+    {
+      "slug": "demons",
+      "name": "Demons",
+      "kind": "typal",
+      "type": "Demon",
+      "decks": 5475,
+      "commanders": 24,
+      "card": "Be'lakor, the Dark Master"
+    },
+    {
+      "slug": "counterspells",
+      "name": "Counterspells",
+      "kind": "playstyle",
+      "decks": 5447,
+      "commanders": 24,
+      "card": "Baral, Chief of Compliance"
+    },
+    {
+      "slug": "pingers",
+      "name": "Pingers",
+      "kind": "playstyle",
+      "decks": 5302,
+      "commanders": 24,
+      "card": "Ghyrson Starn, Kelermorph"
+    },
+    {
+      "slug": "morph",
+      "name": "Morph",
+      "kind": "playstyle",
+      "decks": 5292,
+      "commanders": 24,
+      "card": "Kadena, Slinking Sorcerer"
+    },
+    {
+      "slug": "cats",
+      "name": "Cats",
+      "kind": "typal",
+      "type": "Cat",
+      "decks": 5287,
+      "commanders": 24,
+      "card": "Rin and Seri, Inseparable"
+    },
+    {
+      "slug": "pirates",
+      "name": "Pirates",
+      "kind": "typal",
+      "type": "Pirate",
+      "decks": 5072,
+      "commanders": 15,
+      "card": "Edward Kenway"
+    },
+    {
+      "slug": "devotion",
+      "name": "Devotion",
+      "kind": "playstyle",
+      "decks": 5062,
+      "commanders": 23,
+      "card": "Clive, Ifrit's Dominant"
+    },
+    {
+      "slug": "faeries",
+      "name": "Faeries",
+      "kind": "typal",
+      "type": "Faerie",
+      "decks": 5030,
+      "commanders": 22,
+      "card": "Alela, Cunning Conqueror"
+    },
+    {
+      "slug": "unblockable",
+      "name": "Unblockable",
+      "kind": "playstyle",
+      "decks": 4868,
+      "commanders": 23,
+      "card": "Jin Sakai, Ghost of Tsushima"
+    },
+    {
+      "slug": "clues",
+      "name": "Clues",
+      "kind": "playstyle",
+      "decks": 4813,
+      "commanders": 16,
+      "card": "Morska, Undersea Sleuth"
+    },
+    {
+      "slug": "politics",
+      "name": "Politics",
+      "kind": "playstyle",
+      "decks": 4802,
+      "commanders": 24,
+      "card": "Queen Marchesa"
+    },
+    {
+      "slug": "kaheera-companion",
+      "name": "Kaheera Companion",
+      "kind": "playstyle",
+      "decks": 4748,
+      "commanders": 23,
+      "card": "Arahbo, Roar of the World"
+    },
+    {
+      "slug": "merfolk",
+      "name": "Merfolk",
+      "kind": "typal",
+      "type": "Merfolk",
+      "decks": 4717,
+      "commanders": 24,
+      "card": "Hakbal of the Surging Soul"
+    },
+    {
+      "slug": "triggered-abilities",
+      "name": "Triggered Abilities",
+      "kind": "playstyle",
+      "decks": 4672,
+      "commanders": 24,
+      "card": "Katara, the Fearless"
+    },
+    {
+      "slug": "flashback",
+      "name": "Flashback",
+      "kind": "playstyle",
+      "decks": 4652,
+      "commanders": 24,
+      "card": "Quintorius, History Chaser"
+    },
+    {
+      "slug": "dungeon",
+      "name": "Dungeon",
+      "kind": "playstyle",
+      "decks": 4606,
+      "commanders": 19,
+      "card": "Sefris of the Hidden Ways"
+    },
+    {
+      "slug": "unnatural",
+      "name": "Unnatural",
+      "kind": "playstyle",
+      "decks": 4606,
+      "commanders": 23,
+      "card": "Bello, Bard of the Brambles"
+    },
+    {
+      "slug": "discover",
+      "name": "Discover",
+      "kind": "playstyle",
+      "decks": 4602,
+      "commanders": 24,
+      "card": "Pantlaza, Sun-Favored"
+    },
+    {
+      "slug": "deathtouch",
+      "name": "Deathtouch",
+      "kind": "playstyle",
+      "decks": 4592,
+      "commanders": 23,
+      "card": "Fynn, the Fangbearer"
+    },
+    {
+      "slug": "zoo",
+      "name": "Zoo",
+      "kind": "playstyle",
+      "decks": 4548,
+      "commanders": 23,
+      "card": "Volo, Guide to Monsters"
+    },
+    {
+      "slug": "snow",
+      "name": "Snow",
+      "kind": "playstyle",
+      "decks": 4412,
+      "commanders": 23,
+      "card": "Jorn, God of Winter"
+    },
+    {
+      "slug": "phyrexians",
+      "name": "Phyrexians",
+      "kind": "typal",
+      "type": "Phyrexian",
+      "decks": 4303,
+      "commanders": 24,
+      "card": "Atraxa, Praetors' Voice"
+    },
+    {
+      "slug": "ad-nauseam",
+      "name": "Ad Nauseam",
+      "kind": "playstyle",
+      "decks": 4282,
+      "commanders": 12,
+      "card": "Maralen of the Mornsong"
+    },
+    {
+      "slug": "knights",
+      "name": "Knights",
+      "kind": "typal",
+      "type": "Knight",
+      "decks": 4161,
+      "commanders": 23,
+      "card": "Sidar Jabari of Zhalfir"
+    },
+    {
+      "slug": "lurrus-companion",
+      "name": "Lurrus Companion",
+      "kind": "playstyle",
+      "decks": 4142,
+      "commanders": 20,
+      "card": "Amalia Benavides Aguirre"
+    },
+    {
+      "slug": "slivers",
+      "name": "Slivers",
+      "kind": "typal",
+      "type": "Sliver",
+      "decks": 4116,
+      "commanders": 24,
+      "card": "The First Sliver"
+    },
+    {
+      "slug": "mutate",
+      "name": "Mutate",
+      "kind": "playstyle",
+      "decks": 4112,
+      "commanders": 24,
+      "card": "Otrimi, the Ever-Playful"
+    },
+    {
+      "slug": "flash",
+      "name": "Flash",
+      "kind": "playstyle",
+      "decks": 4025,
+      "commanders": 23,
+      "card": "Alela, Cunning Conqueror"
+    },
+    {
+      "slug": "rats",
+      "name": "Rats",
+      "kind": "typal",
+      "type": "Rat",
+      "decks": 3913,
+      "commanders": 24,
+      "card": "Wick, the Whorled Mind"
+    },
+    {
+      "slug": "elementals",
+      "name": "Elementals",
+      "kind": "typal",
+      "type": "Elemental",
+      "decks": 3863,
+      "commanders": 24,
+      "card": "Ashling, the Limitless"
+    },
+    {
+      "slug": "donate",
+      "name": "Donate",
+      "kind": "playstyle",
+      "decks": 3831,
+      "commanders": 24,
+      "card": "Jon Irenicus, Shattered One"
+    },
+    {
+      "slug": "assassins",
+      "name": "Assassins",
+      "kind": "typal",
+      "type": "Assassin",
+      "decks": 3706,
+      "commanders": 23,
+      "card": "Ezio Auditore da Firenze"
+    },
+    {
+      "slug": "birds",
+      "name": "Birds",
+      "kind": "typal",
+      "type": "Bird",
+      "decks": 3652,
+      "commanders": 23,
+      "card": "Kastral, the Windcrested"
+    },
+    {
+      "slug": "self-discard",
+      "name": "Self-Discard",
+      "kind": "playstyle",
+      "decks": 3561,
+      "commanders": 23,
+      "card": "Hashaton, Scarab's Fist"
+    },
+    {
+      "slug": "ninjas",
+      "name": "Ninjas",
+      "kind": "typal",
+      "type": "Ninja",
+      "decks": 3528,
+      "commanders": 18,
+      "card": "Yuriko, the Tiger's Shadow"
+    },
+    {
+      "slug": "hydras",
+      "name": "Hydras",
+      "kind": "typal",
+      "type": "Hydra",
+      "decks": 3482,
+      "commanders": 24,
+      "card": "Zaxara, the Exemplary"
+    },
+    {
+      "slug": "counters-matter",
+      "name": "Counters Matter",
+      "kind": "playstyle",
+      "decks": 3461,
+      "commanders": 23,
+      "card": "Tidus, Yuna's Guardian"
+    },
+    {
+      "slug": "fight",
+      "name": "Fight",
+      "kind": "playstyle",
+      "decks": 3452,
+      "commanders": 23,
+      "card": "Wolverine, Best There Is"
+    },
+    {
+      "slug": "spirits",
+      "name": "Spirits",
+      "kind": "typal",
+      "type": "Spirit",
+      "decks": 3450,
+      "commanders": 23,
+      "card": "Millicent, Restless Revenant"
+    },
+    {
+      "slug": "prowess",
+      "name": "Prowess",
+      "kind": "playstyle",
+      "decks": 3402,
+      "commanders": 24,
+      "card": "Narset, Enlightened Exile"
+    },
+    {
+      "slug": "soldiers",
+      "name": "Soldiers",
+      "kind": "typal",
+      "type": "Soldier",
+      "decks": 3397,
+      "commanders": 23,
+      "card": "Myrel, Shield of Argive"
+    },
+    {
+      "slug": "aikido",
+      "name": "Aikido",
+      "kind": "playstyle",
+      "decks": 3280,
+      "commanders": 22,
+      "card": "Queen Marchesa"
+    },
+    {
+      "slug": "keruga-companion",
+      "name": "Keruga Companion",
+      "kind": "playstyle",
+      "decks": 3219,
+      "commanders": 21,
+      "card": "Imoti, Celebrant of Bounty"
+    },
+    {
+      "slug": "eggs",
+      "name": "Eggs",
+      "kind": "typal",
+      "type": "Egg",
+      "decks": 3161,
+      "commanders": 24,
+      "card": "Atla Palani, Nest Tender"
+    },
+    {
+      "slug": "haste",
+      "name": "Haste",
+      "kind": "playstyle",
+      "decks": 3077,
+      "commanders": 24,
+      "card": "Sonic the Hedgehog"
+    },
+    {
+      "slug": "warriors",
+      "name": "Warriors",
+      "kind": "typal",
+      "type": "Warrior",
+      "decks": 2872,
+      "commanders": 23,
+      "card": "Gornog, the Red Reaper"
+    },
+    {
+      "slug": "umori-companion",
+      "name": "Umori Companion",
+      "kind": "playstyle",
+      "decks": 2857,
+      "commanders": 24,
+      "card": "Henzie \"Toolbox\" Torre"
+    },
+    {
+      "slug": "bounce",
+      "name": "Bounce",
+      "kind": "playstyle",
+      "decks": 2824,
+      "commanders": 24,
+      "card": "Clement, the Worrywort"
+    },
+    {
+      "slug": "prison",
+      "name": "Prison",
+      "kind": "playstyle",
+      "decks": 2811,
+      "commanders": 24,
+      "card": "Grand Arbiter Augustin IV"
+    },
+    {
+      "slug": "allies",
+      "name": "Allies",
+      "kind": "typal",
+      "type": "Ally",
+      "decks": 2790,
+      "commanders": 24,
+      "card": "Avatar Aang"
+    },
+    {
+      "slug": "saprolings",
+      "name": "Saprolings",
+      "kind": "typal",
+      "type": "Saproling",
+      "decks": 2783,
+      "commanders": 17,
+      "card": "Shroofus Sproutsire"
+    },
+    {
+      "slug": "horrors",
+      "name": "Horrors",
+      "kind": "typal",
+      "type": "Horror",
+      "decks": 2776,
+      "commanders": 21,
+      "card": "Captain N'ghathrod"
+    },
+    {
+      "slug": "shapeshifters",
+      "name": "Shapeshifters",
+      "kind": "typal",
+      "type": "Shapeshifter",
+      "decks": 2700,
+      "commanders": 22,
+      "card": "The Ur-Dragon"
+    },
+    {
+      "slug": "sea-creatures",
+      "name": "Sea Creatures",
+      "kind": "playstyle",
+      "decks": 2668,
+      "commanders": 23,
+      "card": "Kiora, Sovereign of the Deep"
+    },
+    {
+      "slug": "squirrels",
+      "name": "Squirrels",
+      "kind": "typal",
+      "type": "Squirrel",
+      "decks": 2613,
+      "commanders": 16,
+      "card": "Chatterfang, Squirrel General"
+    },
+    {
+      "slug": "multicolor-matters",
+      "name": "Multicolor Matters",
+      "kind": "playstyle",
+      "decks": 2561,
+      "commanders": 24,
+      "card": "Aragorn, the Uniter"
+    },
+    {
+      "slug": "impulse-draw",
+      "name": "Impulse Draw",
+      "kind": "playstyle",
+      "decks": 2547,
+      "commanders": 23,
+      "card": "Prosper, Tome-Bound"
+    },
+    {
+      "slug": "scry",
+      "name": "Scry",
+      "kind": "playstyle",
+      "decks": 2490,
+      "commanders": 21,
+      "card": "Galadriel of Lothlórien"
+    },
+    {
+      "slug": "power",
+      "name": "Power",
+      "kind": "playstyle",
+      "decks": 2484,
+      "commanders": 24,
+      "card": "Jasmine Boreal of the Seven"
+    },
+    {
+      "slug": "earthbending",
+      "name": "Earthbending",
+      "kind": "playstyle",
+      "decks": 2463,
+      "commanders": 24,
+      "card": "Toph, the First Metalbender"
+    },
+    {
+      "slug": "coin-flip",
+      "name": "Coin Flip",
+      "kind": "playstyle",
+      "decks": 2403,
+      "commanders": 13,
+      "card": "Yusri, Fortune's Flame"
+    },
+    {
+      "slug": "insects",
+      "name": "Insects",
+      "kind": "typal",
+      "type": "Insect",
+      "decks": 2347,
+      "commanders": 24,
+      "card": "Grist, the Hunger Tide"
+    },
+    {
+      "slug": "dwarves",
+      "name": "Dwarves",
+      "kind": "typal",
+      "type": "Dwarf",
+      "decks": 2318,
+      "commanders": 24,
+      "card": "Magda, Brazen Outlaw"
+    },
+    {
+      "slug": "spiders",
+      "name": "Spiders",
+      "kind": "typal",
+      "type": "Spider",
+      "decks": 2256,
+      "commanders": 24,
+      "card": "Shelob, Child of Ungoliant"
+    },
+    {
+      "slug": "power-matters",
+      "name": "Power Matters",
+      "kind": "playstyle",
+      "decks": 2182,
+      "commanders": 24,
+      "card": "Eshki, Temur's Roar"
+    },
+    {
+      "slug": "amass",
+      "name": "Amass",
+      "kind": "playstyle",
+      "decks": 2129,
+      "commanders": 24,
+      "card": "Sauron, the Dark Lord"
+    },
+    {
+      "slug": "obosh-companion",
+      "name": "Obosh Companion",
+      "kind": "playstyle",
+      "decks": 2128,
+      "commanders": 15,
+      "card": "The Infamous Cruelclaw"
+    },
+    {
+      "slug": "keywords",
+      "name": "Keywords",
+      "kind": "playstyle",
+      "decks": 2113,
+      "commanders": 19,
+      "card": "Odric, Lunarch Marshal"
+    },
+    {
+      "slug": "rogues",
+      "name": "Rogues",
+      "kind": "typal",
+      "type": "Rogue",
+      "decks": 2111,
+      "commanders": 22,
+      "card": "Anowon, the Ruin Thief"
+    },
+    {
+      "slug": "guildgates",
+      "name": "Guildgates",
+      "kind": "playstyle",
+      "decks": 2101,
+      "commanders": 24,
+      "card": "Nine-Fingers Keene"
+    },
+    {
+      "slug": "frogs",
+      "name": "Frogs",
+      "kind": "typal",
+      "type": "Frog",
+      "decks": 2079,
+      "commanders": 24,
+      "card": "Clement, the Worrywort"
+    },
+    {
+      "slug": "modular",
+      "name": "Modular",
+      "kind": "playstyle",
+      "decks": 2079,
+      "commanders": 23,
+      "card": "Zabaz, the Glimmerwasp"
+    },
+    {
+      "slug": "rat-colony",
+      "name": "Rat Colony",
+      "kind": "playstyle",
+      "decks": 1986,
+      "commanders": 24,
+      "card": "Marrow-Gnawer"
+    },
+    {
+      "slug": "mutants",
+      "name": "Mutants",
+      "kind": "typal",
+      "type": "Mutant",
+      "decks": 1968,
+      "commanders": 15,
+      "card": "The Wise Mothman"
+    },
+    {
+      "slug": "rock",
+      "name": "Rock",
+      "kind": "playstyle",
+      "decks": 1916,
+      "commanders": 19,
+      "card": "Roxanne, Starfall Savant"
+    },
+    {
+      "slug": "party",
+      "name": "Party",
+      "kind": "playstyle",
+      "decks": 1915,
+      "commanders": 14,
+      "card": "The Destined Warrior"
+    },
+    {
+      "slug": "rabbits",
+      "name": "Rabbits",
+      "kind": "typal",
+      "type": "Rabbit",
+      "decks": 1850,
+      "commanders": 24,
+      "card": "Finneas, Ace Archer"
+    },
+    {
+      "slug": "dogs",
+      "name": "Dogs",
+      "kind": "typal",
+      "type": "Dog",
+      "decks": 1845,
+      "commanders": 17,
+      "card": "Rin and Seri, Inseparable"
+    },
+    {
+      "slug": "clerics",
+      "name": "Clerics",
+      "kind": "typal",
+      "type": "Cleric",
+      "decks": 1839,
+      "commanders": 20,
+      "card": "Orah, Skyclave Hierophant"
+    },
+    {
+      "slug": "bears",
+      "name": "Bears",
+      "kind": "typal",
+      "type": "Bear",
+      "decks": 1827,
+      "commanders": 14,
+      "card": "Ayula, Queen Among Bears"
+    },
+    {
+      "slug": "die-roll",
+      "name": "Die Roll",
+      "kind": "playstyle",
+      "decks": 1823,
+      "commanders": 18,
+      "card": "Mr. House, President and CEO"
+    },
+    {
+      "slug": "weenies",
+      "name": "Weenies",
+      "kind": "playstyle",
+      "decks": 1786,
+      "commanders": 23,
+      "card": "Arabella, Abandoned Doll"
+    },
+    {
+      "slug": "myr",
+      "name": "Myr",
+      "kind": "typal",
+      "type": "Myr",
+      "decks": 1785,
+      "commanders": 24,
+      "card": "Urtet, Remnant of Memnarch"
+    },
+    {
+      "slug": "wolves",
+      "name": "Wolves",
+      "kind": "typal",
+      "type": "Wolf",
+      "decks": 1745,
+      "commanders": 21,
+      "card": "Tovolar, Dire Overlord"
+    },
+    {
+      "slug": "tron",
+      "name": "Tron",
+      "kind": "playstyle",
+      "decks": 1689,
+      "commanders": 24,
+      "card": "Omo, Queen of Vesuva"
+    },
+    {
+      "slug": "dragons-approach",
+      "name": "Dragon's Approach",
+      "kind": "playstyle",
+      "decks": 1681,
+      "commanders": 24,
+      "card": "Niv-Mizzet, Visionary"
+    },
+    {
+      "slug": "snakes",
+      "name": "Snakes",
+      "kind": "typal",
+      "type": "Snake",
+      "decks": 1678,
+      "commanders": 24,
+      "card": "Aphelia, Viper Whisperer"
+    },
+    {
+      "slug": "werewolves",
+      "name": "Werewolves",
+      "kind": "typal",
+      "type": "Werewolf",
+      "decks": 1649,
+      "commanders": 23,
+      "card": "Tovolar, Dire Overlord"
+    },
+    {
+      "slug": "the-ring",
+      "name": "The Ring",
+      "kind": "playstyle",
+      "decks": 1605,
+      "commanders": 22,
+      "card": "Sauron, the Dark Lord"
+    },
+    {
+      "slug": "wraiths",
+      "name": "Wraiths",
+      "kind": "typal",
+      "type": "Wraith",
+      "decks": 1601,
+      "commanders": 22,
+      "card": "Sauron, the Dark Lord"
+    },
+    {
+      "slug": "beasts",
+      "name": "Beasts",
+      "kind": "typal",
+      "type": "Beast",
+      "decks": 1597,
+      "commanders": 24,
+      "card": "Slinza, the Spiked Stampede"
+    },
+    {
+      "slug": "land-animation",
+      "name": "Land Animation",
+      "kind": "playstyle",
+      "decks": 1591,
+      "commanders": 24,
+      "card": "Toph, the First Metalbender"
+    },
+    {
+      "slug": "fling",
+      "name": "Fling",
+      "kind": "playstyle",
+      "decks": 1584,
+      "commanders": 23,
+      "card": "Ziatora, the Incinerator"
+    },
+    {
+      "slug": "foretell",
+      "name": "Foretell",
+      "kind": "playstyle",
+      "decks": 1573,
+      "commanders": 21,
+      "card": "Kellan, the Kid"
+    },
+    {
+      "slug": "curses",
+      "name": "Curses",
+      "kind": "playstyle",
+      "decks": 1545,
+      "commanders": 23,
+      "card": "Lynde, Cheerful Tormentor"
+    },
+    {
+      "slug": "polymorph",
+      "name": "Polymorph",
+      "kind": "playstyle",
+      "decks": 1533,
+      "commanders": 20,
+      "card": "Kykar, Wind's Fury"
+    },
+    {
+      "slug": "surveil",
+      "name": "Surveil",
+      "kind": "playstyle",
+      "decks": 1526,
+      "commanders": 24,
+      "card": "Mirko, Obsessive Theorist"
+    },
+    {
+      "slug": "gyruda-companion",
+      "name": "Gyruda Companion",
+      "kind": "playstyle",
+      "decks": 1515,
+      "commanders": 23,
+      "card": "Be'lakor, the Dark Master"
+    },
+    {
+      "slug": "heroes",
+      "name": "Heroes",
+      "kind": "typal",
+      "type": "Hero",
+      "decks": 1502,
+      "commanders": 24,
+      "card": "Captain America, Team Leader"
+    },
+    {
+      "slug": "gods",
+      "name": "Gods",
+      "kind": "typal",
+      "type": "God",
+      "decks": 1476,
+      "commanders": 23,
+      "card": "Esika, God of the Tree"
+    },
+    {
+      "slug": "firebending",
+      "name": "Firebending",
+      "kind": "playstyle",
+      "decks": 1449,
+      "commanders": 24,
+      "card": "Avatar Aang"
+    },
+    {
+      "slug": "experience-counters",
+      "name": "Experience Counters",
+      "kind": "playstyle",
+      "decks": 1443,
+      "commanders": 23,
+      "card": "Azlask, the Swelling Scourge"
+    },
+    {
+      "slug": "attractions",
+      "name": "Attractions",
+      "kind": "playstyle",
+      "decks": 1435,
+      "commanders": 21,
+      "card": "Myra the Magnificent"
+    },
+    {
+      "slug": "devoid",
+      "name": "Devoid",
+      "kind": "playstyle",
+      "decks": 1410,
+      "commanders": 24,
+      "card": "Ulalek, Fused Atrocity"
+    },
+    {
+      "slug": "connive",
+      "name": "Connive",
+      "kind": "playstyle",
+      "decks": 1404,
+      "commanders": 24,
+      "card": "Doctor Doom, King of Latveria"
+    },
+    {
+      "slug": "jegantha-companion",
+      "name": "Jegantha Companion",
+      "kind": "playstyle",
+      "decks": 1375,
+      "commanders": 23,
+      "card": "Niv-Mizzet Reborn"
+    },
+    {
+      "slug": "annihilator",
+      "name": "Annihilator",
+      "kind": "playstyle",
+      "decks": 1367,
+      "commanders": 24,
+      "card": "Ulalek, Fused Atrocity"
+    },
+    {
+      "slug": "sunforger",
+      "name": "Sunforger",
+      "kind": "playstyle",
+      "decks": 1345,
+      "commanders": 22,
+      "card": "Feather, the Redeemed"
+    },
+    {
+      "slug": "villains",
+      "name": "Villains",
+      "kind": "typal",
+      "type": "Villain",
+      "decks": 1316,
+      "commanders": 24,
+      "card": "Doctor Doom, King of Latveria"
+    },
+    {
+      "slug": "artificers",
+      "name": "Artificers",
+      "kind": "typal",
+      "type": "Artificer",
+      "decks": 1305,
+      "commanders": 24,
+      "card": "Saheeli, Radiant Creator"
+    },
+    {
+      "slug": "shrines",
+      "name": "Shrines",
+      "kind": "playstyle",
+      "decks": 1268,
+      "commanders": 23,
+      "card": "Go-Shintai of Life's Origin"
+    },
+    {
+      "slug": "treefolk",
+      "name": "Treefolk",
+      "kind": "typal",
+      "type": "Treefolk",
+      "decks": 1251,
+      "commanders": 21,
+      "card": "Doran, Besieged by Time"
+    },
+    {
+      "slug": "sneak-attack",
+      "name": "Sneak Attack",
+      "kind": "playstyle",
+      "decks": 1244,
+      "commanders": 24,
+      "card": "Tannuk, Steadfast Second"
+    },
+    {
+      "slug": "charge-counters",
+      "name": "Charge Counters",
+      "kind": "playstyle",
+      "decks": 1222,
+      "commanders": 24,
+      "card": "Inspirit, Flagship Vessel"
+    },
+    {
+      "slug": "madness",
+      "name": "Madness",
+      "kind": "playstyle",
+      "decks": 1209,
+      "commanders": 24,
+      "card": "Anje Falkenrath"
+    },
+    {
+      "slug": "glass-cannon",
+      "name": "Glass Cannon",
+      "kind": "playstyle",
+      "decks": 1208,
+      "commanders": 24,
+      "card": "Tifa Lockhart"
+    },
+    {
+      "slug": "convoke",
+      "name": "Convoke",
+      "kind": "playstyle",
+      "decks": 1189,
+      "commanders": 23,
+      "card": "Kasla, the Broken Halo"
+    },
+    {
+      "slug": "crime",
+      "name": "Crime",
+      "kind": "playstyle",
+      "decks": 1184,
+      "commanders": 24,
+      "card": "Marchesa, Dealer of Death"
+    },
+    {
+      "slug": "thopters",
+      "name": "Thopters",
+      "kind": "typal",
+      "type": "Thopter",
+      "decks": 1184,
+      "commanders": 24,
+      "card": "Breya, Etherium Shaper"
+    },
+    {
+      "slug": "cheerios",
+      "name": "Cheerios",
+      "kind": "playstyle",
+      "decks": 1181,
+      "commanders": 22,
+      "card": "Flubs, the Fool"
+    },
+    {
+      "slug": "suspend",
+      "name": "Suspend",
+      "kind": "playstyle",
+      "decks": 1169,
+      "commanders": 14,
+      "card": "Jhoira of the Ghitu"
+    },
+    {
+      "slug": "orcs",
+      "name": "Orcs",
+      "kind": "typal",
+      "type": "Orc",
+      "decks": 1159,
+      "commanders": 23,
+      "card": "Sauron, the Dark Lord"
+    },
+    {
+      "slug": "rad-counters",
+      "name": "Rad Counters",
+      "kind": "playstyle",
+      "decks": 1151,
+      "commanders": 23,
+      "card": "The Wise Mothman"
+    },
+    {
+      "slug": "explore",
+      "name": "Explore",
+      "kind": "playstyle",
+      "decks": 1146,
+      "commanders": 19,
+      "card": "Hakbal of the Surging Soul"
+    },
+    {
+      "slug": "halflings",
+      "name": "Halflings",
+      "kind": "typal",
+      "type": "Halfling",
+      "decks": 1141,
+      "commanders": 22,
+      "card": "Samwise Gamgee"
+    },
+    {
+      "slug": "otters",
+      "name": "Otters",
+      "kind": "typal",
+      "type": "Otter",
+      "decks": 1139,
+      "commanders": 23,
+      "card": "Alania, Divergent Storm"
+    },
+    {
+      "slug": "blood",
+      "name": "Blood",
+      "kind": "playstyle",
+      "decks": 1128,
+      "commanders": 23,
+      "card": "Strefan, Maurer Progenitor"
+    },
+    {
+      "slug": "outlaws",
+      "name": "Outlaws",
+      "kind": "playstyle",
+      "decks": 1128,
+      "commanders": 24,
+      "card": "Laughing Jasper Flint"
+    },
+    {
+      "slug": "myriad",
+      "name": "Myriad",
+      "kind": "playstyle",
+      "decks": 1061,
+      "commanders": 24,
+      "card": "Muddle, the Ever-Changing"
+    },
+    {
+      "slug": "sphinxes",
+      "name": "Sphinxes",
+      "kind": "typal",
+      "type": "Sphinx",
+      "decks": 1046,
+      "commanders": 23,
+      "card": "Unesh, Criosphinx Sovereign"
+    },
+    {
+      "slug": "adventures",
+      "name": "Adventures",
+      "kind": "playstyle",
+      "decks": 1040,
+      "commanders": 23,
+      "card": "Beluna Grandsquall"
+    },
+    {
+      "slug": "oozes",
+      "name": "Oozes",
+      "kind": "typal",
+      "type": "Ooze",
+      "decks": 1029,
+      "commanders": 22,
+      "card": "Aeve, Progenitor Ooze"
+    },
+    {
+      "slug": "time-counters",
+      "name": "Time Counters",
+      "kind": "playstyle",
+      "decks": 1018,
+      "commanders": 9,
+      "card": "Jhoira of the Ghitu"
+    },
+    {
+      "slug": "deserts",
+      "name": "Deserts",
+      "kind": "playstyle",
+      "decks": 1016,
+      "commanders": 24,
+      "card": "Hazezon, Shaper of Sand"
+    },
+    {
+      "slug": "fungi",
+      "name": "Fungi",
+      "kind": "typal",
+      "type": "Fungus",
+      "decks": 1004,
+      "commanders": 20,
+      "card": "The Mycotyrant"
+    },
+    {
+      "slug": "delver",
+      "name": "Delver",
+      "kind": "playstyle",
+      "decks": 1000,
+      "commanders": 23,
+      "card": "Teval, Arbiter of Virtue"
+    },
+    {
+      "slug": "shadowborn-apostles",
+      "name": "Shadowborn Apostles",
+      "kind": "playstyle",
+      "decks": 996,
+      "commanders": 22,
+      "card": "Athreos, God of Passage"
+    },
+    {
+      "slug": "spacecraft",
+      "name": "Spacecraft",
+      "kind": "playstyle",
+      "decks": 985,
+      "commanders": 24,
+      "card": "Inspirit, Flagship Vessel"
+    },
+    {
+      "slug": "looting",
+      "name": "Looting",
+      "kind": "playstyle",
+      "decks": 983,
+      "commanders": 24,
+      "card": "Captain Howler, Sea Scourge"
+    },
+    {
+      "slug": "hand-size",
+      "name": "Hand Size",
+      "kind": "playstyle",
+      "decks": 981,
+      "commanders": 24,
+      "card": "Winter, Misanthropic Guide"
+    },
+    {
+      "slug": "constructs",
+      "name": "Constructs",
+      "kind": "typal",
+      "type": "Construct",
+      "decks": 974,
+      "commanders": 24,
+      "card": "Dr. Eggman"
+    },
+    {
+      "slug": "extra-upkeeps",
+      "name": "Extra Upkeeps",
+      "kind": "playstyle",
+      "decks": 945,
+      "commanders": 17,
+      "card": "Obeka, Splitter of Seconds"
+    },
+    {
+      "slug": "lessons",
+      "name": "Lessons",
+      "kind": "playstyle",
+      "decks": 933,
+      "commanders": 24,
+      "card": "Iroh, Grand Lotus"
+    },
+    {
+      "slug": "life-exchange",
+      "name": "Life Exchange",
+      "kind": "playstyle",
+      "decks": 918,
+      "commanders": 24,
+      "card": "Mister Negative"
+    },
+    {
+      "slug": "persistent-petitioners",
+      "name": "Persistent Petitioners",
+      "kind": "playstyle",
+      "decks": 895,
+      "commanders": 24,
+      "card": "Bruvac the Grandiloquent"
+    },
+    {
+      "slug": "golems",
+      "name": "Golems",
+      "kind": "typal",
+      "type": "Golem",
+      "decks": 880,
+      "commanders": 12,
+      "card": "Brenard, Ginger Sculptor"
+    },
+    {
+      "slug": "samurai",
+      "name": "Samurai",
+      "kind": "typal",
+      "type": "Samurai",
+      "decks": 862,
+      "commanders": 24,
+      "card": "Isshin, Two Heavens as One"
+    },
+    {
+      "slug": "giants",
+      "name": "Giants",
+      "kind": "typal",
+      "type": "Giant",
+      "decks": 858,
+      "commanders": 23,
+      "card": "Aegar, the Freezing Flame"
+    },
+    {
+      "slug": "primal-surge",
+      "name": "Primal Surge",
+      "kind": "playstyle",
+      "decks": 849,
+      "commanders": 24,
+      "card": "Ruric Thar, the Unbowed"
+    },
+    {
+      "slug": "robots",
+      "name": "Robots",
+      "kind": "typal",
+      "type": "Robot",
+      "decks": 849,
+      "commanders": 24,
+      "card": "Dr. Eggman"
+    },
+    {
+      "slug": "enrage",
+      "name": "Enrage",
+      "kind": "playstyle",
+      "decks": 847,
+      "commanders": 23,
+      "card": "Wayta, Trainer Prodigy"
+    },
+    {
+      "slug": "airbending",
+      "name": "Airbending",
+      "kind": "playstyle",
+      "decks": 842,
+      "commanders": 24,
+      "card": "Avatar Aang"
+    },
+    {
+      "slug": "slime-against-humanity",
+      "name": "Slime Against Humanity",
+      "kind": "playstyle",
+      "decks": 825,
+      "commanders": 22,
+      "card": "Aeve, Progenitor Ooze"
+    },
+    {
+      "slug": "indestructible",
+      "name": "Indestructible",
+      "kind": "playstyle",
+      "decks": 811,
+      "commanders": 24,
+      "card": "Inspirit, Flagship Vessel"
+    },
+    {
+      "slug": "tyranids",
+      "name": "Tyranids",
+      "kind": "typal",
+      "type": "Tyranid",
+      "decks": 800,
+      "commanders": 23,
+      "card": "Magus Lucea Kane"
+    },
+    {
+      "slug": "bats",
+      "name": "Bats",
+      "kind": "typal",
+      "type": "Bat",
+      "decks": 781,
+      "commanders": 24,
+      "card": "Zoraline, Cosmos Caller"
+    },
+    {
+      "slug": "lizards",
+      "name": "Lizards",
+      "kind": "typal",
+      "type": "Lizard",
+      "decks": 781,
+      "commanders": 23,
+      "card": "Gev, Scaled Scorch"
+    },
+    {
+      "slug": "apes",
+      "name": "Apes",
+      "kind": "typal",
+      "type": "Ape",
+      "decks": 744,
+      "commanders": 21,
+      "card": "Kibo, Uktabi Prince"
+    },
+    {
+      "slug": "wurms",
+      "name": "Wurms",
+      "kind": "typal",
+      "type": "Wurm",
+      "decks": 734,
+      "commanders": 24,
+      "card": "Baru, Wurmspeaker"
+    },
+    {
+      "slug": "mice",
+      "name": "Mice",
+      "kind": "typal",
+      "type": "Mouse",
+      "decks": 718,
+      "commanders": 21,
+      "card": "Mabel, Heir to Cragflame"
+    },
+    {
+      "slug": "mana-dorks",
+      "name": "Mana Dorks",
+      "kind": "playstyle",
+      "decks": 712,
+      "commanders": 24,
+      "card": "Raggadragga, Goreguts Boss"
+    },
+    {
+      "slug": "federation",
+      "name": "Federation",
+      "kind": "playstyle",
+      "decks": 691,
+      "commanders": 24,
+      "card": "Giada, Font of Hope"
+    },
+    {
+      "slug": "hare-apparent",
+      "name": "Hare Apparent",
+      "kind": "playstyle",
+      "decks": 657,
+      "commanders": 24,
+      "card": "Baylen, the Haymaker"
+    },
+    {
+      "slug": "exalted",
+      "name": "Exalted",
+      "kind": "playstyle",
+      "decks": 656,
+      "commanders": 24,
+      "card": "Rafiq of the Many"
+    },
+    {
+      "slug": "rooms",
+      "name": "Rooms",
+      "kind": "playstyle",
+      "decks": 650,
+      "commanders": 24,
+      "card": "Marina Vendrell"
+    },
+    {
+      "slug": "evoke",
+      "name": "Evoke",
+      "kind": "playstyle",
+      "decks": 643,
+      "commanders": 23,
+      "card": "Ashling, the Limitless"
+    },
+    {
+      "slug": "waterbending",
+      "name": "Waterbending",
+      "kind": "playstyle",
+      "decks": 630,
+      "commanders": 23,
+      "card": "Avatar Aang"
+    },
+    {
+      "slug": "freerunning",
+      "name": "Freerunning",
+      "kind": "playstyle",
+      "decks": 614,
+      "commanders": 23,
+      "card": "Ezio Auditore da Firenze"
+    },
+    {
+      "slug": "transform",
+      "name": "Transform",
+      "kind": "playstyle",
+      "decks": 597,
+      "commanders": 24,
+      "card": "Tovolar, Dire Overlord"
+    },
+    {
+      "slug": "vanilla",
+      "name": "Vanilla",
+      "kind": "playstyle",
+      "decks": 591,
+      "commanders": 22,
+      "card": "Jasmine Boreal of the Seven"
+    },
+    {
+      "slug": "turtles",
+      "name": "Turtles",
+      "kind": "typal",
+      "type": "Turtle",
+      "decks": 578,
+      "commanders": 16,
+      "card": "Heroes in a Half Shell"
+    },
+    {
+      "slug": "raccoons",
+      "name": "Raccoons",
+      "kind": "typal",
+      "type": "Raccoon",
+      "decks": 575,
+      "commanders": 21,
+      "card": "Muerra, Trash Tactician"
+    },
+    {
+      "slug": "skeletons",
+      "name": "Skeletons",
+      "kind": "typal",
+      "type": "Skeleton",
+      "decks": 574,
+      "commanders": 22,
+      "card": "Xu-Ifit, Osteoharmonist"
+    },
+    {
+      "slug": "relentless-rats",
+      "name": "Relentless Rats",
+      "kind": "playstyle",
+      "decks": 567,
+      "commanders": 24,
+      "card": "Marrow-Gnawer"
+    },
+    {
+      "slug": "zirda-companion",
+      "name": "Zirda Companion",
+      "kind": "playstyle",
+      "decks": 567,
+      "commanders": 21,
+      "card": "Kenrith, the Returned King"
+    },
+    {
+      "slug": "creatureless",
+      "name": "Creatureless",
+      "kind": "playstyle",
+      "decks": 547,
+      "commanders": 23,
+      "card": "Codie, Vociferous Codex"
+    },
+    {
+      "slug": "scarecrows",
+      "name": "Scarecrows",
+      "kind": "typal",
+      "type": "Scarecrow",
+      "decks": 540,
+      "commanders": 12,
+      "card": "Reaper King"
+    },
+    {
+      "slug": "devils",
+      "name": "Devils",
+      "kind": "typal",
+      "type": "Devil",
+      "decks": 521,
+      "commanders": 21,
+      "card": "Raphael, Fiendish Savior"
+    },
+    {
+      "slug": "speed",
+      "name": "Speed",
+      "kind": "playstyle",
+      "decks": 519,
+      "commanders": 23,
+      "card": "Mendicant Core, Guidelight"
+    },
+    {
+      "slug": "lhurgoyfs",
+      "name": "Lhurgoyfs",
+      "kind": "typal",
+      "type": "Lhurgoyf",
+      "decks": 506,
+      "commanders": 22,
+      "card": "Disa the Restless"
+    },
+    {
+      "slug": "time-lords",
+      "name": "Time Lords",
+      "kind": "typal",
+      "type": "Time Lord",
+      "decks": 503,
+      "commanders": 6,
+      "card": "Jodah, the Unifier"
+    }
+  ]
+}
