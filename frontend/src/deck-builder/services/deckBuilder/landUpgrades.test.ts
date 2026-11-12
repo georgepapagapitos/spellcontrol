@@ -198,6 +198,20 @@ describe('computeLandUpgrades — real cards (T171)', () => {
     expect(computeLandUpgrades(deck, BG, [real('Overgrown Tomb')], new Set())).toEqual([]);
   });
 
+  // Reported for a mono-red commander: Exotic Orchard was offered over a
+  // Mountain as "better fixing", but it only makes what opponents' lands make,
+  // so in one color it can fail to make red at all.
+  it('never offers Exotic Orchard over a basic in a one-color deck', () => {
+    const R = new Set(['R']);
+    const deck = [real('Mountain'), real('Mountain'), real('Mountain')];
+    expect(landSlotMerit(real('Exotic Orchard'), R)).toBeLessThan(
+      landSlotMerit(real('Mountain'), R)
+    );
+    expect(
+      computeLandUpgrades(deck, R, [real('Exotic Orchard')], new Set(['Exotic Orchard']))
+    ).toEqual([]);
+  });
+
   it('swaps a channel land in for the basic of its color', () => {
     const deck = [real('Swamp'), real('Swamp'), real('Murder'), real('Harmonize')];
     const moves = computeLandUpgrades(deck, BG, [real('Takenuma, Abandoned Mire')], new Set());
