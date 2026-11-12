@@ -142,18 +142,37 @@ export function SeatMenu({
   // with the rest of the row, which dropped focus to <body>, outside this
   // modal dialog; focus moves to the editor's first control instead, and Back
   // returns it to that chip.
+  //
+  // The scroll position travels the same way. The chips for most editors sit
+  // below the fold, and the body kept that offset when the editor replaced
+  // them, so an editor could open with its Back button scrolled out of view.
+  // An editor opens at its start, and Back puts the chips where they were.
+  //
+  // The chips' offset is recorded as they scroll (`onScroll` below), not read
+  // here: by the time this effect runs the editor is already laid out, and
+  // the browser has clamped the offset to the editor's shorter content.
+  const chipScrollRef = useRef({ top: 0, left: 0 });
   const editorOpenerRef = useRef<HTMLElement | null>(null);
+  const wasEditingRef = useRef(false);
   useLayoutEffect(() => {
     const body = bodyRef.current;
     if (!body) return;
-    const opener = editorOpenerRef.current;
-    editorOpenerRef.current = null;
+    const returning = wasEditingRef.current && !activeEditor;
+    wasEditingRef.current = activeEditor != null;
     if (activeEditor) {
       const from = document.activeElement;
-      if (from instanceof HTMLElement && body.contains(from)) editorOpenerRef.current = from;
-    } else if (opener?.isConnected && opener.checkVisibility?.() !== false) {
-      opener.focus({ preventScroll: true });
-      return;
+      editorOpenerRef.current = from instanceof HTMLElement && body.contains(from) ? from : null;
+      body.scrollTop = 0;
+      body.scrollLeft = 0;
+    } else if (returning) {
+      const opener = editorOpenerRef.current;
+      editorOpenerRef.current = null;
+      body.scrollTop = chipScrollRef.current.top;
+      body.scrollLeft = chipScrollRef.current.left;
+      if (opener?.isConnected && opener.checkVisibility?.() !== false) {
+        opener.focus({ preventScroll: true });
+        return;
+      }
     }
     getFocusable(body)[0]?.focus({ preventScroll: true });
   }, [activeEditor]);
@@ -230,6 +249,13 @@ export function SeatMenu({
           ref={bodyRef}
           className="seat-menu-body"
           data-active-editor={activeEditor ?? undefined}
+          onScroll={(e) => {
+            if (activeEditor) return;
+            chipScrollRef.current = {
+              top: e.currentTarget.scrollTop,
+              left: e.currentTarget.scrollLeft,
+            };
+          }}
         >
           {/* Compact row only: the way back from a swapped-in editor to the
               row of chips. CSS-hidden entirely on a tall seat and on a

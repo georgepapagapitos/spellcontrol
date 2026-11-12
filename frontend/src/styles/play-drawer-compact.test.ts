@@ -169,4 +169,18 @@ describe('drawer wraps its chips on a narrow upright seat that is not short', ()
       /\.seat-menu-facing-row\s*\{\s*display:\s*grid;\s*grid-template-columns:\s*1fr 1fr;/
     );
   });
+
+  // A named counter's stepper plus Remove is 176px of 44px targets in a
+  // drawer 144-190px wide: Remove ran 35px past the edge. Poison has no
+  // Remove, so its label takes the whole first line or the minus button
+  // moves up beside it.
+  it('a counter row is two lines: label and Remove, then the stepper', () => {
+    expect(b).toMatch(/\.counter-row-controls\s*\{\s*display:\s*contents;/);
+    expect(b).toMatch(/\.counter-row-label\s*\{\s*flex:\s*1 1 calc\(100% - 3\.25rem\);/);
+    expect(b).toMatch(/\.counter-row-remove\s*\{\s*order:\s*1;/);
+    expect(b).toMatch(/\.counter-row-btn\s*\{\s*order:\s*2;/);
+    expect(b).toMatch(
+      /\.counter-row:not\(:has\(\.counter-row-remove\)\)\s+\.counter-row-label\s*\{\s*flex-basis:\s*100%;/
+    );
+  });
 });

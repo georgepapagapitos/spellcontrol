@@ -281,8 +281,25 @@ describe('SeatMenu focus', () => {
     chip.focus();
     fireEvent.click(chip);
     expect(body.getAttribute('data-active-editor')).toBe('name');
-    expect(body.contains(document.activeElement)).toBe(true);
+    // Onto the editor's first control (Back), not left on the chip, which CSS
+    // hides on a compact seat. This environment applies no CSS, so "still in
+    // the drawer" alone would pass with no focus handling at all.
+    expect(document.activeElement).toBe(body.querySelector('.seat-menu-editor-back'));
     fireEvent.click(body.querySelector('.seat-menu-editor-back')!);
     expect(document.activeElement).toBe(chip);
+  });
+
+  // The chips for most editors sit below the fold, and the body kept that
+  // offset when the editor replaced them: an editor could open with its Back
+  // button scrolled out of view.
+  it('opens an editor at its start, and Back puts the chips where they were', () => {
+    open();
+    const body = document.querySelector<HTMLElement>('.seat-menu-body')!;
+    body.scrollTop = 180;
+    fireEvent.scroll(body);
+    fireEvent.click(screen.getByRole('button', { name: 'Facing' }));
+    expect(body.scrollTop).toBe(0);
+    fireEvent.click(body.querySelector('.seat-menu-editor-back')!);
+    expect(body.scrollTop).toBe(180);
   });
 });

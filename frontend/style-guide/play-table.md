@@ -1536,6 +1536,20 @@ editor swap (2026-11-12).** It used to land on Close, so a stray Enter shut
 the drawer, and opening an editor hid the chip that held focus, which dropped
 focus to `<body>`, outside the modal dialog. Focus now moves to the editor's
 first control, and Back returns it to the chip. Same rule as `BoardSheet`.
+An editor also opens at its start and Back puts the chips where they were:
+the chips for most editors sit below the fold, and the body kept that offset
+when the editor replaced them, so an editor could open with its Back button
+scrolled out of view. The offset is recorded as the chips scroll, since the
+browser has already clamped it by the time the editor is laid out.
+
+**On that narrow upright seat a counter row is two lines (2026-11-12).** A
+named counter's stepper plus its Remove is 176px of 44px targets, and the
+drawer there is 144 to 190px wide, so Remove ran 35px past the edge. The label
+sits with Remove beside it, and the stepper goes below with the value centered
+between its buttons. Poison has no Remove, so its label takes the whole line.
+Measured on every seat of all 33 presets at six viewports with real touch,
+each seat seeded with poison and two named counters: no control past the
+drawer's edge and none under 44px.
 
 ## Play board: the board sizes off itself, and every mark fits its seat (2026-09-26)
 
