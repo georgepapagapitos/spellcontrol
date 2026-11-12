@@ -25,6 +25,7 @@ import {
 } from '@spellcontrol/game-core';
 import { encodeCustomLayout, resolveLayout, turnOrderOf } from '@/lib/play/board-layouts';
 import { paletteForSeat } from '@/lib/play/seat-palette';
+import { getFocusable } from '@/lib/overlays/overlay-layer';
 import { useOverlayDismiss } from '@/lib/overlays/use-overlay-dismiss';
 import { useTapAndHold } from '@/lib/play/tap-and-hold';
 import { Button, IconButton } from '../shared/Button';
@@ -132,6 +133,30 @@ export function SeatMenu({
   // is the same tell on that axis, so a short seat's row gets its own scroll
   // cue rather than silently relying on the (inert there) vertical one.
   const bodyRef = useRef<HTMLDivElement>(null);
+  // Focus opens on the first control of the body, never the ✕ (the same rule
+  // as `BoardSheet`): a stray Enter then acts on the seat instead of closing
+  // the drawer. A layout effect, so it lands before the focus trap's own
+  // first-focusable fallback, which leaves focus alone once it is inside.
+  //
+  // It follows an editor swap too. The chip that opened the editor is hidden
+  // with the rest of the row, which dropped focus to <body>, outside this
+  // modal dialog; focus moves to the editor's first control instead, and Back
+  // returns it to that chip.
+  const editorOpenerRef = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    const body = bodyRef.current;
+    if (!body) return;
+    const opener = editorOpenerRef.current;
+    editorOpenerRef.current = null;
+    if (activeEditor) {
+      const from = document.activeElement;
+      if (from instanceof HTMLElement && body.contains(from)) editorOpenerRef.current = from;
+    } else if (opener?.isConnected && opener.checkVisibility?.() !== false) {
+      opener.focus({ preventScroll: true });
+      return;
+    }
+    getFocusable(body)[0]?.focus({ preventScroll: true });
+  }, [activeEditor]);
   useLayoutEffect(() => {
     const body = bodyRef.current;
     if (!body) return;

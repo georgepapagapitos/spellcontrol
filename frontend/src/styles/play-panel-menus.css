@@ -802,6 +802,118 @@
   }
 }
 
+/* An upright seat that is narrow but not short (the near seats of a
+   four-player pod on a phone, about 195 x 370px). It is too tall for the
+   one-row drawer above and too narrow for the tall seat's stacked sections,
+   which ran to five screens of scrolling there with the facing row cut off
+   at the drawer's edge. Same chips and the same swap-in editors as the
+   compact row, wrapped two to a line, and the header stays since there is
+   height for it. */
+@container (max-width: 300px) and (min-height: 300.01px) {
+  .player-panel:not([data-sideways]) .seat-menu-body {
+    flex-flow: row wrap;
+    align-content: flex-start;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-quick,
+  .player-panel:not([data-sideways]) .seat-menu-triggers,
+  .player-panel:not([data-sideways]) .pp-counters,
+  .player-panel:not([data-sideways]) .pp-counters-inner,
+  .player-panel:not([data-sideways]) .pp-counters-body {
+    display: contents;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-action,
+  .player-panel:not([data-sideways]) .seat-menu-row-trigger {
+    flex: 1 1 calc(50% - var(--space-1-5));
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-1);
+    font-size: var(--text-xs);
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-row-trigger {
+    display: inline-flex;
+  }
+
+  .player-panel:not([data-sideways]) .counter-row,
+  .player-panel:not([data-sideways]) .pp-counters > .seat-menu-label {
+    flex: 0 0 100%;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-divider,
+  .player-panel:not([data-sideways]) .seat-menu-editor {
+    display: none;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-row {
+    flex-wrap: wrap;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-row input {
+    flex: 1 1 6rem;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-row .pill-btn {
+    max-width: 100%;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-facing-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-body[data-active-editor] {
+    flex-flow: column nowrap;
+    align-items: stretch;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-body[data-active-editor] .seat-menu-quick,
+  .player-panel:not([data-sideways]) .seat-menu-body[data-active-editor] .seat-menu-triggers,
+  .player-panel:not([data-sideways])
+    .seat-menu-body[data-active-editor]
+    .pp-counters
+    > .seat-menu-label,
+  .player-panel:not([data-sideways]) .seat-menu-body[data-active-editor] .pp-counters-body,
+  .player-panel:not([data-sideways]) .seat-menu-body[data-active-editor] .pp-counters-add-trigger {
+    display: none;
+  }
+
+  .player-panel:not([data-sideways]) .seat-menu-body[data-active-editor] .seat-menu-editor-back {
+    display: inline-flex;
+  }
+
+  .player-panel:not([data-sideways])
+    .seat-menu-body[data-active-editor='name']
+    .seat-menu-editor[data-editor='name'],
+  .player-panel:not([data-sideways])
+    .seat-menu-body[data-active-editor='partner']
+    .seat-menu-editor[data-editor='partner'],
+  .player-panel:not([data-sideways])
+    .seat-menu-body[data-active-editor='color']
+    .seat-menu-editor[data-editor='color'],
+  .player-panel:not([data-sideways])
+    .seat-menu-body[data-active-editor='facing']
+    .seat-menu-editor[data-editor='facing'],
+  .player-panel:not([data-sideways])
+    .seat-menu-body[data-active-editor='counter']
+    .seat-menu-editor[data-editor='counter'],
+  .player-panel:not([data-sideways])
+    .seat-menu-body[data-active-editor='dungeon']
+    .seat-menu-editor[data-editor='dungeon'] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    width: 100%;
+  }
+}
+
 /* The shortest upright seats (the 7-10 player wide rows, 79-120px tall on a
    phone) can't fit a 44px strip under a 64px row of chips at all. The strip
    moves to the row's far end instead, as a 44px column, so the row keeps the

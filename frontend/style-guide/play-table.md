@@ -1028,6 +1028,16 @@ and undo.
   turn-tracker, life, poison, commander-damage, counter, designation or
   elimination action, so local and online tables agree. A game that ends
   before that falls back to `startedAt` for its duration.
+- **Before the first turn, each Start button names what it starts
+  (2026-11-12).** The strip showed "Start" beside "Start now": one starts the
+  turn tracker, the other the game timer, and neither label said which. They
+  read **Start turns** and **Start now**, the words the hub's dock already
+  used. On a phone-width strip the pair left the waiting note 59px at 320 and
+  it was cut mid-word, so in the narrow tier the two buttons drop their play
+  glyph (each label already says Start), the note wraps, and "Turn not
+  started" steps aside while the note is up. Nothing clips at 320, 360, 390 or
+  on a phone held sideways, and the strip is no taller. Guards:
+  `styles/clock-strip-shape.test.ts`, `GameClock.test.tsx`.
 - **The "up next" marker is quiet, and reuses the designation rail.** A seat
   about to take the turn gets a faint, icon-only chip (`ChevronRight`,
   `.pp-designation-chip.is-next`) in the same `.pp-designation-chips` rail as
@@ -1509,6 +1519,23 @@ controls under 44px 2400 → 0 per viewport (the swatch and facing editors),
 controls clipped by the row or panel 4394 → 0 at 320 and 1066 → 0 at 390,
 clipped labels 1771 → 0 at 320 and 15 → 0 at 820. Guards:
 `styles/play-drawer-compact.test.ts`, `SeatMenu.test.tsx`.
+
+**A narrow upright seat that is not short wraps the same chips (2026-11-12).**
+The near seats of a four-player pod on a phone are about 195 x 370px: too tall
+for the one-row drawer, so they got the tall seat's stacked sections, which
+assume width. That was 1236px of content in a 259px window, with the fourth
+facing button cut off at the drawer's edge. `@container (max-width: 300px) and
+(min-height: 300.01px)` on an upright seat takes the compact row's chips and
+swap-in editors, wrapped two to a line, and keeps the header since there is
+height for it; the four facings sit two by two. Measured at 390x844 with real
+touch: 521px of content, no sideways overflow, no control under 44px. The
+other seat shapes are unchanged.
+
+**The drawer opens on its first action, never the ✕, and focus follows an
+editor swap (2026-11-12).** It used to land on Close, so a stray Enter shut
+the drawer, and opening an editor hid the chip that held focus, which dropped
+focus to `<body>`, outside the modal dialog. Focus now moves to the editor's
+first control, and Back returns it to the chip. Same rule as `BoardSheet`.
 
 ## Play board: the board sizes off itself, and every mark fits its seat (2026-09-26)
 

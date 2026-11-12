@@ -277,6 +277,25 @@
   .game-clock-strip-actions {
     gap: var(--space-1);
   }
+
+  /* Before the first turn the strip carries two labeled Start buttons, and at
+     320px they left the waiting note 59px ("Starts with the fi", clipped).
+     Each label already says Start, so the play glyph goes; the note wraps
+     instead of clipping; and "Turn not started" steps aside while the note
+     is up, since the note and the Start turns button beside it say the same
+     thing. Three lines became three lines, so the strip keeps its height. */
+  .game-clock-strip-btn--start svg {
+    display: none;
+  }
+
+  .game-clock-strip-wait {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .game-clock-strip-wait ~ .game-clock-strip-idle {
+    display: none;
+  }
 }
 
 /* ≥600px: the strip has room to breathe, so it widens back out instead of

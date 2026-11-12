@@ -126,3 +126,47 @@ describe('drawer is a compact scrolling row on a short seat', () => {
     expect(block('max-height: 300px')).not.toMatch(/player-panel\[data-sideways\] \./);
   });
 });
+
+/**
+ * Between the two: an upright seat that is narrow but not short (the near
+ * seats of a four-player pod on a phone, about 195 x 370px). The one-row
+ * drawer never applied there, so it got the tall seat's stacked sections:
+ * 1236px of content in a 259px window, with the fourth facing button cut off
+ * at the drawer's edge. It takes the same chips and swap-in editors, wrapped
+ * two to a line (521px, measured with a real-touch probe at 390x844).
+ */
+describe('drawer wraps its chips on a narrow upright seat that is not short', () => {
+  const start = css.indexOf('@container (max-width: 300px) and (min-height: 300.01px)');
+  const b = css.slice(start, css.indexOf('\n}\n', start));
+
+  it('exists, and only for upright seats', () => {
+    expect(start).toBeGreaterThan(-1);
+    expect(b).toContain('.player-panel:not([data-sideways]) .seat-menu-body {');
+    expect(b).not.toMatch(/player-panel\[data-sideways\] \./);
+  });
+
+  it('wraps the chips two to a line and scrolls on one axis only', () => {
+    expect(b).toMatch(/\.seat-menu-body\s*\{\s*flex-flow:\s*row wrap;/);
+    expect(b).toMatch(/flex:\s*1 1 calc\(50% - var\(--space-1-5\)\)/);
+    expect(b).not.toMatch(/overflow-x:\s*auto/);
+    expect(b).toMatch(/\.pp-counters-body\s*\{\s*display:\s*contents;/);
+  });
+
+  it('swaps in one editor at a time, like the compact row', () => {
+    expect(b).toMatch(/\.seat-menu-editor\s*\{\s*display:\s*none;/);
+    for (const editor of ['name', 'partner', 'color', 'facing', 'counter', 'dungeon']) {
+      expect(b, `${editor} editor swap-in rule missing`).toContain(
+        `.seat-menu-body[data-active-editor='${editor}']`
+      );
+    }
+    expect(b).toMatch(
+      /\[data-active-editor\] \.seat-menu-editor-back\s*\{\s*display:\s*inline-flex;/
+    );
+  });
+
+  it('lays the four facings out two by two instead of running past the edge', () => {
+    expect(b).toMatch(
+      /\.seat-menu-facing-row\s*\{\s*display:\s*grid;\s*grid-template-columns:\s*1fr 1fr;/
+    );
+  });
+});

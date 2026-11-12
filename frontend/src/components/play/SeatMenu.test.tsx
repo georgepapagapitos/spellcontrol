@@ -239,3 +239,50 @@ describe('SeatMenu — scroll strip', () => {
     expect(body.getAttribute('data-overflow-x')).toBe('left');
   });
 });
+
+/**
+ * Focus opens on the seat's first action, never the ✕ (the rule `BoardSheet`
+ * already follows): the drawer used to land on Close, so a stray Enter shut
+ * it. And it follows an editor swap: the chip that opened the editor is
+ * hidden with the rest of the row, which dropped focus to <body>, outside
+ * the modal dialog.
+ */
+describe('SeatMenu focus', () => {
+  const open = () => {
+    const game = makeGame();
+    render(
+      <SeatMenu
+        player={game.players[0]}
+        game={game}
+        canEdit
+        canLayout
+        rotation={0}
+        dispatch={() => {}}
+        onClose={() => {}}
+        onCommanderDamage={() => {}}
+        isActiveTurn={false}
+        isMonarch={false}
+        isInitiative={false}
+      />
+    );
+  };
+
+  it('opens on the first action, not Close', () => {
+    open();
+    const body = document.querySelector('.seat-menu-body')!;
+    expect(body.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).not.toBe(screen.getByRole('button', { name: 'Close' }));
+  });
+
+  it('stays inside the drawer across an editor swap, and Back returns to the chip', () => {
+    open();
+    const body = document.querySelector('.seat-menu-body')!;
+    const chip = screen.getByRole('button', { name: 'Name' });
+    chip.focus();
+    fireEvent.click(chip);
+    expect(body.getAttribute('data-active-editor')).toBe('name');
+    expect(body.contains(document.activeElement)).toBe(true);
+    fireEvent.click(body.querySelector('.seat-menu-editor-back')!);
+    expect(document.activeElement).toBe(chip);
+  });
+});
