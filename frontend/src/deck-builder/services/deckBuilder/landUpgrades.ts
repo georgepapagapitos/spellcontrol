@@ -182,8 +182,11 @@ export function landSlotMerit(card: ScryfallCard, identity: ReadonlySet<string>)
   const entry = entersAs(card);
   if (fetchesOnlyBasics(card)) return entry === 'tapped' ? 6 : 10;
   // Exotic Orchard makes only what an opponent's lands make: two of your
-  // colors on a good day, none on a bad one.
+  // colors on a good day, none on a bad one. In a one-color deck it is a basic
+  // that sometimes can't make your color, so it ranks below the basic it would
+  // replace (it came up as an upgrade over Mountain for a mono-red commander).
   const reflectsOpponent = /an opponent controls could produce/.test(frontOracle(card));
+  if (reflectsOpponent && identity.size <= 1) return 4;
   const n = reflectsOpponent ? 2 : sourceColors(card, identity).size;
   let merit = 3; // colorless
   if (n >= 2) {
