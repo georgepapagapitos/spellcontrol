@@ -496,7 +496,7 @@ export function DeckGeneratePage() {
       : null;
   const cardsFrom = !customization.collectionMode
     ? 'Any card'
-    : customization.collectionStrategy === 'full'
+    : customization.collectionStrategy === 'available'
       ? 'Only mine'
       : customization.collectionStrategy === 'prefer'
         ? 'Mine first'

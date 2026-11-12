@@ -78,7 +78,19 @@ describe('Cards from', () => {
     fireEvent.click(within(group()).getByRole('radio', { name: /Mine first/ }));
     expect(update).toHaveBeenLastCalledWith({ collectionMode: true, collectionStrategy: 'prefer' });
     fireEvent.click(within(group()).getByRole('radio', { name: /Only mine/ }));
-    expect(update).toHaveBeenLastCalledWith({ collectionMode: true, collectionStrategy: 'full' });
+    // Free copies only: "Only mine" must never pull a copy another deck holds.
+    expect(update).toHaveBeenLastCalledWith({
+      collectionMode: true,
+      collectionStrategy: 'available',
+    });
+  });
+
+  it('reads Only mine for the free-copies strategy, the generator default', () => {
+    render4({ collectionMode: true, collectionStrategy: 'available' });
+    expect(
+      (within(group()).getByRole('radio', { name: /Only mine/ }) as HTMLInputElement).checked
+    ).toBe(true);
+    expect(screen.getByText('Owned cards no other deck uses')).toBeTruthy();
   });
 
   it('turns the collection off for Any card', () => {
@@ -91,7 +103,8 @@ describe('Cards from', () => {
   });
 
   it('says Custom while a strategy only the full control sets is on, rather than misreading it', () => {
-    render4({ collectionMode: true, collectionStrategy: 'available' });
+    // 'full' uses copies other decks hold, so it is never what "Only mine" means.
+    render4({ collectionMode: true, collectionStrategy: 'full' });
     expect(
       (within(group()).getByRole('radio', { name: /Custom/ }) as HTMLInputElement).checked
     ).toBe(true);
