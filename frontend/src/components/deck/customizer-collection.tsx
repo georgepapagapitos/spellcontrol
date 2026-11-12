@@ -23,7 +23,7 @@ export function CollectionGroup({ customization, update }: CollectionGroupProps)
         : strategy === 'available'
           ? 'Uses only copies not committed to other decks.'
           : strategy === 'prefer'
-            ? 'Leans on cards you own.'
+            ? 'Leans on copies not committed to other decks.'
             : strategy === 'exclude'
               ? 'Leaves out every card you own, except basic lands and your must-includes.'
               : 'Uses only cards you own.'
@@ -126,7 +126,7 @@ export function CardsFromGroup({ customization, update }: CollectionGroupProps) 
         : 'custom';
   const options: Array<{ value: CardsFrom; label: string; hint: string }> = [
     { value: 'any', label: 'Any card', hint: 'Ignore my collection' },
-    { value: 'mine-first', label: 'Mine first', hint: 'Owned cards first' },
+    { value: 'mine-first', label: 'Mine first', hint: 'Free owned cards first' },
     { value: 'only-mine', label: 'Only mine', hint: 'Owned cards no other deck uses' },
     ...(value === 'custom'
       ? [{ value: 'custom' as const, label: 'Custom', hint: 'Set under More settings' }]

@@ -5,14 +5,15 @@ import { haptics } from '@/lib/util/haptics';
 import { toast } from '@/store/toasts';
 import { defaultCustomization, useDeckBuilderStore } from '@/deck-builder/store';
 import { generateDeck } from '@/deck-builder/services/deckBuilder/deckGenerator';
-import { skipsOwnedCards } from '@/deck-builder/services/deckBuilder/deckFilters';
+import { readsFreeCopies, skipsOwnedCards } from '@/deck-builder/services/deckBuilder/deckFilters';
 import {
   fetchCommanderData,
   fetchPartnerCommanderData,
 } from '@/deck-builder/services/edhrec/client';
 import { useCollectionStore } from '@/store/collection';
-import { useDecksStore } from '@/store/decks';
-import { useCubeStore } from '@/store/cube';
+import { useDecksStore, type Deck } from '@/store/decks';
+import { useCubeStore, type SavedCube } from '@/store/cube';
+import type { EnrichedCard } from '@/types/index';
 import { saveGeneratedDeck } from './save-generated-deck';
 import { defaultNewDeckVisibility, type NewDeckVisibility } from './new-deck-visibility';
 import {
@@ -30,6 +31,7 @@ import type {
   ThemeResult,
   GeneratedDeck,
   DeckFormatConfig,
+  CollectionStrategy,
 } from '@/deck-builder/types';
 import type { ComboSeedContext } from '@/types/combos';
 
@@ -151,6 +153,21 @@ export function resolveGenerationNavState(
  * stay in lockstep.
  * The pages own their own layout/chrome; this owns the generation logic.
  */
+/**
+ * The owned names a build reads for a strategy. "Only mine" and "Mine first" read
+ * free copies only (`readsFreeCopies`); the rest read every owned name.
+ */
+export function ownedScope(
+  strategy: CollectionStrategy,
+  collectionCards: EnrichedCard[],
+  decks: Deck[],
+  savedCubes: readonly SavedCube[]
+): { names: Set<string>; counts?: Map<string, number> } {
+  if (readsFreeCopies(strategy))
+    return buildAvailableCollection(collectionCards, decks, savedCubes);
+  return { names: new Set(collectionCards.map((c) => c.name)) };
+}
+
 export function useDeckGeneration({
   initialThemes,
   haptic = false,
@@ -295,16 +312,23 @@ export function useDeckGeneration({
           decks,
           savedCubes
         );
+        const scope = ownedScope(
+          customization.collectionStrategy,
+          collectionCards,
+          decks,
+          savedCubes
+        );
+        collectionNames = scope.names;
         if (customization.collectionStrategy === 'available') {
-          const available = buildAvailableCollection(collectionCards, decks, savedCubes);
-          collectionNames = available.names;
-          collectionAvailableCounts = available.counts;
-          const excluded = countCommittedExcluded(collectionCards, available.names, colorIdentity);
+          collectionAvailableCounts = scope.counts;
+          const excluded = countCommittedExcluded(collectionCards, scope.names, colorIdentity);
           if (excluded > 0) committedExcluded = excluded;
-        } else {
-          collectionNames = new Set(collectionCards.map((c) => c.name));
         }
-        if (collectionNames.size === 0) {
+        // "Mine first" only leans on free copies, so with every copy committed it
+        // builds as if from any card rather than stopping.
+        const allCommittedPrefer =
+          customization.collectionStrategy === 'prefer' && collectionCards.length > 0;
+        if (collectionNames.size === 0 && !allCommittedPrefer) {
           setError(
             customization.collectionStrategy === 'available'
               ? 'All your cards are committed to other decks. Free up copies or switch to "Only my cards".'

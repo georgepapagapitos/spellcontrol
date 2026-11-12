@@ -56,6 +56,7 @@ import { deckComboPayoffs } from '@/deck-builder/services/winConditions/comboPay
 import { coachDeckSettings } from './deck-settings-fit';
 import { createCoachProtections, type CoachProtectionInputs } from './coach-protections';
 import { commanderPreviewNote } from '@/deck-builder/services/deckBuilder/commanderEligibility';
+import { readsFreeCopies } from '@/deck-builder/services/deckBuilder/deckFilters';
 
 /**
  * Fewest page rows (cards with a play rate) a context is built on. A page the
@@ -206,7 +207,7 @@ export function buildCoachObjective(input: CoachObjectiveInput): CoachObjectiveR
   }
   const owned =
     customization.collectionMode &&
-    customization.collectionStrategy === 'available' &&
+    readsFreeCopies(customization.collectionStrategy) &&
     input.availableNames
       ? input.availableNames
       : input.ownedNames;
