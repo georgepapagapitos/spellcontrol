@@ -74,7 +74,7 @@ describe('Cards from', () => {
     ).toBe(true);
     // One compact control, with the picked option's hint as a single line under it.
     expect(screen.getByText('Ignore my collection')).toBeTruthy();
-    expect(screen.queryByText('Owned cards first')).toBeNull();
+    expect(screen.queryByText('Free owned cards first')).toBeNull();
     fireEvent.click(within(group()).getByRole('radio', { name: /Mine first/ }));
     expect(update).toHaveBeenLastCalledWith({ collectionMode: true, collectionStrategy: 'prefer' });
     fireEvent.click(within(group()).getByRole('radio', { name: /Only mine/ }));

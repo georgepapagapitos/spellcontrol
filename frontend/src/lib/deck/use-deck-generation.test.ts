@@ -3,7 +3,10 @@ import {
   resolveGenerationDestination,
   resolveGenerationNavState,
   checkGenerationGate,
+  ownedScope,
 } from './use-deck-generation';
+import type { Deck } from '@/store/decks';
+import type { EnrichedCard } from '@/types/index';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { GeneratedDeck, ScryfallCard } from '@/deck-builder/types';
 
@@ -154,5 +157,33 @@ describe('resolveGenerationNavState', () => {
   it('drops a combo seed context on a compare landing, same as every other flag', () => {
     const comboContext = { pieceNames: ['Sanguine Bond', 'Exquisite Blood'], produces: [] };
     expect(resolveGenerationNavState(true, false, comboContext)).toBeUndefined();
+  });
+});
+
+describe('ownedScope', () => {
+  // Two owned cards; the only Skullclamp is in another deck.
+  const collection = [
+    { copyId: 'c-ring', name: 'Sol Ring' },
+    { copyId: 'c-clamp', name: 'Skullclamp' },
+  ] as EnrichedCard[];
+  const other = {
+    id: 'd-other',
+    name: 'Other deck',
+    cards: [{ card: { name: 'Skullclamp' }, allocatedCopyId: 'c-clamp' }],
+    sideboard: [],
+  } as unknown as Deck;
+
+  it.each(['available', 'prefer'] as const)(
+    '%s reads only free copies, never one another deck holds',
+    (strategy) => {
+      expect([...ownedScope(strategy, collection, [other], []).names]).toEqual(['Sol Ring']);
+    }
+  );
+
+  it.each(['full', 'partial'] as const)('%s reads every owned copy', (strategy) => {
+    expect([...ownedScope(strategy, collection, [other], []).names].sort()).toEqual([
+      'Skullclamp',
+      'Sol Ring',
+    ]);
   });
 });

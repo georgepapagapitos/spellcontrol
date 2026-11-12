@@ -116,6 +116,13 @@ export function constrainsToCollection(strategy: CollectionStrategy): boolean {
   return strategy === 'full' || strategy === 'available';
 }
 
+// Strategies that count only free copies (no other deck or physical cube holds
+// them) as owned: "available" builds from them, "prefer" leans on them. A copy
+// in another deck is no closer to hand than one the user doesn't own.
+export function readsFreeCopies(strategy: CollectionStrategy | undefined): boolean {
+  return strategy === 'available' || strategy === 'prefer';
+}
+
 // Collection mode is on and reads the collection as the pool to build from
 // (every strategy but 'exclude').
 export function buildsFromOwnedCards(cz: {

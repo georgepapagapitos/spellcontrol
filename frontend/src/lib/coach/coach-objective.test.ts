@@ -192,6 +192,28 @@ describe('the customization a saved deck is held to', () => {
     expect(built.ok && [...(built.ctx.ownedNames ?? [])]).toEqual(['Sol Ring']);
   });
 
+  it('weighs a "prefer" deck by its free copies too, as the generator does', () => {
+    const gc = savedDeck().generationContext!;
+    const built = buildCoachObjective(
+      input({
+        ownedNames: new Set(['Sol Ring', 'Skullclamp']),
+        availableNames: new Set(['Sol Ring']),
+        deck: savedDeck({
+          generationContext: {
+            ...gc,
+            collectionMode: true,
+            customization: {
+              ...gc.customization,
+              collectionMode: true,
+              collectionStrategy: 'prefer',
+            },
+          },
+        }),
+      })
+    );
+    expect(built.ok && [...(built.ctx.ownedNames ?? [])]).toEqual(['Sol Ring']);
+  });
+
   it('reads the global rank of the cards it was given for page cards only', () => {
     const built = buildCoachObjective(input());
     expect(built.ok && built.ctx.globalRank?.size).toBeGreaterThan(0);
