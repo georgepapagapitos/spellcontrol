@@ -54,4 +54,18 @@ describe('table clock strip shape (E604)', () => {
     const text = tier.slice(tier.indexOf('.game-clock-strip-text {'));
     expect(text.slice(0, text.indexOf('}'))).toMatch(/flex-direction:\s*column/);
   });
+
+  // Before the first turn the strip carries two labeled Start buttons. At
+  // 320px they left the waiting note 59px and it was cut mid-word ("Starts
+  // with the fi"). Measured after: nothing clipped at 320, 360, 390 or on a
+  // phone held sideways, and the strip is no taller than it was.
+  it('fits the waiting note beside both Start buttons on a phone', () => {
+    const at = css.indexOf('@container clock-strip (max-width: 26rem)');
+    const narrow = css.slice(at, css.indexOf('\n}\n', at));
+    expect(narrow).toMatch(/\.game-clock-strip-btn--start svg\s*\{\s*display:\s*none;/);
+    expect(narrow).toMatch(/\.game-clock-strip-wait\s*\{[^}]*white-space:\s*normal;/);
+    expect(narrow).toMatch(
+      /\.game-clock-strip-wait ~ \.game-clock-strip-idle\s*\{\s*display:\s*none;/
+    );
+  });
 });

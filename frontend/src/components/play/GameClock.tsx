@@ -122,7 +122,9 @@ export function GameClock({
         {waiting && (
           <>
             <span className="game-clock-strip-dot" aria-hidden="true" />
-            <span className="game-clock-strip-fixed">Starts with the first turn</span>
+            <span className="game-clock-strip-fixed game-clock-strip-wait">
+              Starts with the first turn
+            </span>
           </>
         )}
         {showTotal && showTurn && <span className="game-clock-strip-dot" aria-hidden="true" />}
@@ -133,14 +135,14 @@ export function GameClock({
               <span className="game-clock-strip-fixed">{`'s turn ${formatClock(view.turn ?? 0)}${turnNote}`}</span>
             </span>
           ) : (
-            <span className="game-clock-strip-fixed">Turn not started</span>
+            <span className="game-clock-strip-fixed game-clock-strip-idle">Turn not started</span>
           ))}
       </span>
       <div className="game-clock-strip-actions">
         {canStart && (
           <button
             type="button"
-            className="game-clock-strip-btn"
+            className="game-clock-strip-btn game-clock-strip-btn--start"
             aria-label="Start tracking turns"
             onClick={() => {
               haptics.tap();
@@ -148,13 +150,13 @@ export function GameClock({
             }}
           >
             <Play width={14} height={14} strokeWidth={1.8} aria-hidden />
-            Start
+            Start turns
           </button>
         )}
         {canStartNow && (
           <button
             type="button"
-            className="game-clock-strip-btn"
+            className="game-clock-strip-btn game-clock-strip-btn--start"
             aria-label="Start the game clock now"
             onClick={() => {
               haptics.tap();

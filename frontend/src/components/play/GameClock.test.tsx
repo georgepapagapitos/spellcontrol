@@ -125,4 +125,25 @@ describe('the table clock', () => {
       expect(screen.getByRole('button', { name: /^Pause the game clock/ })).toBeTruthy();
     });
   });
+
+  // The strip once showed "Start" beside "Start now": one starts the turn
+  // tracker, the other the game timer, and neither label said which. The
+  // hub's dock already called them "Start turns" and "Start now".
+  it('names what each Start button starts', () => {
+    render(
+      <GameClock
+        game={{ ...startedGame(T0), clockStartedAt: null }}
+        dispatch={() => {}}
+        canEdit
+        showTotal
+        showTurn
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Start tracking turns' }).textContent).toBe(
+      'Start turns'
+    );
+    expect(screen.getByRole('button', { name: 'Start the game clock now' }).textContent).toBe(
+      'Start now'
+    );
+  });
 });

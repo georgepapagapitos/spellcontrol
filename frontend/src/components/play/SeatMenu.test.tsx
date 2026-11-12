@@ -239,3 +239,67 @@ describe('SeatMenu — scroll strip', () => {
     expect(body.getAttribute('data-overflow-x')).toBe('left');
   });
 });
+
+/**
+ * Focus opens on the seat's first action, never the ✕ (the rule `BoardSheet`
+ * already follows): the drawer used to land on Close, so a stray Enter shut
+ * it. And it follows an editor swap: the chip that opened the editor is
+ * hidden with the rest of the row, which dropped focus to <body>, outside
+ * the modal dialog.
+ */
+describe('SeatMenu focus', () => {
+  const open = () => {
+    const game = makeGame();
+    render(
+      <SeatMenu
+        player={game.players[0]}
+        game={game}
+        canEdit
+        canLayout
+        rotation={0}
+        dispatch={() => {}}
+        onClose={() => {}}
+        onCommanderDamage={() => {}}
+        isActiveTurn={false}
+        isMonarch={false}
+        isInitiative={false}
+      />
+    );
+  };
+
+  it('opens on the first action, not Close', () => {
+    open();
+    const body = document.querySelector('.seat-menu-body')!;
+    expect(body.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).not.toBe(screen.getByRole('button', { name: 'Close' }));
+  });
+
+  it('stays inside the drawer across an editor swap, and Back returns to the chip', () => {
+    open();
+    const body = document.querySelector('.seat-menu-body')!;
+    const chip = screen.getByRole('button', { name: 'Name' });
+    chip.focus();
+    fireEvent.click(chip);
+    expect(body.getAttribute('data-active-editor')).toBe('name');
+    // Onto the editor's first control (Back), not left on the chip, which CSS
+    // hides on a compact seat. This environment applies no CSS, so "still in
+    // the drawer" alone would pass with no focus handling at all.
+    expect(document.activeElement).toBe(body.querySelector('.seat-menu-editor-back'));
+    fireEvent.click(body.querySelector('.seat-menu-editor-back')!);
+    expect(document.activeElement).toBe(chip);
+  });
+
+  // The chips for most editors sit below the fold, and the body kept that
+  // offset when the editor replaced them: an editor could open with its Back
+  // button scrolled out of view.
+  it('opens an editor at its start, and Back puts the chips where they were', () => {
+    open();
+    const body = document.querySelector<HTMLElement>('.seat-menu-body')!;
+    body.scrollTop = 180;
+    fireEvent.scroll(body);
+    fireEvent.click(screen.getByRole('button', { name: 'Facing' }));
+    expect(body.scrollTop).toBe(0);
+    fireEvent.click(body.querySelector('.seat-menu-editor-back')!);
+    expect(body.scrollTop).toBe(180);
+  });
+});
