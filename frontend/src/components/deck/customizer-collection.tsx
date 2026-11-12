@@ -109,9 +109,10 @@ export function CollectionGroup({ customization, update }: CollectionGroupProps)
 type CardsFrom = 'any' | 'mine-first' | 'only-mine' | 'custom';
 
 /**
- * Where the cards come from, in three words (E1113): any card, mine first, only mine. The
- * other strategies (a share, free copies, skip mine) live in the full control under More
- * settings; while one is set this reads "Set under More settings" instead of lying.
+ * Where the cards come from, in three words (E1113): any card, mine first, only mine. Only
+ * mine means free copies ('available'): a physical deck can't use a copy another deck holds.
+ * The other strategies (every owned copy, a share, skip mine) live in the full control under
+ * More settings; while one is set this reads "Set under More settings" instead of lying.
  */
 export function CardsFromGroup({ customization, update }: CollectionGroupProps) {
   const empty = useCollectionStore((s) => s.cards.length === 0);
@@ -120,13 +121,13 @@ export function CardsFromGroup({ customization, update }: CollectionGroupProps) 
     ? 'any'
     : collectionStrategy === 'prefer'
       ? 'mine-first'
-      : collectionStrategy === 'full'
+      : collectionStrategy === 'available'
         ? 'only-mine'
         : 'custom';
   const options: Array<{ value: CardsFrom; label: string; hint: string }> = [
     { value: 'any', label: 'Any card', hint: 'Ignore my collection' },
     { value: 'mine-first', label: 'Mine first', hint: 'Owned cards first' },
-    { value: 'only-mine', label: 'Only mine', hint: 'Owned cards only' },
+    { value: 'only-mine', label: 'Only mine', hint: 'Owned cards no other deck uses' },
     ...(value === 'custom'
       ? [{ value: 'custom' as const, label: 'Custom', hint: 'Set under More settings' }]
       : []),
@@ -151,7 +152,7 @@ export function CardsFromGroup({ customization, update }: CollectionGroupProps) 
                 ? { collectionMode: false }
                 : {
                     collectionMode: true,
-                    collectionStrategy: v === 'only-mine' ? 'full' : 'prefer',
+                    collectionStrategy: v === 'only-mine' ? 'available' : 'prefer',
                   }
             );
           }}
