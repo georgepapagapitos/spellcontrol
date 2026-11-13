@@ -355,7 +355,7 @@ describe('picking under an idea', () => {
   it('hands the card, the idea and its deck count to the caller, not to onSelect', async () => {
     const { onPickWithIdea, onSelect } = finder();
     await applyAngels();
-    fireEvent.click(screen.getByRole('button', { name: /Giada, Font of Hope/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Giada, Font of Hope/ }));
     await waitFor(() => expect(onPickWithIdea).toHaveBeenCalledTimes(1));
     const [picked, picketIdea, decks] = onPickWithIdea.mock.calls[0] as unknown as [
       ScryfallCard,

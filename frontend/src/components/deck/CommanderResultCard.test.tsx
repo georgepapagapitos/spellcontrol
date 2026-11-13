@@ -69,6 +69,29 @@ describe('CommanderResultCard', () => {
     expect(onSelect).toHaveBeenCalledTimes(1);
   });
 
+  it('View opens the card without picking it; the tile still picks', () => {
+    const onSelect = vi.fn();
+    const onView = vi.fn();
+    render(
+      <CommanderResultCard
+        name="Queen Marchesa"
+        colors={['W', 'B', 'R']}
+        onSelect={onSelect}
+        onView={onView}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'View Queen Marchesa' }));
+    expect(onView).toHaveBeenCalledTimes(1);
+    expect(onSelect).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /^Queen Marchesa/ }));
+    expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+
+  it('has no View button where no caller asks for one', () => {
+    render(<CommanderResultCard name="Sol Ring" colors={['C']} onSelect={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: /^View/ })).toBeNull();
+  });
+
   describe('completion notes under the coverage bar', () => {
     const score = {
       available: true,

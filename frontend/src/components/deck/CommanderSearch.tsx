@@ -75,6 +75,7 @@ import { FilterChipsRow, type FilterChipDescriptor } from '@/components/shared/F
 import { SegmentedControl } from '@/components/shared/form';
 import { CommanderLeans } from './CommanderLeans';
 import { BuildAroundRows } from './BuildAroundRows';
+import { useCommanderInspect } from './use-commander-inspect';
 import { IdeaIndexNotes } from './IdeaIndexNotes';
 import { CommanderPick } from './CommanderPick';
 import { useBuyCandidates } from './use-buy-candidates';
@@ -793,6 +794,7 @@ export function CommanderSearch({
       setRandomLoading(false);
     }
   };
+  const inspect = useCommanderInspect(visible, (e) => void selectEntry(e));
 
   // ── Selected commander ────────────────────────────────────────────────
   if (value && ideaFinder) {
@@ -1209,6 +1211,7 @@ export function CommanderSearch({
                     disabled={selecting !== null}
                     onSelect={() => void selectEntry(e)}
                     onPeek={() => void ensureReadiness(e.name)}
+                    onView={() => inspect.open(e.name)}
                   />
                 </li>
               ))}
@@ -1290,6 +1293,7 @@ export function CommanderSearch({
           {error}
         </p>
       )}
+      {inspect.preview}
     </div>
   );
 }

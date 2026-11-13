@@ -9,6 +9,7 @@ import {
   type DeckCardActionCtx,
 } from './deck-card-actions';
 import type { Row } from './deck-display-rows';
+import { COMMANDER_SEAT, PARTNER_SEAT } from '@/lib/deck/deck-seat';
 
 function row(over: Partial<Row> = {}): Row {
   return {
@@ -94,6 +95,17 @@ describe('deckCardActions', () => {
     expect(byKey(basic, 'add-copy')!.disabled).toBe(false);
   });
 
+  it('offers Edit printing on the command zone, addressed by its seat id', () => {
+    const onEditCard = vi.fn();
+    const pick = (isPartner: boolean) =>
+      deckCardActions({ row: row({ slotIds: [], isPartner }), onEditCard })
+        .find((a) => a.key === 'edit-printing')
+        ?.run?.();
+    pick(false);
+    pick(true);
+    expect(onEditCard.mock.calls.map((c) => c[0])).toEqual([COMMANDER_SEAT, PARTNER_SEAT]);
+  });
+
   it('drops every slot-bound action for a commander row, which has no slot', () => {
     const ctx: DeckCardActionCtx = {
       row: row({ slotIds: [] }),
@@ -104,7 +116,6 @@ describe('deckCardActions', () => {
       onSetRowTags: vi.fn(),
     };
     const k = keys(ctx);
-    expect(k).not.toContain('edit-printing');
     expect(k).not.toContain('add-copy');
     expect(k).not.toContain('move-considering-one');
     expect(k).not.toContain('tag-pick');

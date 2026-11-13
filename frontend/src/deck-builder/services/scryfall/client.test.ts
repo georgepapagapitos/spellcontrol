@@ -526,17 +526,38 @@ describe('getOwnedPrinting', () => {
     expect(result.id).toBe('owned-but-stale');
   });
 
-  it('offline: resolves by name and overrides the id with the owned printing', async () => {
+  it('with offline card data downloaded but the device online, still returns the exact printing', async () => {
+    // 2026-11-13: gating on "offline data downloaded" gave every such player the
+    // default printing's art for a commander they own.
     gate.offline = true;
+    const card = makeCard({ id: 'my-sld-marchesa', name: 'Queen Marchesa', layout: 'normal' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => card }));
+
+    const result = await getOwnedPrinting('my-sld-marchesa', 'Queen Marchesa');
+
+    expect(result).toEqual(card);
+    expect(offlineLib.getCardByName).not.toHaveBeenCalled();
+  });
+
+  it('device offline: resolves by name, keeps the owned id, and shows the owned art', async () => {
+    gate.offline = true;
+    vi.stubGlobal('navigator', { onLine: false });
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
     offlineLib.getCardByName.mockResolvedValue(
       makeCard({ id: 'oracle-representative', name: 'Muldrotha, the Gravetide', layout: 'normal' })
     );
 
-    const result = await getOwnedPrinting('my-foil-muldrotha', 'Muldrotha, the Gravetide');
+    const result = await getOwnedPrinting(
+      'my-foil-muldrotha',
+      'Muldrotha, the Gravetide',
+      'https://cards.example/my-muldrotha.jpg'
+    );
 
     expect(result.name).toBe('Muldrotha, the Gravetide');
     expect(result.id).toBe('my-foil-muldrotha');
-    // Never hit the network in offline mode.
+    expect(result.image_uris?.normal).toBe('https://cards.example/my-muldrotha.jpg');
+    expect(fetchSpy).not.toHaveBeenCalled();
     expect(offlineLib.getCardByName).toHaveBeenCalledWith('Muldrotha, the Gravetide');
   });
 });

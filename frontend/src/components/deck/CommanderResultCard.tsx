@@ -2,7 +2,8 @@ import '@/styles/deck-builder-commander.css';
 import './CommanderResultCard.css';
 import { formatCount } from '@/lib/util/format-count';
 import type { ReactNode } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Maximize2 } from 'lucide-react';
+import { IconButton } from '@/components/shared/Button';
 import { useCardThumb } from '@/lib/cards/card-thumbs';
 import { ColorPip } from '../shared/ManaSymbol';
 import { Chip } from '../shared/Chip';
@@ -64,6 +65,8 @@ interface Props {
   platformDeckCount?: number;
   /** Extra rows under everything else. */
   detail?: ReactNode;
+  /** Opens the card preview without picking (the tile itself picks). Absent: no View button. */
+  onView?: () => void;
 }
 
 /** "31k decks", "4.7k decks", "812 decks". */
@@ -136,6 +139,7 @@ export function CommanderResultCard({
   onPeek,
   platformDeckCount,
   detail,
+  onView,
 }: Props) {
   // Only resolve by name when we don't already have art — keeps the by-name
   // path (full ScryfallCards) off the network entirely.
@@ -152,7 +156,7 @@ export function CommanderResultCard({
   const decks = completion?.basis ? 0 : (numDecks ?? 0);
   const hasFacts =
     owned || showReadinessFact || styles.length > 0 || decks > 0 || platformDeckCount !== undefined;
-  return (
+  const tile = (
     <button
       type="button"
       className="commander-result-card"
@@ -253,5 +257,18 @@ export function CommanderResultCard({
         {detail}
       </span>
     </button>
+  );
+  if (!onView) return tile;
+  return (
+    <div className="commander-result-tile">
+      {tile}
+      <IconButton
+        variant="quiet"
+        className="commander-result-view"
+        label={`View ${name}`}
+        icon={<Maximize2 width={16} height={16} strokeWidth={2} />}
+        onClick={onView}
+      />
+    </div>
   );
 }

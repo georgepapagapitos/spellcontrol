@@ -10,6 +10,7 @@ import { coverHasArt } from '@spellcontrol/deck-metrics';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getMaxCopies } from '@/lib/deck/deck-validation';
 import { withTagAdded, withTagRemoved } from '@/lib/deck/deck-tags';
+import { COMMANDER_SEAT, PARTNER_SEAT } from '@/lib/deck/deck-seat';
 import type { Row } from './deck-display-rows';
 import { proxyMarkQty } from './deck-row-allocation';
 
@@ -121,12 +122,14 @@ export function deckCardActions(ctx: DeckCardActionCtx): DeckCardAction[] {
 
   const out: DeckCardAction[] = [];
 
-  if (onEditCard && hasSlots) {
+  // The command zone has no slot, so its seat id stands in (lib/deck/deck-seat).
+  if (onEditCard) {
+    const id = hasSlots ? row.slotIds[0] : row.isPartner ? PARTNER_SEAT : COMMANDER_SEAT;
     out.push({
       key: 'edit-printing',
       label: 'Edit printing',
       section: 'copies',
-      run: () => onEditCard(row.slotIds[0], row.card),
+      run: () => onEditCard(id, row.card),
     });
   }
   if (canEditQty) {

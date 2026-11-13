@@ -1133,8 +1133,14 @@ bolted on. Rulings:
   dashed, "After you choose a commander". Pauper Commander has no Theme step and
   the rest renumber.
 - **Step 1 collapses to a summary row once a commander is chosen**: art, name,
-  pips, "From the Angels idea · N decks" when it came from one, and **Change
-  commander**. The finder stays mounted behind it, so Change commander returns to
+  pips, type line, the commander's **rules text**, "From the Angels idea · N
+  decks" when it came from one, and **Change commander**. The art is the chosen
+  printing's own (the copy you own, when you own one), never a lookup by name,
+  and it opens the card preview.
+- **A commander can be read before it is picked.** Each finder tile carries a
+  **View** icon button (top-right, outside the tile's pick button) that opens
+  the one card preview over the tiles on screen, swipeable, with **Choose
+  commander** as its action. Tapping the tile itself still picks (2026-11-13). The finder stays mounted behind it, so Change commander returns to
   the same chip and filters. A pick made under an idea preselects the commander's
   theme of the same slug (a tag page's deck count equals that theme's count); a
   commander without one builds without a theme and the banner says so.
