@@ -555,6 +555,16 @@ async function bulkLookup(body: {
 }
 
 /**
+ * The server's current card for each name, past this device's caches. For a
+ * fact a cached copy can hold stale (a preview's `not_legal` after release,
+ * see `use-currently-legal-names`). Misses and failures are absent.
+ */
+export async function getCurrentCardsByName(names: string[]): Promise<Map<string, ScryfallCard>> {
+  if (names.length === 0) return new Map();
+  return new Map(Object.entries((await bulkLookup({ names })).byName));
+}
+
+/**
  * Resolve a card by its EXACT name. Every caller feeds this a name that is
  * already canonical — EDHREC picks, combo references, existing deck entries,
  * staple/basic-land constants — so there is deliberately no fuzzy mode.

@@ -762,7 +762,7 @@ describe('validateDeck: previewed cards', () => {
     expect(validateDeck([slot(preview)], [], DECK_FORMAT_CONFIGS.commander, { now })).toEqual([]);
   });
 
-  it('still flags it once it has released, and in a format that takes only some sets', () => {
+  it('flags the stored copy after release when there is no current data, and in a format that takes only some sets', () => {
     const after = new Date(2026, 10, 13);
     expect(
       validateDeck([slot(preview)], [], DECK_FORMAT_CONFIGS.commander, { now: after })
@@ -770,5 +770,27 @@ describe('validateDeck: previewed cards', () => {
     expect(
       validateDeck([slot(preview)], [], DECK_FORMAT_CONFIGS.standard, { now }).map((i) => i.issue)
     ).toContain('not-legal');
+  });
+
+  // Release day (2026-11-13): a deck still holds the preview copy, so its
+  // stored legalities say not_legal forever. The current card data says legal.
+  it('does not flag a released card whose current data reads legal', () => {
+    const after = new Date(2026, 10, 13);
+    expect(
+      validateDeck([slot(preview)], [], DECK_FORMAT_CONFIGS.commander, {
+        now: after,
+        currentlyLegalNames: new Set(['Temporal Tribulation']),
+      })
+    ).toEqual([]);
+  });
+
+  it('still flags a banned card the current data calls legal', () => {
+    const solRing = card({ name: 'Sol Ring', legalities: { commander: 'legal' } });
+    expect(
+      validateDeck([slot(solRing)], [], DECK_FORMAT_CONFIGS.commander, {
+        bannedNames: new Set(['Sol Ring']),
+        currentlyLegalNames: new Set(['Sol Ring']),
+      }).map((i) => i.detail)
+    ).toEqual(['Banned in Commander']);
   });
 });

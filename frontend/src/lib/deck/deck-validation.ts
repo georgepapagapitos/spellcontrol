@@ -217,6 +217,10 @@ export function validateDeck(
      *  it when the card was added, so a card banned since then still reads
      *  `legal` in its own legalities; this catches it. */
     bannedNames?: ReadonlySet<string>;
+    /** Cards whose CURRENT data reads legal in the format. The mirror of
+     *  `bannedNames`: a card added while it was a preview keeps its stored
+     *  `not_legal` after release, and this clears it. */
+    currentlyLegalNames?: ReadonlySet<string>;
     /** Today, for the preview check. */
     now?: Date;
   } = {}
@@ -235,7 +239,8 @@ export function validateDeck(
     // takes every set it isn't flagged (the card panel shows the date).
     const illegal =
       !isCardLegal(entry.card, config.legalityKey) &&
-      !isPreviewOnlyIllegal(entry.card, config.legalityKey, options.now);
+      !isPreviewOnlyIllegal(entry.card, config.legalityKey, options.now) &&
+      !(options.currentlyLegalNames?.has(entry.card.name) ?? false);
     if (banned || illegal) {
       issues.push({
         slotId: entry.slotId,

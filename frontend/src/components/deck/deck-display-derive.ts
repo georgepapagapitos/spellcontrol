@@ -171,14 +171,24 @@ export function validateDisplayedZones(args: {
   commander: ScryfallCard | null;
   partnerCommander: ScryfallCard | null | undefined;
   bannedNames: ReadonlySet<string> | null;
+  currentlyLegalNames?: ReadonlySet<string> | null;
 }) {
-  const { cards, sideboard, formatConfig, commander, partnerCommander, bannedNames } = args;
+  const {
+    cards,
+    sideboard,
+    formatConfig,
+    commander,
+    partnerCommander,
+    bannedNames,
+    currentlyLegalNames,
+  } = args;
   const mainDeckCards = toDeckCards(cards);
   const sideDeckCards = toDeckCards(sideboard);
   return validateDeckZones(mainDeckCards, sideDeckCards, formatConfig, {
     commander,
     partnerCommander: partnerCommander ?? null,
     bannedNames: bannedNames ?? undefined,
+    currentlyLegalNames: currentlyLegalNames ?? undefined,
   });
 }
 

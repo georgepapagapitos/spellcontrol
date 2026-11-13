@@ -7,6 +7,7 @@ import {
   type LegalityIssue,
 } from '@/lib/deck/deck-validation';
 import { useBanList } from '@/lib/deck/use-ban-list';
+import { useCurrentlyLegalNames } from '@/lib/deck/use-currently-legal-names';
 import { validateDisplayedZones } from './deck-display-derive';
 import type { DeckDisplayCard } from './deck-display-types';
 
@@ -20,7 +21,9 @@ interface Args {
 
 /**
  * Legality for the current format. The live ban list catches a card banned
- * after it was added, which its own stored legalities still call legal.
+ * after it was added, which its own stored legalities still call legal; the
+ * current card data clears a card added as a preview, which its stored
+ * legalities still call not legal after release.
  * `legalityIssues` is what the deck is judged on: in Commander that is the
  * commander and the mainboard, never the sideboard, so an illegal card or a
  * second copy parked there can't fail the checks, set the Power tab's "can't
@@ -35,6 +38,10 @@ export function useDeckLegality({
   partnerCommander,
 }: Args) {
   const bannedNames = useBanList(formatConfig.legalityKey);
+  const currentlyLegalNames = useCurrentlyLegalNames(
+    [...cards, ...sideboard],
+    formatConfig.legalityKey
+  );
   const { deck: legalityIssues, sideboardOnly: sideboardIssues } = useMemo(
     () =>
       validateDisplayedZones({
@@ -44,8 +51,9 @@ export function useDeckLegality({
         commander,
         partnerCommander,
         bannedNames,
+        currentlyLegalNames,
       }),
-    [cards, sideboard, formatConfig, commander, partnerCommander, bannedNames]
+    [cards, sideboard, formatConfig, commander, partnerCommander, bannedNames, currentlyLegalNames]
   );
   const illegalCardNames = useMemo(
     () => [
