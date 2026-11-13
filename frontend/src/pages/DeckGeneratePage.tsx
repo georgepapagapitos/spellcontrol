@@ -39,7 +39,7 @@ import { KeepEditsToggle } from '@/components/deck/KeepEditsToggle';
 import { keepEditsPatch, type DeckEdits } from '@/lib/deck/regenerate-edits';
 import { parseDeckFormat } from '@/lib/deck/deck-format-param';
 import { fillFormatSettings } from '@/lib/coach/fill-deck';
-import { getCardByName } from '@/deck-builder/services/scryfall/client';
+import { getCommanderPrinting } from '@/deck-builder/services/scryfall/client';
 import { fetchCommanderThemes } from '@/deck-builder/services/edhrec/client';
 import { commanderIneligibility } from '@/deck-builder/services/deckBuilder/commanderEligibility';
 import { buildsFromOwnedCards } from '@/deck-builder/services/deckBuilder/deckFilters';
@@ -316,7 +316,12 @@ export function DeckGeneratePage() {
     let cancelled = false;
     void (async () => {
       try {
-        const card = await getCardByName(commanderParam);
+        // "Build a deck" from your own card lands on the printing you own.
+        const lower = commanderParam.toLowerCase();
+        const owned = useCollectionStore
+          .getState()
+          .cards.find((c) => c.name.toLowerCase() === lower && c.scryfallId);
+        const card = await getCommanderPrinting(commanderParam, owned);
         if (!cancelled) {
           if (routerState?.ownedFirst) {
             updateCustomizationStore({ collectionMode: true, collectionStrategy: 'prefer' });

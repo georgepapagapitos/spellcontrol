@@ -104,6 +104,8 @@ vi.mock('@/deck-builder/services/scryfall/client', () => ({
   searchCommanderFinder: () => searchCommanderFinder(),
   getCardByName: (n: string) => getCardByName(n),
   getOwnedPrinting: (id: string, n: string) => getOwnedPrinting(id, n),
+  getCommanderPrinting: (n: string, o?: { scryfallId: string; name: string }) =>
+    o ? getOwnedPrinting(o.scryfallId, o.name) : getCardByName(n),
   getCardPrice: () => '2.40',
   getGameChangerNames: async () => new Set<string>(),
   getCardsByNames: async () => new Map(),
@@ -376,6 +378,20 @@ describe('picking under an idea', () => {
     fireEvent.change(box(), { target: { value: 'krenko' } });
     fireEvent.mouseDown(await screen.findByRole('option', { name: /Krenko/ }));
     await waitFor(() => expect(onPickWithIdea).toHaveBeenCalledTimes(1));
+  });
+
+  it('a typed suggestion for a commander you own picks the printing you own', async () => {
+    const mine = legend('Krenko, Mob Boss', ['R'], 'Legendary Creature — Goblin');
+    collectionCards = [mine];
+    const { onSelect } = finder();
+    await screen.findByRole('group', { name: 'Creature types' });
+    fireEvent.focus(box());
+    fireEvent.change(box(), { target: { value: 'krenko' } });
+    fireEvent.mouseDown(await screen.findByRole('option', { name: /Krenko/ }));
+    await waitFor(() => expect(onSelect).toHaveBeenCalledTimes(1));
+    expect(getOwnedPrinting).toHaveBeenCalledWith(mine.scryfallId, 'Krenko, Mob Boss');
+    // The card handed on is the owned printing, not a by-name lookup.
+    expect(onSelect.mock.calls[0][0]).toBe(await getOwnedPrinting.mock.results[0].value);
   });
 
   it('Enter with nothing highlighted does not choose for the player', async () => {
