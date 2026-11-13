@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { safeLocalStorage } from './safe-local-storage';
 import { logger } from './logger';
@@ -78,7 +78,7 @@ describe('persist stores never use raw localStorage', () => {
       .filter((f) =>
         /createJSONStorage\(\s*\(\)\s*=>\s*localStorage\s*\)/.test(readFileSync(f, 'utf8'))
       )
-      .map((f) => relative(srcDir, f));
+      .map((f) => relative(srcDir, f).split(sep).join('/'));
     expect(offenders).toEqual([]);
   });
 });

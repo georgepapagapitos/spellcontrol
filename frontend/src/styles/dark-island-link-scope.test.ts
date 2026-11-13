@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join, relative } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 
 // `.card-preview-ext-link` paints rgba(255 255 255 / 70%) text with a white
 // dotted rule: it is a link for the card preview's always-dark island
@@ -30,7 +30,7 @@ function sources(dir: string): string[] {
 describe('dark-island links stay inside the dark island', () => {
   it('only the card preview uses card-preview-ext-link', () => {
     const outside = sources(src)
-      .map((p) => relative(src, p))
+      .map((p) => relative(src, p).split(sep).join('/'))
       .filter((rel) => !INSIDE_THE_PREVIEW.has(rel))
       .filter((rel) => /card-preview-ext-link/.test(readFileSync(join(src, rel), 'utf8')));
     expect(outside, 'use className="text-link" outside the card preview panel').toEqual([]);

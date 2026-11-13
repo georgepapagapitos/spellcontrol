@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 
 // computePopoverPlacement no longer clamps a panel that is taller than the room
 // beside its trigger up over that trigger (the popup walk caught Discover's
@@ -65,7 +65,7 @@ describe('components that anchor a panel publish the room', () => {
     expect(callers.length).toBeGreaterThanOrEqual(6);
   });
   for (const f of callers) {
-    const name = f.split('/').pop()!;
+    const name = basename(f);
     if (OWN_SIZING.includes(name)) continue;
     it(`${name} spreads panelRoomStyle`, () => {
       expect(readFileSync(f, 'utf8')).toContain('panelRoomStyle(');
