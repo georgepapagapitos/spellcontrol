@@ -5,7 +5,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   commanderFinderSupportsRegex,
   getCardByName,
-  getOwnedPrinting,
+  getCommanderPrinting,
   searchCommanderFinder,
 } from '@/deck-builder/services/scryfall/client';
 import {
@@ -734,15 +734,22 @@ export function CommanderSearch({
     setText('');
   };
 
+  // A commander you own resolves to the printing you own, whichever way it was
+  // picked (grid under All, a typed suggestion, Random), so the deck's cover
+  // is your copy and matches the copy the deck binds.
+  const cardForName = (name: string) =>
+    getCommanderPrinting(name, legendByName.get(name.toLowerCase()));
+
   const selectEntry = async (entry: Entry) => {
     setError(null);
     setSelecting(entry.key);
     try {
-      if (entry.owned) {
+      const owned = entry.owned ?? legendByName.get(entry.name.toLowerCase());
+      if (owned) {
         // The exact printing you own, so the deck binds the copy on screen.
         await finish(
-          await getOwnedPrinting(entry.owned.scryfallId, entry.owned.name),
-          fromBinder,
+          await getCommanderPrinting(owned.name, owned),
+          entry.owned ? fromBinder : false,
           entry.numDecks
         );
       } else if (entry.card) {
@@ -770,7 +777,7 @@ export function CommanderSearch({
           setError("Couldn't load EDHREC's commander list. Try again.");
           return;
         }
-        await finish(await getCardByName(pick), false);
+        await finish(await cardForName(pick), false);
         return;
       }
       const pick = pickRandom(sorted);
@@ -1039,7 +1046,7 @@ export function CommanderSearch({
           idea={idea}
           onIdea={setIdea}
           onPickCommander={async (name) => {
-            await finish(await getCardByName(name), false);
+            await finish(await cardForName(name), false);
           }}
           nouns={nouns}
         />

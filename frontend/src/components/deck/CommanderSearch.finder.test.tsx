@@ -162,6 +162,8 @@ vi.mock('@/deck-builder/services/scryfall/client', () => ({
   searchCommanderFinder: (q: string, o?: { pdh?: boolean }) => searchCommanderFinder(q, o),
   getCardByName: (n: string) => getCardByName(n),
   getOwnedPrinting: (id: string, n: string) => getOwnedPrinting(id, n),
+  getCommanderPrinting: (n: string, o?: { scryfallId: string; name: string }) =>
+    o ? getOwnedPrinting(o.scryfallId, o.name) : getCardByName(n),
   getCardPrice: () => '2.40',
   getGameChangerNames: async () => new Set(['Rhystic Study']),
   getCardsByNames: async (names: string[]) => new Map(names.map((n) => [n, card(n, [], '')])),
@@ -345,6 +347,18 @@ describe('searching every commander', () => {
     type('sacrifice');
     await screen.findByText('Jarad, Golgari Lich Lord');
     expect(screen.getByText('In collection')).toBeTruthy();
+  });
+
+  it('a commander you own picked from every commander takes the printing you own', async () => {
+    collectionCards = [KRENKO];
+    const onSelect = vi.fn();
+    render(<CommanderSearch value={null} onSelect={onSelect} />);
+    fireEvent.click(await screen.findByRole('radio', { name: /^All commanders/ }));
+    fireEvent.click(await screen.findByText('Krenko, Mob Boss'));
+    await waitFor(() => expect(onSelect).toHaveBeenCalled());
+    expect(getOwnedPrinting).toHaveBeenCalledWith(KRENKO.scryfallId, 'Krenko, Mob Boss');
+    // The card handed on is the owned printing, not a by-name lookup.
+    expect(onSelect.mock.calls[0][0]).toBe(await getOwnedPrinting.mock.results[0].value);
   });
 
   it('shows a search failure with a retry', async () => {

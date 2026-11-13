@@ -725,6 +725,19 @@ export async function getOwnedPrinting(scryfallId: string, name: string): Promis
 }
 
 /**
+ * The card a picked commander resolves to: the printing you own when you own
+ * one, else Scryfall's default by name. Every way into the generator (the
+ * finder grid, a typed suggestion, Random, a `?commander=` link) goes through
+ * this, so a deck built around your copy shows your copy's art on its cover.
+ */
+export function getCommanderPrinting(
+  name: string,
+  owned: { scryfallId: string; name: string } | undefined
+): Promise<ScryfallCard> {
+  return owned ? getOwnedPrinting(owned.scryfallId, owned.name) : getCardByName(name);
+}
+
+/**
  * POST /cards/collection through the shared request path (F26), which honors
  * `Retry-After`, backs off with jitter, parks every other caller for the same
  * cooldown, and CAPS the retries. The three batch loops below each hand-rolled

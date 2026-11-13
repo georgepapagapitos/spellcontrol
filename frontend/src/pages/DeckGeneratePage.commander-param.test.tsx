@@ -58,10 +58,14 @@ const getCardByName = vi.fn(async (name: string): Promise<ScryfallCard> => {
 vi.mock('@/deck-builder/services/scryfall/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/deck-builder/services/scryfall/client')>()),
   getCardByName: (name: string) => getCardByName(name),
+  getCommanderPrinting: async (name: string, owned?: { scryfallId: string }) =>
+    owned ? { ...(await getCardByName(name)), id: owned.scryfallId } : getCardByName(name),
 }));
 
 import { DeckGeneratePage } from './DeckGeneratePage';
 import { useDeckBuilderStore } from '@/deck-builder/store';
+import { useCollectionStore } from '@/store/collection';
+import type { EnrichedCard } from '@/types';
 
 afterEach(() => {
   useDeckBuilderStore.getState().reset();
@@ -91,6 +95,21 @@ describe('DeckGeneratePage ?commander=', () => {
     );
     expect(getCardByName).toHaveBeenCalledWith('Krenko, Mob Boss');
     await waitFor(() => expect(screen.getByTestId('search').textContent).toBe('?format=commander'));
+  });
+
+  it('lands on the printing you own when you own the commander', async () => {
+    useCollectionStore.setState({
+      cards: [{ name: 'Krenko, Mob Boss', scryfallId: 'my-sld-krenko' } as EnrichedCard],
+    });
+    try {
+      renderAt('/decks/new/generate?commander=Krenko%2C%20Mob%20Boss');
+      await waitFor(() =>
+        expect(screen.getByTestId('commander-search').dataset.value).toBe('Krenko, Mob Boss')
+      );
+      expect(useDeckBuilderStore.getState().commander?.id).toBe('my-sld-krenko');
+    } finally {
+      useCollectionStore.setState({ cards: [] });
+    }
   });
 
   it('builds owned-first when the post-import moment sent it (ownedFirst)', async () => {
