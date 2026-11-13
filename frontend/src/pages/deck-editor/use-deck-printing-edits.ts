@@ -22,6 +22,7 @@ import {
   PrintingLookupOfflineError,
 } from '@/lib/deck/deck-printing-actions';
 import { logger } from '@/lib/util/logger';
+import { seatOf, type Seat } from '@/lib/deck/deck-seat';
 import type { EnrichedCard } from '@spellcontrol/binder-routing';
 
 export function useDeckPrintingEdits({
@@ -124,8 +125,36 @@ export function useDeckPrintingEdits({
     }
   };
 
+  // A command-zone seat takes the printing and a free owned copy of exactly that
+  // printing, else none: the same binding rule as a slot below, without the
+  // pull-from-another-deck prompt (that flow rewrites zone slots only).
+  const editSeat = (seat: Seat, selection: PrintingSelection) => {
+    const newCard = selection.card;
+    const current =
+      seat === 'commander' ? deck.commanderAllocatedCopyId : deck.partnerCommanderAllocatedCopyId;
+    const allocations = buildAllocationMap(decks, savedCubes);
+    if (current) allocations.delete(current);
+    const copy = pickCollectionCopy(
+      newCard.name,
+      collectionCards,
+      allocations,
+      newCard.id,
+      selection.finish
+    );
+    const bound = copy && copy.scryfallId === newCard.id ? copy.copyId : null;
+    const store = useDecksStore.getState();
+    recordEdit(deck.id, `change printing of ${newCard.name}`, () => {
+      if (seat === 'commander') store.setCommander(deck.id, newCard, bound);
+      else store.setPartnerCommander(deck.id, newCard, bound);
+    });
+    setEditingSlot(null);
+    pushToast({ message: `Updated printing for ${newCard.name}`, tone: 'success' });
+  };
+
   const handleEditConfirm = (selection: PrintingSelection) => {
     if (!editingSlot || !deck) return;
+    const seat = seatOf(editingSlot.slotId);
+    if (seat) return editSeat(seat, selection);
     const newCard = selection.card;
     const slotsForName = deck.cards.filter((c) => c.card.name === editingSlot.card.name);
 

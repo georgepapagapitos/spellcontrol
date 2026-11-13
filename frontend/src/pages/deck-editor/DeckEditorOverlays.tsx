@@ -36,6 +36,7 @@ import { useToastsStore } from '@/store/toasts';
 import { DeckEditorCardPickerSheet } from './DeckEditorCardPickerSheet';
 import { DeckTestHandSheet } from './DeckTestHandSheet';
 import { ReplaceCommanderDialog } from './ReplaceCommanderDialog';
+import { boundCopyId } from '@/lib/deck/deck-seat';
 import type { DeckToken } from '@/lib/deck/deck-tokens';
 import type { EnrichedCard, BinderDef } from '@spellcontrol/binder-routing';
 import type { useDeckEditorUi } from './use-deck-editor-ui';
@@ -306,7 +307,7 @@ export function DeckEditorOverlays({
           // The slot's real finish is whatever physical copy it's bound to —
           // an unbound slot has no finish, so it reads as non-foil.
           currentFinish={(() => {
-            const copyId = deck.cards.find((c) => c.slotId === editingSlot.slotId)?.allocatedCopyId;
+            const copyId = boundCopyId(deck, editingSlot.slotId);
             return (copyId && collectionById?.get(copyId)?.finish) || 'nonfoil';
           })()}
           resolveAvailability={resolveAvailability}

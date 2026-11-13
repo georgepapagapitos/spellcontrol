@@ -64,3 +64,27 @@
   gap: var(--space-1);
   margin-top: var(--space-0-5);
 }
+
+/* A tile with a View button (the commander finder): the button sits in the
+   tile's top-right corner, outside the pick button (a button can't hold one),
+   and the pick button keeps its text clear of it. */
+.commander-result-tile {
+  position: relative;
+  height: 100%;
+}
+
+.commander-result-tile > .commander-result-card {
+  padding-right: var(--space-6);
+}
+
+.commander-result-view {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+}
+
+@media (pointer: coarse) {
+  .commander-result-tile > .commander-result-card {
+    padding-right: var(--space-7);
+  }
+}

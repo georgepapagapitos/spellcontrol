@@ -5,13 +5,39 @@
   gap: var(--space-3);
 }
 
+.commander-summary {
+  align-items: flex-start;
+}
+
 .commander-summary-art {
   flex: none;
   width: 4rem;
   height: 4rem;
+  padding: 0;
   overflow: hidden;
+  border: none;
   border-radius: var(--radius);
   background: var(--surface-raised);
+  cursor: zoom-in;
+}
+
+.commander-summary-art:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.commander-summary-rules {
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.commander-summary-rules p {
+  margin: 0;
+}
+
+.commander-summary-rules p + p {
+  margin-top: var(--space-1);
 }
 
 .commander-summary-art img {

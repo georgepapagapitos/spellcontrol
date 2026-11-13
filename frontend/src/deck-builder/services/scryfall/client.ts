@@ -14,6 +14,7 @@ import { normalizeCardImages } from '@/lib/cards/normalize-card-images';
 import { offlineGetCardByName, offlineGetCardsByNames, offlineSearchCards } from '@/lib/offline';
 import { offlineDataAvailable, useOfflineStore } from '@/store/offline';
 import { frontFaceName } from '@/lib/cards/card-text';
+import { scryfallArtCrop } from '@/lib/offline/slim-to-scryfall';
 import { normalizeScryfallQuery } from '@/lib/search/normalize-search';
 import { scryfallFetch, scryfallRequest, scryfallErrorMessage } from '@/lib/cards/scryfall-fetch';
 import { apiUrl } from '@/lib/api/api-base';
@@ -715,23 +716,44 @@ export async function getCardBySetAndNumber(set: string, number: string): Promis
  * selecting a commander from one's collection so the deck reflects the physical
  * copy (printing + finish), not the cheapest printing.
  *
- * Live: `/cards/:id` returns the exact printing. Offline (or if the id is
- * unknown to Scryfall — data drift): resolve by name for complete oracle data,
- * then override the result's `id` with the owned printing so the allocator
- * still binds the owned copy (`pickCollectionCopy` keys on `card.id`, and
- * `DeckDisplay` sources image/finish from the allocated copy).
+ * Online: `/cards/:id` returns the exact printing. This is keyed on the device
+ * being online, NOT on `offlineActive()`: that only says offline card data is
+ * downloaded, and gating on it sent every player who opted into offline data
+ * down the fallback, with the default printing's art (2026-11-13).
+ *
+ * Offline, or an id Scryfall doesn't know: resolve by name for complete oracle
+ * data, override `id` with the owned printing so the allocator still binds the
+ * owned copy (`pickCollectionCopy` keys on `card.id`), and, given the copy's own
+ * image, show that instead of the name's representative printing.
  */
-export async function getOwnedPrinting(scryfallId: string, name: string): Promise<ScryfallCard> {
-  if (!offlineActive()) {
+export async function getOwnedPrinting(
+  scryfallId: string,
+  name: string,
+  ownedImage?: string
+): Promise<ScryfallCard> {
+  if (typeof navigator === 'undefined' || navigator.onLine !== false) {
     try {
       return await getCardById(scryfallId);
     } catch {
       // Fall through to name resolution + id override (printing unknown to
-      // Scryfall — stale collection data, withdrawn printing, etc.).
+      // Scryfall: stale collection data, withdrawn printing, a dropped request).
     }
   }
   const card = await getCardByName(name);
-  return { ...card, id: scryfallId };
+  // The copy's own image for every size, its art crop derived like the cover's.
+  const images = ownedImage
+    ? {
+        image_uris: {
+          small: ownedImage,
+          normal: ownedImage,
+          large: ownedImage,
+          png: ownedImage,
+          border_crop: ownedImage,
+          art_crop: scryfallArtCrop(ownedImage),
+        },
+      }
+    : {};
+  return { ...card, ...images, id: scryfallId };
 }
 
 /**
@@ -742,9 +764,11 @@ export async function getOwnedPrinting(scryfallId: string, name: string): Promis
  */
 export function getCommanderPrinting(
   name: string,
-  owned: { scryfallId: string; name: string } | undefined
+  owned: { scryfallId: string; name: string; imageNormal?: string } | undefined
 ): Promise<ScryfallCard> {
-  return owned ? getOwnedPrinting(owned.scryfallId, owned.name) : getCardByName(name);
+  return owned
+    ? getOwnedPrinting(owned.scryfallId, owned.name, owned.imageNormal)
+    : getCardByName(name);
 }
 
 /**

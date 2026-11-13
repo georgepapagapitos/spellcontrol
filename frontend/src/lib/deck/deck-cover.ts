@@ -15,7 +15,8 @@ export function deckCoverArt(deck: DeckCoverInput<ScryfallCard>): string | undef
   return cardCoverArt(pickDeckCover(deck));
 }
 
-function cardCoverArt(card: ScryfallCard | null | undefined): string | undefined {
+/** A card's own art crop: this printing's, never a lookup by name. */
+export function cardCoverArt(card: ScryfallCard | null | undefined): string | undefined {
   if (!card) return undefined;
   const face = card.card_faces?.[0]?.image_uris;
   const raw =
