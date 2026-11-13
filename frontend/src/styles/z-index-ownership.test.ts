@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join, relative } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 
 // ONE class owns a layer.
 //
@@ -65,7 +65,7 @@ describe('z-index ownership', () => {
                 (c) =>
                   `.${c} (${owners
                     .get(c)!
-                    .map((f) => relative(srcRoot, f))
+                    .map((f) => relative(srcRoot, f).split(sep).join('/'))
                     .join(', ')})`
               )
               .join(' + ')}`

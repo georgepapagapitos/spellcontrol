@@ -5,7 +5,7 @@
 // Fix: load a tap-only dialog with `lazy(() => import(...))`, not a static import.
 
 import { describe, expect, it } from 'vitest';
-import { join, relative } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import { SRC, valueImports } from './import-graph';
 
 function staticGraph(entry: string): Set<string> {
@@ -23,7 +23,9 @@ function staticGraph(entry: string): Set<string> {
 }
 
 describe('/decks/new static import graph', () => {
-  const graph = [...staticGraph(join(SRC, 'pages/DeckNewPage.tsx'))].map((f) => relative(SRC, f));
+  const graph = [...staticGraph(join(SRC, 'pages/DeckNewPage.tsx'))].map((f) =>
+    relative(SRC, f).split(sep).join('/')
+  );
 
   it.each(['components/deck/ImportDeckDialog.tsx', 'components/import/ProductSearchDialog.tsx'])(
     'does not statically reach %s',

@@ -19,7 +19,7 @@
 // There is intentionally NO allowlist. The count is zero; keep it zero.
 
 import { describe, it, expect } from 'vitest';
-import { relative } from 'node:path';
+import { relative, sep } from 'node:path';
 import { SRC, sourceFiles, valueImports } from './test/import-graph';
 
 /** Every distinct elementary cycle reachable by DFS, as src-relative paths. */
@@ -36,7 +36,9 @@ function findCycles(graph: Map<string, string[]>): string[][] {
       if (!graph.has(next)) continue;
       const s = state.get(next) ?? 0;
       if (s === 1) {
-        const cyc = stack.slice(stack.indexOf(next)).map((f) => relative(SRC, f));
+        const cyc = stack
+          .slice(stack.indexOf(next))
+          .map((f) => relative(SRC, f).split(sep).join('/'));
         const key = [...cyc].sort().join('|');
         if (!seen.has(key)) {
           seen.add(key);

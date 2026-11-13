@@ -6,7 +6,7 @@
 // Every caller must carry `placement.right` through to its style.
 // If this fails: read `right` from the placement and set it on the panel.
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const SRC = join(__dirname, '..');
@@ -27,14 +27,14 @@ describe('computePopoverPlacement callers keep the right-aligned flip', () => {
     expect(callers.length).toBeGreaterThan(5);
     const dropsRight = callers
       .filter((f) => !/\bplacement\.right\b/.test(readFileSync(f, 'utf8')))
-      .map((f) => relative(SRC, f));
+      .map((f) => relative(SRC, f).split(sep).join('/'));
     expect(dropsRight).toEqual([]);
   });
 
   it('no caller falls back to a fixed left edge', () => {
     const offenders = [...files(SRC)]
       .filter((f) => /placement\.left\s*\?\?\s*\d/.test(readFileSync(f, 'utf8')))
-      .map((f) => relative(SRC, f));
+      .map((f) => relative(SRC, f).split(sep).join('/'));
     expect(offenders).toEqual([]);
   });
 });

@@ -15,7 +15,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -57,7 +57,7 @@ describe('native number-input spin buttons', () => {
     const offenders = cssFiles(srcRoot)
       .filter((f) => !f.endsWith('forms-banners.css'))
       .filter((f) => /spin-button|appearance:\s*textfield/.test(strip(readFileSync(f, 'utf8'))))
-      .map((f) => relative(srcRoot, f));
+      .map((f) => relative(srcRoot, f).split(sep).join('/'));
     expect(offenders).toEqual([]);
   });
 

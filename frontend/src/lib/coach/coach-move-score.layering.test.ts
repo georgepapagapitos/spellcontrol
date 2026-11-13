@@ -29,7 +29,7 @@ describe('the move scorer is shadow-only', () => {
     const offenders = files(SRC)
       .filter((p) => !ALLOWED.some((a) => relative(SRC, p).startsWith(a)))
       .filter((p) => /coach-move-score|coachShadow/.test(readFileSync(p, 'utf8')))
-      .map((p) => relative(SRC, p));
+      .map((p) => relative(SRC, p).split(sep).join('/'));
     expect(offenders).toEqual([]);
   });
 });
