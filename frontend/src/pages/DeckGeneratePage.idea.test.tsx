@@ -198,5 +198,21 @@ describe('DeckGeneratePage ideas', () => {
     await waitFor(() => expect(useDeckBuilderStore.getState().commander).toBeNull());
     expect(screen.queryByRole('button', { name: 'Change idea' })).toBeNull();
     expect(screen.getByRole('button', { name: /finder with ideas/ })).toBeTruthy();
+    // The prefill is gone, so the idea has to survive in the URL for the finder to re-apply it.
+    await waitFor(() =>
+      expect((finderProps.current?.ideaFinder as { initialSlug?: string }).initialSlug).toBe(
+        'angels'
+      )
+    );
+  });
+
+  it('a "From my collection" pick builds from free copies only (Only mine)', async () => {
+    renderAt('?format=commander');
+    const pick = finderProps.current?.onSelectFromBinder as (card: unknown) => void;
+    pick(giada);
+    await waitFor(() => expect(useDeckBuilderStore.getState().commander?.name).toBe(giada.name));
+    const { customization } = useDeckBuilderStore.getState();
+    expect(customization.collectionMode).toBe(true);
+    expect(customization.collectionStrategy).toBe('available');
   });
 });
