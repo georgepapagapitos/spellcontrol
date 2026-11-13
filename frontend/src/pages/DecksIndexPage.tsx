@@ -82,9 +82,9 @@ import { DECK_FORMAT_CONFIGS } from '../deck-builder/lib/constants/archetypes';
 import {
   effectiveDeckColors,
   deckDisplayColors,
-  validateDeckZones,
   countFlaggedCards,
 } from '@/lib/deck/deck-validation';
+import { useDecksLegalityIssues } from '@/lib/deck/use-decks-legality';
 import { ShareDialog } from '@/components/share/ShareDialog';
 import { listMyPublications, publishDeck, unpublishDeck } from '@/lib/social/publications-client';
 import { toast } from '../store/toasts';
@@ -188,6 +188,7 @@ export function DecksIndexPage() {
     () => new Map([...deckValueParts].map(([id, v]) => [id, v.value])),
     [deckValueParts]
   );
+  const legalityIssues = useDecksLegalityIssues(decks);
   // Gate for the "From my binder" door — mirrors the tab's own empty state.
   const canBuildFromBinder = rawCollectionCards.length >= MIN_COLLECTION_SIZE;
 
@@ -736,14 +737,7 @@ export function DecksIndexPage() {
                 const colorIdentity = deckDisplayColors(deck);
                 const themes = deck.generationContext?.selectedThemes ?? [];
                 const formatCfg = DECK_FORMAT_CONFIGS[deck.format];
-                // Judged on the deck's own zones, the same as the deck page:
-                // a Commander deck's sideboard is a holding pile, not the deck.
-                const issues = formatCfg
-                  ? validateDeckZones(deck.cards, deck.sideboard, formatCfg, {
-                      commander: deck.commander,
-                      partnerCommander: deck.partnerCommander,
-                    }).deck
-                  : [];
+                const issues = legalityIssues.get(deck.id) ?? [];
                 const flaggedCount = countFlaggedCards(issues);
                 const pull = pullCounts?.get(deck.id);
                 const value = deckValues.get(deck.id) ?? 0;
