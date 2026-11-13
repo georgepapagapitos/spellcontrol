@@ -222,14 +222,19 @@
   padding-bottom: var(--space-1);
 }
 
+/* Hairline rows, not bordered cards inside the list (STYLE_GUIDE § Surfaces:
+   one frame). The li owns the divider; the shared row drops its box, or its
+   three remaining edges stack against the li's divider. */
 .upgrade-plan-row-main > .deck-card-row {
-  border-bottom: 0;
+  padding: var(--space-2) 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
 }
 
 /* "Keep {card}": the one control that protects a cut, under the row it cuts
-   from, aligned with the row's text. */
+   from, aligned with the row's art. */
 .upgrade-plan-keep {
-  margin-left: var(--space-2);
   font-size: var(--text-sm);
 }
 
