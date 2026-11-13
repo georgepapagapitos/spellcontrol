@@ -252,6 +252,25 @@ describe('an idea applied', () => {
     finder({ ideaFinder: { initialSlug: 'nope', onPickWithIdea: vi.fn(async () => {}) } });
     await screen.findByRole('group', { name: 'Creature types' });
     expect(screen.queryByRole('button', { name: /^Remove/ })).toBeNull();
+    expect(screen.getByText(/That deck idea isn.t on the list any more/)).toBeTruthy();
+  });
+
+  it('says so when the deck ideas cannot load, and Retry brings them back', async () => {
+    let fail = true;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (!url.includes('idea-index')) return new Response('{}');
+        return fail ? new Response('', { status: 503 }) : new Response(JSON.stringify(SNAPSHOT));
+      })
+    );
+    finder();
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain("Couldn't load the deck ideas");
+    fail = false;
+    fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
+    await screen.findByRole('group', { name: 'Creature types' });
+    expect(screen.queryByText(/Couldn.t load the deck ideas/)).toBeNull();
   });
 
   it('typing suggests an idea; typed text under a chip only narrows by name', async () => {

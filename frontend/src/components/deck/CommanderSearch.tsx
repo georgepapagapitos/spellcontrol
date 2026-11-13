@@ -75,6 +75,7 @@ import { FilterChipsRow, type FilterChipDescriptor } from '@/components/shared/F
 import { SegmentedControl } from '@/components/shared/form';
 import { CommanderLeans } from './CommanderLeans';
 import { BuildAroundRows } from './BuildAroundRows';
+import { IdeaIndexNotes } from './IdeaIndexNotes';
 import { CommanderPick } from './CommanderPick';
 import { useBuyCandidates } from './use-buy-candidates';
 import {
@@ -1073,6 +1074,9 @@ export function CommanderSearch({
         filterBody
       )}
 
+      {ideaFinder && (
+        <IdeaIndexNotes state={ideaState} slug={ideaPick === undefined ? initialSlug : null} />
+      )}
       {ideaFinder && !idea && !text.trim() && ideaIndex && (
         <BuildAroundRows index={ideaIndex} onPick={setIdea} />
       )}

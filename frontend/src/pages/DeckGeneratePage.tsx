@@ -390,10 +390,12 @@ export function DeckGeneratePage() {
   );
   // "Change idea" drops the commander and the seeded route state; the finder comes back with the
   // idea still applied, ready to pick another commander or remove it.
+  // The slug stays in the URL: an idea that arrived by link is applied by derivation from it.
   const changeIdea = useCallback(() => {
     chooseCommander(null);
-    navigate(`/decks/new/generate?format=${format}`, { replace: true, state: null });
-  }, [chooseCommander, navigate, format]);
+    const idea = ideaContext ? `&idea=${encodeURIComponent(ideaContext.slug)}` : '';
+    navigate(`/decks/new/generate?format=${format}${idea}`, { replace: true, state: null });
+  }, [chooseCommander, navigate, format, ideaContext]);
   const ideaSlug = searchParams.get('idea') ?? prefill?.ideaContext?.slug ?? null;
   const ideaNote = ideaContext
     ? `From the ${ideaContext.name} idea${ideaContext.decks ? ` · ${formatCount(ideaContext.decks)} decks` : ''}`
@@ -632,8 +634,9 @@ export function DeckGeneratePage() {
               }
               onSelectFromBinder={(card) => {
                 // E283: a "From my collection" pick is a build-from-what-I-own
-                // intent, so land with collection mode on and "Only my cards".
-                updateCustomization({ collectionMode: true, collectionStrategy: 'full' });
+                // intent, so land on "Only mine": free copies, never one another
+                // deck holds (#3214).
+                updateCustomization({ collectionMode: true, collectionStrategy: 'available' });
                 chooseCommander(card);
               }}
             />
