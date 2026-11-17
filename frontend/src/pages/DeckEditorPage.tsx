@@ -58,6 +58,8 @@ import { useDeckRefineData } from './deck-editor/use-deck-refine-data';
 import { useCoachArrivals } from './deck-editor/use-coach-arrivals';
 import { useDeckEditorHotkeys } from './deck-editor/use-deck-editor-hotkeys';
 import { useDeckHeroData } from './deck-editor/use-deck-hero-data';
+import { useDeckLocks } from './deck-editor/use-deck-locks';
+import { DeckLockContext, NO_LOCKS } from '@/components/deck/deck-lock-context';
 import { useDeckZoneEdits } from './deck-editor/use-deck-zone-edits';
 import { useDeckCardRenderers } from './deck-editor/use-deck-card-renderers';
 import { DeckEditorLayout } from './deck-editor/DeckEditorLayout';
@@ -394,6 +396,7 @@ function DeckEditor({ deck }: { deck: Deck }) {
   );
   useDeckEditorHotkeys({ setShowAddPanel, searchPanelRef, openAnalysisTab, handleViewCombos });
   const { heroArt, heroTotals, cover } = useDeckHeroData({ deck, deckCards });
+  const lock = useDeckLocks(deck);
 
   // CoachFeed "Fit?" button — open the audition for a feed row's incoming card.
   // For swap rows, also store the outgoing card name so CardFitPanel can pin it
@@ -571,29 +574,31 @@ function DeckEditor({ deck }: { deck: Deck }) {
         </div>
       )}
 
-      <DeckEditorLayout
-        deck={deck}
-        collectionCards={collectionCards}
-        chrome={{ safeView, viewTabs, isDesktop, cover }}
-        ui={ui}
-        zoneEdits={zoneEdits}
-        printingEdits={printingEdits}
-        commanderEdits={commanderEdits}
-        realloc={realloc}
-        ownership={ownership}
-        addFlow={addFlow}
-        derived={derived}
-        view={deckView}
-        combosView={combosView}
-        analysis={analysis}
-        refine={refine}
-        refineAlternatives={refineAlternatives}
-        coachApply={coachApply}
-        arrivals={arrivals}
-        renderers={renderers}
-        addBoxExtras={addBoxExtras}
-        onCoachPreviewFit={handleCoachPreviewFit}
-      />
+      <DeckLockContext.Provider value={lock?.names ?? NO_LOCKS}>
+        <DeckEditorLayout
+          deck={deck}
+          collectionCards={collectionCards}
+          chrome={{ safeView, viewTabs, isDesktop, cover, lock }}
+          ui={ui}
+          zoneEdits={zoneEdits}
+          printingEdits={printingEdits}
+          commanderEdits={commanderEdits}
+          realloc={realloc}
+          ownership={ownership}
+          addFlow={addFlow}
+          derived={derived}
+          view={deckView}
+          combosView={combosView}
+          analysis={analysis}
+          refine={refine}
+          refineAlternatives={refineAlternatives}
+          coachApply={coachApply}
+          arrivals={arrivals}
+          renderers={renderers}
+          addBoxExtras={addBoxExtras}
+          onCoachPreviewFit={handleCoachPreviewFit}
+        />
+      </DeckLockContext.Provider>
 
       <DeckEditorOverlays
         deck={deck}

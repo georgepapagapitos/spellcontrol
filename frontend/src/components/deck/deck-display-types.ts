@@ -181,6 +181,8 @@ export interface DeckDisplayProps {
   onChangeCommander?: () => void;
   /** When provided, deck rows offer "Use as deck cover" (deck-card-actions). */
   cover?: DeckCardActionCtx['cover'];
+  /** When provided, deck rows offer "Lock card" and locked rows are marked. */
+  lock?: DeckCardActionCtx['lock'];
   /** When provided, the Commander section header shows an "Add/Edit partner"
    *  control that opens the partner picker. Pass only when the commander can
    *  actually have a partner. */

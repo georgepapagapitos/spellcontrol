@@ -34,6 +34,7 @@ import { getRoleBadge, isMultiRole, multiRoleTitle } from '@/lib/deck-analysis/r
 import { ToolbarPopover } from '../shared/ToolbarPopover';
 import { Button } from '@/components/shared/Button';
 import { Chip } from '@/components/shared/Chip';
+import { useIsLocked } from './deck-lock-context';
 
 // Section-header icon per category bucket. 'lands'/'creatures' reuse the
 // mana-font type glyphs (via ManaSymbol, see SectionIcon below) — the other
@@ -132,6 +133,20 @@ export function ProxyTag({ row }: { row: Row }) {
       {' '}
       <Chip className="deck-row-proxy-tag" title={allocationSummary(row)}>
         {n === row.qty ? 'proxy' : `${n} proxy`}
+      </Chip>
+    </>
+  );
+}
+
+// "locked" by the name of a card Regenerate keeps (lib/deck/deck-locks). The
+// same word-not-symbol tag as a proxy, and like it never hover-gated.
+export function LockTag({ name }: { name: string }) {
+  if (!useIsLocked(name)) return null;
+  return (
+    <>
+      {' '}
+      <Chip className="deck-row-proxy-tag" title="Regenerate keeps this card.">
+        locked
       </Chip>
     </>
   );

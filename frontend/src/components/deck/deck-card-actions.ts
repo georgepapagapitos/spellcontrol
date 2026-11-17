@@ -11,13 +11,14 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { getMaxCopies } from '@/lib/deck/deck-validation';
 import { withTagAdded, withTagRemoved } from '@/lib/deck/deck-tags';
 import { COMMANDER_SEAT, PARTNER_SEAT } from '@/lib/deck/deck-seat';
+import { canLock } from '@/lib/deck/deck-locks';
 import type { Row } from './deck-display-rows';
 import { proxyMarkQty } from './deck-row-allocation';
 
 /** Clusters, in render order. The menu runs past a dozen rows, and the style
  *  guide asks for labeled sections rather than one flat list once it does. */
 export type DeckCardActionSection =
-  'copies' | 'move' | 'collection' | 'commander' | 'tag' | 'cover';
+  'copies' | 'move' | 'collection' | 'commander' | 'tag' | 'regenerate' | 'cover';
 
 export const SECTION_TITLES: Record<DeckCardActionSection, string> = {
   copies: 'Copies',
@@ -25,6 +26,7 @@ export const SECTION_TITLES: Record<DeckCardActionSection, string> = {
   collection: 'Collection',
   commander: 'Command zone',
   tag: 'Tags',
+  regenerate: 'Regenerate',
   cover: 'Cover',
 };
 
@@ -34,6 +36,7 @@ export const SECTION_ORDER: DeckCardActionSection[] = [
   'tag',
   'collection',
   'commander',
+  'regenerate',
   'cover',
 ];
 
@@ -86,6 +89,12 @@ export interface DeckCardActionCtx {
     current: string | null;
     set: (cardName: string | null) => void;
   };
+  /** The deck's locked cards (lib/deck/deck-locks) and the setter. Absent
+   *  means no lock action: a deck Regenerate can't rebuild, or an out-zone row. */
+  lock?: {
+    names: ReadonlySet<string>;
+    set: (cardName: string, locked: boolean) => void;
+  };
 }
 
 export function deckCardActions(ctx: DeckCardActionCtx): DeckCardAction[] {
@@ -111,6 +120,7 @@ export function deckCardActions(ctx: DeckCardActionCtx): DeckCardAction[] {
     onChangeCommander,
     onSetRowTags,
     cover,
+    lock,
   } = ctx;
 
   // A commander row carries no deck slot, so every slot-bound action is
@@ -318,6 +328,17 @@ export function deckCardActions(ctx: DeckCardActionCtx): DeckCardAction[] {
       label: 'Change commander',
       section: 'commander',
       run: onChangeCommander,
+    });
+  }
+
+  if (lock && hasSlots && canLock(row.card)) {
+    const name = row.card.name;
+    const locked = lock.names.has(name);
+    out.push({
+      key: locked ? 'unlock' : 'lock',
+      label: locked ? 'Unlock card' : 'Lock card',
+      section: 'regenerate',
+      run: () => lock.set(name, !locked),
     });
   }
 
