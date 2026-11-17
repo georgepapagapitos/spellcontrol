@@ -1,4 +1,5 @@
 import type { Deck } from '@/store/decks';
+import { lockedNames } from './deck-locks';
 import { deckEdits } from './regenerate-edits';
 
 /**
@@ -7,6 +8,14 @@ import { deckEdits } from './regenerate-edits';
  * diff. One builder for every surface that offers it (the decks index tile and
  * the deck page), so the two can't drift on what a regenerate carries.
  */
+/** The saved settings, with only the locks still in the deck (deck-locks): a
+ *  lock on a card the player has since cut must not bring it back. */
+function liveLocksOnly(deck: Deck) {
+  const saved = deck.generationContext?.customization;
+  if (!saved?.lockedCards?.length) return saved;
+  return { ...saved, lockedCards: [...lockedNames(deck)] };
+}
+
 export function regenerateState(deck: Deck) {
   return {
     prefill: {
@@ -14,7 +23,7 @@ export function regenerateState(deck: Deck) {
       format: deck.format,
       commander: deck.commander,
       partnerCommander: deck.partnerCommander,
-      customization: deck.generationContext?.customization,
+      customization: liveLocksOnly(deck),
       edits: deckEdits(deck) ?? undefined,
       themes: (deck.generationContext?.selectedThemes ?? []).map((t) => ({
         name: t.name,

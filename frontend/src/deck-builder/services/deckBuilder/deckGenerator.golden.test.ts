@@ -509,6 +509,51 @@ describe('generateDeck — golden master', () => {
     }
   });
 
+  // E1116: a locked card's only copy sits in the deck being regenerated, so
+  // an "Only mine" build has no free copy of it. A lock still seats it; the
+  // same name as a plain must-include is skipped, which is the contrast.
+  it('seats a locked card in an owned-only build that has no free copy of it', async () => {
+    const pick: ScryfallCard = mkSC('Locked Pick', 'Creature', 2);
+    const mocked = vi.mocked(getCardsByNames);
+    const prev = mocked.getMockImplementation();
+    mocked.mockImplementation(async (names: string[]) => {
+      const m = new Map<string, ScryfallCard>();
+      for (const n of names) {
+        const c = n === 'Locked Pick' ? pick : POOL.scMap.get(n);
+        if (c) m.set(n, c);
+      }
+      return m;
+    });
+    const build = async (over: Parameters<typeof customization>[0]) => {
+      const ctx = baseContext();
+      ctx.customization = customization({
+        collectionMode: true,
+        collectionStrategy: 'available',
+        ...over,
+      });
+      (ctx as { collectionNames?: Set<string> }).collectionNames = new Set(['Test Commander']);
+      clearGenerationCache();
+      const deck = await generateDeck(ctx);
+      return {
+        deck,
+        names: Object.values(deck.categories)
+          .flat()
+          .map((c) => c.name),
+      };
+    };
+    try {
+      const locked = await build({ lockedCards: ['Locked Pick'] });
+      expect(locked.names).toContain('Locked Pick');
+      expect(locked.deck.mustIncludeSkippedNote ?? '').not.toContain('Locked Pick');
+
+      const typed = await build({ mustIncludeCards: ['Locked Pick'] });
+      expect(typed.names).not.toContain('Locked Pick');
+      expect(typed.deck.mustIncludeSkippedNote).toContain('Locked Pick');
+    } finally {
+      if (prev) mocked.mockImplementation(prev);
+    }
+  });
+
   it('snapshots a Tiny-Leaders (CMC<=3, 49-card) variant', async () => {
     const ctx = baseContext();
     ctx.customization = customization({ deckFormat: 99, tinyLeaders: true });

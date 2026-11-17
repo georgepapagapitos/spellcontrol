@@ -531,12 +531,13 @@ named button, and each holds exactly one kind of thing:
 - **Lock card keeps a card through Regenerate** (E1116). The card menu's
   Regenerate section offers Lock card and Unlock card on a generated deck's
   mainboard cards, never on a basic land (the land step sets those) or the
-  commander. A lock is one of the saved build's must-includes, so the generator
-  page lists it under Must include and no second control carries it. A locked
-  row says "locked" by its name, the same word tag as "proxy", and a grid tile
-  wears a "Locked" badge bottom-start. A locked card the player cuts or moves
-  out of the mainboard stops reading as locked, and "Keep my edits" treats it as
-  cut.
+  commander. Locks are saved with the build's settings in their own list, apart
+  from the must-includes typed at build time: only a card the player locked
+  reads as locked, and a regenerated deck keeps its locks. A locked row says
+  "locked" by its name, the same word tag as "proxy", and a grid tile wears a
+  "Locked" badge bottom-start. Cutting a locked card or moving it out of the
+  mainboard releases the lock for good; it never comes back on its own. The
+  generator page's Must-include hint counts the locked cards it will keep.
 - **A shared deck** has no Deck ▾ and no edits: its Test hand and Export keep
   a kebab in the toolbar, after View. With no header menu on that page there
   is no second kebab to mistake it for.

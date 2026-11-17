@@ -1429,6 +1429,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // Process must-include cards FIRST — they get priority over all other selections
   // Track where each must-include came from (first source wins)
 
+  // Locked cards (deck-locks) first: the 'deck' source survives an owned-only build.
+  for (const name of customization.lockedCards || []) addMustInclude(name, 'deck');
   // Persistent user must-includes
   for (const name of customization.mustIncludeCards || []) {
     addMustInclude(name, 'user');

@@ -248,13 +248,13 @@ export function DeckCustomizer({ customization, update, step = false }: DeckCust
               >
                 <CardListGroup
                   hint={
-                    poolFetcher
+                    (poolFetcher
                       ? `These cards go in first. While “Use my collection” is on, search is limited to ${
                           customization.collectionStrategy === 'available'
                             ? 'free copies in your collection'
                             : 'cards you own'
                         }.`
-                      : 'These cards go in first.'
+                      : 'These cards go in first.') + lockedHint(customization.lockedCards)
                   }
                   values={customization.mustIncludeCards}
                   onChange={(next) => update({ mustIncludeCards: next })}
@@ -1030,6 +1030,14 @@ function ScryfallGroup({ customization, update }: DeckCustomizerProps) {
 }
 
 // ── Card name pickers (must-include / excluded) ──────────────────────────
+/** Locked cards ride along with a regenerate but aren't in this list, so the
+ *  hint says they are kept and where to release one. */
+function lockedHint(locked: string[] | undefined): string {
+  const n = locked?.length ?? 0;
+  if (n === 0) return '';
+  return ` ${n} locked ${n === 1 ? 'card is' : 'cards are'} kept too. To release one, use its menu in the deck.`;
+}
+
 function CardListGroup({
   hint,
   values,

@@ -55,6 +55,7 @@ export const defaultCustomization: Customization = {
   // Must-includes are commander-scoped build intent, not a preference — they
   // never persist across sessions and are cleared on commander change / reset.
   mustIncludeCards: [],
+  lockedCards: [],
   tempBannedCards: [],
   tempMustIncludeCards: [],
   maxCardPrice: null,
@@ -129,6 +130,7 @@ export const useDeckBuilderStore = create<AppState>((set, get) => ({
         customization: {
           ...state.customization,
           mustIncludeCards: [],
+          lockedCards: [],
           tempMustIncludeCards: [],
         },
         partnerCommander: null,
@@ -291,6 +293,7 @@ export const useDeckBuilderStore = create<AppState>((set, get) => ({
           landsExplicit: false,
         }),
         mustIncludeCards: [],
+        lockedCards: [],
         tempMustIncludeCards: [],
       },
       generatedDeck: null,
