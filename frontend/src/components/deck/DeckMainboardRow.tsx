@@ -55,7 +55,7 @@ import {
 } from './deck-display-rows';
 import { allocationAriaLabel, allocationTitle, countedPrice } from './deck-row-allocation';
 import { peekSlotOf, qtyOwnershipClass } from './deck-display-derive';
-import { SectionIcon, AllocationChip, ProxyTag, RowPrice } from './deck-display-icons';
+import { SectionIcon, AllocationChip, ProxyTag, LockTag, RowPrice } from './deck-display-icons';
 import { RoleBadge, LegalityBadge } from './deck-display-icons';
 import { CardName } from '@/components/shared/CardName';
 import { IconButton } from '@/components/shared/Button';
@@ -639,6 +639,7 @@ function DeckCardRow({
           never gives up its width to the tag and split mid-word
           ("Vandalblas|t"). */}
       <ProxyTag row={row} />
+      <LockTag name={row.card.name} />
     </span>
   );
 

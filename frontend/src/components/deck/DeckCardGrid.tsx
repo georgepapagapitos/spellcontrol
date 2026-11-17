@@ -10,7 +10,8 @@
 // cluster — so the two can't drift; only the section/list classes and the
 // `--stack-w` width differ (see deck-builder-card-list.css § Stacks).
 import '@/styles/deck-builder-card-list.css';
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { DeckLockContext } from './deck-lock-context';
 import { ChevronDown, Handshake, MoreVertical, Tag as TagIcon } from 'lucide-react';
 import { getRoleBadge, type RoleKey } from '@/lib/deck-analysis/role-badges';
 import { stackWidth, zoomBucket, zoomCols, zoomMinCol, zoomTier } from '@/lib/util/grid-zoom';
@@ -172,6 +173,7 @@ export function DeckCardGrid({
   /** False for a card with nothing to do (a read-only shared deck): no ⋮. */
   rowHasMenu?: (row: Row) => boolean;
 }) {
+  const locked = useContext(DeckLockContext);
   const stacks = layout === 'stacks';
   const [containerRef, containerWidth] = useElementWidth<HTMLDivElement>();
   const containerEl = useRef<HTMLDivElement | null>(null);
@@ -452,6 +454,15 @@ export function DeckCardGrid({
                     {row.qty > 1 && (
                       <ArtBadge className="deck-card-grid-qty" corner="top-start">
                         ×{row.qty}
+                      </ArtBadge>
+                    )}
+                    {locked.has(row.card.name) && (
+                      <ArtBadge
+                        className="deck-card-grid-lock"
+                        corner="bottom-start"
+                        title="Regenerate keeps this card."
+                      >
+                        Locked
                       </ArtBadge>
                     )}
                     {row.status === 'allocated' && proxyMarkQty(row) > 0 && (

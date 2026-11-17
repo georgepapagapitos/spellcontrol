@@ -31,6 +31,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { deckEditActions } from './deck-page-chrome';
 import type { EnrichedCard } from '@spellcontrol/binder-routing';
 import type { DeckViewTab } from './deck-page-chrome';
+import type { useDeckLocks } from './use-deck-locks';
 import type { useDeckEditorUi } from './use-deck-editor-ui';
 import type { useDeckZoneEdits } from './use-deck-zone-edits';
 import type { useDeckPrintingEdits } from './use-deck-printing-edits';
@@ -53,6 +54,7 @@ export type DeckEditorChrome = {
   viewTabs: DeckViewTab[];
   isDesktop: boolean;
   cover: ReturnType<typeof useDeckHeroData>['cover'];
+  lock: ReturnType<typeof useDeckLocks>;
 };
 
 /**
@@ -106,7 +108,7 @@ export function DeckEditorLayout({
   addBoxExtras: (() => void) | undefined;
   onCoachPreviewFit: (change: Change) => Promise<void>;
 }) {
-  const { safeView, viewTabs, isDesktop, cover } = chrome;
+  const { safeView, viewTabs, isDesktop, cover, lock } = chrome;
   const {
     setShowAddPanel,
     searchPanelRef,
@@ -276,6 +278,7 @@ export function DeckEditorLayout({
                 : undefined
             }
             cover={cover}
+            lock={lock}
             onEditPartner={
               formatConfig?.hasCommander && deck.commander && canHavePartner(deck.commander)
                 ? () => setShowPartnerPicker(true)

@@ -32,6 +32,7 @@ export type CardMenuHandlers = Pick<
   | 'canMakePartner'
   | 'onChangeCommander'
   | 'cover'
+  | 'lock'
   | 'onSetCardTags'
   | 'onBulkRemove'
   | 'onBulkMove'
@@ -107,6 +108,7 @@ export function buildCardMenuCtx(args: {
     canMakePartner: h.canMakePartner,
     onChangeCommander: zone === 'cards' ? h.onChangeCommander : undefined,
     cover: zone === 'cards' ? h.cover : undefined,
+    lock: zone === 'cards' ? h.lock : undefined,
     onSetRowTags: h.onSetCardTags
       ? (slotIds, tags) => h.onSetCardTags!(zone, slotIds, tags)
       : undefined,

@@ -528,6 +528,15 @@ named button, and each holds exactly one kind of thing:
   so the next re-check doesn't treat them as edits. It shows only on a deck
   generated from the collection by the EDHREC pipeline, the one case where
   re-running against the collection means something.
+- **Lock card keeps a card through Regenerate** (E1116). The card menu's
+  Regenerate section offers Lock card and Unlock card on a generated deck's
+  mainboard cards, never on a basic land (the land step sets those) or the
+  commander. A lock is one of the saved build's must-includes, so the generator
+  page lists it under Must include and no second control carries it. A locked
+  row says "locked" by its name, the same word tag as "proxy", and a grid tile
+  wears a "Locked" badge bottom-start. A locked card the player cuts or moves
+  out of the mainboard stops reading as locked, and "Keep my edits" treats it as
+  cut.
 - **A shared deck** has no Deck ▾ and no edits: its Test hand and Export keep
   a kebab in the toolbar, after View. With no header menu on that page there
   is no second kebab to mistake it for.

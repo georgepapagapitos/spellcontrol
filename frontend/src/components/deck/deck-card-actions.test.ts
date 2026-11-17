@@ -337,3 +337,35 @@ describe('deck cover action', () => {
     expect(SECTION_ORDER.at(-1)).toBe('cover');
   });
 });
+
+describe('lock action', () => {
+  const lock = (names: string[] = []) => ({ names: new Set(names), set: vi.fn() });
+
+  it('offers Lock card, then Unlock card once the card is locked', () => {
+    const open = lock();
+    const action = byKey({ row: row(), lock: open }, 'lock')!;
+    expect(action.label).toBe('Lock card');
+    expect(action.section).toBe('regenerate');
+    action.run!();
+    expect(open.set).toHaveBeenCalledWith('Brago', true);
+
+    const held = lock(['Brago']);
+    const undo = byKey({ row: row(), lock: held }, 'unlock')!;
+    expect(undo.label).toBe('Unlock card');
+    undo.run!();
+    expect(held.set).toHaveBeenCalledWith('Brago', false);
+  });
+
+  it('is absent on the commander row, on a basic land, and with no lock handler', () => {
+    expect(keys({ row: row({ slotIds: [] }), lock: lock() })).not.toContain('lock');
+    const basic = row({
+      card: { name: 'Island', type_line: 'Basic Land — Island' } as unknown as ScryfallCard,
+    });
+    expect(keys({ row: basic, lock: lock() })).not.toContain('lock');
+    expect(keys({ row: row() })).not.toContain('lock');
+  });
+
+  it('has a place in the section order', () => {
+    expect(SECTION_ORDER).toContain('regenerate');
+  });
+});
