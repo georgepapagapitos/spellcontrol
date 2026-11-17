@@ -1,5 +1,7 @@
 import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
 import type { TargetMissFields } from './targetMiss';
+import type { LiftPackagePick } from './lift';
+export type { LiftEntry, LiftPackagePick } from './lift';
 /**
  * A token (or emblem) a card can create, from Scryfall's `all_parts`. Carried
  * through the offline slim payload for the deck Stats tab's token checklist.
@@ -198,19 +200,6 @@ export interface EDHRECCard {
   // them either, so both fields were permanently undefined. Per-card salt
   // now lives only on the dedicated /pages/top/salt.json page (see
   // fetchSaltIndex in services/edhrec/client.ts).
-}
-
-// A card-page "lift" co-play entry — how strongly a card is played alongside
-// a given seed card, derived from EDHREC's per-card page (highliftcards /
-// topcards). See services/edhrec/client.ts (parseCardLiftPool) for the
-// derivation and services/deckBuilder/liftSynergy.ts for how it's scored.
-export interface LiftEntry {
-  name: string;
-  lift: number;
-  coPlayPct: number; // integer 0-100, derived inclusion/potential_decks
-  numDecks: number;
-  potentialDecks: number;
-  lowSample: boolean; // numDecks < 50 (strict floor)
 }
 
 // EDHREC Commander statistics
@@ -416,22 +405,6 @@ export interface HiddenGemRow {
   inclusion?: number;
   /** Evidence, strongest first (1–3 entries, one per signal kind). */
   signals: HiddenGemSignal[];
-}
-
-/**
- * A generation-time "hidden synergy" suggestion surfaced from EDHREC card-page
- * lift data (see services/deckBuilder/deckGeneration/phaseLiftPicks.ts) — a
- * package pick the generator did NOT add to the deck, only proposed. `kind`
- * distinguishes a single strong co-play pairing ('bomb') from a candidate
- * lifted by several deck cards at once ('cluster'); `liftedBy` names the
- * seed(s) responsible, capped to 3, strongest first.
- */
-export interface LiftPackagePick {
-  name: string;
-  kind: 'bomb' | 'cluster';
-  liftedBy: string[];
-  lowSample: boolean;
-  owned: boolean;
 }
 
 /** One color's line in the manabase self-explanation (see manabaseMath). */
@@ -1065,6 +1038,9 @@ export interface Customization {
   bannedCards: string[]; // Card names to exclude from deck generation
   banLists: BanList[]; // Named ban lists (preset + custom)
   mustIncludeCards: string[]; // Card names to force-include in deck generation (first priority)
+  /** Cards the player locked in the deck this build regenerates
+   *  (lib/deck/deck-locks). Seated like a must-include from that deck. */
+  lockedCards?: string[];
   tempBannedCards: string[]; // Temporary bans from deck toolbar (cleared on generation)
   tempMustIncludeCards: string[]; // Temporary must-includes from combo section (cleared on generation)
   maxCardPrice: number | null; // Max USD price per card, null = no limit
