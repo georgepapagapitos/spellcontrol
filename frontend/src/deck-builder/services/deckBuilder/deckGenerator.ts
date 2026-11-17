@@ -85,7 +85,6 @@ import { reserveLandBudget } from './landBudgetReserve';
 import { BracketGuard, bracketCeilings, ceilingsAreOpen } from './bracketGuard';
 import {
   mergeWithAllNonLand,
-  calculateCardPriority,
   isHighSynergyCard,
   PRICE_SANITY_RATIO,
   PRICE_SANITY_INCLUSION_BAND,
@@ -160,7 +159,6 @@ import {
 
 import {
   type GenerationContext,
-  type GenerationState,
   createState,
   markUsed as stMarkUsed,
   applyBans,
@@ -176,7 +174,8 @@ import {
 } from './deckGeneration/phaseDetectCombos';
 import { gapAnalysisPhase } from './deckGeneration/phaseGapAnalysis';
 import { liftPicksPhase } from './deckGeneration/phaseLiftPicks';
-import { ensureLiftPools, getLiftIndex, MAX_LIFT_SEEDS } from './deckGeneration/liftPools';
+import { collectEarlyLiftSeeds, ensureLiftPools, getLiftIndex } from './deckGeneration/liftPools';
+import * as buildAround from './deckGeneration/buildAround';
 import { deckScorePhase } from './deckGeneration/phaseDeckScore';
 import { cardRelevancyPhase } from './deckGeneration/phaseCardRelevancy';
 import { stapleManaRocksPhase, STAPLE_ROCK_NAMES } from './deckGeneration/phaseStapleManaRocks';
@@ -284,44 +283,6 @@ function getSimpleCardType(typeLine: string): string | null {
             : typeLine.includes('planeswalker')
               ? 'planeswalker'
               : null;
-}
-
-/**
- * Early lift-seed set (E71 slice 2), collected BEFORE any card is picked:
- * commander(s), then EDHREC-pool cards flagged isThemeSynergyCard, then
- * must-includes. Note isThemeSynergyCard is set on every EDHREC response's
- * highsynergy/topcards lists (not only theme-slug fetches), so in a no-theme
- * build these seeds are the commander's own base high-synergy cards — the
- * same theme-independent bias picking already applies via isHighSynergyCard.
- * No implicit "lift as theme" switch: with no selected theme the fetched
- * pool is the base commander page, never a theme page.
- * Deduped, capped at MAX_LIFT_SEEDS. Deck cards picked later add further
- * seeds via phaseLiftPicks' own collectSeeds, sharing the same pool/cap.
- */
-function collectEarlyLiftSeeds(state: GenerationState): string[] {
-  const seeds: string[] = [];
-  const seen = new Set<string>();
-  const add = (name: string | null | undefined) => {
-    if (!name || seen.has(name) || seeds.length >= MAX_LIFT_SEEDS) return;
-    seen.add(name);
-    seeds.push(name);
-  };
-
-  add(state.context.commander.name);
-  add(state.context.partnerCommander?.name);
-  if (state.edhrecData) {
-    const themeCards = state.edhrecData.cardlists.allNonLand
-      .filter((c) => c.isThemeSynergyCard)
-      .sort(
-        (a, b) =>
-          calculateCardPriority(b, state.cfg.brewLevel) -
-          calculateCardPriority(a, state.cfg.brewLevel)
-      );
-    for (const c of themeCards) add(c.name);
-  }
-  for (const name of state.mustIncludeNames) add(name);
-
-  return seeds;
 }
 
 /**
@@ -1148,6 +1109,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   assertCommandersEligible(context);
   const deck = await generateDeckForMode({
     ...context,
+    customization: buildAround.asMustIncludes(context.customization),
     collectionNames: withFrontFaces(context.collectionNames),
   });
   const previewNote = commanderPreviewNote(
@@ -2096,6 +2058,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   const liftIndex = getLiftIndex(state);
   const liftScoreOf = (name: string) => liftIndex.get(name.toLowerCase())?.clusterScore ?? 0;
   const liftTieBreak = new Map([...liftIndex].map(([name, entry]) => [name, entry.clusterScore]));
+  // E1116: the player's build-around seeds, with their own lift index. Inert with none.
+  const seeds = buildAround.seedLift(state);
 
   // Bracket band guardrail: cap per-card floor signals (game changers, MLD,
   // extra turns, stax) so the deck lands at/under the target bracket by
@@ -2306,6 +2270,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       state.cfg.brewLevel
     );
 
+    const poolMap: Record<string, EDHRECCard[]> = {
+      creature: creaturePool,
+      instant: instantPool,
+      sorcery: sorceryPool,
+      artifact: artifactPool,
+      enchantment: enchantmentPool,
+      planeswalker: planeswalkerPool,
+    };
     // Collect ALL unique card names from all pools for a single batch fetch
     onProgress?.('Searching your library…', 18);
     const allCardNames = new Set<string>();
@@ -2349,6 +2321,13 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     for (const name of comboCardNames) {
       allCardNames.add(name);
     }
+    // E1116: off-page cards that play with the seeds join the same fetch and filters.
+    const seedAdmits = buildAround.selectSeedAdmits(seeds.pools, poolMap, [
+      usedNames,
+      bannedCards,
+      comboCardNames,
+    ]);
+    for (const admit of seedAdmits) allCardNames.add(admit.name);
 
     logger.debug(`[DeckGen] Batch fetching ${allCardNames.size} unique card names`);
 
@@ -2415,14 +2394,6 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
     // Inject combo pieces into the correct type pools so they can actually be picked
     if (comboCardNames.size > 0) {
-      const poolMap: Record<string, EDHRECCard[]> = {
-        creature: creaturePool,
-        instant: instantPool,
-        sorcery: sorceryPool,
-        artifact: artifactPool,
-        enchantment: enchantmentPool,
-        planeswalker: planeswalkerPool,
-      };
       let injected = 0;
       for (const name of comboCardNames) {
         const scryfallCard = cardMap.get(name);
@@ -2449,6 +2420,23 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         logger.debug(`[DeckGen] Injected ${injected} combo pieces into type pools`);
       }
     }
+
+    // E1116: seat the admitted cards in a type pool (never `allNonLand`, which feeds
+    // the role targets). Every pick-time gate still applies to them.
+    buildAround.seatSeedAdmits(
+      seedAdmits,
+      cardMap,
+      poolMap,
+      seeds,
+      boostProvenance,
+      (card) =>
+        !(
+          !fitsColorIdentity(card, colorIdentity) ||
+          notLegalForFormat(card, state.cfg.mtgFormat, state.cfg.allowPreviewCards) ||
+          isSaltBlocked?.(card.name) ||
+          (poolOwnedOnly && notInCollection(card.name, context.collectionNames))
+        )
+    );
 
     // ---- Balanced Roles: pre-compute role map and seed counts ----
     if (customization.balancedRoles) {
@@ -2594,6 +2582,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         state.cfg,
         context.collectionNames
       );
+      // E1116: a second lift boost from the player's seeds alone (not dial-scaled).
+      if (seeds.pools.size > 0)
+        applyBoost(computeLiftPickBoosts(liftEligibleNames, seeds.scoreOf), buildAround.LABEL);
       const lift = computeLiftPickBoosts(liftEligibleNames, liftScoreOf, 2 * state.cfg.brewLevel);
       applyBoost(lift, 'Cluster-lift pick');
       const untap = computeUntapVisibilityBoosts(
@@ -4536,6 +4527,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     maxCmc,
     resolveOwned,
   });
+  state.roleTargets = roleTargets; // read by the build-around role restore (E1116)
   detectedCombos = await guaranteeStaples(state, budgetTracker, detectedCombos, coherenceRepairs);
   // E1044: the budget last resort, once every pass that can move the total has run.
   const budgetTally = await runBudgetLastResort(state, budgetConvergeCtx, {
@@ -4987,6 +4979,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     gapAnalysis: finalGaps,
     packagePicks: liftPicks?.packagePicks,
     liftPicksNote: liftPicks?.liftPicksNote,
+    buildAround: buildAround.report(
+      state.cfg.buildAround ?? [],
+      seeds,
+      nonLandCards,
+      !state.edhrecData
+    ),
     manabase,
     coherenceFindings: coherenceFindings.length > 0 ? coherenceFindings : undefined,
     coherenceRepairs: coherenceRepairs.length > 0 ? coherenceRepairs : undefined,

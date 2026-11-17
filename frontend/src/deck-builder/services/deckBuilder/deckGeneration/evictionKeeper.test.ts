@@ -64,3 +64,36 @@ describe('evictionKeeper commander lines', () => {
     expect(keeps(RISING)).toBe(false);
   });
 });
+
+// E1116: a build-around pick comes from off the commander's page, so the page
+// has no inclusion for it and every repair read it as the weakest card.
+describe('evictionKeeper build-around picks', () => {
+  const PICK = card('Offpage Pal', 'Creature — Goblin', '');
+  const WEAK = card('Weak Incomer', 'Creature — Goblin', '');
+  const STRONG = card('Strong Incomer', 'Creature — Goblin', '');
+  const state = (admits: Map<string, number>) =>
+    ({
+      ...stateWith([PICK, FILLER], true),
+      edhrecData: {
+        cardlists: {
+          allNonLand: [
+            { name: 'Weak Incomer', inclusion: 12 },
+            { name: 'Strong Incomer', inclusion: 45 },
+          ],
+        },
+      },
+      seedAdmitInclusion: admits,
+    }) as unknown as GenerationState;
+
+  it('keeps the pick, and lets it leave only for a card played at least as often', () => {
+    const keeps = evictionKeeper(state(new Map([['Offpage Pal', 30]])));
+    expect(keeps(PICK)).toBe(true);
+    expect(keeps(PICK, WEAK)).toBe(true);
+    expect(keeps(PICK, STRONG)).toBe(false);
+    expect(keeps(FILLER)).toBe(false);
+  });
+
+  it('is an ordinary card when the build named no seeds', () => {
+    expect(evictionKeeper(state(new Map()))(PICK)).toBe(false);
+  });
+});

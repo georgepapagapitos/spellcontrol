@@ -10,6 +10,7 @@
 // the values generateDeck computed at the top of its body). The remaining
 // fields are the mutable containers and mid-life "result" locals threaded
 // across phases, each initialized to exactly the value generateDeck used.
+import { buildAroundNames } from './buildAround';
 import type { WholeDeckSearchResult } from './phaseWholeDeckSearch';
 import type {
   ScryfallCard,
@@ -78,6 +79,8 @@ export interface GenerationContext {
 
 // Immutable config snapshot — verbatim from generateDeck's top-of-body derivations.
 export interface GenerationConfig {
+  /** The player's build-around cards, cleaned and capped (buildAround.ts). */
+  buildAround?: string[];
   format: Customization['deckFormat'];
   /** MTG format ('commander' default). 'paupercommander' gates every pick on
    *  PDH legality and routes pool sourcing to the Scryfall alt-pool builder. */
@@ -153,6 +156,10 @@ export interface GenerationState {
   liftSeedsTried: Set<string>;
   /** E563: cards a swap wanted to bring in that evictionKeeper turned away (the deficit note says so). */
   keeperBlocked: Set<string>;
+  /** E1116: off-page cards a build-around seed brought into the pool, with the
+   *  stand-in inclusion they were ranked at (buildAround.ts). The eviction
+   *  keeper reads it, since the page has no inclusion for them. */
+  seedAdmitInclusion: Map<string, number>;
   /** Memoization cache for liftPools.ts:getLiftIndex — invalidated whenever
    *  liftSeedPools.size changes. */
   liftIndexCache?: {
@@ -220,6 +227,7 @@ export function createState(context: GenerationContext): GenerationState {
   const { customization } = context;
 
   const cfg: GenerationConfig = {
+    buildAround: buildAroundNames(customization.buildAroundCards),
     format: customization.deckFormat,
     mtgFormat: customization.mtgFormat ?? 'commander',
     allowPreviewCards: !!commanderPreviewNote(
@@ -285,6 +293,7 @@ export function createState(context: GenerationContext): GenerationState {
     liftSeedPools: new Map<string, LiftEntry[]>(),
     liftSeedsTried: new Set<string>(),
     keeperBlocked: new Set<string>(),
+    seedAdmitInclusion: new Map<string, number>(),
 
     gameChangerNames: new Set<string>(),
     combos: [],

@@ -2,7 +2,12 @@ import { useMemo, useState, type JSX } from 'react';
 import { describeTargetMiss } from '@/deck-builder/services/deckBuilder/targetMisses';
 import './BuildReportPanel.css';
 import { AlertOctagon, Check, InfinityIcon, Loader2, Plus } from 'lucide-react';
-import type { BuildReport, DeckDataSource, GenerationMode } from '@/deck-builder/types';
+import type {
+  BuildAroundRow,
+  BuildReport,
+  DeckDataSource,
+  GenerationMode,
+} from '@/deck-builder/types';
 import type { ComboMatch, ComboSeedContext } from '@/types/combos';
 import { ROLE_TITLES, type RoleKey } from '@/lib/deck-analysis/role-badges';
 import { comboPayoffScore } from '@/lib/deck-analysis/combo-payoff';
@@ -99,6 +104,18 @@ export function describeDataSource(source: DeckDataSource, bracketAsked: boolean
     default:
       return null;
   }
+}
+
+/** What one build-around card did for the deck, in a sentence. */
+export function buildAroundLine(row: BuildAroundRow): string {
+  if (row.notSeated) return 'Not in the deck, so nothing was built around it.';
+  if (row.noEdhrec) return 'This build had no EDHREC data, so it brought nothing with it.';
+  if (row.noData) return 'Too few decks play this card to read what goes with it.';
+  if (row.broughtIn.length === 0)
+    return "In the deck. The cards that go with it didn't beat this commander's own picks.";
+  const shown = row.broughtIn.slice(0, 4);
+  const rest = row.broughtIn.length - shown.length;
+  return `Brought in ${shown.join(', ')}${rest > 0 ? `, and ${rest} more` : ''}.`;
 }
 
 export function BuildReportPanel({
@@ -242,6 +259,7 @@ export function BuildReportPanel({
     comboCompletionNotes,
     packagePicks,
     liftPicksNote,
+    buildAround,
     manabase,
     coherenceFindings,
     coherenceRepairs,
@@ -596,6 +614,25 @@ export function BuildReportPanel({
                   {renderAddButton(f.name)}
                 </div>
                 <span className="build-report-sub-reason">{synergyFillReason(f)}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      {buildAround && buildAround.length > 0 && (
+        <details className="build-report-subs" open>
+          <summary>
+            Built around <strong>{buildAround.length}</strong> card
+            {buildAround.length === 1 ? '' : 's'} you named
+          </summary>
+          <ul className="build-report-subs-list">
+            {buildAround.map((row) => (
+              <li key={row.seed} className="build-report-sub">
+                <span className="build-report-sub-map">
+                  <strong>{row.seed}</strong>
+                </span>
+                <span className="build-report-sub-reason">{buildAroundLine(row)}</span>
               </li>
             ))}
           </ul>

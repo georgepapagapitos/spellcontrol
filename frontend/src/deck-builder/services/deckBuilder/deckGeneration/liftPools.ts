@@ -9,8 +9,14 @@ import { fetchCardLiftPool } from '@/deck-builder/services/edhrec/client';
 import { frontFaceName } from '@/lib/cards/card-text';
 import { buildLiftIndex } from '../liftSynergy';
 import type { GenerationState } from './state';
+import { calculateCardPriority } from '../cardPicking';
 
 export const MAX_LIFT_SEEDS = 10;
+
+/** This run's seed budget: the player's build-around cards (E1116) get their
+ *  own slots, so they never crowd the commander's theme seeds out. */
+export const liftSeedCap = (state: Pick<GenerationState, 'cfg'>): number =>
+  MAX_LIFT_SEEDS + (state.cfg.buildAround?.length ?? 0);
 
 /**
  * Fetch and merge lift pools for `seeds` into `state.liftSeedPools`, skipping
@@ -28,7 +34,7 @@ export async function ensureLiftPools(
 
   for (const seed of seeds) {
     if (state.liftSeedsTried.has(seed)) continue;
-    if (state.liftSeedsTried.size >= MAX_LIFT_SEEDS) break;
+    if (state.liftSeedsTried.size >= liftSeedCap(state)) break;
     state.liftSeedsTried.add(seed);
     try {
       const pool = await fetchCardLiftPool(seed);
@@ -74,4 +80,45 @@ export function liftersInDeck(
     inDeck.add(frontFaceName(c.name).toLowerCase());
   }
   return liftedBy.filter((n) => inDeck.has(n.toLowerCase()));
+}
+
+/**
+ * Early lift-seed set (E71 slice 2), collected BEFORE any card is picked:
+ * commander(s), then EDHREC-pool cards flagged isThemeSynergyCard, then
+ * must-includes. Note isThemeSynergyCard is set on every EDHREC response's
+ * highsynergy/topcards lists (not only theme-slug fetches), so in a no-theme
+ * build these seeds are the commander's own base high-synergy cards — the
+ * same theme-independent bias picking already applies via isHighSynergyCard.
+ * No implicit "lift as theme" switch: with no selected theme the fetched
+ * pool is the base commander page, never a theme page.
+ * Deduped, capped at MAX_LIFT_SEEDS. Deck cards picked later add further
+ * seeds via phaseLiftPicks' own collectSeeds, sharing the same pool/cap.
+ */
+export function collectEarlyLiftSeeds(state: GenerationState): string[] {
+  const seeds: string[] = [];
+  const seen = new Set<string>();
+  const add = (name: string | null | undefined) => {
+    if (!name || seen.has(name) || seeds.length >= liftSeedCap(state)) return;
+    seen.add(name);
+    seeds.push(name);
+  };
+
+  add(state.context.commander.name);
+  add(state.context.partnerCommander?.name);
+  // E1116: the player's build-around cards lead, ahead of the page's own
+  // theme cards, which otherwise fill the cap before a must-include is reached.
+  for (const name of state.cfg.buildAround ?? []) add(name);
+  if (state.edhrecData) {
+    const themeCards = state.edhrecData.cardlists.allNonLand
+      .filter((c) => c.isThemeSynergyCard)
+      .sort(
+        (a, b) =>
+          calculateCardPriority(b, state.cfg.brewLevel) -
+          calculateCardPriority(a, state.cfg.brewLevel)
+      );
+    for (const c of themeCards) add(c.name);
+  }
+  for (const name of state.mustIncludeNames) add(name);
+
+  return seeds;
 }

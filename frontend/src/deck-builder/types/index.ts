@@ -700,6 +700,9 @@ export interface BuildReport extends TargetMissFields {
   /** Disclosure note: how many higher-lift candidates the hard filters
    *  removed, and the dominant reason. Undefined when nothing was filtered. */
   liftPicksNote?: string;
+  /** Per build-around card, the deck cards it brought in (E1116). Undefined
+   *  when the build named none. */
+  buildAround?: BuildAroundRow[];
   /** Sources built vs castability-weighted targets per color (the manabase
    *  self-explanation). Undefined on decks generated before this shipped. */
   manabase?: ManabaseSummary;
@@ -771,6 +774,9 @@ export interface GeneratedDeck extends TargetMissFields {
    *  (color identity/legality/rarity/budget/etc.) removed, and the dominant
    *  reason. Undefined when nothing was filtered. */
   liftPicksNote?: string;
+  /** Per build-around card, the deck cards it brought in (E1116). Undefined
+   *  when the build named none. */
+  buildAround?: BuildAroundRow[];
   /** Sources built vs castability-weighted targets per color, computed over the
    *  final deck (the manabase self-explanation). */
   manabase?: ManabaseSummary;
@@ -1041,6 +1047,9 @@ export interface Customization {
   /** Cards the player locked in the deck this build regenerates
    *  (lib/deck/deck-locks). Seated like a must-include from that deck. */
   lockedCards?: string[];
+  /** Cards to build the deck around (E1116): seated like a must-include, and
+   *  the cards that play best with them join the pool (deckGeneration/buildAround). */
+  buildAroundCards?: string[];
   tempBannedCards: string[]; // Temporary bans from deck toolbar (cleared on generation)
   tempMustIncludeCards: string[]; // Temporary must-includes from combo section (cleared on generation)
   maxCardPrice: number | null; // Max USD price per card, null = no limit
@@ -1172,4 +1181,17 @@ export interface AppState {
   setLoading: (loading: boolean, message?: string) => void;
   setError: (error: string | null) => void;
   reset: () => void;
+}
+
+/** One "Built around" row of the build report (deckGeneration/buildAround). */
+export interface BuildAroundRow {
+  seed: string;
+  /** Final-deck cards that are here because of this seed. */
+  broughtIn: string[];
+  /** EDHREC had no co-play data for the seed, so it brought nothing. */
+  noData?: boolean;
+  /** The whole build ran without EDHREC, so no seed could bring anything. */
+  noEdhrec?: boolean;
+  /** The seed was skipped (see the skipped-picks note), so nothing was built around it. */
+  notSeated?: boolean;
 }

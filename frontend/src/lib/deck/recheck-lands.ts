@@ -231,6 +231,8 @@ export async function recheckLands(deck: Deck, env: RecheckEnv): Promise<LandRec
       landsExplicit: true,
       bannedCards: [...(env.bannedCards ?? [])],
       mustIncludeCards: [],
+      // A land re-check builds around nothing: every spell is pinned as it is.
+      buildAroundCards: [],
       tempMustIncludeCards: [],
       tempBannedCards: [...(edits?.cut ?? [])],
     },

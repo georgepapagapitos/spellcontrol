@@ -32,6 +32,7 @@ import {
 import { categorizeCards, stampRoleSubtypes } from '../categorize';
 import type { BudgetTracker } from '../budgetTracker';
 import { evictionKeeper } from './evictionKeeper';
+import { seedRoleRestorePhase } from './phaseSeedRoleRestore';
 import { refreshComboCompleteness } from './phaseDetectCombos';
 import { STAPLE_ROCKS, STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
 import { markBanned, markUsed, protectedMustIncludeNames, type GenerationState } from './state';
@@ -48,6 +49,8 @@ export async function guaranteeStaples(
   repairs: CoherenceRepair[]
 ): Promise<DetectedCombo[] | undefined> {
   const swaps = await stapleGuaranteePhase(state, budgetTracker);
+  // E1116: then a build-around pick's role gets its best page card back.
+  swaps.push(...(await seedRoleRestorePhase(state, state.roleTargets)));
   if (swaps.length === 0) return detectedCombos;
   repairs.push(...swaps);
   return refreshComboCompleteness(detectedCombos, state);
