@@ -56,6 +56,7 @@ export const defaultCustomization: Customization = {
   // never persist across sessions and are cleared on commander change / reset.
   mustIncludeCards: [],
   lockedCards: [],
+  buildAroundCards: [],
   tempBannedCards: [],
   tempMustIncludeCards: [],
   maxCardPrice: null,
@@ -131,6 +132,7 @@ export const useDeckBuilderStore = create<AppState>((set, get) => ({
           ...state.customization,
           mustIncludeCards: [],
           lockedCards: [],
+          buildAroundCards: [],
           tempMustIncludeCards: [],
         },
         partnerCommander: null,
@@ -294,6 +296,7 @@ export const useDeckBuilderStore = create<AppState>((set, get) => ({
         }),
         mustIncludeCards: [],
         lockedCards: [],
+        buildAroundCards: [],
         tempMustIncludeCards: [],
       },
       generatedDeck: null,

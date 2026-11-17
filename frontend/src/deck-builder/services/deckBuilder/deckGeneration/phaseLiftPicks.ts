@@ -13,7 +13,7 @@ import {
   isOwnedBudgetExempt,
 } from '../deckFilters';
 import type { GenerationState } from './state';
-import { ensureLiftPools, MAX_LIFT_SEEDS } from './liftPools';
+import { ensureLiftPools, liftSeedCap } from './liftPools';
 import { BracketGuard, bracketCeilings, ceilingsAreOpen } from '../bracketGuard';
 
 const MAX_CANDIDATES = 24;
@@ -67,13 +67,14 @@ function collectSeeds(state: GenerationState, nonLandCards: ScryfallCard[]): str
   const seeds: string[] = [];
   const seen = new Set<string>();
   const add = (name: string | null | undefined) => {
-    if (!name || seen.has(name) || seeds.length >= MAX_LIFT_SEEDS) return;
+    if (!name || seen.has(name) || seeds.length >= liftSeedCap(state)) return;
     seen.add(name);
     seeds.push(name);
   };
 
   add(state.context.commander.name);
   add(state.context.partnerCommander?.name);
+  for (const name of state.cfg.buildAround ?? []) add(name);
   for (const c of nonLandCards) if (c.isThemeSynergyCard) add(c.name);
   for (const name of state.mustIncludeNames) add(name);
   for (const c of nonLandCards) add(c.name);

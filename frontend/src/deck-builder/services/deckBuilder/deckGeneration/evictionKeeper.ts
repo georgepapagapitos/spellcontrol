@@ -8,7 +8,8 @@
 // partial50 was Enlightened Tutor (40.3%): the cut that completed Siona fell
 // on the deck's tutor.
 //
-// Kept: a staple, a tutor, a piece of a combo line the deck already holds whole, and
+// Kept: a staple, a tutor, a build-around pick (E1116), a piece of a combo line the
+// deck already holds whole, and
 // the last card of an answer class the deck holds (the answer-coverage
 // matrix's classes, deckObjective/classFloors.ts). A Game Changer is not kept
 // as such: that rule belongs to the E513 search's trust region, and holding a
@@ -43,11 +44,15 @@ import type { GenerationState } from './state';
  */
 export function evictionKeeper(
   state: Pick<GenerationState, 'edhrecData' | 'combos' | 'categories'> &
-    Partial<Pick<GenerationState, 'keeperBlocked' | 'context'>>
+    Partial<Pick<GenerationState, 'keeperBlocked' | 'context' | 'seedAdmitInclusion'>>
 ): (card: ScryfallCard, incoming?: ScryfallCard) => boolean {
   const pool = state.edhrecData?.cardlists.allNonLand ?? [];
   const inclusion = new Map(pool.map((c) => [c.name, c.inclusion]));
-  const inclusionOf = (name: string) => getByCardName(inclusion, name) ?? 0;
+  // E1116: a build-around pick from off the page stands at the inclusion it was
+  // ranked at, and is kept like a tutor: it leaves only for a card as strong.
+  const seedAdmits = state.seedAdmitInclusion;
+  const inclusionOf = (name: string) =>
+    getByCardName(inclusion, name) ?? seedAdmits?.get(name) ?? 0;
   let signature = '';
   let comboPieces = new Set<string>();
   let classCounts = new Map<string, number>();
@@ -95,7 +100,8 @@ export function evictionKeeper(
     const staple = inclusionOf(card.name) >= STAPLE_INCLUSION_BAR;
     const tutorOrLine = getCardDrawSubtype(card.name) === 'tutor' || comboPieces.has(card.name);
     const lastClasses = answerClassesOf(card).filter((cls) => (classCounts.get(cls) ?? 0) <= 1);
-    if (!staple && !tutorOrLine && lastClasses.length === 0) return false;
+    const seedPick = !!seedAdmits?.has(card.name);
+    if (!staple && !tutorOrLine && !seedPick && lastClasses.length === 0) return false;
     if (!incoming) return true;
     const incomingClasses = answerClassesOf(incoming);
     const covers = lastClasses.every((cls) => incomingClasses.includes(cls));
@@ -104,7 +110,7 @@ export function evictionKeeper(
     const asStrong =
       isKeptKind(incoming) ||
       (!comboPieces.has(card.name) && inclusionOf(incoming.name) >= inclusionOf(card.name));
-    if (asStrong || (!staple && !tutorOrLine && covers)) return false;
+    if (asStrong || (!staple && !tutorOrLine && !seedPick && covers)) return false;
     state.keeperBlocked?.add(incoming.name);
     return true;
   };

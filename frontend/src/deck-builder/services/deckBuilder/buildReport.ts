@@ -510,6 +510,7 @@ export function assembleBuildReport(input: {
     report.packagePicks = generated.packagePicks;
     report.liftPicksNote = generated.liftPicksNote;
   }
+  if (generated.buildAround) report.buildAround = generated.buildAround;
 
   // Per-card pick provenance (S2 — "why is this here"): start from what
   // generation itself recorded (EDHREC/theme/staple/wildcard/boost/combo-floor/

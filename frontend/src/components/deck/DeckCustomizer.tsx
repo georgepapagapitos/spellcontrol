@@ -1,3 +1,4 @@
+import { MAX_BUILD_AROUND } from '@/deck-builder/services/deckBuilder/deckGeneration/buildAround';
 import { Check, ChevronDown, RotateCcw, X } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type {
@@ -119,6 +120,7 @@ export function DeckCustomizer({ customization, update, step = false }: DeckCust
       brewLevel: 0.5,
       scryfallQuery: '',
       mustIncludeCards: [],
+      buildAroundCards: [],
       bannedCards: [],
       manaPhilosophy: undefined,
       ...(suggestion
@@ -241,6 +243,19 @@ export function DeckCustomizer({ customization, update, step = false }: DeckCust
                 summary={customization.scryfallQuery.trim() || 'None'}
               >
                 <ScryfallGroup customization={customization} update={update} />
+              </Disclosure>
+              <Disclosure
+                title="Build around these cards"
+                summary={
+                  count(customization.buildAroundCards?.length ?? 0, 'card', 'cards') ?? 'None'
+                }
+              >
+                <CardListGroup
+                  hint={`Seats these cards and adds the cards that play best with them. Up to ${MAX_BUILD_AROUND}.`}
+                  values={customization.buildAroundCards ?? []}
+                  onChange={(next) => update({ buildAroundCards: next.slice(0, MAX_BUILD_AROUND) })}
+                  fetcher={poolFetcher}
+                />
               </Disclosure>
               <Disclosure
                 title="Must-include cards"
@@ -394,6 +409,7 @@ export function moreSettingsSummary(c: Customization): string {
     salt === 2 ? null : `Salt: ${SALT_LABELS[salt]}`,
     c.manaPhilosophy ? `Mana: ${manaPhilosophySummary(c)}` : null,
     c.scryfallQuery.trim() ? 'Scryfall filter' : null,
+    count(c.buildAroundCards?.length ?? 0, 'card built around', 'cards built around'),
     count(c.mustIncludeCards.length, 'must-include', 'must-includes'),
     count(c.bannedCards.length, 'excluded card', 'excluded cards'),
     count((c.banLists ?? []).length, 'ban list', 'ban lists'),

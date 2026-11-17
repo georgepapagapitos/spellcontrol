@@ -281,7 +281,11 @@ import {
   getCardsByNames,
   getGameChangerNames,
 } from '@/deck-builder/services/scryfall/client';
-import { fetchCommanderData, fetchCommanderCombosRaw } from '@/deck-builder/services/edhrec/client';
+import {
+  fetchCommanderData,
+  fetchCommanderCombosRaw,
+  fetchCardLiftPool,
+} from '@/deck-builder/services/edhrec/client';
 import { generateLands } from './landGenerator';
 import { computeAutoLandCount, computeLandCountSizingAnchor } from './targetCounts';
 import { applyLandSqueezeReconcile } from './deckGeneration/phaseLandSqueezeReconcile';
@@ -551,6 +555,156 @@ describe('generateDeck — golden master', () => {
       expect(typed.deck.mustIncludeSkippedNote).toContain('Locked Pick');
     } finally {
       if (prev) mocked.mockImplementation(prev);
+    }
+  });
+
+  // E1116 build-around: a named card is seated, and a card that plays with it
+  // but is not on the commander's page becomes a real candidate.
+  describe('build around', () => {
+    const seed: ScryfallCard = mkSC('Seed Card', 'Creature', 2);
+    const pal: ScryfallCard = mkSC('Offpage Pal', 'Creature', 2);
+    const offColor: ScryfallCard = {
+      ...mkSC('Offcolor Pal', 'Creature', 2),
+      color_identity: ['U'],
+    };
+    const extra = new Map([seed, pal, offColor].map((c) => [c.name, c]));
+    const liftEntry = (name: string) => ({
+      name,
+      lift: 9,
+      coPlayPct: 70,
+      numDecks: 900,
+      potentialDecks: 1300,
+      lowSample: false,
+    });
+
+    const build = async (over: Parameters<typeof customization>[0]) => {
+      const cards = vi.mocked(getCardsByNames);
+      const prevCards = cards.getMockImplementation();
+      cards.mockImplementation(async (names: string[]) => {
+        const m = new Map<string, ScryfallCard>();
+        for (const n of names) {
+          const c = extra.get(n) ?? POOL.scMap.get(n);
+          if (c) m.set(n, c);
+        }
+        return m;
+      });
+      const lift = vi.mocked(fetchCardLiftPool);
+      lift.mockImplementation(async (name: string) =>
+        name === 'Seed Card' ? [liftEntry('Offpage Pal'), liftEntry('Offcolor Pal')] : []
+      );
+      // The fixture page is all staples (51% and up), which an off-page card
+      // must never outrank. A page with a real tail is where it competes.
+      const page = vi.mocked(fetchCommanderData);
+      const prevPage = page.getMockImplementation()!;
+      const tail = (list: EDHRECCard[]) =>
+        list.map((c, i) => ({ ...c, inclusion: Math.max(5, 30 - i) }));
+      const lists = POOL.cardlists;
+      const lowered = {
+        creatures: tail(lists.creatures),
+        instants: tail(lists.instants),
+        sorceries: tail(lists.sorceries),
+        artifacts: tail(lists.artifacts),
+        enchantments: tail(lists.enchantments),
+        planeswalkers: tail(lists.planeswalkers),
+      };
+      page.mockImplementation(async () => ({
+        ...edhrecData(),
+        cardlists: { ...lists, ...lowered, allNonLand: Object.values(lowered).flat() },
+      }));
+      try {
+        const ctx = baseContext();
+        ctx.customization = customization(over);
+        clearGenerationCache();
+        const deck = await generateDeck(ctx);
+        const names = Object.values(deck.categories)
+          .flat()
+          .map((c) => c.name);
+        return { deck, names, seedsFetched: lift.mock.calls.map((c) => c[0]) };
+      } finally {
+        page.mockImplementation(prevPage);
+        if (prevCards) cards.mockImplementation(prevCards);
+        lift.mockImplementation(async () => []);
+        lift.mockClear();
+      }
+    };
+
+    it('seats the seed and the off-page card that plays with it, and says why', async () => {
+      const { deck, names } = await build({ buildAroundCards: ['Seed Card'] });
+      expect(names).toContain('Seed Card');
+      expect(names).toContain('Offpage Pal');
+      expect(names).not.toContain('Offcolor Pal');
+      expect(deck.cardProvenance?.['Offpage Pal']).toBe('Plays with Seed Card');
+      expect(deck.buildAround).toEqual([{ seed: 'Seed Card', broughtIn: ['Offpage Pal'] }]);
+    });
+
+    it('a plain must-include seats the card but brings nothing with it', async () => {
+      const { deck, names } = await build({ mustIncludeCards: ['Seed Card'] });
+      expect(names).toContain('Seed Card');
+      expect(names).not.toContain('Offpage Pal');
+      expect(deck.buildAround).toBeUndefined();
+    });
+
+    it('leaves the role targets where a plain must-include puts them', async () => {
+      const around = await build({ buildAroundCards: ['Seed Card'] });
+      const plain = await build({ mustIncludeCards: ['Seed Card'] });
+      expect(around.deck.roleTargets).toEqual(plain.deck.roleTargets);
+    });
+
+    it('fetches the seed right after the commander, whatever the page lists', async () => {
+      const { seedsFetched } = await build({ buildAroundCards: ['Seed Card'] });
+      expect(seedsFetched.slice(0, 2)).toEqual(['Test Commander', 'Seed Card']);
+    });
+
+    it('says so when EDHREC has nothing on a seed', async () => {
+      const { deck } = await build({ buildAroundCards: ['Offpage Pal'] });
+      expect(deck.buildAround).toEqual([{ seed: 'Offpage Pal', broughtIn: [], noData: true }]);
+    });
+  });
+
+  // #3044's rule: a card from off the page never outranks the page's staples.
+  it('build around: an all-staples page keeps its staples ahead of an off-page card', async () => {
+    const pal = mkSC('Offpage Pal', 'Creature', 2);
+    const seed = mkSC('Seed Card', 'Creature', 2);
+    const cards = vi.mocked(getCardsByNames);
+    const prevCards = cards.getMockImplementation();
+    cards.mockImplementation(async (names: string[]) => {
+      const m = new Map<string, ScryfallCard>();
+      for (const n of names) {
+        const c = n === pal.name ? pal : n === seed.name ? seed : POOL.scMap.get(n);
+        if (c) m.set(n, c);
+      }
+      return m;
+    });
+    const lift = vi.mocked(fetchCardLiftPool);
+    lift.mockImplementation(async (name: string) =>
+      name === 'Seed Card'
+        ? [
+            {
+              name: 'Offpage Pal',
+              lift: 9,
+              coPlayPct: 70,
+              numDecks: 900,
+              potentialDecks: 1300,
+              lowSample: false,
+            },
+          ]
+        : []
+    );
+    try {
+      const ctx = baseContext();
+      ctx.customization = customization({ buildAroundCards: ['Seed Card'] });
+      clearGenerationCache();
+      const deck = await generateDeck(ctx);
+      const names = Object.values(deck.categories)
+        .flat()
+        .map((c) => c.name);
+      expect(names).toContain('Seed Card');
+      expect(names).not.toContain('Offpage Pal');
+      expect(deck.buildAround).toEqual([{ seed: 'Seed Card', broughtIn: [] }]);
+    } finally {
+      if (prevCards) cards.mockImplementation(prevCards);
+      lift.mockImplementation(async () => []);
+      lift.mockClear();
     }
   });
 

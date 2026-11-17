@@ -528,6 +528,20 @@ named button, and each holds exactly one kind of thing:
   so the next re-check doesn't treat them as edits. It shows only on a deck
   generated from the collection by the EDHREC pipeline, the one case where
   re-running against the collection means something.
+- **"Build around these cards" is its own list, above Must-include cards**
+  (E1116). The name carries "these cards" because the commander finder already
+  has "Build around" for its idea chips (E1113), and the two do different jobs. A
+  must-include asks for one card; a build-around card asks for the deck that
+  supports it, so the two are separate pickers with the same name search. The
+  hint says what it does and its cap ("Seats these cards and adds the cards
+  that play best with them. Up to 12."). The build report answers with a
+  "Built around" block, open by default, one row per named card: "Brought in
+  A, B, C, and N more.", or that the cards that go with it didn't beat the
+  commander's own picks, that too few decks play the card to read what goes
+  with it, that the build had no EDHREC data, or that the card was skipped and
+  nothing was built around it. A card brought in
+  from off the commander's page says "Plays with <card>" as its reason, and
+  never shows an EDHREC percentage it does not have.
 - **Lock card keeps a card through Regenerate** (E1116). The card menu's
   Regenerate section offers Lock card and Unlock card on a generated deck's
   mainboard cards, never on a basic land (the land step sets those) or the

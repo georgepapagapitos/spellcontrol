@@ -192,10 +192,18 @@ export async function wholeDeckSearchPhase(
   const discoveryPool = [...candidates];
   candidates.push(...offPage.values());
   // The generator's own protections: must-includes (the customization's are
-  // the search's too), a partial build's owned quota.
+  // the search's too), a partial build's owned quota, and the off-page cards
+  // a build-around seed brought in (E1116). The page has no inclusion for
+  // those, so the search read them as the deck's weakest cards and spent its
+  // swaps cutting the package the player asked for (Yuriko's mill cards).
   const locks = [
     ...seed.cards
-      .filter((c) => c.isMustInclude || state.cfg.ownedQuotaProtects?.(c.name))
+      .filter(
+        (c) =>
+          c.isMustInclude ||
+          state.cfg.ownedQuotaProtects?.(c.name) ||
+          state.seedAdmitInclusion?.has(c.name)
+      )
       .map((c) => c.name),
     ...landSeatedSpells(state.categories),
   ];
