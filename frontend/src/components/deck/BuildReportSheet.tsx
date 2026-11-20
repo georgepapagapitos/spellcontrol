@@ -19,6 +19,9 @@ interface Props {
   onClose: () => void;
   /** Open the Shared-copies review (shown only when the deck has owned-but-elsewhere cards). */
   onReviewConflicts?: () => void;
+  /** Back to the generator with this deck's settings. Offered only when the
+   *  build could not meet one of them (E1119). */
+  onAdjustSettings?: () => void;
   /** Optional post-generation AI refine surface, rendered under the report.
    *  A slot rather than a direct import so this sheet stays unaware of AI and
    *  renders nothing extra when the feature is off. */
@@ -29,6 +32,16 @@ interface Props {
   ownedOracleIds?: ReadonlySet<string>;
   /** Combo this build was seeded from (E215) — confirms it assembled. */
   comboSeedContext?: ComboSeedContext | null;
+}
+
+/** The build left a setting unmet: a target missed, cards from outside an
+ *  owned-only collection, or basics standing in for cards it couldn't find. */
+function missedSettings(report: BuildReport): boolean {
+  return (
+    (report.targetMisses?.length ?? 0) > 0 ||
+    (report.collectionRelaxed ?? 0) > 0 ||
+    (report.basicsPadded ?? 0) > 0
+  );
 }
 
 /**
@@ -49,6 +62,7 @@ export function BuildReportSheet({
   report,
   onClose,
   onReviewConflicts,
+  onAdjustSettings,
   refineSlot,
   oneAwayCombos,
   ownedOracleIds,
@@ -126,6 +140,16 @@ export function BuildReportSheet({
               }}
             >
               Review shared cards
+            </Button>
+          )}
+          {onAdjustSettings && missedSettings(report) && (
+            <Button
+              onClick={() => {
+                beginClose();
+                onAdjustSettings();
+              }}
+            >
+              Adjust settings
             </Button>
           )}
           <Button variant="primary" onClick={() => beginClose()}>

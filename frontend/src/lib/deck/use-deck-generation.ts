@@ -37,6 +37,7 @@ import type { ComboSeedContext } from '@/types/combos';
 
 import { userMessage } from '@/lib/util/user-error';
 import { useCommanderProfile } from './use-commander-profile';
+import { checkBuildFeasibility, type BuildShortfall } from './build-feasibility';
 /**
  * Hard gate a freshly generated deck before it's ever saved (E128): illegal
  * cards, color-identity violations, over/under size, copy-limit violations,
@@ -197,6 +198,10 @@ export function useDeckGeneration({
   const [progress, setProgress] = useState<{ message: string; percent: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isBuilding, setIsBuilding] = useState(false);
+  // E1119: the collection can't supply the deck the settings ask for. Held
+  // here until the player builds anyway or goes back to the settings.
+  const [shortfall, setShortfall] = useState<BuildShortfall | null>(null);
+  const shortfallAccepted = useRef(false);
   const [selectedThemes, setSelectedThemes] = useState<EDHRECTheme[]>(() => initialThemes ?? []);
   const progressRef = useRef<HTMLDivElement>(null);
 
@@ -275,6 +280,34 @@ export function useDeckGeneration({
   const build = useCallback(async () => {
     if (!commander) return;
     setError(null);
+    // E1117: a Regenerate rebuilds the deck it came from, so the copies that
+    // deck holds are free for the new build, as they are for Re-check lands.
+    // Counting them as claimed left an "Only mine" regenerate almost nothing.
+    const otherDecks = sourceDeckId ? decks.filter((d) => d.id !== sourceDeckId) : decks;
+    const accepted = shortfallAccepted.current;
+    shortfallAccepted.current = false;
+    if (!accepted && customization.collectionMode && !skipsOwnedCards(customization)) {
+      const scope = ownedScope(
+        customization.collectionStrategy,
+        collectionCards,
+        otherDecks,
+        savedCubes
+      ).names;
+      const short = checkBuildFeasibility({
+        customization,
+        hasPartner: !!partnerCommander,
+        colorIdentity,
+        commanderNames: [commander.name, ...(partnerCommander ? [partnerCommander.name] : [])],
+        collection: collectionCards,
+        scope,
+      });
+      // An empty scope has its own message below, with nothing to build from.
+      // Owned cards that are all off-color still ask here.
+      if (short && scope.size > 0) {
+        setShortfall(short);
+        return;
+      }
+    }
     setIsBuilding(true);
     setProgress({ message: 'Consulting the Oracle…', percent: 5 });
     try {
@@ -309,13 +342,13 @@ export function useDeckGeneration({
       } else if (customization.collectionMode) {
         collectionBasicPrintings = buildBasicPrintingAvailability(
           collectionCards,
-          decks,
+          otherDecks,
           savedCubes
         );
         const scope = ownedScope(
           customization.collectionStrategy,
           collectionCards,
-          decks,
+          otherDecks,
           savedCubes
         );
         collectionNames = scope.names;
@@ -398,6 +431,9 @@ export function useDeckGeneration({
 
       updateCustomization({ tempBannedCards: [], tempMustIncludeCards: [] });
 
+      // Every deck, the Regenerate source included: it still exists beside the
+      // new build until the player picks one, so its copies stay bound to it
+      // and the new deck lists them as shared.
       const id = saveGeneratedDeck(
         deck,
         customization,
@@ -455,7 +491,17 @@ export function useDeckGeneration({
     initialVisibility,
   ]);
 
+  const buildAnyway = useCallback(() => {
+    shortfallAccepted.current = true;
+    setShortfall(null);
+    void build();
+  }, [build]);
+  const dismissShortfall = useCallback(() => setShortfall(null), []);
+
   return {
+    shortfall,
+    buildAnyway,
+    dismissShortfall,
     // store-derived values the pages render with
     commander,
     partnerCommander,

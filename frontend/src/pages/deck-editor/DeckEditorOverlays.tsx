@@ -1,4 +1,6 @@
 import { haptics } from '@/lib/util/haptics';
+import { useNavigate } from 'react-router-dom';
+import { canRegenerate, regenerateHref, regenerateState } from '@/lib/deck/regenerate-prefill';
 import { useDecksStore, type Deck } from '@/store/decks';
 import { useCubeStore } from '@/store/cube';
 import { useDeckHistoryStore } from '@/store/deck-history';
@@ -95,6 +97,7 @@ export function DeckEditorOverlays({
   refineAlternatives: Map<string, string[]>;
   renderers: ReturnType<typeof useDeckCardRenderers>;
 }) {
+  const navigate = useNavigate();
   const {
     showAddPanel,
     setShowAddPanel,
@@ -534,6 +537,11 @@ export function DeckEditorOverlays({
             setShowBuildReport(false);
             setShowSharedCopies(true);
           }}
+          onAdjustSettings={
+            canRegenerate(deck)
+              ? () => navigate(regenerateHref(deck), { state: regenerateState(deck) })
+              : undefined
+          }
           /* The post-generation moment (T102 slice 4). Same panel as the Coach
              tab, so the offer meets the user while they're judging the fresh
              deck instead of waiting to be found. It self-hides when the feature

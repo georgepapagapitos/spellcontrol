@@ -188,6 +188,8 @@
   border-top: 1px solid var(--border);
   display: flex;
   justify-content: flex-end;
+  /* Three actions don't fit one row on a phone: the primary drops to its own. */
+  flex-wrap: wrap;
   gap: var(--space-2);
   flex-shrink: 0;
 }
