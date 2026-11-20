@@ -24,12 +24,12 @@
     "format:check": "prettier --check \"src/**/*.{ts,json}\""
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.7.0",
+    "@anthropic-ai/sdk": "^1.9.0",
     "@spellcontrol/binder-routing": "file:../packages/binder-routing",
     "@spellcontrol/deck-metrics": "file:../packages/deck-metrics",
     "@spellcontrol/game-core": "file:../packages/game-core",
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^13.0.3",
+    "better-sqlite3": "^13.2.0",
     "cookie-parser": "^1.4.7",
     "drizzle-orm": "^0.45.4",
     "express": "^5.3.0",
