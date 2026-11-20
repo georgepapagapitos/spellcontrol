@@ -21,6 +21,8 @@ import { GenerationTakeover } from '../components/deck/GenerationTakeover';
 import { ChosenColorPicker, colorChooserOf } from '../components/deck/ChosenColorPicker';
 import { choosesColorBeforeGame, chosenColorOf } from '@/deck-builder/lib/partnerUtils';
 import { useDeckGeneration } from '@/lib/deck/use-deck-generation';
+import { describeBuildShortfall } from '@/lib/deck/build-feasibility';
+import { ConfirmDialog } from '@/components/overlays/ConfirmDialog';
 import { useGenerationTakeoverExit } from '@/lib/deck/use-generation-takeover-exit';
 import { imageFromCard } from '@/lib/cards/card-thumbs';
 import { useCollectionStore } from '../store/collection';
@@ -221,6 +223,9 @@ export function DeckGeneratePage() {
     progress,
     error,
     progressRef,
+    shortfall,
+    buildAnyway,
+    dismissShortfall,
   } = useDeckGeneration({
     initialThemes: prefill?.themes,
     sourceDeckId: prefill?.sourceDeckId,
@@ -567,6 +572,15 @@ export function DeckGeneratePage() {
 
   return (
     <div className="deck-builder-page deck-generate-page">
+      {shortfall && (
+        <ConfirmDialog
+          {...describeBuildShortfall(shortfall)}
+          confirmLabel="Build anyway"
+          cancelLabel="Adjust settings"
+          onConfirm={buildAnyway}
+          onCancel={dismissShortfall}
+        />
+      )}
       <BackLink to={startPage} label="New deck" />
       <header className="deck-builder-header">
         <h1>Generate a deck</h1>

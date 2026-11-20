@@ -92,6 +92,37 @@ describe('BuildReportSheet', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  // E1119: a build that could not meet a setting offers the way back to them.
+  it.each([
+    ['a missed target', { targetMisses: [{ key: 'nonbasic', asked: 11, got: 8, cause: 'x' }] }],
+    ['cards from outside the collection', { collectionRelaxed: 4 }],
+    ['basics standing in for cards', { basicsPadded: 6 }],
+  ] as [string, Partial<BuildReport>][])('offers Adjust settings after %s', (_label, part) => {
+    const onAdjustSettings = vi.fn();
+    render(
+      <BuildReportSheet
+        deckId="adjust"
+        report={makeReport(part)}
+        onClose={vi.fn()}
+        onAdjustSettings={onAdjustSettings}
+      />
+    );
+    fireEvent.click(screen.getByText('Adjust settings'));
+    expect(onAdjustSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps Adjust settings off a build that met its settings', () => {
+    render(
+      <BuildReportSheet
+        deckId="met"
+        report={makeReport()}
+        onClose={vi.fn()}
+        onAdjustSettings={vi.fn()}
+      />
+    );
+    expect(screen.queryByText('Adjust settings')).toBeNull();
+  });
+
   it('renders into the document body (portal)', () => {
     render(<BuildReportSheet deckId="d4" report={makeReport()} onClose={vi.fn()} />);
     // The sheet is portalled to document.body; check it exists there.

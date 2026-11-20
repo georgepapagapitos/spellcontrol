@@ -528,6 +528,21 @@ named button, and each holds exactly one kind of thing:
   so the next re-check doesn't treat them as edits. It shows only on a deck
   generated from the collection by the EDHREC pipeline, the one case where
   re-running against the collection means something.
+- **A build the collection can't supply asks first** (E1119). When "Cards from"
+  holds the deck to owned cards (Only mine, Only my cards, an owned share) and
+  the collection has fewer cards in the commander's colors than the deck needs
+  besides lands, Generate opens a confirm before any work starts. The title is
+  the question ("Build without enough owned cards?"), the body gives the two
+  counts and what a build would do with the gap, and the buttons are "Build
+  anyway" and "Adjust settings" (which closes the dialog: the settings are
+  already on screen). The count is an upper bound, so the dialog fires only on
+  a deck owned cards can't fill (a deck of any-number cards such as Relentless
+  Rats aside: it counts names, not copies). A Regenerate counts the copies its
+  own deck holds as free. Settings that only fail during a build (budget,
+  price cap, rarity, a Scryfall filter) are not asked about up front: the build
+  report names them, and its footer then offers "Adjust settings", which opens
+  the generator with this deck's settings. The report footer wraps, so three
+  actions fit a phone.
 - **"Build around these cards" is its own list, above Must-include cards**
   (E1116). The name carries "these cards" because the commander finder already
   has "Build around" for its idea chips (E1113), and the two do different jobs. A
