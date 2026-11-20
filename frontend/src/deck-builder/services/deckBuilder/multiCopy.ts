@@ -113,7 +113,8 @@ export async function resolveMultiCopyCards(
     // Step 6: If already in deck as must-include, reduce count
     const existingCount = usedNames.has(cardName) ? 1 : 0;
     let copiesToAdd = finalQuantity - existingCount;
-    if (collectionStrategy === 'available') {
+    // Only when the caller passed counts: see generateLands (E1118).
+    if (collectionStrategy === 'available' && collectionAvailableCounts) {
       copiesToAdd = Math.min(
         copiesToAdd,
         Math.max(0, (collectionAvailableCounts?.get(cardName) ?? 0) - existingCount)

@@ -45,6 +45,7 @@ import type {
 } from '@/deck-builder/types';
 import type { GenerationContext } from './deckGeneration/state';
 import { generateDeck, clearGenerationCache } from './deckGenerator';
+import { defaultCustomization } from '@/deck-builder/store';
 import { assembleBuildReport } from './buildReport';
 import { getCardByName, getCardPrice } from '@/deck-builder/services/scryfall/client';
 import {
@@ -1077,6 +1078,16 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
         }
         const fixture = !COLLECTION_NAMES && spec.collection ? fixtureCollection() : undefined;
         const collectionNames = COLLECTION_NAMES ?? fixture?.names;
+        // E1118: a row with no collection builds as the app does when "Cards
+        // from" is untouched: the store's default strategy, no collection.
+        // The harness ran these rows at 'full', so its panels never saw a
+        // default build seat no basic lands.
+        if (
+          !collectionNames &&
+          !COLLECTION_STRATEGY &&
+          spec.overrides?.collectionStrategy === undefined
+        )
+          custom.collectionStrategy = defaultCustomization.collectionStrategy;
         const ctx: GenerationContext = {
           commander,
           partnerCommander,

@@ -73,6 +73,27 @@ describe('resolveMultiCopyCards', () => {
     expect(result).toEqual([]);
   });
 
+  // E1118: with no collection passed there are no counts to cap by.
+  it("adds the full quantity under 'available' when no collection was passed", async () => {
+    const result = await resolveMultiCopyCards(
+      ['Persistent Petitioners'],
+      'Bruvac the Grandiloquent',
+      undefined,
+      new Set(),
+      100,
+      new Set(),
+      null,
+      null,
+      'USD',
+      undefined,
+      undefined,
+      'available'
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].copies).toHaveLength(12);
+  });
+
   // E79: a per-copy price check alone waves through a card that individually
   // clears maxCardPrice but whose full multi-copy quantity (12 copies here,
   // per the mocked EDHREC average deck) blows the remaining budget.
