@@ -187,7 +187,11 @@ export async function generateLands(
   const lands: ScryfallCard[] = [];
   // E561: the nonbasic reserve held back from the spell picks comes back now.
   const heldForLands = budgetTracker?.releaseLandReserve() ?? 0;
-  const enforceAvailableCounts = collectionStrategy === 'available';
+  // Free-copy counts bind only when the caller passed them. The app's default
+  // strategy is 'available' even with collection mode off, where no collection
+  // is passed: every land then read as zero free copies, so default builds
+  // seated no basics and no Command Tower (E1118).
+  const enforceAvailableCounts = collectionStrategy === 'available' && !!collectionAvailableCounts;
   const availableCount = (name: string): number =>
     enforceAvailableCounts ? (collectionAvailableCounts?.get(name) ?? 0) : Infinity;
 

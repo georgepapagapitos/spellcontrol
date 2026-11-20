@@ -134,6 +134,7 @@ import {
   hasTaggerData,
   validateCardRole,
 } from '@/deck-builder/services/tagger/client';
+import { defaultCustomization } from '@/deck-builder/store';
 import { CommanderIneligibleError, formatReleaseDate } from './commanderEligibility';
 
 function searchResult(data: ScryfallCard[]): ScryfallSearchResponse {
@@ -543,6 +544,22 @@ const CASES: Case[] = [
       ctx.commander = withPartner(COMMANDER);
       ctx.partnerCommander = withPartner(PARTNER);
       ctx.colorIdentity = ['G', 'U'];
+    },
+  },
+  {
+    // E1118: what the app sends when nobody touches "Cards from". The other
+    // rows start from the fixture's 'full', so this pairing went untested and
+    // default builds shipped with no basic lands.
+    name: 'app defaults: collection mode off, no collection passed (basics seated)',
+    customize: {
+      collectionMode: defaultCustomization.collectionMode,
+      collectionStrategy: defaultCustomization.collectionStrategy,
+    },
+    extra: (deck, ctx) => {
+      expect(ctx.collectionNames).toBeUndefined();
+      const cz = ctx.customization;
+      const basics = deck.categories.lands.filter((c) => c.name === 'Forest').length;
+      expect(basics).toBeGreaterThanOrEqual(cz.landCount - cz.nonBasicLandCount);
     },
   },
   {

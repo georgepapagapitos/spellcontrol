@@ -400,6 +400,35 @@ describe('generateLands', () => {
     expect(needed.map((c) => c.name)).not.toContain('Grim Backwoods');
   });
 
+  // E1118: the app's default strategy is 'available' with collection mode off,
+  // where no collection reaches the generator. That is not "zero free copies".
+  it("seats basics under 'available' when no collection was passed", async () => {
+    const lands = await generateLands(
+      [],
+      ['W'],
+      5,
+      new Set(),
+      5,
+      99,
+      [],
+      undefined,
+      new Set(),
+      null,
+      null,
+      null,
+      null,
+      undefined,
+      undefined,
+      'USD',
+      false,
+      '',
+      undefined,
+      'available'
+    );
+
+    expect(lands.map((c) => c.name)).toEqual(Array(5).fill('Plains'));
+  });
+
   it('caps basic lands to available free copies in available-only mode', async () => {
     const lands = await generateLands(
       [],
