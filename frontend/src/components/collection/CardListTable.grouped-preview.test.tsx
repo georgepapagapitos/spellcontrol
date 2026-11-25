@@ -197,3 +197,42 @@ describe('CardListTable copy stacking (Group menu switch)', () => {
     expect(screen.queryByText('All copies shown')).toBeNull();
   });
 });
+
+describe('CardListTable preview actions (Build a deck)', () => {
+  beforeEach(() => {
+    preview = null;
+    idSeq = 0;
+    localStorage.setItem('mtg-collection-view-mode', 'list');
+  });
+
+  // getActions must index the same grouped rows as the other stack callbacks,
+  // so the commander's row gets Build a deck and the instant's row does not.
+  it('offers Build a deck on a commander row only, in grouped order', () => {
+    const cards = [
+      mk({
+        name: 'Aaa Legend',
+        cmc: 5,
+        scryfallId: 'sf-legend',
+        typeLine: 'Legendary Creature',
+        legalities: { commander: 'legal' },
+      }),
+      mk({ name: 'Zzz Spell', cmc: 1, scryfallId: 'sf-spell' }),
+    ];
+    render(
+      <ShortcutRegistryProvider>
+        <MemoryRouter>
+          <CardListTable cards={cards} binders={[]} />
+        </MemoryRouter>
+      </ShortcutRegistryProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Group by' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Mana value' }));
+    fireEvent.click(screen.getByRole('button', { name: /zzz spell/i }));
+
+    expect(preview.cards[0].name).toBe('Zzz Spell');
+    expect(preview.getActions(0)).toEqual([]);
+    expect(preview.cards[1].name).toBe('Aaa Legend');
+    expect(preview.getActions(1).map((a: { key: string }) => a.key)).toEqual(['build-deck']);
+  });
+});

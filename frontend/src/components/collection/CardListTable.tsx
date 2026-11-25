@@ -5,6 +5,7 @@ import type { EnrichedCard, MaterializedBinder } from '@/types/index';
 import type { SetMap } from '@/lib/api';
 import { CardRowMenu } from './CardRowMenu';
 import { CardPreview } from '@/components/card/CardPreview';
+import { useBuildDeckAction } from '@/components/card/use-build-deck-action';
 import { renderFriendOwners } from '@/components/trade/FriendOwnersPanel';
 import { CardEditDialog } from './CardEditDialog';
 import { RemoveCopiesDialog } from './RemoveCopiesDialog';
@@ -290,6 +291,7 @@ export function CardListTable({
     countLabel: bulkCountLabel,
   } = useRowSelection(sorted);
   const allocationsFor = useAllocationsFor(groupPrintings, allCards, allocations);
+  const buildDeckAction = useBuildDeckAction();
   const actions = useCollectionRowActions({
     cards,
     allCards,
@@ -537,6 +539,10 @@ export function CardListTable({
             displayRows[i] ? cubeListingsFor(displayRows[i].card.name) : []
           }
           getStackQty={(i) => displayRows[i]?.qty ?? 1}
+          getActions={(i) => {
+            const build = buildDeckAction(displayRows[i]?.card);
+            return build ? [build] : [];
+          }}
           getStackPlaces={(i) => (displayRows[i] ? placesFor(displayRows[i]) : undefined)}
           renderPanelExtra={(i) => renderFriendOwners(displayRows[i]?.card)}
           onIndexChange={setPreviewIndex}
