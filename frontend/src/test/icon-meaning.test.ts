@@ -40,6 +40,8 @@ const SPARKLE_ALLOWED: Record<string, string> = {
 const WAND_ALLOWED: Record<string, string> = {
   'components/browse/use-browse-preview.tsx': 'Build a deck: opens the generator on this commander',
   'components/card/PlayedInSection.tsx': 'Build a deck: opens the generator on this commander',
+  'components/card/use-build-deck-action.tsx':
+    'Build a deck: opens the generator on an owned commander from the collection preview',
   'components/share/SharedDeckSurface.tsx': 'Generate your own from a precon commander',
   'components/deck/NextBestMove.tsx': 'Fill: generates the remaining slots',
   'pages/DeckNewPage.tsx': 'Generate a deck',
