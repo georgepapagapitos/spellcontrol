@@ -76,6 +76,18 @@ describe('Sheet', () => {
     expect(document.querySelector('.card-picker-actions')).toBeNull();
   });
 
+  it('renders no actions row when the render function returns nothing', () => {
+    for (const empty of [false, null, undefined, '']) {
+      const r = render(
+        <Sheet onClose={() => {}} title="Pull list" actions={() => empty}>
+          <p>body</p>
+        </Sheet>
+      );
+      expect(document.querySelector('.card-picker-actions'), String(empty)).toBeNull();
+      r.unmount();
+    }
+  });
+
   it('closes on a backdrop tap, Escape, the close button and the footer close', () => {
     const onClose = vi.fn();
     const { unmount } = render(

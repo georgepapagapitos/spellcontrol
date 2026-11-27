@@ -113,6 +113,14 @@ export function Sheet({
   const close = () => beginClose();
   useImperativeHandle(ref, () => ({ close: () => beginClose() }), [beginClose]);
   const render = (slot: SheetSlot) => (typeof slot === 'function' ? slot(close) : slot);
+  // Resolved before the wrapper renders: a render function is always truthy,
+  // and an empty actions row still takes a gap's width from the title.
+  const actionsNode = actions === undefined ? null : render(actions);
+  const hasActions =
+    actionsNode !== null &&
+    actionsNode !== undefined &&
+    typeof actionsNode !== 'boolean' &&
+    actionsNode !== '';
 
   const node = (
     <div
@@ -148,7 +156,7 @@ export function Sheet({
               </h2>
               {description && <p className="card-picker-description">{description}</p>}
             </div>
-            {actions && <div className="card-picker-actions">{render(actions)}</div>}
+            {hasActions && <div className="card-picker-actions">{actionsNode}</div>}
             {closeButton && (
               <IconButton
                 variant="quiet"

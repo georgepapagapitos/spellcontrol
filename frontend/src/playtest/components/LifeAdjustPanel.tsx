@@ -5,7 +5,7 @@ import { Clock, Radiation, Skull, Ticket, Zap, type LucideIcon } from 'lucide-re
 import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
 import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { getSafeViewport } from '@/lib/overlays/popover-placement';
-import { focusInto } from '@/lib/overlays/overlay-layer';
+import { captureOpener, focusInto, restoreFocus } from '@/lib/overlays/overlay-layer';
 import { usePressRepeat } from '@/lib/play/use-press-repeat';
 import { Button } from '@/components/shared/Button';
 
@@ -260,6 +260,15 @@ export function LifeAdjustPanel({
   const [counterText, setCounterText] = useState('');
   const [addingCounter, setAddingCounter] = useState(false);
 
+  // The control that opened the panel, captured once for both variants.
+  // Crossing the narrow breakpoint while open swaps the popover for <Sheet>,
+  // and the sheet's focus trap would record the popover control that had
+  // focus, which unmounts with it, as its opener; the close would then drop
+  // focus on <body>. This runs before the trap's own restore (parents clean up
+  // first), so the trap finds focus already back on the opener.
+  const [opener] = useState(captureOpener);
+  useEffect(() => () => restoreFocus(opener), [opener]);
+
   function submitCounter() {
     const kind = counterText.trim().slice(0, MAX_COUNTER_NAME);
     if (!kind) return;
@@ -436,14 +445,6 @@ export function LifeAdjustPanel({
     </>
   );
 
-  // Portaled for the same reason the floating variant below is, and it was
-  // missed here: the sheet is `position: fixed` too, and its parent
-  // `.playtest-life-table` carries `backdrop-filter: blur(6px)`, which makes
-  // that little corner panel a containing block for fixed descendants. While
-  // the phone still rendered the chip strip this branch never had such a
-  // parent; once every tier moved onto the corner panel the bottom sheet
-  // started laying out inside it — measured at 98px wide, 295px ABOVE the
-  // viewport, instead of full-width along the bottom.
   // <Sheet> portals to <body>, which this needs: its parent
   // `.playtest-life-table` carries `backdrop-filter: blur(6px)`, and that makes
   // the little corner panel a containing block for fixed descendants. Laid out

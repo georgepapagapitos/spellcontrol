@@ -141,7 +141,7 @@ export function AvatarPickerSheet({ current, onPick, onClose }: Props) {
   // The search field takes focus on open (autoFocus below), and this holds it
   // there once <Sheet>'s focus trap has run: when effects replay (StrictMode),
   // the trap hands focus back to the opener and then into the panel's first
-  // control, the close button. Focus goes back to the "Choose avatar" trigger
+  // control, the first header control. Focus goes back to the "Choose avatar" trigger
   // on close through the trap, which captured it as the opener.
   const searchRef = useRef<HTMLInputElement>(null);
   useEffect(() => {

@@ -359,3 +359,30 @@ describe('LifeStrip — the table popover escapes its chip', () => {
     expect(document.querySelector('.playtest-life-panel-floating')).toBeTruthy();
   });
 });
+
+/** Crossing the narrow breakpoint with the panel open (a 1024-wide tablet
+ *  rotated, a window resized) swaps the floating popover for the bottom sheet.
+ *  Focus sits on a control inside the popover at that moment, and that control
+ *  unmounts with it, so it must not become the sheet's place to return to. */
+describe('LifeStrip — the panel switches presentation while open', () => {
+  it('returns focus to the chevron after a flip from popover to sheet', async () => {
+    const { rerender } = render(<LifeStrip {...soloProps()} variant="table" />);
+    const chevron = screen.getByRole('button', { name: 'Counters' });
+    chevron.focus();
+    fireEvent.click(chevron);
+    expect(document.querySelector('.playtest-life-panel-floating')).toBeTruthy();
+    screen.getByRole('button', { name: 'Poison +1' }).focus();
+
+    rerender(<LifeStrip {...soloProps()} variant="table" isNarrow />);
+    expect(document.querySelector('.playtest-life-panel-sheet')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    // Where the sheet plays its slide-out, the close lands when it ends.
+    const closing = screen.queryByRole('dialog');
+    if (closing) fireEvent.animationEnd(closing, { animationName: 'binder-sheet-slide-out' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    // restoreFocus falls back to a frame later for an unmounted opener.
+    await act(() => new Promise((r) => requestAnimationFrame(() => r(undefined))));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Counters' }));
+  });
+});
