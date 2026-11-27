@@ -1,9 +1,6 @@
-import { useEffect, useId, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
-import { restoreFocus } from '@/lib/overlays/overlay-layer';
+import { Sheet, type SheetHandle } from '@/components/overlays/Sheet';
 import { useCollectionStore } from '@/store/collection';
 import { useSearchCards } from '@/lib/search/use-search-cards';
 import { imageFromCard, loadCard, useCardThumb } from '@/lib/cards/card-thumbs';
@@ -90,8 +87,7 @@ function AvatarOptionTile({
 
 /**
  * Card-art avatar picker, opened from ProfileEditor's "Choose avatar" trigger.
- * Reuses the `.card-picker-root`/`.card-picker-sheet` shell verbatim (auto-
- * scrim, no new scrim code) and mirrors AddCardsSheet's portal/dismiss wiring.
+ * Built on <Sheet>, with Remove and Close in its `actions` slot.
  * Empty query browses the collection (deduped by name, capped at 300 —
  * search covers the rest); 2+ chars switches to a live Scryfall search. Both
  * render into the SAME `role="listbox"` grid with roving `aria-activedescendant`
@@ -100,7 +96,6 @@ function AvatarOptionTile({
  * AddCardSearchPanel's results list.
  */
 export function AvatarPickerSheet({ current, onPick, onClose }: Props) {
-  const titleId = useId();
   const listboxId = useId();
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
@@ -109,8 +104,6 @@ export function AvatarPickerSheet({ current, onPick, onClose }: Props) {
 
   const collection = useCollectionStore((s) => s.cards);
   const { results, loading, error } = useSearchCards(query);
-
-  useLockBodyScroll();
 
   const { cards: browseCards, hasMore: browseHasMore } = useMemo(() => {
     const seen = new Map<string, EnrichedCard>();
@@ -140,26 +133,19 @@ export function AvatarPickerSheet({ current, onPick, onClose }: Props) {
     void Promise.resolve().then(() => setActiveIndex(0));
   }, [results]);
 
-  // Symmetric exit so every dismiss path (backdrop, ✕, Escape, a pick) plays
-  // the shell's slide-out before unmount instead of teleport-vanishing.
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
-    onClose,
-    'binder-sheet-slide-out',
-    { instantAt: '(min-width: 1024px)' }
-  );
-  // ≥1024px the shell renders as a centered panel with `animation: none`, so
-  // `.is-closing` would never fire onAnimationEnd there — call onClose
-  // directly rather than waiting on an exit that never plays (mirrors
-  // CardPickerSheet/AddCardSheet's identical breakpoint check).
+  // A pick closes from an async resolve, outside any slot's render, so it
+  // reaches the sheet's exit through the handle.
+  const sheetRef = useRef<SheetHandle>(null);
+  const beginClose = () => sheetRef.current?.close();
 
-  // Focus moves to the search field on open (autoFocus below); return it to
-  // whatever was focused before the sheet opened (the "Choose avatar"
-  // trigger) on every close path, without the caller needing to manage a ref.
+  // The search field takes focus on open (autoFocus below), and this holds it
+  // there once <Sheet>'s focus trap has run: when effects replay (StrictMode),
+  // the trap hands focus back to the opener and then into the panel's first
+  // control, the close button. Focus goes back to the "Choose avatar" trigger
+  // on close through the trap, which captured it as the opener.
+  const searchRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    const prevFocused = document.activeElement as HTMLElement | null;
-    return () => {
-      restoreFocus(prevFocused);
-    };
+    searchRef.current?.focus();
   }, []);
 
   const resolveAvatar = async (option: AvatarOption): Promise<AvatarPatch | null> => {
@@ -222,127 +208,115 @@ export function AvatarPickerSheet({ current, onPick, onClose }: Props) {
 
   const clampedActive = Math.min(activeIndex, Math.max(options.length - 1, 0));
 
-  return createPortal(
-    <div
-      className="card-picker-root avatar-picker-root"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (e.target === e.currentTarget) beginClose();
-      }}
-      role="presentation"
-    >
-      <div
-        className={`card-picker-sheet avatar-picker-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <header className="avatar-picker-head">
-          <h2 id={titleId} className="avatar-picker-title">
-            Choose your avatar
-          </h2>
-          <div className="avatar-picker-head-actions">
-            {current && (
-              <Button
-                onClick={() => {
-                  onPick(null);
-                  beginClose();
-                }}
-                className="avatar-picker-remove"
-              >
-                Remove avatar
-              </Button>
-            )}
-            <IconButton
-              variant="quiet"
-              onClick={() => beginClose()}
-              label="Close"
-              icon={<X width={18} height={18} strokeWidth={2} />}
-            />
-          </div>
-        </header>
-
-        {/* Search sits OUTSIDE the scrolling body so it stays put while the
-            grid scrolls under it (and so SearchPill's toolbar-oriented
-            `flex: 1 1 12rem` can't stretch it vertically — see the CSS). */}
-        <div className="avatar-picker-search">
-          <SearchPill
-            value={query}
-            onChange={handleQueryChange}
-            placeholder="Search for a card…"
-            ariaLabel="Search for a card to use as your avatar"
-            autoFocus
-            inputProps={{
-              role: 'combobox',
-              'aria-autocomplete': 'list',
-              'aria-expanded': options.length > 0,
-              'aria-controls': listboxId,
-              'aria-activedescendant':
-                options.length > 0 ? `${listboxId}-option-${clampedActive}` : undefined,
-              onKeyDown: handleKeyDown,
-            }}
-          />
-        </div>
-
-        <div className="avatar-picker-body">
-          {!searching && collection.length === 0 && (
-            <div className="avatar-picker-empty-collection">
-              <p>Your collection is empty.</p>
-              <p>Search for any card to use as your avatar.</p>
-            </div>
-          )}
-
-          {searching && loading && (
-            <p className="card-picker-empty" aria-live="polite">
-              Searching…
-            </p>
-          )}
-          {searching && error && (
-            <p className="card-picker-empty avatar-picker-error" aria-live="polite">
-              {error}
-            </p>
-          )}
-          {searching && !loading && !error && results.length === 0 && (
-            <p className="card-picker-empty" aria-live="polite">
-              No matches.
-            </p>
-          )}
-
-          {options.length > 0 && (
-            <ul
-              id={listboxId}
-              className="avatar-picker-grid"
-              role="listbox"
-              aria-label="Avatar options"
+  return (
+    <Sheet
+      ref={sheetRef}
+      onClose={onClose}
+      title="Choose your avatar"
+      className="avatar-picker-sheet"
+      rootClassName="avatar-picker-root"
+      // The close button rides in the actions row rather than `closeButton`,
+      // so it sits `--space-2` from Remove with no edge nudge, as it always has.
+      actions={(close) => (
+        <>
+          {current && (
+            <Button
+              onClick={() => {
+                onPick(null);
+                close();
+              }}
+              className="avatar-picker-remove"
             >
-              {options.map((option, i) => (
-                <AvatarOptionTile
-                  key={option.key}
-                  id={`${listboxId}-option-${i}`}
-                  option={option}
-                  active={i === clampedActive}
-                  onHover={() => setActiveIndex(i)}
-                  onPick={() => pick(option)}
-                />
-              ))}
-            </ul>
+              Remove avatar
+            </Button>
           )}
+          <IconButton
+            variant="quiet"
+            onClick={close}
+            label="Close"
+            icon={<X width={18} height={18} strokeWidth={2} />}
+          />
+        </>
+      )}
+    >
+      {/* Search sits OUTSIDE the scrolling body so it stays put while the
+          grid scrolls under it (and so SearchPill's toolbar-oriented
+          `flex: 1 1 12rem` can't stretch it vertically — see the CSS). */}
+      <div className="avatar-picker-search">
+        <SearchPill
+          ref={searchRef}
+          value={query}
+          onChange={handleQueryChange}
+          placeholder="Search for a card…"
+          ariaLabel="Search for a card to use as your avatar"
+          autoFocus
+          inputProps={{
+            role: 'combobox',
+            'aria-autocomplete': 'list',
+            'aria-expanded': options.length > 0,
+            'aria-controls': listboxId,
+            'aria-activedescendant':
+              options.length > 0 ? `${listboxId}-option-${clampedActive}` : undefined,
+            onKeyDown: handleKeyDown,
+          }}
+        />
+      </div>
 
-          {/* Both hints render below the still-usable grid (never blocking
+      <div className="avatar-picker-body">
+        {!searching && collection.length === 0 && (
+          <div className="avatar-picker-empty-collection">
+            <p>Your collection is empty.</p>
+            <p>Search for any card to use as your avatar.</p>
+          </div>
+        )}
+
+        {searching && loading && (
+          <p className="card-picker-empty" aria-live="polite">
+            Searching…
+          </p>
+        )}
+        {searching && error && (
+          <p className="card-picker-empty avatar-picker-error" aria-live="polite">
+            {error}
+          </p>
+        )}
+        {searching && !loading && !error && results.length === 0 && (
+          <p className="card-picker-empty" aria-live="polite">
+            No matches.
+          </p>
+        )}
+
+        {options.length > 0 && (
+          <ul
+            id={listboxId}
+            className="avatar-picker-grid"
+            role="listbox"
+            aria-label="Avatar options"
+          >
+            {options.map((option, i) => (
+              <AvatarOptionTile
+                key={option.key}
+                id={`${listboxId}-option-${i}`}
+                option={option}
+                active={i === clampedActive}
+                onHover={() => setActiveIndex(i)}
+                onPick={() => pick(option)}
+              />
+            ))}
+          </ul>
+        )}
+
+        {/* Both hints render below the still-usable grid (never blocking
               it) — a 1-char query and a >300-card collection can both be
               true at once, and each is an independent, non-contradictory
               fact about what's showing. */}
-          {!searching && collection.length > 0 && trimmed.length === 1 && (
-            <p className="avatar-picker-hint">Type at least two characters to search.</p>
-          )}
-          {!searching && browseHasMore && (
-            <p className="avatar-picker-hint">Showing your first 300 cards. Search for more.</p>
-          )}
-        </div>
+        {!searching && collection.length > 0 && trimmed.length === 1 && (
+          <p className="avatar-picker-hint">Type at least two characters to search.</p>
+        )}
+        {!searching && browseHasMore && (
+          <p className="avatar-picker-hint">Showing your first 300 cards. Search for more.</p>
+        )}
       </div>
-    </div>,
-    document.body
+    </Sheet>
   );
 }

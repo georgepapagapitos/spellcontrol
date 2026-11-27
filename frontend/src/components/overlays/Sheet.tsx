@@ -36,6 +36,10 @@ interface Props {
   children: SheetSlot;
   /** Footer actions, right-aligned in `.card-picker-footer`. */
   footer?: SheetSlot;
+  /** Controls at the header's end, beside the title and before the close
+   *  button: an action on the whole sheet ("Start over", "Remove avatar").
+   *  A node, or a render function that receives `close`. */
+  actions?: SheetSlot;
   /** A close (X) button at the header's end, for a sheet with no footer to
    *  dismiss it from. */
   closeButton?: boolean;
@@ -85,6 +89,7 @@ export function Sheet({
   toolbar,
   children,
   footer,
+  actions,
   closeButton = false,
   footerClassName,
   className,
@@ -143,6 +148,7 @@ export function Sheet({
               </h2>
               {description && <p className="card-picker-description">{description}</p>}
             </div>
+            {actions && <div className="card-picker-actions">{render(actions)}</div>}
             {closeButton && (
               <IconButton
                 variant="quiet"

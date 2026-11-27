@@ -19,36 +19,31 @@
   }
 }
 
-.pull-list-head {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
+/* <Sheet>'s header, tightened: it sits on the handle with no divider, since
+   the progress meter below it is the edge the list scrolls under. Two classes
+   outweigh the shell's own rules. */
+.pull-list-sheet .card-picker-header {
   padding: var(--space-1) var(--space-4) 0;
+  border-bottom: 0;
 }
 
-.pull-list-title {
-  margin: 0;
-  font-size: var(--text-lg);
+.pull-list-sheet .card-picker-heading-text {
+  gap: var(--space-0-5);
+}
+
+.pull-list-sheet .card-picker-title {
   font-weight: 600;
-  color: var(--text-primary);
 }
 
-.pull-list-sub {
-  margin: 0;
+/* The progress line is a count, not a sentence about the sheet. */
+.pull-list-sheet .card-picker-description {
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
-.pull-list-reset {
-  flex: 0 0 auto;
+/* Start over centers on the title and progress line together. */
+.pull-list-sheet .card-picker-actions {
   align-self: center;
-}
-
-/* Look comes from .icon-btn now; this class only nudges it against the
-   header's edge. */
-.pull-list-close {
-  flex: 0 0 auto;
-  margin: -0.15rem -0.4rem 0 0;
 }
 
 .pull-list-meter {
