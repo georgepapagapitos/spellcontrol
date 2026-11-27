@@ -6,6 +6,7 @@ import {
   extractSection,
   findDeletedTests,
   parseNameStatus,
+  stripHtmlComments,
 } from './check-deleted-tests.mjs';
 
 const raw = (...rows) => rows.map((r) => r.join('\0')).join('\0') + '\0';
@@ -135,4 +136,72 @@ test('non-PR events pass cleanly even with deletions and no section', () => {
 test('a destination test file named in the entry counts as the explanation', () => {
   const s = section('- DeckIdeaPage.test.tsx: moved to DeckIdeaRedirect.test.tsx');
   assert.equal(decide({ event: 'pull_request', deleted: [A], section: s }).ok, true);
+});
+
+test('.test.mjs files count as tests; test-matrix helpers and snapshots do not', () => {
+  assert.deepEqual(deletedOf(['D', 'scripts/x.test.mjs']), ['scripts/x.test.mjs']);
+  assert.deepEqual(
+    deletedOf(['D', 'a/x.test-matrix.ts'], ['D', 'a/__snapshots__/x.test.ts.snap']),
+    []
+  );
+  assert.deepEqual(deletedOf(['D', 'a/x.test.mjs'], ['A', 'a/x.part-1.test.mjs']), []);
+});
+
+test('stripHtmlComments removes comments and leaves no assembled residue', () => {
+  assert.equal(stripHtmlComments('a<!-- x -->b'), 'ab');
+  assert.equal(stripHtmlComments('a<!-- x --><!-- y -->b'), 'ab');
+  // Removing the inner comment would assemble a new `<!--`; it must not survive.
+  assert.equal(stripHtmlComments('<!<!-- x -->-- y -->z').includes('<!--'), false);
+  assert.equal(stripHtmlComments('no comments'), 'no comments');
+});
+
+test('an unterminated comment hides everything after it, as GitHub renders it', () => {
+  assert.equal(stripHtmlComments('keep <!-- hidden'), 'keep ');
+  assert.equal(
+    extractSection('## Why\nx\n<!--\n## Deleted tests\n- a.test.ts: moved to b.test.ts'),
+    null
+  );
+});
+
+test('two deleted files with one basename each need their full path', () => {
+  const x = 'a/index.test.ts';
+  const y = 'b/index.test.ts';
+  const bare = section('- index.test.ts: moved into the new finder tests');
+  const r = decide({ event: 'pull_request', deleted: [x, y], section: bare });
+  assert.equal(r.ok, false);
+  assert.equal(r.problems.length, 2);
+  assert.match(r.problems[0], /full path/);
+  const full = section(
+    `- ${x}: moved into the finder tests\n- ${y}: dropped on purpose, page removed`
+  );
+  assert.equal(decide({ event: 'pull_request', deleted: [x, y], section: full }).ok, true);
+  const one = section(
+    `- ${x}: moved into the finder tests\n- index.test.ts: dropped on purpose, page removed`
+  );
+  assert.equal(decide({ event: 'pull_request', deleted: [x, y], section: one }).ok, false);
+});
+
+test('a file mentioned inside another entry explanation is not accounted for', () => {
+  const s = section(`- ${A}: moved to IdeaStart.test.tsx and the redirect tests`);
+  const r = decide({ event: 'pull_request', deleted: [A, B], section: s });
+  assert.equal(r.ok, false);
+  assert.match(r.problems[0], /IdeaStart\.test\.tsx/);
+});
+
+test('table rows and numbered items are entries', () => {
+  const s = section(
+    `| ${A} | moved to the redirect tests |\n1. ${B}: dropped on purpose, tiles removed`
+  );
+  assert.equal(decide({ event: 'pull_request', deleted: [A, B], section: s }).ok, true);
+});
+
+test('near-miss headings and extensionless names are rejected with a hint', () => {
+  assert.equal(extractSection('### Deleted tests\n- a'), null);
+  assert.equal(extractSection('## Deleted tests (1)\n- a'), null);
+  const r = decide({ event: 'pull_request', deleted: [A], section: null, nearMiss: true });
+  assert.match(r.problems.join('\n'), /not exactly "## Deleted tests"/);
+  const noExt = section('- DeckIdeaPage.test: moved to the redirect tests');
+  const r2 = decide({ event: 'pull_request', deleted: [A], section: noExt });
+  assert.equal(r2.ok, false);
+  assert.match(r2.problems[0], /file name/);
 });
