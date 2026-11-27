@@ -61,6 +61,12 @@ export function HordeEndSheet({
   const headline =
     outcome === 'won' ? 'The horde is gone' : `Overrun on turn ${endedOnTurn ?? hordeTurns}`;
 
+  // Done calls `onDone` straight away instead of playing the sheet's exit
+  // first: at an online table it asks "Leave the table?", and a Cancel there
+  // must come back to a live sheet. Routed through the exit, the sheet was
+  // already half-closed by then and its Done did nothing ever again. The
+  // parent unmounts the sheet once leaving really happens. Nothing else
+  // closes it (it isn't dismissable), so `onClose` is never reached.
   return (
     <Sheet
       inPlace
@@ -68,9 +74,9 @@ export function HordeEndSheet({
       onClose={onDone}
       className="horde-end-sheet"
       title={headline}
-      footer={(close) => (
+      footer={
         <>
-          <Button onClick={() => close()}>{doneLabel}</Button>
+          <Button onClick={() => onDone()}>{doneLabel}</Button>
           {onPlayAgain ? (
             <Button variant="primary" onClick={onPlayAgain}>
               {playAgainLabel}
@@ -79,7 +85,7 @@ export function HordeEndSheet({
             playAgainHint && <p className="horde-end-hint">{playAgainHint}</p>
           )}
         </>
-      )}
+      }
     >
       <div className="card-picker-list horde-end-body">
         <ul className="horde-end-stats">

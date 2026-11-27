@@ -59,4 +59,23 @@ describe('HordeRevealSheet', () => {
       screen.getByText(/The horde casts Plague Wind\. Resolve it, then confirm\./)
     ).toBeTruthy();
   });
+
+  // E1121: the sheet's onClose IS its confirm, and browser Back used to run it.
+  it('browser Back does not confirm the reveal, and leaves the sheet up', () => {
+    window.history.replaceState({ idx: 0 }, '', '/play/local');
+    const onConfirm = vi.fn();
+    render(
+      <HordeRevealSheet
+        revealed={CARDS}
+        toResolveIds={new Set()}
+        waveEndId="c"
+        onConfirm={onConfirm}
+      />
+    );
+    window.history.back();
+    window.history.back();
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(window.location.pathname).toBe('/play/local');
+  });
 });
