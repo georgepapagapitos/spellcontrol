@@ -147,6 +147,25 @@ jobs:
       - name: Check file size ratchet
         run: node scripts/check-file-size-ratchet.mjs
 
+      # A PR that deletes a *.test.ts(x) must account for it in a
+      # `## Deleted tests` section of its body (E1115, after #3210). The body and
+      # SHAs reach the script through env vars only; nothing from the PR is
+      # interpolated into a shell line. Skipped on push and merge_group: the PR
+      # run already decided. Not a required check until it is added to the
+      # "protect main" ruleset, which is a settings edit.
+      - name: Unit-test the deleted-tests check
+        run: node --test scripts/check-deleted-tests.test.mjs
+
+      - name: Check deleted tests are accounted for
+        if: github.event_name == 'pull_request'
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          node scripts/check-deleted-tests.mjs --base "$BASE_SHA"
+
   # One job per packages/* shared package. The `name` must stay exactly
   # "<package> — typecheck & test": those are the required status checks in the
   # "protect main" ruleset, and a renamed check never reports, so every PR would
