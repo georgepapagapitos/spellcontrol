@@ -103,4 +103,48 @@ describe('RecheckLandsSheet', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Apply 1 swap' }));
     await waitFor(() => expect(onApply).toHaveBeenCalledWith([offered], [declined]));
   });
+
+  // E1121: the sheet is `dismissable={!applying}`. Browser Back used to close
+  // it mid-apply anyway, because a sheet's Back path ignored `dismissable`.
+  it('holds against browser Back while the swaps apply, and closes on Back once they are done', async () => {
+    window.history.replaceState({ idx: 0 }, '', '/deck');
+    recheckLands.mockResolvedValue({
+      swaps: [{ out: land('Halimar Depths'), in: land('Mystic Sanctuary') }],
+      kept: [],
+      inclusion: {},
+      hidden: [],
+    });
+    let finish = () => {};
+    const onApply = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        })
+    );
+    const onClose = vi.fn();
+    render(
+      <RecheckLandsSheet
+        deck={deck}
+        env={{ collection: [], decks: [], cubes: [] }}
+        ownershipFor={() => 'owned'}
+        onClose={onClose}
+        onApply={onApply}
+      />
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply 1 swap' }));
+    await waitFor(() => expect(onApply).toHaveBeenCalled());
+
+    window.history.back();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeTruthy();
+
+    finish();
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: /Apply/ }) as HTMLButtonElement).disabled).toBe(
+        false
+      )
+    );
+    window.history.back();
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+  });
 });

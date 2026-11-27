@@ -31,7 +31,7 @@ const NOT_YET_ON_SHEET: Record<string, string> = {
   'components/deck/MoveToDeckSheet.tsx':
     'a Back button that leads the title on the second step, and a close labeled Cancel. No other sheet needs a leading slot',
   'playtest/components/OpeningHandSheet.tsx':
-    'it cannot be dismissed (no Escape, backdrop or browser-Back close); it leaves only through Keep, Mulligan or its own exit link ("Back to deck" by default). It also has a peek mode that hides the panel and puts a "Back to hand" button beside it. <Sheet> runs useSheetExit, whose browser-Back handler closes the sheet even when dismissable={false}',
+    'a takeover, not a sheet: it renders null while hidden with its hooks still mounted (the online countdown runs on), and its peek mode hides the panel and puts a "Back to hand" button beside it in the root. It cannot be dismissed (no Escape or backdrop close) and leaves through Keep, Mulligan or its own exit link ("Back to deck" by default). It also takes no part in the Back integration, so browser Back leaves the table with it; a <Sheet dismissable={false}> holds the page instead (E1121), so moving it would change what Back does there',
   'pages/deck-editor/DeckEditorCardPickerSheet.tsx':
     'a wrapper whose callers draw the top of the panel: the deck Add cards sheet has no title at all (a zone toggle leads it), and <Sheet> always renders a titled header',
 };

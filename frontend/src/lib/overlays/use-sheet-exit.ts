@@ -54,16 +54,26 @@ export interface SheetExitOptions {
    *  `animation: none` there, as `.card-picker-sheet` does on desktop), so
    *  every close is immediate instead of waiting out the fallback timer. */
   instantAt?: string;
-  /** `false` when Escape must not close the sheet: it has to be answered
-   *  (Horde reveal), or the surface routes Escape itself (a menu shell whose
-   *  menu layer sits above it, CardPreview's capture-phase handler). */
+  /** `false` when the surface routes Escape itself (a menu shell whose menu
+   *  layer sits above it, CardPreview's capture-phase handler). Back still
+   *  closes it. For a sheet that has to be answered, use `dismissable`. */
   escape?: boolean;
+  /**
+   * `false` for a sheet that has to be answered (the Horde reveal, a sheet
+   * mid-apply): neither Escape nor the browser Back button closes it. Back is
+   * refused the way Modal refuses it, so the page stays put under the sheet
+   * and the next Back is intercepted again (overlay-history.ts). Read live, so
+   * a sheet can flip it while open (`dismissable={!applying}`). Before this,
+   * Back always closed and ran `onClose`: on the Horde reveal, whose
+   * `onClose` is its confirm, Back confirmed the reveal.
+   */
+  dismissable?: boolean;
 }
 
 export function useSheetExit(
   onClose: () => void,
   exitAnimationName: string | string[] = 'sheet-fall',
-  { panelRef, instantAt, escape = true }: SheetExitOptions = {}
+  { panelRef, instantAt, escape = true, dismissable = true }: SheetExitOptions = {}
 ) {
   const [isClosing, setIsClosing] = useState(false);
   const [exitFrom, setExitFrom] = useState(0);
@@ -79,11 +89,13 @@ export function useSheetExit(
   const onCloseRef = useRef(onClose);
   const exitNamesRef = useRef(exitAnimationName);
   const instantAtRef = useRef(instantAt);
+  const dismissableRef = useRef(dismissable);
   useEffect(() => {
     onCloseRef.current = onClose;
     exitNamesRef.current = exitAnimationName;
     instantAtRef.current = instantAt;
-  }, [onClose, exitAnimationName, instantAt]);
+    dismissableRef.current = dismissable;
+  }, [onClose, exitAnimationName, instantAt, dismissable]);
   // Some layouts neutralize the exit keyframe entirely via CSS instead of
   // playing a symmetric fall (e.g. `.card-picker-sheet`'s desktop centered
   // modal sets `animation: none` on `.is-closing` — see
@@ -123,9 +135,11 @@ export function useSheetExit(
   // One Back press closes this sheet through the same path Escape uses
   // (overlay-layer.ts's shared history integration, E481) — wired here so
   // every one of the ~40 useSheetExit consumers gets it for free, exactly
-  // like the focus trap above. A sheet has no refusal concept (unlike
-  // Modal's `dismissable`), so this always accepts.
+  // like the focus trap above. A `dismissable: false` sheet refuses, as a
+  // Modal does: returning false tells overlay-history.ts to keep the page
+  // where it is and intercept the next Back too.
   const dismissViaBack = useCallback(() => {
+    if (!dismissableRef.current) return false;
     beginClose();
     return true;
   }, [beginClose]);
@@ -173,6 +187,7 @@ export function useSheetExit(
     if (!escape) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.defaultPrevented || !isTopmost()) return;
+      if (!dismissableRef.current) return;
       beginClose();
     };
     document.addEventListener('keydown', onKey);

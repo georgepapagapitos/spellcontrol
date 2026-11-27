@@ -30,7 +30,9 @@ where every section lives.
   A slot is added only when more than one sheet needs it: a lone header shape
   (Move to deck's leading Back) stays off `<Sheet>` until a second one
   arrives. `dismissable={false}` is for a sheet that must
-  be answered: no backdrop or Escape dismiss, and no handle. `inPlace` is for
+  be answered: no backdrop, Escape or browser-Back dismiss (Back is refused
+  and the page stays, as for a Modal), and no handle. It is read live, so
+  `dismissable={!applying}` locks the sheet only while the apply runs. `inPlace` is for
   the play table and playtest board only. Before this, 30-odd sheets each
   composed the shell by hand and drifted: five title styles, two sheets with
   no exit animation, and the binder "Add card" sheet's search field running
@@ -305,8 +307,12 @@ var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
   like nothing happened either way.** Back goes through the SAME shared
   overlay stack Escape does, never a second mechanism: `useOverlayLayer`'s
   optional second argument (`dismiss`) opts a layer in and reports back
-  whether the close was ACCEPTED (a Modal's `dismissable={false}` refuses, so
-  it returns `false`; everything else always accepts). `lib/overlays/overlay-history.ts`
+  whether the close was ACCEPTED (a Modal's or a `<Sheet>`'s
+  `dismissable={false}` refuses, so it returns `false`; everything else always
+  accepts). A sheet refused Back for the first time in E1121 (2026-11-27):
+  before that, `useSheetExit` always accepted, so Back on the Horde reveal ran
+  its `onClose`, which is its confirm, and Back on the Horde end sheet left
+  the game. `lib/overlays/overlay-history.ts`
   owns the history mechanics — one history entry, same URL, marking the
   CURRENT entry while any opted-in layer is open (a nested open reuses the
   same marked entry rather than pushing another). A Back press first closes

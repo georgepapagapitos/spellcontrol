@@ -50,9 +50,11 @@ interface Props {
   /** Extra classes on the fixed root (a stronger scrim, a z-index lift). */
   rootClassName?: string;
   /**
-   * `false` for a sheet that has to be answered: no backdrop or Escape
-   * dismiss, and no drag handle (users read the handle as "drag down to
-   * dismiss", STYLE_GUIDE overlays appendix).
+   * `false` for a sheet that has to be answered: no backdrop, Escape or
+   * browser-Back dismiss (Back is refused and the page stays put, as Modal
+   * does), and no drag handle (users read the handle as "drag down to
+   * dismiss", STYLE_GUIDE overlays appendix). Read live, so it can flip
+   * while the sheet is open (`dismissable={!applying}`).
    */
   dismissable?: boolean;
   /**
@@ -108,7 +110,7 @@ export function Sheet({
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
     onClose,
     'binder-sheet-slide-out',
-    { instantAt: '(min-width: 1024px)', escape: dismissable }
+    { instantAt: '(min-width: 1024px)', dismissable }
   );
   const close = () => beginClose();
   useImperativeHandle(ref, () => ({ close: () => beginClose() }), [beginClose]);

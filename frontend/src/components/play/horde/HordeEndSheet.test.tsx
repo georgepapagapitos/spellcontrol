@@ -51,3 +51,16 @@ describe('HordeEndSheet headline turn number', () => {
     expect(row.textContent).toBe('Horde turns0');
   });
 });
+
+describe('HordeEndSheet and browser Back', () => {
+  // E1121: onClose is onDone, which leaves the game, and Back used to run it.
+  it('browser Back does not leave the game', () => {
+    window.history.replaceState({ idx: 0 }, '', '/play/local');
+    const onDone = vi.fn();
+    render(<HordeEndSheet {...BASE} onDone={onDone} outcome="lost" hordeTurns={2} />);
+    window.history.back();
+    expect(onDone).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: 'Overrun on turn 2' })).toBeTruthy();
+    expect(window.location.pathname).toBe('/play/local');
+  });
+});
