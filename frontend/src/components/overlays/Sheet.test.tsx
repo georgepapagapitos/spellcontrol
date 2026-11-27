@@ -223,6 +223,25 @@ describe('Sheet: browser Back', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  // A close already under way is not refused. When the sheet's own answer
+  // ran `onClose` but the parent kept the sheet (a dropped or failed step),
+  // holding Back too would leave nothing that gets the user off the page.
+  it('does not hold the page once its own close has run and the parent kept it mounted', () => {
+    const onClose = vi.fn();
+    const ref = createRef<SheetHandle>();
+    render(
+      <Sheet ref={ref} onClose={onClose} title="The horde reveals" dismissable={false}>
+        <p>body</p>
+      </Sheet>
+    );
+    ref.current?.close(); // Confirm: onClose runs, but nothing unmounts the sheet
+    expect(onClose).toHaveBeenCalledTimes(1);
+    window.history.back(); // consumes the sheet's own entry
+    window.history.back(); // and this one leaves
+    expect(window.location.pathname).toBe('/before');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('follows dismissable as it changes while open (RecheckLandsSheet mid-apply)', () => {
     const onClose = vi.fn();
     const sheet = (dismissable: boolean) => (

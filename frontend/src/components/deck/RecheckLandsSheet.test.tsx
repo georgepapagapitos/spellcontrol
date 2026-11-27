@@ -106,7 +106,7 @@ describe('RecheckLandsSheet', () => {
 
   // E1121: the sheet is `dismissable={!applying}`. Browser Back used to close
   // it mid-apply anyway, because a sheet's Back path ignored `dismissable`.
-  it('holds against browser Back while the swaps apply, and closes on Back once they are done', async () => {
+  it('holds against browser Back while the swaps apply, and closes on Back once a failed apply frees it', async () => {
     window.history.replaceState({ idx: 0 }, '', '/deck');
     recheckLands.mockResolvedValue({
       swaps: [{ out: land('Halimar Depths'), in: land('Mystic Sanctuary') }],
@@ -114,37 +114,52 @@ describe('RecheckLandsSheet', () => {
       inclusion: {},
       hidden: [],
     });
-    let finish = () => {};
+    // The apply fails, so the sheet stays open with `applying` back to false:
+    // the one state where a Back after the apply has to be what closes it.
+    // apply() rethrows into a voided promise, so swallow that one rejection.
+    const swallow = (reason: unknown) => {
+      if (!(reason instanceof Error && reason.message === 'apply failed')) throw reason;
+    };
+    process.on('unhandledRejection', swallow);
+    let fail = () => {};
     const onApply = vi.fn(
       () =>
-        new Promise<void>((resolve) => {
-          finish = resolve;
+        new Promise<void>((_, reject) => {
+          fail = () => reject(new Error('apply failed'));
         })
     );
     const onClose = vi.fn();
-    render(
-      <RecheckLandsSheet
-        deck={deck}
-        env={{ collection: [], decks: [], cubes: [] }}
-        ownershipFor={() => 'owned'}
-        onClose={onClose}
-        onApply={onApply}
-      />
-    );
-    fireEvent.click(await screen.findByRole('button', { name: 'Apply 1 swap' }));
-    await waitFor(() => expect(onApply).toHaveBeenCalled());
+    try {
+      render(
+        <RecheckLandsSheet
+          deck={deck}
+          env={{ collection: [], decks: [], cubes: [] }}
+          ownershipFor={() => 'owned'}
+          onClose={onClose}
+          onApply={onApply}
+        />
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Apply 1 swap' }));
+      await waitFor(() => expect(onApply).toHaveBeenCalled());
 
-    window.history.back();
-    expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByRole('dialog')).toBeTruthy();
+      window.history.back();
+      expect(onClose).not.toHaveBeenCalled();
+      expect(screen.getByRole('dialog')).toBeTruthy();
+      expect(window.location.pathname).toBe('/deck');
 
-    finish();
-    await waitFor(() =>
-      expect((screen.getByRole('button', { name: /Apply/ }) as HTMLButtonElement).disabled).toBe(
-        false
-      )
-    );
-    window.history.back();
-    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+      fail();
+      await waitFor(() =>
+        expect(
+          (screen.getByRole('button', { name: 'Apply 1 swap' }) as HTMLButtonElement).disabled
+        ).toBe(false)
+      );
+      expect(onClose).not.toHaveBeenCalled();
+      window.history.back();
+      await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    } finally {
+      // Let the voided rejection surface before the listener goes.
+      await new Promise((r) => setTimeout(r, 0));
+      process.off('unhandledRejection', swallow);
+    }
   });
 });

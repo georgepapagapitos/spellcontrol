@@ -351,10 +351,12 @@ var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
   but it can occasionally cost one avoidable extra press; fast enough
   double-actions to trigger it are rare.
   **Popover menus (`useMenuKeyboard` — `OverflowMenu`, `SelectMenu`,
-  `ToolbarPopover`, `CtxMenuShell`) deliberately do NOT participate.** They
+  `ToolbarPopover`) deliberately do NOT participate.** They
   open and close constantly and their items routinely navigate; a history
   entry per dropdown open isn't worth it, and Escape already closes them the
-  same way it always has. Pinned by `src/lib/overlays/overlay-history.test.ts`'s
+  same way it always has. The card context menu (`CtxMenuShell`) is the
+  exception: it runs `useSheetExit` in both its floating and sheet variants,
+  so it does participate, and Back closes an open card menu. Pinned by `src/lib/overlays/overlay-history.test.ts`'s
   numbered "acceptance sequences" (the mechanics, against fake hooks,
   counting presses through all eight of: close-then-leave, ✕-then-leave,
   ✕-then-navigate-then-land-then-leave, two nested closing in order then

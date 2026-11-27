@@ -3,6 +3,7 @@ import {
   type RefObject,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react';
@@ -89,13 +90,18 @@ export function useSheetExit(
   const onCloseRef = useRef(onClose);
   const exitNamesRef = useRef(exitAnimationName);
   const instantAtRef = useRef(instantAt);
-  const dismissableRef = useRef(dismissable);
   useEffect(() => {
     onCloseRef.current = onClose;
     exitNamesRef.current = exitAnimationName;
     instantAtRef.current = instantAt;
+  }, [onClose, exitAnimationName, instantAt]);
+  // A layout effect, not a passive one: it runs in the same task as the
+  // commit, so once a render says `dismissable: false` no Back or Escape
+  // event can slip in and close the sheet before the ref catches up.
+  const dismissableRef = useRef(dismissable);
+  useLayoutEffect(() => {
     dismissableRef.current = dismissable;
-  }, [onClose, exitAnimationName, instantAt, dismissable]);
+  }, [dismissable]);
   // Some layouts neutralize the exit keyframe entirely via CSS instead of
   // playing a symmetric fall (e.g. `.card-picker-sheet`'s desktop centered
   // modal sets `animation: none` on `.is-closing` — see
@@ -138,7 +144,13 @@ export function useSheetExit(
   // like the focus trap above. A `dismissable: false` sheet refuses, as a
   // Modal does: returning false tells overlay-history.ts to keep the page
   // where it is and intercept the next Back too.
+  //
+  // `dismissable` gates STARTING a close, never one already under way. Once
+  // the sheet's own answer has begun the exit, Back accepts (there is nothing
+  // left to start), so a sheet whose `onClose` didn't unmount it (a step the
+  // parent dropped or that failed) can't hold the page: the next Back leaves.
   const dismissViaBack = useCallback(() => {
+    if (closingRef.current) return true;
     if (!dismissableRef.current) return false;
     beginClose();
     return true;
