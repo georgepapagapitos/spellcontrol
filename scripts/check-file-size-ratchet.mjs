@@ -30,7 +30,7 @@ const SLACK = 50;
 
 /** Paths are relative to the repo root. Sizes are `split('\n').length`. */
 const CEILINGS = {
-  'packages/game-core/src/index.ts': 1859,
+  'packages/game-core/src/index.ts': 1761,
   'packages/deck-metrics/src/index.ts': 1134,
 };
 

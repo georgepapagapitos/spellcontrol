@@ -51,8 +51,13 @@ export interface HordeSettings {
 export type HordeStep =
   /** Start the horde's turn; the replay plans the reveal. */
   | { k: 'reveal' }
-  /** The reveal goes onto the battlefield / spells to the graveyard. */
-  | { k: 'confirm' }
+  /** The reveal goes onto the battlefield / spells to the graveyard.
+   *  `pass`: the confirming device's replay found no creature for the horde
+   *  to attack with, so the reducer also logs the `take 0` Skip would, and the
+   *  turn passes without a combat stop (E1037). game-core never sees cards,
+   *  so this is the device's word, the same as `take.dealt` is. A server that
+   *  predates it strips the flag and stops on combat, as before. */
+  | { k: 'confirm'; pass?: true }
   /** The attack resolved; lowers shared life. */
   | { k: 'take'; dealt: number }
   /** Survivors hit the horde; the replay mills and deals bosses. */

@@ -180,7 +180,11 @@ export function deriveOnlineHorde(onlineHorde: OnlineHordeResult | null) {
     : onlineHordePhase === 'setup'
       ? `Arrives after team turn ${onlineHorde.team.setupTurns}`
       : onlineHordePhase === 'survivors'
-        ? 'Its turn comes when the team is done'
+        ? // A turn that passed with nothing to attack: the only note of it
+          // (no toast, the reveal sheet showed it), as on the paper table.
+          onlineHorde.replay?.nothingAttacked
+          ? 'Nothing attacked · its turn comes when the team is done'
+          : 'Its turn comes when the team is done'
         : onlineHordePhase === 'reveal'
           ? 'The horde reveals'
           : onlineHordePhase === 'combat'

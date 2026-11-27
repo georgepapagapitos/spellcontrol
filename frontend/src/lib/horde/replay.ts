@@ -35,6 +35,14 @@ export interface HordeReplay {
   /** Bosses that entered on the most recent step, if any (a damage step or a
    *  confirm). For announcing arrivals to the table. */
   lastArrivals: { stepIndex: number; seat: number; bosses: HordeBossArrival[] } | null;
+  /** While a reveal waits: confirming it would leave the horde no creature to
+   *  attack with and the game still on, so the confirming device sends
+   *  `{ k: 'confirm', pass: true }` and the turn passes without a combat stop
+   *  (E1037). Always false outside the reveal. */
+  confirmPasses: boolean;
+  /** The last horde turn's confirm left nothing to attack with. Cleared by
+   *  the next reveal (or a real hit); only the status line reads it. */
+  nothingAttacked: boolean;
 }
 
 function isCreature(card: PlaytestCard): boolean {
@@ -50,6 +58,24 @@ function creatureIds(board: PlaytestState): string[] {
 function artifactCount(board: PlaytestState): number {
   return board.battlefield.filter((b) => (b.card.typeLine ?? '').toLowerCase().includes('artifact'))
     .length;
+}
+
+/** What a `confirm` does to the board: the reveal lands, then any boss the
+ *  library's new size calls for enters. */
+function landReveal(
+  board: PlaytestState,
+  reveal: HordeReveal | null,
+  librarySizeAtStart: number,
+  bossTicks: number[],
+  crossed: number[],
+  rect: Rect | null | undefined
+) {
+  let next = board;
+  if (reveal) {
+    for (const action of reveal.toBattlefield) next = applyAction(next, action);
+    for (const action of resolveActions(reveal.toResolve)) next = applyAction(next, action);
+  }
+  return dealDueBosses(next, librarySizeAtStart, bossTicks, crossed, rect);
 }
 
 const PHASE_MAP: Record<HordeTable['phase'], SoloHordePhase> = {
@@ -77,6 +103,7 @@ export function replayHorde(
   let cardsMilledByDamage = 0;
   let lastDamage: HordeReplay['lastDamage'] = null;
   let lastArrivals: HordeReplay['lastArrivals'] = null;
+  let nothingAttacked = false;
 
   table.steps.forEach((entry, stepIndex) => {
     switch (entry.k) {
@@ -93,16 +120,13 @@ export function replayHorde(
         const lastNontoken = [...revealed].reverse().find((c) => !c.isToken);
         const waveEndId = lastNontoken?.id ?? revealed[revealed.length - 1]?.id ?? null;
         pendingReveal = { revealed, toBattlefield, toResolve, waveEndId };
+        nothingAttacked = false;
         break;
       }
       case 'confirm': {
-        const reveal = pendingReveal;
-        if (reveal) {
-          for (const action of reveal.toBattlefield) board = applyAction(board, action);
-          for (const action of resolveActions(reveal.toResolve)) board = applyAction(board, action);
-        }
-        const dealt = dealDueBosses(
+        const dealt = landReveal(
           board,
+          pendingReveal,
           librarySizeAtStart,
           table.settings.bossTicks,
           bossTicksCrossed,
@@ -116,12 +140,14 @@ export function replayHorde(
         pendingReveal = null;
         attackingIds = creatureIds(board);
         pendingAttack = attackSummary(board.battlefield);
+        nothingAttacked = attackingIds.length === 0;
         break;
       }
       case 'take': {
         attackingIds = [];
         pendingAttack = null;
         damageTaken += entry.dealt;
+        if (entry.dealt > 0) nothingAttacked = false;
         break;
       }
       case 'damage': {
@@ -166,6 +192,25 @@ export function replayHorde(
   });
 
   const outcome = hordeOutcome(board, sharedLife);
+
+  // The same landing the confirm case runs, looked ahead without logging it:
+  // the paper table's rule for passing (no creature, no outcome), so every
+  // device agrees on it from the same log.
+  let confirmPasses = false;
+  // Cast: the forEach above assigns it, which control-flow narrowing can't see.
+  const waiting = pendingReveal as HordeReveal | null;
+  if (table.phase === 'reveal' && waiting && outcome === null) {
+    const landed = landReveal(
+      board,
+      waiting,
+      librarySizeAtStart,
+      table.settings.bossTicks,
+      bossTicksCrossed,
+      rect
+    );
+    confirmPasses =
+      creatureIds(landed.board).length === 0 && hordeOutcome(landed.board, sharedLife) === null;
+  }
   const phase: SoloHordePhase = outcome !== null ? 'ended' : PHASE_MAP[table.phase];
 
   const config: SoloHordeConfig = {
@@ -193,5 +238,5 @@ export function replayHorde(
     cardsMilledByDamage,
   };
 
-  return { view, outcome, lastDamage, lastArrivals };
+  return { view, outcome, lastDamage, lastArrivals, confirmPasses, nothingAttacked };
 }

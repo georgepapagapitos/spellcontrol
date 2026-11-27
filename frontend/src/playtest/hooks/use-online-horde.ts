@@ -2,7 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePlayStore } from '@/store/play';
 import { toast } from '@/store/toasts';
 import { bossTickPhrase, type HordeDamageResult } from '@/lib/horde';
-import type { HordeLogEntry, HordePhase, HordeStep } from '@spellcontrol/game-core';
+import {
+  isHordePassTake,
+  type HordeLogEntry,
+  type HordePhase,
+  type HordeStep,
+} from '@spellcontrol/game-core';
 import type { PlaytestState } from '@/lib/playtest';
 import type { Rect } from '@/playtest/lib/auto-place';
 import { usePlaytestStore } from '@/playtest/store';
@@ -58,10 +63,8 @@ function findCardName(board: PlaytestState | null, cardId: string): string | nul
   return everywhere.find((c) => c.id === cardId)?.name ?? null;
 }
 
-function describeStep(
-  entry: HordeLogEntry | undefined,
-  board: PlaytestState | null
-): string | null {
+function describeStep(steps: HordeLogEntry[], board: PlaytestState | null): string | null {
+  const entry = steps[steps.length - 1];
   if (!entry) return null;
   switch (entry.k) {
     case 'reveal':
@@ -69,6 +72,8 @@ function describeStep(
     case 'confirm':
       return "the horde's attack";
     case 'take':
+      // A passed turn undoes as one step, back to the reveal.
+      if (isHordePassTake(steps, steps.length - 1)) return 'nothing attacked';
       return `${entry.dealt} damage taken`;
     case 'damage':
       return `${entry.n} damage to the horde`;
@@ -126,6 +131,10 @@ export function useOnlineHorde(
   }, [mySeat, dispatch]);
 
   const retryReplay = replayState.retry;
+  // The log length at which this device's replay found that confirming the
+  // reveal leaves nothing to attack with (E1037), so the confirm carries
+  // `pass` only onto the exact log that replay read.
+  const passAt = replayState.replay?.confirmPasses && table ? table.steps.length : null;
   const actions: HordeActions = useMemo(() => {
     const step = (s: HordeStep) => {
       const fresh = usePlayStore.getState().online?.horde;
@@ -136,12 +145,15 @@ export function useOnlineHorde(
       take: (amount) => step({ k: 'take', dealt: amount }),
       damage: (amount) => step({ k: 'damage', n: amount }),
       move: (cardId, to) => step({ k: 'move', cardId, to }),
-      confirmReveal: () => step({ k: 'confirm' }),
+      confirmReveal: () => {
+        const at = usePlayStore.getState().online?.horde?.steps.length;
+        step(at === passAt ? { k: 'confirm', pass: true } : { k: 'confirm' });
+      },
       clearDamageResult: () =>
         setDismissedDamageStep(usePlayStore.getState().online?.horde?.steps.length ?? null),
       retryLoad: () => retryReplay(),
     };
-  }, [mySeat, dispatch, retryReplay]);
+  }, [mySeat, dispatch, retryReplay, passAt]);
 
   // Edge-triggered side effects on the log growing — never on a re-render or
   // a reload. The cursor is seeded (not fired) the first time this hook sees
@@ -164,6 +176,13 @@ export function useOnlineHorde(
       const entry = newSteps[i];
       const index = seen + i;
       if (entry.k !== 'take') continue;
+      // Take ends the horde's turn — advance MY OWN board a turn to match,
+      // on a live increase only (never on first load, handled by the seed
+      // above).
+      usePlaytestStore.getState().dispatch({ type: 'NEXT_TURN' });
+      // A passed turn (nothing attacked) took nothing, and every seat just
+      // watched the reveal it came from: no toast, as on the paper table.
+      if (isHordePassTake(table.steps, index)) continue;
       const seatName = online.players.find((p) => p.seat === entry.seat)?.name ?? 'A teammate';
       const mine = entry.seat === mySeat;
       toast.show({
@@ -182,10 +201,6 @@ export function useOnlineHorde(
           if (stillLast) undoLast();
         },
       });
-      // Take ends the horde's turn — advance MY OWN board a turn to match,
-      // on a live increase only (never on first load, handled by the seed
-      // above).
-      usePlaytestStore.getState().dispatch({ type: 'NEXT_TURN' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed only on the log growing; mySeat/undoLast are read fresh inside, not reasons to re-run
   }, [table, online]);
@@ -231,8 +246,7 @@ export function useOnlineHorde(
       ? lastDamage.result
       : null;
 
-  const lastEntry = table?.steps[table.steps.length - 1];
-  const lastStepLabel = describeStep(lastEntry, replayState.replay?.view.board ?? null);
+  const lastStepLabel = describeStep(table?.steps ?? [], replayState.replay?.view.board ?? null);
 
   if (!table || !online) return null;
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { applyAction } from '@/lib/playtest';
+import { applyAction, type PlaytestCard } from '@/lib/playtest';
 import type { HordeSettings, HordeStep, HordeTable } from '@spellcontrol/game-core';
 import type { SoloHordePhase } from '@/playtest/lib/horde-solo';
 import { replayHorde } from './replay';
@@ -8,6 +8,7 @@ import { createHordeBoard } from './board';
 import { hordeTurnActions, planHordeTurn, resolveActions } from './turn';
 import { resolveHordeSettings } from './settings';
 import { loadHordeDeck } from './load-deck';
+import { ZOMBIE_HORDE_FIXTURE } from './deck.fixtures';
 
 describe('replayHorde', () => {
   let def: HordeDeckDef;
@@ -353,5 +354,127 @@ describe('replayHorde', () => {
     const replay = replayHorde(def, t, 80);
     expect(replay.view.bossTicksCrossed).toEqual([0, 1]);
     expect(replay.lastArrivals!.bosses).toEqual([{ name: def.bosses[1].name, tick: 0.5 }]);
+  });
+});
+
+// E1037: a horde turn with nothing to attack with passes on the confirm at an
+// online table. The replay decides it (every device the same way, from the
+// same log) and the log records it as the confirm + `take 0` Skip would.
+describe('replayHorde: a confirm with nothing to attack (E1037)', () => {
+  const seed = 24680;
+  const sorcery = (id: string): PlaytestCard => ({ id, name: `Rite ${id}`, typeLine: 'Sorcery' });
+  /** A horde of sorceries: no reveal ever puts a creature down. */
+  const SPELLS_ONLY: HordeDeckDef = {
+    ...ZOMBIE_HORDE_FIXTURE,
+    tokens: [],
+    spells: ['a', 'b', 'c', 'd'].map(sorcery),
+    lateGame: [],
+  };
+
+  function settings(overrides: Partial<HordeSettings> = {}): HordeSettings {
+    return resolveHordeSettings('standard', 2, {
+      librarySize: 12,
+      bossTicks: [],
+      setupTurns: 0,
+      reveal: { kind: 'fixed', count: 3 },
+      ...overrides,
+    });
+  }
+
+  function table(
+    def: HordeDeckDef,
+    steps: HordeStep[],
+    phase: HordeTable['phase'],
+    s = settings()
+  ): HordeTable {
+    return {
+      hordeId: 'zombies',
+      level: 'standard',
+      settings: s,
+      seed,
+      deckRev: def.rev,
+      phase,
+      survivorTurn: 1,
+      hordeTurn: steps.filter((x) => x.k === 'reveal').length,
+      done: [],
+      steps: steps.map((x, i) => ({ ...x, seat: i % 2, ts: i })),
+    };
+  }
+
+  it('a reveal that leaves no creature passes', () => {
+    const r = replayHorde(SPELLS_ONLY, table(SPELLS_ONLY, [{ k: 'reveal' }], 'reveal'), 50);
+    expect(r.confirmPasses).toBe(true);
+    expect(r.outcome).toBeNull();
+  });
+
+  it('a reveal that puts a creature down does not', () => {
+    const r = replayHorde(
+      ZOMBIE_HORDE_FIXTURE,
+      table(ZOMBIE_HORDE_FIXTURE, [{ k: 'reveal' }], 'reveal', settings({ librarySize: 40 })),
+      50
+    );
+    expect(r.view.pendingReveal!.toBattlefield.length).toBeGreaterThan(0);
+    expect(r.confirmPasses).toBe(false);
+  });
+
+  it('a boss the reveal calls in is something to attack with', () => {
+    // 3 of 4 cards gone crosses the 0.5 tick: the boss enters on the confirm.
+    const s = settings({ librarySize: 4, bossTicks: [0.5] });
+    const r = replayHorde(SPELLS_ONLY, table(SPELLS_ONLY, [{ k: 'reveal' }], 'reveal', s), 50);
+    expect(r.confirmPasses).toBe(false);
+  });
+
+  it('a reveal that empties the library with no creature is a win, not a pass', () => {
+    const s = settings({ librarySize: 3 });
+    const t = table(SPELLS_ONLY, [{ k: 'reveal' }], 'reveal', s);
+    expect(replayHorde(SPELLS_ONLY, t, 50).confirmPasses).toBe(false);
+    const confirmed = table(SPELLS_ONLY, [{ k: 'reveal' }, { k: 'confirm' }], 'combat', s);
+    expect(replayHorde(SPELLS_ONLY, confirmed, 50).outcome).toBe('won');
+  });
+
+  it('is false outside the reveal, and the same on every device size', () => {
+    expect(replayHorde(SPELLS_ONLY, table(SPELLS_ONLY, [], 'survivors'), 50).confirmPasses).toBe(
+      false
+    );
+    const t = table(SPELLS_ONLY, [{ k: 'reveal' }], 'reveal');
+    const phone = { width: 390, height: 300, cardW: 40, cardH: 56 };
+    expect(replayHorde(SPELLS_ONLY, t, 50, phone).confirmPasses).toBe(
+      replayHorde(SPELLS_ONLY, t, 50, null).confirmPasses
+    );
+  });
+
+  it('a passed log replays to the board a Skip leaves, so old logs and old clients agree', () => {
+    const skipped = table(
+      SPELLS_ONLY,
+      [{ k: 'reveal' }, { k: 'confirm' }, { k: 'take', dealt: 0 }],
+      'survivors'
+    );
+    const passed = table(
+      SPELLS_ONLY,
+      [{ k: 'reveal' }, { k: 'confirm', pass: true }, { k: 'take', dealt: 0 }],
+      'survivors'
+    );
+    const a = replayHorde(SPELLS_ONLY, skipped, 50);
+    const b = replayHorde(SPELLS_ONLY, passed, 50);
+    expect(b).toEqual(a);
+    expect(b.view.phase).toBe('waiting');
+    expect(b.view.pendingAttack).toBeNull();
+    expect(b.nothingAttacked).toBe(true);
+  });
+
+  it('nothing attacked lasts until the next reveal, and never marks a real hit', () => {
+    const next = table(
+      SPELLS_ONLY,
+      [{ k: 'reveal' }, { k: 'confirm', pass: true }, { k: 'take', dealt: 0 }, { k: 'reveal' }],
+      'reveal'
+    );
+    expect(replayHorde(SPELLS_ONLY, next, 50).nothingAttacked).toBe(false);
+    const hit = table(
+      ZOMBIE_HORDE_FIXTURE,
+      [{ k: 'reveal' }, { k: 'confirm' }, { k: 'take', dealt: 4 }],
+      'survivors',
+      settings({ librarySize: 40 })
+    );
+    expect(replayHorde(ZOMBIE_HORDE_FIXTURE, hit, 46).nothingAttacked).toBe(false);
   });
 });

@@ -227,7 +227,8 @@ function sanitizeHordeStep(raw: unknown): HordeStep | null {
     case 'reveal':
       return { k: 'reveal' };
     case 'confirm':
-      return { k: 'confirm' };
+      // `pass` is a strict `true` or absent: anything else is a plain confirm.
+      return r.pass === true ? { k: 'confirm', pass: true } : { k: 'confirm' };
     case 'take': {
       const dealt = r.dealt;
       if (!Number.isInteger(dealt) || (dealt as number) < 0 || (dealt as number) > 999) return null;

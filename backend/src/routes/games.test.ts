@@ -4250,6 +4250,95 @@ describe('Horde: games routes guard the trust boundary', () => {
     expect(stale.body.game.horde.phase).toBe('reveal');
   });
 
+  // E1037: a horde turn with nothing to attack with passes on the confirm. The
+  // sanitizer keeps `pass`, and the reducer logs confirm + take 0 at once.
+  describe('a passing confirm (nothing to attack)', () => {
+    async function revealed(name: string) {
+      const t = await activeHordeTable(`${name}_host`, `${name}_join`);
+      const r = await request(app)
+        .patch(`/api/games/${t.code}`)
+        .set('Cookie', t.host)
+        .send({
+          baseVersion: t.version,
+          actions: [{ type: 'horde-step', step: { k: 'reveal' }, at: 0, actorSeat: 0 }],
+        });
+      expect(r.status).toBe(200);
+      return { ...t, version: r.body.game.version as number, steps: r.body.game.horde.steps };
+    }
+
+    it('passes the turn with no combat stop, once, however many seats confirm', async () => {
+      const { code, host, joiner, version, steps } = await revealed('horde_pass');
+      const confirm = (actorSeat: number) => ({
+        type: 'horde-step',
+        step: { k: 'confirm', pass: true },
+        at: 1,
+        actorSeat,
+      });
+      const first = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', joiner)
+        .send({ baseVersion: version, actions: [confirm(1)] });
+      expect(first.status).toBe(200);
+      const horde = first.body.game.horde;
+      expect(horde.phase).toBe('survivors');
+      expect(horde.survivorTurn).toBe(2);
+      // Append-only: the reveal already logged is untouched.
+      expect(horde.steps[0]).toEqual(steps[0]);
+      expect(
+        horde.steps.slice(1).map((e: Record<string, unknown>) => [e.k, e.pass, e.dealt])
+      ).toEqual([
+        ['confirm', true, undefined],
+        ['take', undefined, 0],
+      ]);
+      expect(first.body.game.players.map((p: { life: number }) => p.life)).toEqual([5, 5]);
+
+      // The host confirmed the same reveal at the same moment: a version
+      // conflict, and the retry against the new log is a stale no-op.
+      const racing = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({ baseVersion: version, actions: [confirm(0)] });
+      expect(racing.status).toBe(409);
+      const retried = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({ baseVersion: first.body.game.version, actions: [confirm(0)] });
+      expect(retried.status).toBe(200);
+      expect(retried.body.game.horde.steps).toHaveLength(3);
+
+      // One undo takes the pair back, to the reveal.
+      const undone = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({
+          baseVersion: retried.body.game.version,
+          actions: [{ type: 'horde-undo', at: 3, actorSeat: 0 }],
+        });
+      expect(undone.status).toBe(200);
+      expect(undone.body.game.horde.phase).toBe('reveal');
+      expect(undone.body.game.horde.steps).toEqual(steps);
+    });
+
+    it.each([['yes'], [1], [false], [null]])(
+      'a pass of %j is a plain confirm that stops on combat, as before',
+      async (pass) => {
+        const { code, host, version } = await revealed(
+          `horde_passbad_${Math.random().toString(36).slice(2, 8)}`
+        );
+        const res = await request(app)
+          .patch(`/api/games/${code}`)
+          .set('Cookie', host)
+          .send({
+            baseVersion: version,
+            actions: [{ type: 'horde-step', step: { k: 'confirm', pass }, at: 1, actorSeat: 0 }],
+          });
+        expect(res.status).toBe(200);
+        expect(res.body.game.horde.phase).toBe('combat');
+        expect(res.body.game.horde.steps[1]).not.toHaveProperty('pass');
+      }
+    );
+  });
+
   describe('seat cap (HORDE_MAX_SEATS = 4)', () => {
     it('POST /:code/join refuses a 5th survivor with 409', async () => {
       const { code, joiners } = await setupHordeTable('horde_joincap_host', [

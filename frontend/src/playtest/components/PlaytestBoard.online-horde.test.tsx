@@ -122,7 +122,14 @@ function buildOnlineHorde(overrides: Partial<OnlineHordeResult> = {}): OnlineHor
     status: 'ready',
     error: null,
     retry: vi.fn(),
-    replay: { view: buildTestHorde(), outcome: null, lastDamage: null, lastArrivals: null },
+    replay: {
+      view: buildTestHorde(),
+      outcome: null,
+      lastDamage: null,
+      lastArrivals: null,
+      confirmPasses: false,
+      nothingAttacked: false,
+    },
     team: team(),
     actions: {
       take: vi.fn(),
@@ -326,6 +333,40 @@ describe('PlaytestBoard — a horde at an online table: the team-turn chip', () 
     expect(onlineHorde!.startWithout).toHaveBeenCalledTimes(1);
   });
 
+  it('notes a horde turn that passed with nothing to attack, until the next one (E1037)', () => {
+    onlineTable = seatedTable([opponent(1, 'Maya')]);
+    const replay = {
+      view: buildTestHorde(),
+      outcome: null,
+      lastDamage: null,
+      lastArrivals: null,
+      confirmPasses: false,
+      nothingAttacked: true,
+    };
+    onlineHorde = buildOnlineHorde({ team: team({ inSetup: false }), replay });
+    const { unmount } = render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(
+      screen.getByText(/Nothing attacked · its turn comes when the team is done/)
+    ).toBeTruthy();
+    unmount();
+
+    onlineHorde = buildOnlineHorde({
+      team: team({ inSetup: false }),
+      replay: { ...replay, nothingAttacked: false },
+    });
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(screen.queryByText(/Nothing attacked/)).toBeNull();
+    expect(screen.getByText(/Its turn comes when the team is done/)).toBeTruthy();
+  });
+
   it('reads "The horde\'s turn" during reveal/combat, narrow shortens to "Horde"', () => {
     onlineTable = seatedTable([opponent(1, 'Maya')]);
     onlineHorde = buildOnlineHorde({ team: team({ phase: 'combat', inSetup: false }) });
@@ -378,7 +419,14 @@ describe('PlaytestBoard — a horde at an online table: reveal and combat', () =
     });
     onlineHorde = buildOnlineHorde({
       team: team({ phase: 'reveal', inSetup: false }),
-      replay: { view, outcome: null, lastDamage: null, lastArrivals: null },
+      replay: {
+        view,
+        outcome: null,
+        lastDamage: null,
+        lastArrivals: null,
+        confirmPasses: false,
+        nothingAttacked: false,
+      },
     });
     render(
       <MemoryRouter>
@@ -397,7 +445,14 @@ describe('PlaytestBoard — a horde at an online table: reveal and combat', () =
     });
     onlineHorde = buildOnlineHorde({
       team: team({ phase: 'reveal', inSetup: false }),
-      replay: { view, outcome: null, lastDamage: null, lastArrivals: null },
+      replay: {
+        view,
+        outcome: null,
+        lastDamage: null,
+        lastArrivals: null,
+        confirmPasses: false,
+        nothingAttacked: false,
+      },
     });
     render(
       <MemoryRouter>
@@ -419,7 +474,14 @@ describe('PlaytestBoard — a horde at an online table: reveal and combat', () =
     });
     onlineHorde = buildOnlineHorde({
       team: team({ phase: 'combat', inSetup: false }),
-      replay: { view, outcome: null, lastDamage: null, lastArrivals: null },
+      replay: {
+        view,
+        outcome: null,
+        lastDamage: null,
+        lastArrivals: null,
+        confirmPasses: false,
+        nothingAttacked: false,
+      },
     });
     render(
       <MemoryRouter>
@@ -536,7 +598,14 @@ describe('PlaytestBoard — a horde at an online table: the end', () => {
     onlineTable = seatedTable([opponent(1, 'Maya')], { isHost: true, dispatch: tableDispatch });
     const view = buildTestHorde({ phase: 'ended', outcome: 'won' });
     onlineHorde = buildOnlineHorde({
-      replay: { view, outcome: 'won', lastDamage: null, lastArrivals: null },
+      replay: {
+        view,
+        outcome: 'won',
+        lastDamage: null,
+        lastArrivals: null,
+        confirmPasses: false,
+        nothingAttacked: false,
+      },
     });
     render(
       <MemoryRouter>
@@ -557,7 +626,14 @@ describe('PlaytestBoard — a horde at an online table: the end', () => {
     onlineTable = seatedTable([opponent(1, 'Maya')], { isHost: false });
     const view = buildTestHorde({ phase: 'ended', outcome: 'lost' });
     onlineHorde = buildOnlineHorde({
-      replay: { view, outcome: 'lost', lastDamage: null, lastArrivals: null },
+      replay: {
+        view,
+        outcome: 'lost',
+        lastDamage: null,
+        lastArrivals: null,
+        confirmPasses: false,
+        nothingAttacked: false,
+      },
     });
     render(
       <MemoryRouter>
@@ -573,7 +649,14 @@ describe('PlaytestBoard — a horde at an online table: the end', () => {
     onlineTable = seatedTable([opponent(1, 'Maya')]);
     const view = buildTestHorde({ phase: 'ended', outcome: 'won' });
     onlineHorde = buildOnlineHorde({
-      replay: { view, outcome: 'won', lastDamage: null, lastArrivals: null },
+      replay: {
+        view,
+        outcome: 'won',
+        lastDamage: null,
+        lastArrivals: null,
+        confirmPasses: false,
+        nothingAttacked: false,
+      },
     });
     usePlayStore.setState({
       online: fakeOnline({ status: 'finished', format: 'horde', players: [] }),
@@ -592,7 +675,14 @@ describe('PlaytestBoard — a horde at an online table: the end', () => {
     onlineTable = seatedTable([opponent(1, 'Maya')]);
     const view = buildTestHorde({ phase: 'ended', outcome: 'won' });
     onlineHorde = buildOnlineHorde({
-      replay: { view, outcome: 'won', lastDamage: null, lastArrivals: null },
+      replay: {
+        view,
+        outcome: 'won',
+        lastDamage: null,
+        lastArrivals: null,
+        confirmPasses: false,
+        nothingAttacked: false,
+      },
     });
     usePlayStore.setState({
       online: fakeOnline({ status: 'active', format: 'horde', players: [] }),
