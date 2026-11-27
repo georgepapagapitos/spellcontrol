@@ -196,10 +196,16 @@ export function deriveOnlineHorde(onlineHorde: OnlineHordeResult | null) {
   // not solo's "your turn") — every other phase already reads correctly off
   // the default `hordeBandLine` once `playerTurn` is the team's own turn
   // count (below), since `armedAtTurn` is fixed at 1 in every online replay.
+  // A passed turn says so on the phone too (E1037), in place of the band's
+  // "0 creatures · 0 power", as the paper table's one status row does at
+  // every width.
+  const bandView = onlineHorde?.replay?.view;
   const onlineHordeBandStatusText =
     onlineHorde && onlineHordePhase === 'setup'
-      ? `${onlineHorde.replay?.view.config.hordeName} · arrives after team turn ${onlineHorde.team.setupTurns}`
-      : undefined;
+      ? `${bandView?.config.hordeName} · arrives after team turn ${onlineHorde.team.setupTurns}`
+      : onlineHordePhase === 'survivors' && bandView && onlineHorde?.replay?.nothingAttacked
+        ? `${bandView.config.hordeName} · nothing attacked · ${bandView.board.zones.library.length} left`
+        : undefined;
   // HordeHalf/HordeBand's `hordeLoad` shape, off `useOnlineHorde`'s own
   // status — 'skew' is carried separately via `blocked` below, and 'none'/
   // 'ready' both read as idle (nothing to show).

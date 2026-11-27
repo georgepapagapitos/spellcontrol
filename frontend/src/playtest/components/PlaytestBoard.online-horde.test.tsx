@@ -367,6 +367,45 @@ describe('PlaytestBoard — a horde at an online table: the team-turn chip', () 
     expect(screen.getByText(/Its turn comes when the team is done/)).toBeTruthy();
   });
 
+  it('a phone band says the turn passed with nothing to attack, too (E1037)', () => {
+    stubWidth(390);
+    onlineTable = seatedTable([opponent(1, 'Maya')]);
+    const view = buildTestHorde();
+    const left = view.board.zones.library.length;
+    const replay = {
+      view,
+      outcome: null,
+      lastDamage: null,
+      lastArrivals: null,
+      confirmPasses: false,
+      nothingAttacked: true,
+    };
+    onlineHorde = buildOnlineHorde({ team: team({ inSetup: false }), replay });
+    const { unmount } = render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    expect(document.querySelector('.horde-band__line')?.textContent).toBe(
+      `Zombies · nothing attacked · ${left} left`
+    );
+    unmount();
+
+    onlineHorde = buildOnlineHorde({
+      team: team({ inSetup: false }),
+      replay: { ...replay, nothingAttacked: false },
+    });
+    render(
+      <MemoryRouter>
+        <PlaytestBoard state={seededState()} />
+      </MemoryRouter>
+    );
+    // Otherwise the band keeps its own line (hordeBandLine), untouched.
+    expect(document.querySelector('.horde-band__line')?.textContent).not.toMatch(
+      /nothing attacked/
+    );
+  });
+
   it('reads "The horde\'s turn" during reveal/combat, narrow shortens to "Horde"', () => {
     onlineTable = seatedTable([opponent(1, 'Maya')]);
     onlineHorde = buildOnlineHorde({ team: team({ phase: 'combat', inSetup: false }) });

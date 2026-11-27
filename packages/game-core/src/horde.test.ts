@@ -146,6 +146,36 @@ describe('a horde confirm with nothing to attack (E1037)', () => {
   it('is a no-op outside the reveal', () => {
     const s = startedHorde();
     expect(passConfirm(s, 0, 0)).toBe(s);
+    // Sent during combat (a plain confirm already landed): no second take.
+    const combat = applyAction(revealing(), {
+      type: 'horde-step',
+      step: { k: 'confirm' },
+      at: 1,
+      actorSeat: 0,
+    });
+    expect(passConfirm(combat, 1, 2)).toBe(combat);
+  });
+
+  it('a pass marker with a crafted nonzero take undoes like any take, life restored', () => {
+    const s = revealing();
+    const crafted: GameState = {
+      ...s,
+      players: s.players.map((p) => ({ ...p, life: 43 })),
+      horde: {
+        ...s.horde!,
+        phase: 'survivors',
+        survivorTurn: 2,
+        steps: [
+          ...s.horde!.steps,
+          { k: 'confirm', pass: true, seat: 0, ts: 4000 },
+          { k: 'take', dealt: 7, seat: 0, ts: 4000 },
+        ],
+      },
+    };
+    const undone = applyAction(crafted, { type: 'horde-undo', at: 3, actorSeat: 0 });
+    expect(undone.players.map((p) => p.life)).toEqual([50, 50, 50]);
+    expect(undone.horde!.phase).toBe('combat');
+    expect(undone.horde!.steps).toHaveLength(2);
   });
 
   it('undoes as one step, back to the reveal', () => {
@@ -198,6 +228,15 @@ describe('isHordePassTake', () => {
     expect(isHordePassTake(steps, 2)).toBe(true);
     expect(isHordePassTake(steps, 1)).toBe(false);
     expect(isHordePassTake(steps, 0)).toBe(false);
+  });
+
+  it('only a take of 0 counts', () => {
+    const steps = [
+      reveal,
+      at({ k: 'confirm', pass: true, seat: 0, ts: 2 }),
+      at({ k: 'take', dealt: 7, seat: 0, ts: 2 }),
+    ];
+    expect(isHordePassTake(steps, 2)).toBe(false);
   });
 
   it('a log persisted before E1037 has no pass takes', () => {

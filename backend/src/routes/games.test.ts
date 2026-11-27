@@ -4337,6 +4337,49 @@ describe('Horde: games routes guard the trust boundary', () => {
         expect(res.body.game.horde.steps[1]).not.toHaveProperty('pass');
       }
     );
+
+    it('a pass that loses the race to a plain confirm, or arrives in combat, adds nothing', async () => {
+      const { code, host, joiner, version } = await revealed('horde_passrace');
+      // The host's plain confirm (an old client, or a reveal with attackers
+      // on its replay) lands first: combat.
+      const plain = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', host)
+        .send({
+          baseVersion: version,
+          actions: [{ type: 'horde-step', step: { k: 'confirm' }, at: 1, actorSeat: 0 }],
+        });
+      expect(plain.status).toBe(200);
+      expect(plain.body.game.horde.phase).toBe('combat');
+
+      const pass = (at: number) => ({
+        type: 'horde-step',
+        step: { k: 'confirm', pass: true },
+        at,
+        actorSeat: 1,
+      });
+      const racing = await request(app)
+        .patch(`/api/games/${code}`)
+        .set('Cookie', joiner)
+        .send({ baseVersion: version, actions: [pass(1)] });
+      expect(racing.status).toBe(409);
+
+      // Retried against the new log, at its stale `at` or at the live one:
+      // either way the table stays in combat with no take logged.
+      for (const at of [1, 2]) {
+        const res = await request(app)
+          .patch(`/api/games/${code}`)
+          .set('Cookie', joiner)
+          .send({ baseVersion: plain.body.game.version, actions: [pass(at)] });
+        expect(res.status).toBe(200);
+        expect(res.body.game.horde.phase).toBe('combat');
+        expect(res.body.game.horde.steps.map((e: { k: string }) => e.k)).toEqual([
+          'reveal',
+          'confirm',
+        ]);
+        expect(res.body.game.players.map((p: { life: number }) => p.life)).toEqual([5, 5]);
+      }
+    });
   });
 
   describe('seat cap (HORDE_MAX_SEATS = 4)', () => {

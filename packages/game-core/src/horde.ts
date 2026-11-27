@@ -14,10 +14,15 @@ export const MAX_HORDE_STEPS = 2000;
  * pass: true }`) logged with it: the horde had nothing to attack with, so the
  * turn passed without a combat stop (E1037). Undo takes the pair back as one
  * step, and nobody "took" anything, so the table doesn't announce it as a hit.
+ * Only a `take` of 0 counts: the reducer never logs another after a pass, and
+ * a crafted one must undo with its life restored, like any take.
  */
 export function isHordePassTake(steps: readonly HordeLogEntry[], i: number): boolean {
+  const entry = steps[i];
   const before = steps[i - 1];
-  return steps[i]?.k === 'take' && before?.k === 'confirm' && before.pass === true;
+  return (
+    entry?.k === 'take' && entry.dealt === 0 && before?.k === 'confirm' && before.pass === true
+  );
 }
 
 export interface HordeStepResult {

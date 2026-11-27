@@ -424,6 +424,28 @@ describe('replayHorde: a confirm with nothing to attack (E1037)', () => {
     expect(r.confirmPasses).toBe(false);
   });
 
+  it('a creature still on the battlefield from an earlier turn blocks a pass', () => {
+    // Turn 1's reveal (3 of 8 gone) crosses the 0.25 tick and the boss stays.
+    // Turn 2 reveals only sorceries, but the boss can still attack.
+    const s = settings({ librarySize: 8, bossTicks: [0.25] });
+    const r = replayHorde(
+      SPELLS_ONLY,
+      table(
+        SPELLS_ONLY,
+        [{ k: 'reveal' }, { k: 'confirm' }, { k: 'take', dealt: 2 }, { k: 'reveal' }],
+        'reveal',
+        s
+      ),
+      48
+    );
+    expect(r.view.pendingReveal!.toBattlefield).toHaveLength(0);
+    expect(r.view.board.battlefield.map((b) => b.card.name)).toEqual([
+      ZOMBIE_HORDE_FIXTURE.bosses[0].name,
+    ]);
+    expect(r.outcome).toBeNull();
+    expect(r.confirmPasses).toBe(false);
+  });
+
   it('a reveal that empties the library with no creature is a win, not a pass', () => {
     const s = settings({ librarySize: 3 });
     const t = table(SPELLS_ONLY, [{ k: 'reveal' }], 'reveal', s);

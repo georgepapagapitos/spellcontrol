@@ -178,4 +178,89 @@ describe('useOnlineHorde: a reveal with nothing to attack (E1037)', () => {
     );
     expect(result.current?.lastStepLabel).toBe('0 damage taken');
   });
+
+  it('a pass this device disagrees with is announced like any Skip, Undo included', async () => {
+    // The zombie fixture's reveal puts creatures down, so this device's own
+    // replay sees attackers; the sender's `pass` alone doesn't silence it.
+    let g = revealing('zombies');
+    const { result } = mount(g);
+    await waitFor(() => expect(result.current?.status).toBe('ready'));
+    const show = vi.spyOn(toast, 'show');
+    g = applyAction(g, {
+      type: 'horde-step',
+      step: { k: 'confirm', pass: true },
+      at: 1,
+      actorSeat: 1,
+    });
+    act(() => usePlayStore.setState({ online: g }));
+    await waitFor(() =>
+      expect(show).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Maya took 0 for the team.', actionLabel: 'Undo' })
+      )
+    );
+    expect(result.current?.replay?.nothingAttacked).toBe(false);
+  });
+
+  it('an optimistic pass that loses to a plain confirm: the real take still toasts, the board turns once', async () => {
+    const start = revealing('rites');
+    const { result } = mount(start);
+    await waitFor(() => expect(result.current?.status).toBe('ready'));
+    const show = vi.spyOn(toast, 'show');
+    const turn = vi.spyOn(usePlaytestStore.getState(), 'dispatch');
+    const turns = () => turn.mock.calls.filter(([a]) => a.type === 'NEXT_TURN').length;
+
+    // My pass applied optimistically (log: reveal, confirm{pass}, take 0)…
+    const mine = applyAction(start, {
+      type: 'horde-step',
+      step: { k: 'confirm', pass: true },
+      at: 1,
+      actorSeat: 0,
+    });
+    act(() => usePlayStore.setState({ online: mine }));
+    await waitFor(() => expect(turns()).toBe(1));
+    // …then the server's log, where Maya's plain confirm landed first: combat.
+    const theirs = applyAction(start, {
+      type: 'horde-step',
+      step: { k: 'confirm' },
+      at: 1,
+      actorSeat: 1,
+    });
+    act(() => usePlayStore.setState({ online: theirs }));
+    expect(result.current?.team.phase).toBe('combat');
+    // Maya's Skip lands at the same length my optimistic take had.
+    const skipped = applyAction(theirs, {
+      type: 'horde-step',
+      step: { k: 'take', dealt: 0 },
+      at: 2,
+      actorSeat: 1,
+    });
+    act(() => usePlayStore.setState({ online: skipped }));
+    await waitFor(() =>
+      expect(show).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Maya took 0 for the team.' })
+      )
+    );
+    expect(turns()).toBe(1);
+  });
+
+  it('a Confirm handler from an older render never sends `pass` onto a different log of the same length', async () => {
+    const g = revealing('rites');
+    const { result, dispatch } = mount(g);
+    await waitFor(() => expect(result.current?.replay?.confirmPasses).toBe(true));
+    const stale = result.current!.actions;
+    // Another log of the same length takes its place (an undo and a new
+    // reveal by Maya, say) before the click lands.
+    const other: GameState = {
+      ...g,
+      horde: { ...g.horde!, steps: [{ k: 'reveal', seat: 1, ts: 99 }] },
+    };
+    act(() => usePlayStore.setState({ online: other }));
+    act(() => stale.confirmReveal(null));
+    expect(dispatch).toHaveBeenLastCalledWith({
+      type: 'horde-step',
+      step: { k: 'confirm' },
+      at: 1,
+      actorSeat: 0,
+    });
+  });
 });

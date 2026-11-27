@@ -249,9 +249,15 @@ playtest components, never a bespoke card grid.
   sends `{ k: 'confirm', pass: true }`, and the reducer logs that confirm and
   the `take 0` Skip would in one action, so a second seat's confirm of the
   same reveal is stale, one Undo goes back to the reveal, and a replay reads a
-  plain Skip. No "took 0 for the team" toast; the status line reads "Nothing
-  attacked" and the Undo row's note "nothing attacked". A server that predates
-  `pass` strips it and stops on combat, as before.
+  plain Skip. No "took 0 for the team" toast, but only when this device's own
+  replay agrees nothing attacked; a pass it disagrees with toasts like any
+  Skip, Undo included. The status line reads "Nothing attacked", the phone
+  band "<horde> · nothing attacked · N left" (in place of "0 creatures · 0
+  power"), and the Undo row's note "nothing attacked". The seat that lost the
+  confirm race is told the reveal was confirmed, never that a hit was taken.
+  The game's History gets no row for a passed turn: it lists the horde's hits,
+  and there was none. A server that predates `pass` strips it and stops on
+  combat, as before.
 - **Landscape-first, tablet-first, and still playable after Skip.** The
   table is built for a landscape tablet; a phone or tablet held in portrait
   gets a "turn it sideways" prompt (reusing playtest's `RotatePrompt` on a
