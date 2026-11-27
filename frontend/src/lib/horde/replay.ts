@@ -40,9 +40,16 @@ export interface HordeReplay {
    *  `{ k: 'confirm', pass: true }` and the turn passes without a combat stop
    *  (E1037). Always false outside the reveal. */
   confirmPasses: boolean;
-  /** The last horde turn's confirm left nothing to attack with. Cleared by
-   *  the next reveal (or a real hit); only the status line reads it. */
+  /** The last horde turn's confirm left nothing to attack with, and the horde
+   *  still has nothing to attack with (a boss a damage step dealt since ends
+   *  it). Cleared by the next reveal or a real hit. For the status line and
+   *  the phone band. */
   nothingAttacked: boolean;
+  /** Indexes of every `confirm` step that left the horde nothing to attack
+   *  with, by this device's own replay (whatever its `pass` flag said). The
+   *  log-growth toasts ask about the confirm they are processing, not about
+   *  the log's latest state, which a later reveal has already moved on. */
+  quietConfirms: number[];
 }
 
 function isCreature(card: PlaytestCard): boolean {
@@ -104,6 +111,7 @@ export function replayHorde(
   let lastDamage: HordeReplay['lastDamage'] = null;
   let lastArrivals: HordeReplay['lastArrivals'] = null;
   let nothingAttacked = false;
+  const quietConfirms: number[] = [];
 
   table.steps.forEach((entry, stepIndex) => {
     switch (entry.k) {
@@ -141,6 +149,7 @@ export function replayHorde(
         attackingIds = creatureIds(board);
         pendingAttack = attackSummary(board.battlefield);
         nothingAttacked = attackingIds.length === 0;
+        if (nothingAttacked) quietConfirms.push(stepIndex);
         break;
       }
       case 'take': {
@@ -238,5 +247,13 @@ export function replayHorde(
     cardsMilledByDamage,
   };
 
-  return { view, outcome, lastDamage, lastArrivals, confirmPasses, nothingAttacked };
+  return {
+    view,
+    outcome,
+    lastDamage,
+    lastArrivals,
+    confirmPasses,
+    nothingAttacked: nothingAttacked && creatureIds(board).length === 0,
+    quietConfirms,
+  };
 }

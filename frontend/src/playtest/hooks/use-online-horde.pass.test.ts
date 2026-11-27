@@ -263,4 +263,127 @@ describe('useOnlineHorde: a reveal with nothing to attack (E1037)', () => {
       actorSeat: 0,
     });
   });
+
+  // A device catching up gets a passed turn and the next reveal in one
+  // update: the pass is judged by its own confirm, not by the log's latest
+  // state (the new reveal has already cleared "nothing attacked").
+  it('catching up past a passed turn and the next reveal: still no "took 0" toast', async () => {
+    let g = revealing('rites');
+    const { result } = mount(g);
+    await waitFor(() => expect(result.current?.status).toBe('ready'));
+    const show = vi.spyOn(toast, 'show');
+    const turn = vi.spyOn(usePlaytestStore.getState(), 'dispatch');
+    g = applyAction(g, {
+      type: 'horde-step',
+      step: { k: 'confirm', pass: true },
+      at: 1,
+      actorSeat: 1,
+    });
+    g = applyAction(g, { type: 'horde-step', step: { k: 'reveal' }, at: 3, actorSeat: 1 });
+    act(() => usePlayStore.setState({ online: g }));
+    await waitFor(() => expect(turn).toHaveBeenCalledWith({ type: 'NEXT_TURN' }));
+    expect(result.current?.replay?.nothingAttacked).toBe(false);
+    expect(show).not.toHaveBeenCalled();
+  });
+
+  it('a take that arrives with later steps behind it is announced without an Undo it cannot act on', async () => {
+    let g = revealing('zombies');
+    g = applyAction(g, { type: 'horde-step', step: { k: 'confirm' }, at: 1, actorSeat: 0 });
+    const { result } = mount(g);
+    await waitFor(() => expect(result.current?.status).toBe('ready'));
+    const show = vi.spyOn(toast, 'show');
+    g = applyAction(g, { type: 'horde-step', step: { k: 'take', dealt: 4 }, at: 2, actorSeat: 1 });
+    g = applyAction(g, { type: 'horde-step', step: { k: 'reveal' }, at: 3, actorSeat: 1 });
+    act(() => usePlayStore.setState({ online: g }));
+    await waitFor(() =>
+      expect(show).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Maya took 4 for the team.' })
+      )
+    );
+    const [args] = show.mock.calls[0];
+    expect(args.actionLabel).toBeUndefined();
+    expect(args.onAction).toBeUndefined();
+  });
+});
+
+// The board turns once per horde turn, however the log gets there: an undone
+// take already advanced this device's board, so the re-take spends that turn
+// instead of advancing again, and it is still announced.
+describe('useOnlineHorde: undo and re-take advance the board once', () => {
+  beforeEach(() => {
+    usePlayStore.setState({ online: null });
+    usePlaytestStore.setState({ deckId: MY_DECK, state: null });
+    useAuth.setState({ user: { id: 'me-id', username: 'me', role: 'user' }, status: 'authed' });
+    vi.restoreAllMocks();
+  });
+
+  async function inCombat() {
+    let g = revealing('zombies');
+    g = applyAction(g, { type: 'horde-step', step: { k: 'confirm' }, at: 1, actorSeat: 0 });
+    const hook = mount(g);
+    await waitFor(() => expect(hook.result.current?.status).toBe('ready'));
+    const show = vi.spyOn(toast, 'show');
+    const turn = vi.spyOn(usePlaytestStore.getState(), 'dispatch');
+    const turns = () => turn.mock.calls.filter(([a]) => a.type === 'NEXT_TURN').length;
+    const land = (next: GameState) => act(() => usePlayStore.setState({ online: next }));
+    return { g, show, turns, land };
+  }
+
+  it('take, undo, re-take', async () => {
+    const { g, show, turns, land } = await inCombat();
+    const took = applyAction(g, {
+      type: 'horde-step',
+      step: { k: 'take', dealt: 3 },
+      at: 2,
+      actorSeat: 1,
+    });
+    land(took);
+    await waitFor(() => expect(turns()).toBe(1));
+    const undone = applyAction(took, { type: 'horde-undo', at: 3, actorSeat: 1 });
+    land(undone);
+    land(
+      applyAction(undone, {
+        type: 'horde-step',
+        step: { k: 'take', dealt: 5 },
+        at: 2,
+        actorSeat: 1,
+      })
+    );
+    await waitFor(() =>
+      expect(show).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Maya took 5 for the team.' })
+      )
+    );
+    expect(turns()).toBe(1);
+  });
+
+  it('take, undo, a damage step, re-take', async () => {
+    const { g, show, turns, land } = await inCombat();
+    const took = applyAction(g, {
+      type: 'horde-step',
+      step: { k: 'take', dealt: 3 },
+      at: 2,
+      actorSeat: 1,
+    });
+    land(took);
+    await waitFor(() => expect(turns()).toBe(1));
+    const undone = applyAction(took, { type: 'horde-undo', at: 3, actorSeat: 1 });
+    land(undone);
+    const hit = applyAction(undone, {
+      type: 'horde-step',
+      step: { k: 'damage', n: 2 },
+      at: 2,
+      actorSeat: 0,
+    });
+    land(hit);
+    land(
+      applyAction(hit, { type: 'horde-step', step: { k: 'take', dealt: 5 }, at: 3, actorSeat: 1 })
+    );
+    await waitFor(() =>
+      expect(show).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Maya took 5 for the team.' })
+      )
+    );
+    expect(turns()).toBe(1);
+  });
 });

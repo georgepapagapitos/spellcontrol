@@ -182,8 +182,12 @@ export function useOnlineHorde(
   // undo) leaves a log that differs from the one seen, at or below its length.
   const seenStepsRef = useRef<HordeLogEntry[] | null>(null);
   // Takes whose board turn this device already advanced but the log no longer
-  // holds. NEXT_TURN has no inverse (the player may have acted since), so the
-  // next take spends the credit instead: one horde turn, one board turn.
+  // holds (an undo, or an optimistic take that lost its race). NEXT_TURN has
+  // no inverse (the player may have acted since), so the next take spends the
+  // credit instead: one horde turn, one board turn. Counting by length alone,
+  // a re-take right after an undo advanced nothing and showed no toast, and
+  // one after the log grew past its old length (a damage step, say) advanced
+  // the board a second time.
   const turnCreditRef = useRef(0);
   const wonRef = useRef(false);
 
@@ -209,26 +213,33 @@ export function useOnlineHorde(
       else usePlaytestStore.getState().dispatch({ type: 'NEXT_TURN' });
       // A passed turn (nothing attacked) took nothing, and every seat just
       // watched the reveal it came from: no toast, as on the paper table.
-      // Only when this device's own replay agrees nothing attacked: a wrong
-      // pass is announced like any Skip, with its Undo.
-      if (isHordePassTake(steps, index) && replayState.replay?.nothingAttacked) continue;
+      // Only when this device's own replay agrees that confirm (the one just
+      // before this take, not the log's latest) left nothing to attack: a
+      // wrong pass is announced like any Skip.
+      const quiet = replayState.replay?.quietConfirms.includes(index - 1) === true;
+      if (isHordePassTake(steps, index) && quiet) continue;
       const seatName = online.players.find((p) => p.seat === entry.seat)?.name ?? 'A teammate';
       const mine = entry.seat === mySeat;
+      // Undo only reaches the log's last step, so a take that arrived with
+      // later steps behind it (a device catching up) gets no Undo it can't act on.
+      const undoable = index === steps.length - 1;
       toast.show({
         message: mine
           ? `You took ${entry.dealt} for the team.`
           : `${seatName} took ${entry.dealt} for the team.`,
         tone: 'info',
-        actionLabel: 'Undo',
-        onAction: () => {
-          const fresh = usePlayStore.getState().online?.horde;
-          const stillLast =
-            fresh &&
-            fresh.steps.length === index + 1 &&
-            fresh.steps[index]?.ts === entry.ts &&
-            fresh.steps[index]?.seat === entry.seat;
-          if (stillLast) undoLast();
-        },
+        actionLabel: undoable ? 'Undo' : undefined,
+        onAction: undoable
+          ? () => {
+              const fresh = usePlayStore.getState().online?.horde;
+              const stillLast =
+                fresh &&
+                fresh.steps.length === index + 1 &&
+                fresh.steps[index]?.ts === entry.ts &&
+                fresh.steps[index]?.seat === entry.seat;
+              if (stillLast) undoLast();
+            }
+          : undefined,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed only on the log growing; mySeat/undoLast are read fresh inside, not reasons to re-run

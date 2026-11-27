@@ -129,6 +129,7 @@ function buildOnlineHorde(overrides: Partial<OnlineHordeResult> = {}): OnlineHor
       lastArrivals: null,
       confirmPasses: false,
       nothingAttacked: false,
+      quietConfirms: [],
     },
     team: team(),
     actions: {
@@ -342,6 +343,7 @@ describe('PlaytestBoard — a horde at an online table: the team-turn chip', () 
       lastArrivals: null,
       confirmPasses: false,
       nothingAttacked: true,
+      quietConfirms: [],
     };
     onlineHorde = buildOnlineHorde({ team: team({ inSetup: false }), replay });
     const { unmount } = render(
@@ -379,6 +381,7 @@ describe('PlaytestBoard — a horde at an online table: the team-turn chip', () 
       lastArrivals: null,
       confirmPasses: false,
       nothingAttacked: true,
+      quietConfirms: [],
     };
     onlineHorde = buildOnlineHorde({ team: team({ inSetup: false }), replay });
     const { unmount } = render(
@@ -465,6 +468,7 @@ describe('PlaytestBoard — a horde at an online table: reveal and combat', () =
         lastArrivals: null,
         confirmPasses: false,
         nothingAttacked: false,
+        quietConfirms: [],
       },
     });
     render(
@@ -491,6 +495,7 @@ describe('PlaytestBoard — a horde at an online table: reveal and combat', () =
         lastArrivals: null,
         confirmPasses: false,
         nothingAttacked: false,
+        quietConfirms: [],
       },
     });
     render(
@@ -520,6 +525,7 @@ describe('PlaytestBoard — a horde at an online table: reveal and combat', () =
         lastArrivals: null,
         confirmPasses: false,
         nothingAttacked: false,
+        quietConfirms: [],
       },
     });
     render(
@@ -644,6 +650,7 @@ describe('PlaytestBoard — a horde at an online table: the end', () => {
         lastArrivals: null,
         confirmPasses: false,
         nothingAttacked: false,
+        quietConfirms: [],
       },
     });
     render(
@@ -672,6 +679,7 @@ describe('PlaytestBoard — a horde at an online table: the end', () => {
         lastArrivals: null,
         confirmPasses: false,
         nothingAttacked: false,
+        quietConfirms: [],
       },
     });
     render(
@@ -695,6 +703,7 @@ describe('PlaytestBoard — a horde at an online table: the end', () => {
         lastArrivals: null,
         confirmPasses: false,
         nothingAttacked: false,
+        quietConfirms: [],
       },
     });
     usePlayStore.setState({
@@ -721,6 +730,7 @@ describe('PlaytestBoard — a horde at an online table: the end', () => {
         lastArrivals: null,
         confirmPasses: false,
         nothingAttacked: false,
+        quietConfirms: [],
       },
     });
     usePlayStore.setState({

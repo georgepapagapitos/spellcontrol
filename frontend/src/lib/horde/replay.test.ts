@@ -446,6 +446,29 @@ describe('replayHorde: a confirm with nothing to attack (E1037)', () => {
     expect(r.confirmPasses).toBe(false);
   });
 
+  it('nothing attacked ends when a boss a damage step deals arrives in the same team turn', () => {
+    // 3 of 8 gone after the passed turn; 2 damage takes it to 5 of 8, past
+    // the 0.5 tick, and the boss enters during the survivors' turn.
+    const s = settings({ librarySize: 8, bossTicks: [0.5] });
+    const passed: HordeStep[] = [
+      { k: 'reveal' },
+      { k: 'confirm', pass: true },
+      { k: 'take', dealt: 0 },
+    ];
+    const before = replayHorde(SPELLS_ONLY, table(SPELLS_ONLY, passed, 'survivors', s), 50);
+    expect(before.nothingAttacked).toBe(true);
+    const after = replayHorde(
+      SPELLS_ONLY,
+      table(SPELLS_ONLY, [...passed, { k: 'damage', n: 2 }], 'survivors', s),
+      50
+    );
+    expect(after.view.board.battlefield).toHaveLength(1);
+    expect(after.nothingAttacked).toBe(false);
+    // The confirm itself still left nothing to attack: that is what the
+    // pass toast is judged by.
+    expect(after.quietConfirms).toEqual([1]);
+  });
+
   it('a reveal that empties the library with no creature is a win, not a pass', () => {
     const s = settings({ librarySize: 3 });
     const t = table(SPELLS_ONLY, [{ k: 'reveal' }], 'reveal', s);
