@@ -36,6 +36,10 @@ interface Props {
   children: SheetSlot;
   /** Footer actions, right-aligned in `.card-picker-footer`. */
   footer?: SheetSlot;
+  /** Controls at the header's end, beside the title and before the close
+   *  button: an action on the whole sheet ("Start over", "Remove avatar").
+   *  A node, or a render function that receives `close`. */
+  actions?: SheetSlot;
   /** A close (X) button at the header's end, for a sheet with no footer to
    *  dismiss it from. */
   closeButton?: boolean;
@@ -85,6 +89,7 @@ export function Sheet({
   toolbar,
   children,
   footer,
+  actions,
   closeButton = false,
   footerClassName,
   className,
@@ -108,6 +113,14 @@ export function Sheet({
   const close = () => beginClose();
   useImperativeHandle(ref, () => ({ close: () => beginClose() }), [beginClose]);
   const render = (slot: SheetSlot) => (typeof slot === 'function' ? slot(close) : slot);
+  // Resolved before the wrapper renders: a render function is always truthy,
+  // and an empty actions row still takes a gap's width from the title.
+  const actionsNode = actions === undefined ? null : render(actions);
+  const hasActions =
+    actionsNode !== null &&
+    actionsNode !== undefined &&
+    typeof actionsNode !== 'boolean' &&
+    actionsNode !== '';
 
   const node = (
     <div
@@ -143,6 +156,7 @@ export function Sheet({
               </h2>
               {description && <p className="card-picker-description">{description}</p>}
             </div>
+            {hasActions && <div className="card-picker-actions">{actionsNode}</div>}
             {closeButton && (
               <IconButton
                 variant="quiet"

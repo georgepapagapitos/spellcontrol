@@ -1,8 +1,5 @@
-import { createPortal } from 'react-dom';
-import { type JSX, useCallback, useId, useMemo, useState } from 'react';
-import { X } from 'lucide-react';
-import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
-import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
+import { type JSX, useCallback, useMemo, useState } from 'react';
+import { Sheet } from '@/components/overlays/Sheet';
 import { useSetMap } from '@/lib/api';
 import { buildPullList, isPullableKind, type PullListGroup } from '@/lib/collection/pull-list';
 import { formatLocationSpan } from '@/lib/binder/card-locations';
@@ -13,7 +10,7 @@ import { CardRow } from '../shared/CardRow';
 import { MeterBar } from '../shared/MeterBar';
 import { EmptyState } from '../shared/EmptyState';
 import './PullListSheet.css';
-import { Button, IconButton } from '@/components/shared/Button';
+import { Button } from '@/components/shared/Button';
 import { Count } from '@/components/shared/Count';
 
 /**
@@ -70,8 +67,8 @@ const rowKey = (group: PullListGroup, key: string) => `${group.key}:${key}`;
  * rows off as you pull — walk your binders once, list in hand. Opened from
  * the deck-action row (peer to Tokens): it's prep, not analysis.
  *
- * Uses the shared `card-picker` sheet shell — bottom sheet on mobile,
- * centered modal ≥1024px — matching the app's other sheets.
+ * Built on <Sheet> (bottom sheet on mobile, centered modal ≥1024px), with
+ * Start over in its `actions` slot beside the close button.
  */
 export function PullListSheet({
   deck,
@@ -86,13 +83,6 @@ export function PullListSheet({
   allocations: Map<string, AllocationInfo>;
   onClose: () => void;
 }): JSX.Element {
-  const titleId = useId();
-  useLockBodyScroll();
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
-    onClose,
-    'binder-sheet-slide-out',
-    { instantAt: '(min-width: 1024px)' }
-  );
   const setMap = useSetMap();
 
   const groups = useMemo(
@@ -121,134 +111,108 @@ export function PullListSheet({
           ? `All ${totalQty} pulled.`
           : `${pulledQty} of ${totalQty} pulled.`;
 
-  return createPortal(
-    <div
-      className="card-picker-root pull-list-root"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (e.target === e.currentTarget) beginClose();
-      }}
-      role="presentation"
+  return (
+    <Sheet
+      onClose={onClose}
+      title="Pull list"
+      description={<span aria-live="polite">{subtitle}</span>}
+      className="pull-list-sheet"
+      rootClassName="pull-list-root"
+      actions={
+        pulledQty > 0 && (
+          <Button variant="link" onClick={reset}>
+            Start over
+          </Button>
+        )
+      }
+      closeButton
     >
-      <div
-        className={`card-picker-sheet pull-list-sheet${isClosing ? ' is-closing' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onAnimationEnd={onAnimationEnd}
-      >
-        <div className="card-picker-handle" aria-hidden />
-        <header className="pull-list-head">
-          <div className="text-stack text-stack--auto">
-            <h2 id={titleId} className="pull-list-title">
-              Pull list
-            </h2>
-            <p className="pull-list-sub" aria-live="polite">
-              {subtitle}
-            </p>
-          </div>
-          {pulledQty > 0 && (
-            <Button variant="link" onClick={reset} className="pull-list-reset">
-              Start over
-            </Button>
-          )}
-          <IconButton
-            variant="quiet"
-            className="pull-list-close"
-            onClick={() => beginClose()}
-            label="Close"
-            icon={<X width={18} height={18} strokeWidth={2} />}
-          />
-        </header>
-
-        {totalQty > 0 && (
-          <div className="pull-list-meter">
-            <MeterBar value={pulledQty} max={totalQty} size="sm" />
-          </div>
-        )}
-
-        <div className="pull-list-body">
-          {groups.length === 0 ? (
-            <EmptyState tagline="Nothing to pull yet." hint="Add cards to the deck first." />
-          ) : (
-            groups.map((g) => {
-              const pullable = isPullableKind(g.kind);
-              const groupQty = g.rows.reduce((n, r) => n + r.qty, 0);
-              const groupPulled = pullable
-                ? g.rows.reduce((n, r) => n + (checked.has(rowKey(g, r.key)) ? r.qty : 0), 0)
-                : 0;
-              const unpulledKeys = pullable
-                ? g.rows.map((r) => rowKey(g, r.key)).filter((k) => !checked.has(k))
-                : [];
-              const groupCountText = pullable
-                ? `${groupPulled} of ${groupQty}`
-                : `${groupQty} ${groupQty === 1 ? 'card' : 'cards'}`;
-              return (
-                <section key={g.key} className="pull-list-group" aria-label={g.label}>
-                  <div className="pull-list-group-head">
-                    {g.color && (
-                      <span
-                        className="pull-list-group-dot"
-                        style={{ background: g.color }}
-                        aria-hidden
-                      />
-                    )}
-                    <h3 className="pull-list-group-title">{g.label}</h3>
-                    <Count
-                      className="pull-list-group-count"
-                      value={groupQty}
-                      placement="inline"
-                      display={groupCountText}
-                      label={groupCountText}
-                    />
-                    {unpulledKeys.length > 1 && (
-                      <Button
-                        variant="link"
-                        onClick={() => checkAll(unpulledKeys)}
-                        aria-label={`Pulled all: ${g.label}`}
-                        className="pull-list-group-all"
-                      >
-                        Pulled all
-                      </Button>
-                    )}
-                  </div>
-                  <ul className="pull-list-rows" role="list">
-                    {g.rows.map((r, i) =>
-                      pullable && r.card ? (
-                        <li key={r.key}>
-                          <CardRow
-                            card={r.card}
-                            qty={r.qty}
-                            allocations={[]}
-                            menu={null}
-                            binders={[]}
-                            location={r.spots ? formatLocationSpan(r.spots) : undefined}
-                            selectMode
-                            selected={checked.has(rowKey(g, r.key))}
-                            onActivate={() => toggle(rowKey(g, r.key))}
-                            isLastRow={i === g.rows.length - 1}
-                          />
-                        </li>
-                      ) : (
-                        <li key={r.key} className="pull-list-static-row">
-                          <span className="pull-list-static-name">{r.name}</span>
-                          {r.qty > 1 && <span className="pull-list-static-qty">×{r.qty}</span>}
-                          <span className="pull-list-static-note">
-                            {g.kind === 'elsewhere' && r.owners
-                              ? `In ${r.owners.join(', ')}`
-                              : 'No free copy in your collection'}
-                          </span>
-                        </li>
-                      )
-                    )}
-                  </ul>
-                </section>
-              );
-            })
-          )}
+      {totalQty > 0 && (
+        <div className="pull-list-meter">
+          <MeterBar value={pulledQty} max={totalQty} size="sm" />
         </div>
+      )}
+
+      <div className="pull-list-body">
+        {groups.length === 0 ? (
+          <EmptyState tagline="Nothing to pull yet." hint="Add cards to the deck first." />
+        ) : (
+          groups.map((g) => {
+            const pullable = isPullableKind(g.kind);
+            const groupQty = g.rows.reduce((n, r) => n + r.qty, 0);
+            const groupPulled = pullable
+              ? g.rows.reduce((n, r) => n + (checked.has(rowKey(g, r.key)) ? r.qty : 0), 0)
+              : 0;
+            const unpulledKeys = pullable
+              ? g.rows.map((r) => rowKey(g, r.key)).filter((k) => !checked.has(k))
+              : [];
+            const groupCountText = pullable
+              ? `${groupPulled} of ${groupQty}`
+              : `${groupQty} ${groupQty === 1 ? 'card' : 'cards'}`;
+            return (
+              <section key={g.key} className="pull-list-group" aria-label={g.label}>
+                <div className="pull-list-group-head">
+                  {g.color && (
+                    <span
+                      className="pull-list-group-dot"
+                      style={{ background: g.color }}
+                      aria-hidden
+                    />
+                  )}
+                  <h3 className="pull-list-group-title">{g.label}</h3>
+                  <Count
+                    className="pull-list-group-count"
+                    value={groupQty}
+                    placement="inline"
+                    display={groupCountText}
+                    label={groupCountText}
+                  />
+                  {unpulledKeys.length > 1 && (
+                    <Button
+                      variant="link"
+                      onClick={() => checkAll(unpulledKeys)}
+                      aria-label={`Pulled all: ${g.label}`}
+                      className="pull-list-group-all"
+                    >
+                      Pulled all
+                    </Button>
+                  )}
+                </div>
+                <ul className="pull-list-rows" role="list">
+                  {g.rows.map((r, i) =>
+                    pullable && r.card ? (
+                      <li key={r.key}>
+                        <CardRow
+                          card={r.card}
+                          qty={r.qty}
+                          allocations={[]}
+                          menu={null}
+                          binders={[]}
+                          location={r.spots ? formatLocationSpan(r.spots) : undefined}
+                          selectMode
+                          selected={checked.has(rowKey(g, r.key))}
+                          onActivate={() => toggle(rowKey(g, r.key))}
+                          isLastRow={i === g.rows.length - 1}
+                        />
+                      </li>
+                    ) : (
+                      <li key={r.key} className="pull-list-static-row">
+                        <span className="pull-list-static-name">{r.name}</span>
+                        {r.qty > 1 && <span className="pull-list-static-qty">×{r.qty}</span>}
+                        <span className="pull-list-static-note">
+                          {g.kind === 'elsewhere' && r.owners
+                            ? `In ${r.owners.join(', ')}`
+                            : 'No free copy in your collection'}
+                        </span>
+                      </li>
+                    )
+                  )}
+                </ul>
+              </section>
+            );
+          })
+        )}
       </div>
-    </div>,
-    document.body
+    </Sheet>
   );
 }

@@ -12,9 +12,11 @@
 // title treatments, and two skipped the exit hook, so they had no exit
 // animation and no Back-button dismiss. <Sheet> owns all of that now.
 //
-// The allowlist below is the sheets not yet moved, with the reason each one
-// doesn't fit the primitive as it stands. It only shrinks: a file that moves
-// onto <Sheet> must leave the list (the second test fails until it does).
+// The allowlist below is the sheets that stay off <Sheet>, with the reason
+// each one doesn't fit it. They are not a to-do list: each would need <Sheet>
+// to grow a prop that only it uses, or to stop being the primitive it is.
+// The list only shrinks: a file that moves onto <Sheet> must leave it (the
+// second test fails until it does).
 
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -25,18 +27,13 @@ const SRC = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 const NOT_YET_ON_SHEET: Record<string, string> = {
   'components/shared/CtxMenuShell.tsx':
-    'the context menu: one component that renders a floating menu or a sheet by variant, sharing refs and focus handling between them',
-  'components/profile/AvatarPickerSheet.tsx':
-    'header actions (Remove) beside the title, and Escape that clears the search first',
+    'a menu first: useMenuKeyboard drives its sheet variant and needs the panel element (outside press, Tab trap, focus return) and owns Escape from a menu layer above the sheet. <Sheet> keeps its panel private and answers Escape itself',
   'components/deck/MoveToDeckSheet.tsx':
-    'a two-step header: a Back button appears and the title changes once a deck is picked',
-  'components/deck/PullListSheet.tsx': 'a Start over action between the title and the close button',
+    'a Back button that leads the title on the second step, and a close labeled Cancel. No other sheet needs a leading slot',
   'playtest/components/OpeningHandSheet.tsx':
-    'a full-screen takeover with a peek mode that hides the panel, and a Back link inside the header',
-  'playtest/components/LifeAdjustPanel.tsx':
-    'one useSheetExit drives both its floating panel and its sheet variant',
+    'it cannot be dismissed (no Escape, backdrop or browser-Back close); it leaves only through Keep, Mulligan or its own exit link ("Back to deck" by default). It also has a peek mode that hides the panel and puts a "Back to hand" button beside it. <Sheet> runs useSheetExit, whose browser-Back handler closes the sheet even when dismissable={false}',
   'pages/deck-editor/DeckEditorCardPickerSheet.tsx':
-    'a children-render wrapper whose callers draw their own header',
+    'a wrapper whose callers draw the top of the panel: the deck Add cards sheet has no title at all (a zone toggle leads it), and <Sheet> always renders a titled header',
 };
 
 function walk(dir: string, out: string[] = []): string[] {

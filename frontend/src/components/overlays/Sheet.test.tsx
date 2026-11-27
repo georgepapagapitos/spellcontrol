@@ -44,6 +44,50 @@ describe('Sheet', () => {
     expect(screen.getByLabelText('Search').closest('.card-picker-header')).not.toBeNull();
   });
 
+  it('puts actions in the heading row, before the close button, and hands them close', () => {
+    const onClose = vi.fn();
+    render(
+      <Sheet
+        onClose={onClose}
+        title="Pull list"
+        closeButton
+        actions={(close) => <button onClick={close}>Start over</button>}
+      >
+        <p>body</p>
+      </Sheet>
+    );
+    const action = screen.getByRole('button', { name: 'Start over' });
+    const row = action.closest('.card-picker-heading');
+    expect(row).not.toBeNull();
+    const buttons = [...row!.querySelectorAll('button')].map(
+      (b) => b.textContent?.trim() || b.getAttribute('aria-label')
+    );
+    expect(buttons).toEqual(['Start over', 'Close']);
+    fireEvent.click(action);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders no actions row when the slot is empty', () => {
+    render(
+      <Sheet onClose={() => {}} title="Pull list" actions={false}>
+        <p>body</p>
+      </Sheet>
+    );
+    expect(document.querySelector('.card-picker-actions')).toBeNull();
+  });
+
+  it('renders no actions row when the render function returns nothing', () => {
+    for (const empty of [false, null, undefined, '']) {
+      const r = render(
+        <Sheet onClose={() => {}} title="Pull list" actions={() => empty}>
+          <p>body</p>
+        </Sheet>
+      );
+      expect(document.querySelector('.card-picker-actions'), String(empty)).toBeNull();
+      r.unmount();
+    }
+  });
+
   it('closes on a backdrop tap, Escape, the close button and the footer close', () => {
     const onClose = vi.fn();
     const { unmount } = render(

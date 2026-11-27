@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Sheet } from '@/components/overlays/Sheet';
 import { Clock, Radiation, Skull, Ticket, Zap, type LucideIcon } from 'lucide-react';
 import { useLockBodyScroll } from '@/lib/overlays/use-lock-body-scroll';
 import { useSheetExit } from '@/lib/overlays/use-sheet-exit';
 import { getSafeViewport } from '@/lib/overlays/popover-placement';
-import { focusInto } from '@/lib/overlays/overlay-layer';
+import { captureOpener, focusInto, restoreFocus } from '@/lib/overlays/overlay-layer';
 import { usePressRepeat } from '@/lib/play/use-press-repeat';
 import { Button } from '@/components/shared/Button';
 
@@ -256,42 +257,17 @@ export function LifeAdjustPanel({
   onAdjustCounter,
   online,
 }: Props) {
-  const panelRef = useRef<HTMLDivElement | null>(null);
-  const [clamped, setClamped] = useState<{ left: number; top: number } | null>(null);
   const [counterText, setCounterText] = useState('');
   const [addingCounter, setAddingCounter] = useState(false);
-  // The floating variant has no exit keyframe (`isClosing` only styles the
-  // sheet), so every close there is immediate: 'all' always matches.
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
-    onClose,
-    'binder-sheet-slide-out',
-    {
-      instantAt: variant === 'floating' ? 'all' : undefined,
-    }
-  );
 
-  useLockBodyScroll();
-
-  useEffect(() => {
-    if (variant !== 'floating') return;
-    const el = panelRef.current;
-    if (!el || !anchorRect) return;
-    const rect = el.getBoundingClientRect();
-    const safe = getSafeViewport();
-    const left = Math.max(MARGIN, Math.min(anchorRect.left, safe.right - rect.width - MARGIN));
-    const top = Math.max(
-      MARGIN,
-      Math.min(anchorRect.bottom + 6, safe.bottom - rect.height - MARGIN)
-    );
-    setClamped({ left, top });
-  }, [anchorRect, variant, addingCounter]);
-
-  // The floating panel is `visibility: hidden` until it is placed, and a
-  // hidden element takes no focus, so the focus-trap's own move on mount lands
-  // nowhere. Move it in once the panel shows.
-  useEffect(() => {
-    if (variant === 'floating' && clamped && panelRef.current) focusInto(panelRef.current);
-  }, [variant, clamped]);
+  // The control that opened the panel, captured once for both variants.
+  // Crossing the narrow breakpoint while open swaps the popover for <Sheet>,
+  // and the sheet's focus trap would record the popover control that had
+  // focus, which unmounts with it, as its opener; the close would then drop
+  // focus on <body>. This runs before the trap's own restore (parents clean up
+  // first), so the trap finds focus already back on the opener.
+  const [opener] = useState(captureOpener);
+  useEffect(() => () => restoreFocus(opener), [opener]);
 
   function submitCounter() {
     const kind = counterText.trim().slice(0, MAX_COUNTER_NAME);
@@ -469,40 +445,85 @@ export function LifeAdjustPanel({
     </>
   );
 
-  // Portaled for the same reason the floating variant below is, and it was
-  // missed here: the sheet is `position: fixed` too, and its parent
-  // `.playtest-life-table` carries `backdrop-filter: blur(6px)`, which makes
-  // that little corner panel a containing block for fixed descendants. While
-  // the phone still rendered the chip strip this branch never had such a
-  // parent; once every tier moved onto the corner panel the bottom sheet
-  // started laying out inside it — measured at 98px wide, 295px ABOVE the
-  // viewport, instead of full-width along the bottom.
+  // <Sheet> portals to <body>, which this needs: its parent
+  // `.playtest-life-table` carries `backdrop-filter: blur(6px)`, and that makes
+  // the little corner panel a containing block for fixed descendants. Laid out
+  // in place, the bottom sheet measured 98px wide, 295px ABOVE the viewport.
   if (variant === 'sheet') {
-    return createPortal(
-      <div className="card-picker-root">
-        {/* The backdrop fully covers the root (both `inset: 0`), so it — not
-            root — is what a "click outside the sheet" actually lands on. */}
-        <div className="card-picker-backdrop" role="presentation" onClick={() => beginClose()} />
-        <div
-          className={`card-picker-sheet playtest-life-panel-sheet${isClosing ? ' is-closing' : ''}`}
-          role="dialog"
-          aria-modal="true"
-          aria-label={title}
-          onAnimationEnd={onAnimationEnd}
-        >
-          <div className="card-picker-handle" aria-hidden />
-          <div className="card-picker-header">
-            <h2 className="card-picker-title">{title}</h2>
-          </div>
-          <div className="playtest-life-panel">{body}</div>
-          <div className="card-picker-footer">
-            <Button onClick={() => beginClose()}>Close</Button>
-          </div>
-        </div>
-      </div>,
-      document.body
+    return (
+      <Sheet
+        onClose={onClose}
+        title={title}
+        label={title}
+        className="playtest-life-panel-sheet"
+        footer={(close) => <Button onClick={close}>Close</Button>}
+      >
+        <div className="playtest-life-panel">{body}</div>
+      </Sheet>
     );
   }
+
+  return (
+    <FloatingLifePanel
+      title={title}
+      hideTitle={hideTitle}
+      anchorRect={anchorRect}
+      relayoutKey={addingCounter}
+      onClose={onClose}
+    >
+      {body}
+    </FloatingLifePanel>
+  );
+}
+
+/**
+ * The wide-viewport popover, anchored under the life chip and clamped to the
+ * safe viewport. Its own component so the sheet variant can be a <Sheet>,
+ * which runs the exit hook itself; hooks can't sit behind the variant branch.
+ */
+function FloatingLifePanel({
+  title,
+  hideTitle,
+  anchorRect,
+  relayoutKey,
+  onClose,
+  children,
+}: {
+  title: string;
+  hideTitle: boolean;
+  anchorRect: Props['anchorRect'];
+  /** Changes when the content grows (the add-counter field), to re-clamp. */
+  relayoutKey: unknown;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [clamped, setClamped] = useState<{ left: number; top: number } | null>(null);
+  // No exit keyframe here, so every close is immediate: 'all' always matches.
+  // The hook still brings the overlay layer, the focus trap, Escape and Back.
+  useSheetExit(onClose, 'binder-sheet-slide-out', { instantAt: 'all' });
+
+  useLockBodyScroll();
+
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el || !anchorRect) return;
+    const rect = el.getBoundingClientRect();
+    const safe = getSafeViewport();
+    const left = Math.max(MARGIN, Math.min(anchorRect.left, safe.right - rect.width - MARGIN));
+    const top = Math.max(
+      MARGIN,
+      Math.min(anchorRect.bottom + 6, safe.bottom - rect.height - MARGIN)
+    );
+    setClamped({ left, top });
+  }, [anchorRect, relayoutKey]);
+
+  // The floating panel is `visibility: hidden` until it is placed, and a
+  // hidden element takes no focus, so the focus-trap's own move on mount lands
+  // nowhere. Move it in once the panel shows.
+  useEffect(() => {
+    if (clamped && panelRef.current) focusInto(panelRef.current);
+  }, [clamped]);
 
   // Portaled to <body>, and that is load-bearing rather than tidiness. This
   // panel is `position: fixed` and positioned from viewport coordinates, but
@@ -533,7 +554,7 @@ export function LifeAdjustPanel({
         aria-label={title}
       >
         {!hideTitle && <div className="playtest-life-panel__title">{title}</div>}
-        <div className="playtest-life-panel">{body}</div>
+        <div className="playtest-life-panel">{children}</div>
       </div>
     </>,
     document.body

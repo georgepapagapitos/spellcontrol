@@ -1,28 +1,17 @@
 /* Layers on the shared `.card-picker-root` / `.card-picker-sheet` shell
    (bottom sheet on mobile → centered modal ≥1024px, auto-scrim via the
-   shell's own :where() rule). These rules only add the avatar-specific
-   header/body/grid content. */
+   shell's own :where() rule), built by <Sheet>. These rules only add the
+   avatar-specific header/body/grid content. */
 
-.avatar-picker-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
+/* The header sits tight on the handle with no divider: the search rail below
+   it is the edge the grid scrolls under. Two classes outweigh the shell's. */
+.avatar-picker-sheet .card-picker-header {
   padding: var(--space-1) var(--space-4) 0;
+  border-bottom: 0;
 }
 
-.avatar-picker-title {
-  margin: 0;
-  font-size: var(--text-lg);
+.avatar-picker-sheet .card-picker-title {
   font-weight: 600;
-  color: var(--text-primary);
-}
-
-.avatar-picker-head-actions {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: var(--space-2);
 }
 
 .avatar-picker-remove {

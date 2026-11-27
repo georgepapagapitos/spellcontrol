@@ -23,15 +23,22 @@ where every section lives.
   slots are the only header shapes: `eyebrow` (a small label over a title
   that is a name), `title`, `description` (one line under it), `toolbar`
   (a search field or control row, inside the header's inset and above its
-  divider) and `closeButton` (an X when there is no footer to dismiss from).
-  `footer` takes the actions. `dismissable={false}` is for a sheet that must
+  divider), `actions` (a whole-sheet control at the header's end, before the
+  close button: Pull list's "Start over", the avatar picker's "Remove avatar";
+  a render function gets `close`) and `closeButton` (an X when there is no
+  footer to dismiss from). `footer` takes the actions that answer the sheet.
+  A slot is added only when more than one sheet needs it: a lone header shape
+  (Move to deck's leading Back) stays off `<Sheet>` until a second one
+  arrives. `dismissable={false}` is for a sheet that must
   be answered: no backdrop or Escape dismiss, and no handle. `inPlace` is for
   the play table and playtest board only. Before this, 30-odd sheets each
   composed the shell by hand and drifted: five title styles, two sheets with
   no exit animation, and the binder "Add card" sheet's search field running
   edge to edge with the header's divider through it.
-  `src/test/sheet-shell.test.ts` holds new sheets to it, and its allowlist of
-  the few that don't fit yet only shrinks.
+  `src/test/sheet-shell.test.ts` holds new sheets to it. Its allowlist names
+  the four that stay off it (the context menu's sheet variant, the opening
+  hand takeover, Move to deck, the deck editor's headerless Add cards
+  wrapper), each with its reason, and only shrinks.
 - **A sheet's middle is ONE scroll region — header and footer are chrome.**
   When a card-picker sheet stacks several content blocks between its header
   and footer (an AI slot, a ranked list, a reveal-more section), they live in

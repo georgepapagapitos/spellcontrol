@@ -14,6 +14,15 @@
   gap: var(--space-1);
 }
 
+/* Sheet's `actions` slot: whole-sheet controls between the title and the
+   close button, in a row of their own that never shrinks. */
+.card-picker-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .card-picker-close {
   flex: 0 0 auto;
   margin: -0.15rem -0.4rem 0 0;

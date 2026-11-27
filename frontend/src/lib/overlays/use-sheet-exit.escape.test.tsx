@@ -133,7 +133,8 @@ describe('useSheetExit owns Escape', () => {
   });
 });
 
-/** Files that call useSheetExit and still handle Escape themselves, and why. */
+/** Files on useSheetExit (directly or through <Sheet>) that still handle
+ *  Escape themselves, and why. */
 const OWN_ESCAPE: Record<string, string> = {
   'components/card/CardPreview.tsx':
     'escape: false; a window capture-phase handler that defers to the share dialog and an open ⋮ menu',
@@ -180,7 +181,8 @@ describe('sheets do not hand-roll Escape', () => {
   it('the allowlist has no stale entries', () => {
     for (const rel of Object.keys(OWN_ESCAPE)) {
       const src = readFileSync(join(SRC, rel), 'utf8');
-      expect(src, rel).toContain('useSheetExit(');
+      // On the hook directly, or through <Sheet>, which runs it.
+      expect(src, rel).toMatch(/useSheetExit\(|<Sheet\b/);
       expect(src, rel).toMatch(/['"]Escape['"]/);
     }
   });
