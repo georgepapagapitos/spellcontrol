@@ -122,6 +122,11 @@ jobs:
     name: shared packages — registration
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # pull-requests: read is added for the deleted-tests step, which reads the
+    # live PR body. The default contents: read does not cover the pulls API.
+    permissions:
+      contents: read
+      pull-requests: read
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -146,6 +151,34 @@ jobs:
       # test runner, so the twin of the frontend/backend ratchet tests runs here.
       - name: Check file size ratchet
         run: node scripts/check-file-size-ratchet.mjs
+
+      # A PR that deletes a test file must account for it in a `## Deleted tests`
+      # section of its body (E1115, after #3210). This job is already a required
+      # check ("shared packages — registration"), so the gate blocks merges from
+      # the day it lands. The body is read live from the API, not from the event
+      # payload: a re-run reuses the original payload, so an author who fixes the
+      # body with `gh pr edit` and re-runs the job would otherwise fail on the old
+      # text (no `edited` trigger needed). The PR number, token and SHA arrive by
+      # env var; nothing from the PR is interpolated into the script. Skipped on
+      # push and merge_group: the PR run already decided.
+      - name: Unit-test the deleted-tests check
+        run: node --test scripts/check-deleted-tests.test.mjs
+
+      - name: Check deleted tests are accounted for
+        if: github.event_name == 'pull_request'
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          body_file="$RUNNER_TEMP/pr-body.md"
+          if ! gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.body // ""' > "$body_file"; then
+            echo "::error::Could not read the PR body from the API, so the deleted-tests check cannot run. Re-run the job."
+            exit 1
+          fi
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          node scripts/check-deleted-tests.mjs --base "$BASE_SHA" --body-file "$body_file"
 
   # One job per packages/* shared package. The `name` must stay exactly
   # "<package> — typecheck & test": those are the required status checks in the
