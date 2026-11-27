@@ -166,6 +166,8 @@ The backend reads:
 
 For a map of the code (where each kind of module lives, the layer rules, and where new code goes) see [ARCHITECTURE.md](ARCHITECTURE.md).
 
+For what to do when production misbehaves (503s, a bad deploy and its rollback, the Firefox IndexedDB size cap, the read-only database probe), see [RUNBOOK.md](RUNBOOK.md).
+
 The repo is a monorepo with five packages: `backend/`, `frontend/`, and three shared ones — `packages/game-core/`, `packages/binder-routing/`, and `packages/deck-metrics/`.
 
 **Backend** — Node + Express 5 + TypeScript. Postgres (via Drizzle) stores user accounts and synced state. A SQLite cache (via better-sqlite3) holds Scryfall card data with a 7-day TTL. Format-specific parsers in `src/parsers/` handle import detection and normalization.
