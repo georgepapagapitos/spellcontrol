@@ -9,6 +9,7 @@ import {
   applyAction,
   createGameState,
   gameToRecord,
+  isHordePassTake,
   makePlayer,
   normalizeCounterName,
   type GameAction,
@@ -1239,14 +1240,18 @@ export const usePlayStore = create<PlayState>()(
 
                     if (droppedHorde) {
                       const fresh = get().online;
-                      const lastEntry = fresh?.horde?.steps[fresh.horde.steps.length - 1];
+                      const steps = fresh?.horde?.steps ?? [];
+                      const lastEntry = steps[steps.length - 1];
                       const actorName = lastEntry
                         ? (fresh?.players.find((p) => p.seat === lastEntry.seat)?.name ?? null)
                         : null;
+                      // A passing confirm lands as two steps (confirm, take 0):
+                      // what that seat did was confirm, nobody took a hit.
+                      const kind = isHordePassTake(steps, steps.length - 1)
+                        ? 'confirm'
+                        : lastEntry?.k;
                       const already =
-                        lastEntry && actorName
-                          ? hordeStepAlreadyMessage(lastEntry.k, actorName)
-                          : null;
+                        kind && actorName ? hordeStepAlreadyMessage(kind, actorName) : null;
                       if (already) set({ onlineError: already });
                     }
                   }

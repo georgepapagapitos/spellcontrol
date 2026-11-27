@@ -2,7 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePlayStore } from '@/store/play';
 import { toast } from '@/store/toasts';
 import { bossTickPhrase, type HordeDamageResult } from '@/lib/horde';
-import type { HordeLogEntry, HordePhase, HordeStep } from '@spellcontrol/game-core';
+import {
+  isHordePassTake,
+  type HordeLogEntry,
+  type HordePhase,
+  type HordeStep,
+} from '@spellcontrol/game-core';
 import type { PlaytestState } from '@/lib/playtest';
 import type { Rect } from '@/playtest/lib/auto-place';
 import { usePlaytestStore } from '@/playtest/store';
@@ -58,10 +63,26 @@ function findCardName(board: PlaytestState | null, cardId: string): string | nul
   return everywhere.find((c) => c.id === cardId)?.name ?? null;
 }
 
-function describeStep(
-  entry: HordeLogEntry | undefined,
-  board: PlaytestState | null
-): string | null {
+/** The same logged step, ignoring `ts`: an optimistic step is stamped on this
+ *  device and its server copy on the server, so only the content can match. */
+function sameStep(a: HordeLogEntry, b: HordeLogEntry): boolean {
+  if (a.seat !== b.seat) return false;
+  switch (a.k) {
+    case 'take':
+      return b.k === 'take' && a.dealt === b.dealt;
+    case 'damage':
+      return b.k === 'damage' && a.n === b.n;
+    case 'move':
+      return b.k === 'move' && a.cardId === b.cardId && a.to === b.to;
+    case 'confirm':
+      return b.k === 'confirm' && (a.pass === true) === (b.pass === true);
+    case 'reveal':
+      return b.k === 'reveal';
+  }
+}
+
+function describeStep(steps: HordeLogEntry[], board: PlaytestState | null): string | null {
+  const entry = steps[steps.length - 1];
   if (!entry) return null;
   switch (entry.k) {
     case 'reveal':
@@ -69,6 +90,8 @@ function describeStep(
     case 'confirm':
       return "the horde's attack";
     case 'take':
+      // A passed turn undoes as one step, back to the reveal.
+      if (isHordePassTake(steps, steps.length - 1)) return 'nothing attacked';
       return `${entry.dealt} damage taken`;
     case 'damage':
       return `${entry.n} damage to the horde`;
@@ -126,6 +149,11 @@ export function useOnlineHorde(
   }, [mySeat, dispatch]);
 
   const retryReplay = replayState.retry;
+  // The log this device's replay read when it found that confirming the
+  // reveal leaves nothing to attack with (E1037). Keyed on the steps array
+  // itself, not its length, so the confirm carries `pass` only onto that exact
+  // log; any other log (even one of the same length) gets a plain confirm.
+  const passFor = (replayState.replay?.confirmPasses && table?.steps) || null;
   const actions: HordeActions = useMemo(() => {
     const step = (s: HordeStep) => {
       const fresh = usePlayStore.getState().online?.horde;
@@ -136,56 +164,83 @@ export function useOnlineHorde(
       take: (amount) => step({ k: 'take', dealt: amount }),
       damage: (amount) => step({ k: 'damage', n: amount }),
       move: (cardId, to) => step({ k: 'move', cardId, to }),
-      confirmReveal: () => step({ k: 'confirm' }),
+      confirmReveal: () => {
+        const steps = usePlayStore.getState().online?.horde?.steps;
+        step(steps && steps === passFor ? { k: 'confirm', pass: true } : { k: 'confirm' });
+      },
       clearDamageResult: () =>
         setDismissedDamageStep(usePlayStore.getState().online?.horde?.steps.length ?? null),
       retryLoad: () => retryReplay(),
     };
-  }, [mySeat, dispatch, retryReplay]);
+  }, [mySeat, dispatch, retryReplay, passFor]);
 
   // Edge-triggered side effects on the log growing — never on a re-render or
   // a reload. The cursor is seeded (not fired) the first time this hook sees
   // a table, so a freshly mounted board doesn't replay history as toasts.
-  const seenStepsRef = useRef<number | null>(null);
+  // It holds the log this hook last acted on, not just its length: an
+  // optimistic step the server then replaced (a lost race) or took back (an
+  // undo) leaves a log that differs from the one seen, at or below its length.
+  const seenStepsRef = useRef<HordeLogEntry[] | null>(null);
+  // Takes whose board turn this device already advanced but the log no longer
+  // holds (an undo, or an optimistic take that lost its race). NEXT_TURN has
+  // no inverse (the player may have acted since), so the next take spends the
+  // credit instead: one horde turn, one board turn. Counting by length alone,
+  // a re-take right after an undo advanced nothing and showed no toast, and
+  // one after the log grew past its old length (a damage step, say) advanced
+  // the board a second time.
+  const turnCreditRef = useRef(0);
   const wonRef = useRef(false);
 
   useEffect(() => {
     if (!table || !online) return;
     const seen = seenStepsRef.current;
-    if (seen === null) {
-      seenStepsRef.current = table.steps.length;
-      return;
+    seenStepsRef.current = table.steps;
+    if (seen === null) return;
+    const steps = table.steps;
+    let common = 0;
+    while (common < seen.length && common < steps.length && sameStep(seen[common], steps[common])) {
+      common++;
     }
-    if (table.steps.length <= seen) return;
-    const newSteps = table.steps.slice(seen);
-    seenStepsRef.current = table.steps.length;
+    for (const gone of seen.slice(common)) if (gone.k === 'take') turnCreditRef.current++;
 
-    for (let i = 0; i < newSteps.length; i++) {
-      const entry = newSteps[i];
-      const index = seen + i;
+    for (let index = common; index < steps.length; index++) {
+      const entry = steps[index];
       if (entry.k !== 'take') continue;
+      // Take ends the horde's turn — advance MY OWN board a turn to match,
+      // on a live increase only (never on first load, handled by the seed
+      // above).
+      if (turnCreditRef.current > 0) turnCreditRef.current--;
+      else usePlaytestStore.getState().dispatch({ type: 'NEXT_TURN' });
+      // A passed turn (nothing attacked) took nothing, and every seat just
+      // watched the reveal it came from: no toast, as on the paper table.
+      // Only when this device's own replay agrees that confirm (the one just
+      // before this take, not the log's latest) left nothing to attack: a
+      // wrong pass is announced like any Skip.
+      const quiet = replayState.replay?.quietConfirms.includes(index - 1) === true;
+      if (isHordePassTake(steps, index) && quiet) continue;
       const seatName = online.players.find((p) => p.seat === entry.seat)?.name ?? 'A teammate';
       const mine = entry.seat === mySeat;
+      // Undo only reaches the log's last step, so a take that arrived with
+      // later steps behind it (a device catching up) gets no Undo it can't act on.
+      const undoable = index === steps.length - 1;
       toast.show({
         message: mine
           ? `You took ${entry.dealt} for the team.`
           : `${seatName} took ${entry.dealt} for the team.`,
         tone: 'info',
-        actionLabel: 'Undo',
-        onAction: () => {
-          const fresh = usePlayStore.getState().online?.horde;
-          const stillLast =
-            fresh &&
-            fresh.steps.length === index + 1 &&
-            fresh.steps[index]?.ts === entry.ts &&
-            fresh.steps[index]?.seat === entry.seat;
-          if (stillLast) undoLast();
-        },
+        actionLabel: undoable ? 'Undo' : undefined,
+        onAction: undoable
+          ? () => {
+              const fresh = usePlayStore.getState().online?.horde;
+              const stillLast =
+                fresh &&
+                fresh.steps.length === index + 1 &&
+                fresh.steps[index]?.ts === entry.ts &&
+                fresh.steps[index]?.seat === entry.seat;
+              if (stillLast) undoLast();
+            }
+          : undefined,
       });
-      // Take ends the horde's turn — advance MY OWN board a turn to match,
-      // on a live increase only (never on first load, handled by the seed
-      // above).
-      usePlaytestStore.getState().dispatch({ type: 'NEXT_TURN' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed only on the log growing; mySeat/undoLast are read fresh inside, not reasons to re-run
   }, [table, online]);
@@ -231,8 +286,7 @@ export function useOnlineHorde(
       ? lastDamage.result
       : null;
 
-  const lastEntry = table?.steps[table.steps.length - 1];
-  const lastStepLabel = describeStep(lastEntry, replayState.replay?.view.board ?? null);
+  const lastStepLabel = describeStep(table?.steps ?? [], replayState.replay?.view.board ?? null);
 
   if (!table || !online) return null;
 

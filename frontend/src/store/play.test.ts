@@ -1130,6 +1130,59 @@ describe('usePlayStore — online flow', () => {
     expect(usePlayStore.getState().onlineError).toBe('Maya already confirmed the reveal.');
   });
 
+  // E1037: a passing confirm lands as two steps (confirm, take 0). The seat
+  // that lost the race to it is told the reveal was confirmed, never that
+  // someone "took the hit" when nothing attacked.
+  it('dispatchOnline names a passed turn as a confirm, not a hit, after losing the confirm race', async () => {
+    mockCreate.mockResolvedValue(makeHordeGame(1));
+    await usePlayStore.getState().hostOnline({
+      format: 'horde',
+      startingLife: 60,
+      commanderDamageEnabled: false,
+      poisonEnabled: false,
+    });
+
+    mockPatch.mockRejectedValueOnce(httpError('conflict', 409));
+    const fresh = withHordeStep(
+      withHordeStep(makeHordeGame(4), { k: 'reveal' }, 1),
+      { k: 'confirm', pass: true },
+      1
+    );
+    expect(fresh.horde!.steps.map((e) => e.k)).toEqual(['reveal', 'confirm', 'take']);
+    mockGet.mockResolvedValue(fresh);
+
+    await usePlayStore.getState().dispatchOnline({
+      type: 'horde-step',
+      step: { k: 'confirm', pass: true },
+      at: 1,
+      actorSeat: 0,
+    });
+
+    expect(mockPatch).toHaveBeenCalledTimes(1);
+    expect(usePlayStore.getState().onlineError).toBe('Maya already confirmed the reveal.');
+  });
+
+  it('dispatchOnline still names a real Skip after a plain confirm as the hit', async () => {
+    mockCreate.mockResolvedValue(makeHordeGame(1));
+    await usePlayStore.getState().hostOnline({
+      format: 'horde',
+      startingLife: 60,
+      commanderDamageEnabled: false,
+      poisonEnabled: false,
+    });
+
+    mockPatch.mockRejectedValueOnce(httpError('conflict', 409));
+    let fresh = withHordeStep(makeHordeGame(4), { k: 'reveal' }, 1);
+    fresh = withHordeStep(withHordeStep(fresh, { k: 'confirm' }, 1), { k: 'take', dealt: 0 }, 1);
+    mockGet.mockResolvedValue(fresh);
+
+    await usePlayStore
+      .getState()
+      .dispatchOnline({ type: 'horde-step', step: { k: 'take', dealt: 0 }, at: 2, actorSeat: 0 });
+
+    expect(usePlayStore.getState().onlineError).toBe('Maya already took the hit.');
+  });
+
   it('dispatchOnline falls back to the generic 409 copy when the log\'s last step has no "already did X" phrasing', async () => {
     mockCreate.mockResolvedValue(makeHordeGame(1));
     await usePlayStore.getState().hostOnline({

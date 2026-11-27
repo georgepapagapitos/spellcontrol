@@ -318,10 +318,8 @@ export type {
   HordeTable,
 } from './horde-types';
 import type { HordeLogEntry, HordeTable } from './horde-types';
-
-/** Bound on `HordeTable.steps` — same storage-bound reasoning as
- *  `MAX_COUNTERS_PER_SCOPE`: an online game's whole state is one JSONB row. */
-export const MAX_HORDE_STEPS = 2000;
+import { stepHorde, undoHorde } from './horde';
+export { MAX_HORDE_STEPS, isHordePassTake } from './horde';
 
 /** Seat cap for a horde table — 1-4 survivors, never more. */
 export const HORDE_MAX_SEATS = 4;
@@ -1508,140 +1506,44 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
     }
     case 'horde-step': {
       if (prev.status !== 'active' || !prev.horde) return prev;
-      const horde = prev.horde;
       // Stale view: another device already moved the horde since this client
       // last saw the log.
-      if (action.at !== horde.steps.length) return prev;
-      if (horde.steps.length >= MAX_HORDE_STEPS) {
-        throw new Error(`Horde log is at its ${MAX_HORDE_STEPS}-step limit.`);
-      }
-      const step = action.step;
-      const entry: HordeLogEntry = { ...step, seat: action.actorSeat, ts };
-
-      switch (step.k) {
-        case 'reveal': {
-          // The "start without them" path: skip past a stuck team-done wait.
-          if (horde.phase !== 'survivors') return prev;
-          next = {
-            ...next,
-            horde: {
-              ...horde,
-              hordeTurn: horde.hordeTurn + 1,
-              phase: 'reveal',
-              done: [],
-              steps: [...horde.steps, entry],
-            },
-          };
-          break;
-        }
-        case 'confirm': {
-          if (horde.phase !== 'reveal') return prev;
-          next = { ...next, horde: { ...horde, phase: 'combat', steps: [...horde.steps, entry] } };
-          break;
-        }
-        case 'take': {
-          if (horde.phase !== 'combat') return prev;
-          if (!Number.isInteger(step.dealt) || step.dealt < 0 || step.dealt > 999) {
-            throw new Error('A horde attack must deal 0-999 damage.');
-          }
-          const sharedLife = prev.players.length > 0 ? prev.players[0].life : 0;
-          next = {
-            ...next,
-            players: mirrorLife(next.players, Math.max(0, sharedLife - step.dealt)),
-            horde: {
-              ...horde,
-              phase: 'survivors',
-              survivorTurn: horde.survivorTurn + 1,
-              done: [],
-              steps: [...horde.steps, entry],
-            },
-            // A 'life' event with a real targetSeat feeds the derived
-            // per-seat summary stats (damageTaken, biggestHit, firstBlood);
-            // a shared team hit has no single target, and summary.ts skips
-            // a 'life' event whose targetSeat is null — so this uses 'note'
-            // instead of quietly dropping the game's main damage source from
-            // every horde game's summary.
-            events: pushEvent(next, {
-              kind: 'note',
-              actorSeat: action.actorSeat,
-              targetSeat: null,
-              message: `Horde attack: ${step.dealt}`,
-              ts,
-            }),
-          };
-          break;
-        }
-        case 'damage': {
-          if (!Number.isInteger(step.n) || step.n < 0 || step.n > 999) {
-            throw new Error('Horde damage must be 0-999.');
-          }
-          next = { ...next, horde: { ...horde, steps: [...horde.steps, entry] } };
-          break;
-        }
-        case 'move': {
-          if (!step.cardId || step.cardId.length > 80) {
-            throw new Error('A horde card move needs a card id of at most 80 characters.');
-          }
-          if (step.to !== 'graveyard' && step.to !== 'exile' && step.to !== 'library') {
-            throw new Error(`Unknown horde move destination "${step.to}".`);
-          }
-          next = { ...next, horde: { ...horde, steps: [...horde.steps, entry] } };
-          break;
-        }
+      if (action.at !== prev.horde.steps.length) return prev;
+      const stepped = stepHorde(prev.horde, action.step, action.actorSeat, ts);
+      if (!stepped) return prev;
+      next = { ...next, horde: stepped.horde };
+      if (stepped.dealt !== undefined) {
+        const sharedLife = prev.players.length > 0 ? prev.players[0].life : 0;
+        next = {
+          ...next,
+          players: mirrorLife(next.players, Math.max(0, sharedLife - stepped.dealt)),
+          // A 'life' event with a real targetSeat feeds the derived
+          // per-seat summary stats (damageTaken, biggestHit, firstBlood);
+          // a shared team hit has no single target, and summary.ts skips
+          // a 'life' event whose targetSeat is null — so this uses 'note'
+          // instead of quietly dropping the game's main damage source from
+          // every horde game's summary.
+          events: pushEvent(next, {
+            kind: 'note',
+            actorSeat: action.actorSeat,
+            targetSeat: null,
+            message: `Horde attack: ${stepped.dealt}`,
+            ts,
+          }),
+        };
       }
       break;
     }
     case 'horde-undo': {
       if (prev.status !== 'active' || !prev.horde || prev.horde.steps.length === 0) return prev;
-      const horde = prev.horde;
-      if (action.at !== horde.steps.length) return prev;
-      const last = horde.steps[horde.steps.length - 1];
-      const steps = horde.steps.slice(0, -1);
-
-      switch (last.k) {
-        case 'take': {
-          // An active game never has a clamped take (hitting 0 ends the game,
-          // and horde-undo requires 'active'), so adding `dealt` back is exact.
-          const sharedLife = prev.players.length > 0 ? prev.players[0].life : 0;
-          next = {
-            ...next,
-            players: mirrorLife(next.players, sharedLife + last.dealt),
-            horde: {
-              ...horde,
-              phase: 'combat',
-              survivorTurn: horde.survivorTurn - 1,
-              done: [],
-              steps,
-            },
-          };
-          break;
-        }
-        case 'confirm': {
-          next = { ...next, horde: { ...horde, phase: 'reveal', steps } };
-          break;
-        }
-        case 'reveal': {
-          // Every active survivor had to be done to get here — restore that.
-          const activeSurvivors = prev.players
-            .filter((p) => !p.eliminated && p.connected)
-            .map((p) => p.seat);
-          next = {
-            ...next,
-            horde: {
-              ...horde,
-              phase: 'survivors',
-              hordeTurn: horde.hordeTurn - 1,
-              done: activeSurvivors,
-              steps,
-            },
-          };
-          break;
-        }
-        case 'damage':
-        case 'move': {
-          next = { ...next, horde: { ...horde, steps } };
-          break;
-        }
+      if (action.at !== prev.horde.steps.length) return prev;
+      // Every active survivor had to be done for a reveal to happen.
+      const survivors = prev.players.filter((p) => !p.eliminated && p.connected).map((p) => p.seat);
+      const undone = undoHorde(prev.horde, survivors);
+      next = { ...next, horde: undone.horde };
+      if (undone.restore !== undefined) {
+        const sharedLife = prev.players.length > 0 ? prev.players[0].life : 0;
+        next = { ...next, players: mirrorLife(next.players, sharedLife + undone.restore) };
       }
       break;
     }
