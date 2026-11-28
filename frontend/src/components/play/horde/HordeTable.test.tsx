@@ -203,6 +203,29 @@ describe('HordeTable', () => {
     expect(screen.queryByText('Overrun on turn 0')).toBeNull();
   });
 
+  // The paper table passes `doneCloses`: on a phone Done slides the end
+  // sheet out before it leaves the game, like every other sheet.
+  it('Done on the end sheet slides out on a phone, then leaves the game', () => {
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+      (query: string) =>
+        ({
+          matches: false,
+          media: query,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+        }) as unknown as MediaQueryList
+    );
+    seed();
+    useHordeGameStore.setState({ outcome: 'lost', phase: 'ended' });
+    render(<HordeTable />);
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    const sheet = document.querySelector('.horde-end-sheet')!;
+    expect(sheet.classList.contains('is-closing')).toBe(true);
+    expect(useHordeGameStore.getState().config).not.toBeNull();
+    fireEvent.animationEnd(sheet, { animationName: 'binder-sheet-slide-out' });
+    expect(useHordeGameStore.getState().config).toBeNull();
+  });
+
   function seedBattlefieldCard() {
     seed();
     // A card already on the battlefield gets its own id, distinct from any

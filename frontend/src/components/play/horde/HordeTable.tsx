@@ -386,6 +386,7 @@ export function HordeTable() {
           bossesBeaten={bossesBeaten}
           onPlayAgain={leaveGame}
           onDone={leaveGame}
+          doneCloses
         />
       )}
 

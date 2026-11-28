@@ -77,14 +77,14 @@ describe('HordeEndSheet and browser Back', () => {
   });
 });
 
-/** Solo and the paper table: Done ends the game outright, so it plays the
- *  sheet's exit like every other sheet. #3260 made Done call `onDone` at once
- *  for every parent, and the phone slide-out on Done went with it. */
+/** Solo and the paper table pass `doneCloses`: Done ends the game outright,
+ *  so it plays the sheet's exit like every other sheet. #3260 made Done call
+ *  `onDone` at once for every parent, and the phone slide-out went with it. */
 describe('HordeEndSheet Done where it ends the game', () => {
   it('plays the exit on a phone, then runs onDone once', () => {
     phone();
     const onDone = vi.fn();
-    render(<HordeEndSheet {...BASE} onDone={onDone} outcome="lost" hordeTurns={2} />);
+    render(<HordeEndSheet {...BASE} onDone={onDone} doneCloses outcome="lost" hordeTurns={2} />);
     fireEvent.click(screen.getByRole('button', { name: 'Done' }));
     const dialog = screen.getByRole('dialog');
     expect(dialog.classList.contains('is-closing')).toBe(true);
@@ -98,7 +98,7 @@ describe('HordeEndSheet Done where it ends the game', () => {
 
   it('runs onDone at once, with no exit, under reduced motion', () => {
     const onDone = vi.fn(); // beforeEach: prefers-reduced-motion matches
-    render(<HordeEndSheet {...BASE} onDone={onDone} outcome="won" hordeTurns={3} />);
+    render(<HordeEndSheet {...BASE} onDone={onDone} doneCloses outcome="won" hordeTurns={3} />);
     fireEvent.click(screen.getByRole('button', { name: 'Done' }));
     expect(onDone).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('dialog').classList.contains('is-closing')).toBe(false);
@@ -108,7 +108,7 @@ describe('HordeEndSheet Done where it ends the game', () => {
     phone();
     window.history.replaceState({ idx: 0 }, '', '/play/local');
     const onDone = vi.fn();
-    render(<HordeEndSheet {...BASE} onDone={onDone} outcome="lost" hordeTurns={2} />);
+    render(<HordeEndSheet {...BASE} onDone={onDone} doneCloses outcome="lost" hordeTurns={2} />);
     fireEvent.keyDown(document, { key: 'Escape' });
     window.history.back();
     const dialog = screen.getByRole('dialog');
@@ -129,9 +129,7 @@ describe('HordeEndSheet when the parent keeps it after Done', () => {
     vi.useFakeTimers();
     try {
       const onDone = vi.fn(); // the parent asks, the player cancels
-      render(
-        <HordeEndSheet {...BASE} onDone={onDone} doneAsksFirst outcome="lost" hordeTurns={2} />
-      );
+      render(<HordeEndSheet {...BASE} onDone={onDone} outcome="lost" hordeTurns={2} />);
       fireEvent.click(screen.getByRole('button', { name: 'Done' }));
       act(() => vi.advanceTimersByTime(700));
       expect(onDone).toHaveBeenCalledTimes(1);
@@ -154,15 +152,7 @@ describe('HordeEndSheet when the parent keeps it after Done', () => {
     try {
       // The online call site's shape: `onDone={() => void leaveTable()}`.
       const leave = vi.fn(() => Promise.reject(new Error('leave failed')));
-      render(
-        <HordeEndSheet
-          {...BASE}
-          onDone={() => void leave()}
-          doneAsksFirst
-          outcome="won"
-          hordeTurns={3}
-        />
-      );
+      render(<HordeEndSheet {...BASE} onDone={() => void leave()} outcome="won" hordeTurns={3} />);
       fireEvent.click(screen.getByRole('button', { name: 'Done' }));
       await act(() => new Promise((r) => setTimeout(r, 700)));
       expect(screen.getByRole('dialog').classList.contains('is-closing')).toBe(false);

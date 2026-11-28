@@ -128,7 +128,6 @@ export function BoardHordeSheets({
               }
               playAgainHint={onlineTable.isHost ? undefined : 'The host can start a rematch.'}
               onDone={() => void leaveTable()}
-              doneAsksFirst
             />
           )
         : horde?.outcome && (
@@ -145,6 +144,7 @@ export function BoardHordeSheets({
               endedOnTurn={turn}
               onPlayAgain={() => dispatch({ type: 'RESET' })}
               onDone={disarmHorde}
+              doneCloses
             />
           )}
 
