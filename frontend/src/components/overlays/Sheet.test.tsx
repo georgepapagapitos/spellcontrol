@@ -261,4 +261,31 @@ describe('Sheet: browser Back', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(window.location.pathname).toBe('/origin');
   });
+
+  // E1122: a sheet drops in-flight work when a close STARTS, not when its
+  // exit has finished, so nothing lands while it slides away.
+  it('runs onCloseStart when a close starts, before the exit and onClose', () => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    const onCloseStart = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <Sheet onClose={onClose} onCloseStart={onCloseStart} title="Re-check lands">
+        <p>body</p>
+      </Sheet>
+    );
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onCloseStart).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onCloseStart).toHaveBeenCalledTimes(1);
+    fireEvent.animationEnd(screen.getByRole('dialog'), {
+      animationName: 'binder-sheet-slide-out',
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

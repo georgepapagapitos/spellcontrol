@@ -54,9 +54,11 @@ interface Props {
    * browser-Back dismiss (Back is refused and the page stays put, as Modal
    * does), and no drag handle (users read the handle as "drag down to
    * dismiss", STYLE_GUIDE overlays appendix). Read live, so it can flip
-   * while the sheet is open (`dismissable={!applying}`).
+   * while the sheet is open.
    */
   dismissable?: boolean;
+  /** Runs once when a close starts, before the exit plays (see useSheetExit). */
+  onCloseStart?: () => void;
   /**
    * Render where it's mounted instead of portaling to <body>. Only for the
    * play table and playtest board, whose sheets stay inside the rotated seat
@@ -97,6 +99,7 @@ export function Sheet({
   className,
   rootClassName,
   dismissable = true,
+  onCloseStart,
   inPlace = false,
   ref,
   id,
@@ -110,7 +113,7 @@ export function Sheet({
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
     onClose,
     'binder-sheet-slide-out',
-    { instantAt: '(min-width: 1024px)', dismissable }
+    { instantAt: '(min-width: 1024px)', dismissable, onCloseStart }
   );
   const close = () => beginClose();
   useImperativeHandle(ref, () => ({ close: () => beginClose() }), [beginClose]);

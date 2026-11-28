@@ -135,6 +135,40 @@ describe('applyUpgradePlan', () => {
     }
   });
 
+  // E1122: a sheet lets the user leave during the lookup. The apply then
+  // rejects at once and the deck stays as it was when the lookup answers.
+  it('stops at once when its signal aborts, and lands nothing when the lookup answers', async () => {
+    let answer: (cards: Map<string, ScryfallCard>) => void = () => {};
+    getCardsByNames.mockImplementation(
+      () => new Promise<Map<string, ScryfallCard>>((resolve) => (answer = resolve))
+    );
+    const controller = new AbortController();
+    const run = applyUpgradePlan('d1', [{ addName: 'Harrow', cutName: 'Simic Signet' }], {
+      signal: controller.signal,
+    });
+    controller.abort();
+    const err = await run.catch((e: Error) => e);
+    expect((err as Error).name).toBe('AbortError');
+    answer(new Map([['Harrow', sc('Harrow')]]));
+    await flush();
+    expect(names()).toEqual(['Simic Signet', 'Ash Barrens', 'Island']);
+    expect(persistDecksState).not.toHaveBeenCalled();
+  });
+
+  it('lands nothing when the signal aborts in the same turn the lookup answers', async () => {
+    const controller = new AbortController();
+    getCardsByNames.mockImplementation(async (names: string[]) => {
+      const found = await resolveKnown(names);
+      controller.abort();
+      return found;
+    });
+    const err = await applyUpgradePlan('d1', [{ addName: 'Harrow', cutName: 'Simic Signet' }], {
+      signal: controller.signal,
+    }).catch((e: Error) => e);
+    expect((err as Error).name).toBe('AbortError');
+    expect(names()).toEqual(['Simic Signet', 'Ash Barrens', 'Island']);
+  });
+
   it('does nothing for a deck that is not there', async () => {
     expect(await applyUpgradePlan('nope', [{ addName: 'Harrow', cutName: null }])).toBe(0);
   });

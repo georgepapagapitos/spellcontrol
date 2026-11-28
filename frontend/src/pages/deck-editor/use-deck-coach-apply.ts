@@ -185,23 +185,34 @@ export function useDeckCoachApply({
   };
 
   // E458: apply the plan in place (one undo entry) or to a fresh copy, which
-  // leaves this list as it was. A copy the plan never reached is removed again.
-  const handleApplyPlan = async (steps: PlanStep[], toCopy: boolean) => {
+  // leaves this list as it was. The copy is made only once the card lookup has
+  // answered, so a plan the user walks away from (E1122) leaves nothing
+  // behind; a copy the plan then never reached is removed again.
+  const handleApplyPlan = async (steps: PlanStep[], toCopy: boolean, signal?: AbortSignal) => {
     if (!deck) return;
     const upgradedName = `${deck.name} (upgraded)`;
-    const targetId = toCopy ? duplicateDeck(deck.id) : deck.id;
-    if (!targetId) return;
-    if (toCopy) renameDeck(targetId, upgradedName);
+    let targetId: string | null = toCopy ? null : deck.id;
+    const makeCopy = () => {
+      targetId = duplicateDeck(deck.id);
+      if (targetId) renameDeck(targetId, upgradedName);
+      return targetId;
+    };
     let done = 0;
     let failure = "Couldn't apply the plan. Try again.";
     try {
-      done = await applyUpgradePlan(targetId, steps);
+      done = await applyUpgradePlan(deck.id, steps, {
+        signal,
+        target: toCopy ? makeCopy : undefined,
+      });
     } catch (err) {
+      // The sheet closed before the lookup answered: nothing changed, and
+      // there is nothing to say.
+      if (signal?.aborted) return;
       // A stalled card lookup rejects with its own copy (E1122); say that.
       failure = userMessage(err, failure);
     }
     if (done === 0) {
-      if (toCopy) deleteDeck(targetId);
+      if (toCopy && targetId) deleteDeck(targetId);
       pushToast({ message: failure, tone: 'error' });
       return;
     }

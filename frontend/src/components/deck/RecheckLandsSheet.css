@@ -39,3 +39,15 @@
 .recheck-lands-row.is-off > .deck-card-row {
   opacity: 0.6;
 }
+
+/* A failed apply says so in the footer, over the button that was pressed
+   (E1122): at the top of the list it sat off screen on a phone scrolled
+   down to Apply. */
+.recheck-lands-footer {
+  flex-wrap: wrap;
+}
+
+.recheck-lands-footer-error {
+  flex: 1 0 100%;
+  margin: 0;
+}

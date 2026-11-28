@@ -23,30 +23,49 @@ export interface PlanStep {
 }
 
 /**
- * How long the sheets that run this stay locked on the card lookup before the
- * apply gives up (E1122). Past the bulk lookup's own 30 s, so a stalled server
- * still gets its Scryfall fallback first.
+ * How long an apply waits on the card lookup before it gives up (E1122). Past
+ * the bulk lookup's own 30 s, so a stalled server still gets its Scryfall
+ * fallback first. A sheet can let the user walk away sooner (`signal`); this
+ * is the backstop for one who waits.
  */
 export const APPLY_LOOKUP_TIMEOUT_MS = 45_000;
 
 export const APPLY_LOOKUP_TIMEOUT_MESSAGE =
   'Looking up the cards took too long. Nothing changed. Try again.';
 
-/** The add cards, or a rejection once the lookup has run past the deadline,
- *  so a sheet that locks its exits while this runs always gets them back. */
-function lookupWithDeadline(names: string[]): ReturnType<typeof getCardsByNames> {
+const abandoned = () => Object.assign(new Error('Apply abandoned.'), { name: 'AbortError' });
+
+/** The add cards; a rejection once the lookup runs past the deadline, or at
+ *  once when `signal` aborts. */
+function lookupWithDeadline(
+  names: string[],
+  signal?: AbortSignal
+): ReturnType<typeof getCardsByNames> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(
-      () => reject(new Error(APPLY_LOOKUP_TIMEOUT_MESSAGE)),
-      APPLY_LOOKUP_TIMEOUT_MS
-    );
+    if (signal?.aborted) {
+      reject(abandoned());
+      return;
+    }
+    const done = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', onAbort);
+    };
+    const onAbort = () => {
+      done();
+      reject(abandoned());
+    };
+    const timer = setTimeout(() => {
+      done();
+      reject(new Error(APPLY_LOOKUP_TIMEOUT_MESSAGE));
+    }, APPLY_LOOKUP_TIMEOUT_MS);
+    signal?.addEventListener('abort', onAbort);
     getCardsByNames(names).then(
       (cards) => {
-        clearTimeout(timer);
+        done();
         resolve(cards);
       },
       (err: unknown) => {
-        clearTimeout(timer);
+        done();
         reject(err);
       }
     );
@@ -55,7 +74,10 @@ function lookupWithDeadline(names: string[]): ReturnType<typeof getCardsByNames>
 
 /** Returns how many steps landed. A card that won't resolve is skipped and
  *  its cut stays in the deck, so the deck never loses a slot. Rejects, with
- *  nothing changed, when the card lookup fails or runs past the deadline. */
+ *  nothing changed, when the card lookup fails or runs past the deadline, or
+ *  when `signal` aborts first (an `AbortError`: the user closed the sheet).
+ *  The lookup is the only wait; everything after it is one synchronous store
+ *  write, so an apply can always be abandoned up to that write. */
 export async function applyUpgradePlan(
   deckId: string,
   steps: PlanStep[],
@@ -65,10 +87,24 @@ export async function applyUpgradePlan(
     /** More fields to write with the cards, in the same store write and undo
      *  entry, given the steps that landed. */
     patch?: (deck: Deck, applied: PlanStep[]) => Partial<Deck>;
+    /** Aborted when the user leaves before the lookup answers. */
+    signal?: AbortSignal;
+    /** Makes the deck the plan lands in, once the lookup has answered and the
+     *  apply wasn't abandoned ("Apply to a copy"): a copy made up front had to
+     *  be taken back when the user left, with a "Deleted" toast. Defaults to
+     *  `deckId` itself. */
+    target?: () => string | null;
   } = {}
 ): Promise<number> {
-  const cards = await lookupWithDeadline(steps.map((s) => s.addName));
-  const deck = useDecksStore.getState().decks.find((d) => d.id === deckId);
+  const cards = await lookupWithDeadline(
+    steps.map((s) => s.addName),
+    options.signal
+  );
+  // The lookup can answer in the same turn the user leaves.
+  if (options.signal?.aborted) throw abandoned();
+  const targetId = options.target ? options.target() : deckId;
+  if (!targetId) return 0;
+  const deck = useDecksStore.getState().decks.find((d) => d.id === targetId);
   if (!deck) return 0;
 
   const allocations = buildAllocationMap(
@@ -98,7 +134,7 @@ export async function applyUpgradePlan(
     if (claim) {
       allocations.set(
         claim.copyId,
-        makeDeckAllocationInfo(deckId, deck.name, deck.color, step.addName)
+        makeDeckAllocationInfo(targetId, deck.name, deck.color, step.addName)
       );
     }
     if (slotId) cut.add(slotId);
@@ -113,8 +149,8 @@ export async function applyUpgradePlan(
   if (added.length === 0) return 0;
 
   const history = useDeckHistoryStore.getState();
-  const before = history.begin(deckId);
-  useDecksStore.getState().replaceDeck(deckId, {
+  const before = history.begin(targetId);
+  useDecksStore.getState().replaceDeck(targetId, {
     ...deck,
     ...options.patch?.(deck, applied),
     cards: [...deck.cards.filter((c) => !cut.has(c.slotId)), ...added],
@@ -123,7 +159,7 @@ export async function applyUpgradePlan(
     const label =
       options.label?.(added.length) ??
       `apply upgrade plan (${added.length} ${added.length === 1 ? 'card' : 'cards'})`;
-    history.commit(deckId, label, before);
+    history.commit(targetId, label, before);
   }
   return added.length;
 }

@@ -16,8 +16,14 @@ export interface RecheckLandsSheetProps {
   ownershipFor: (name: string) => ChangeOwnership;
   onClose: () => void;
   /** Apply the checked swaps (one undo entry is the caller's job); the
-   *  unchecked ones are declined, for the caller to remember. */
-  onApply: (swaps: LandRecheck['swaps'], declined: LandRecheck['swaps']) => Promise<void>;
+   *  unchecked ones are declined, for the caller to remember. `signal` aborts
+   *  when the sheet closes before the apply finishes: the caller must then
+   *  change nothing and say nothing. */
+  onApply: (
+    swaps: LandRecheck['swaps'],
+    declined: LandRecheck['swaps'],
+    signal: AbortSignal
+  ) => Promise<void>;
 }
 
 type Phase =
@@ -56,6 +62,10 @@ export function RecheckLandsSheet({
   const [applying, setApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
   const [showHidden, setShowHidden] = useState(false);
+  // The apply in flight. Closing the sheet abandons it: its only wait is the
+  // card lookup, and nothing lands until that answers (E1122).
+  const applyRef = useRef<AbortController | null>(null);
+  useEffect(() => () => applyRef.current?.abort(), []);
   // A run can't be canceled mid-flight; closing just drops its answer.
   // Re-armed on every mount (StrictMode runs the cleanup once after mount).
   const alive = useRef(true);
@@ -104,24 +114,31 @@ export function RecheckLandsSheet({
     setSkipped((prev) => new Set([...prev, ...hidden.map((_, i) => offered.length + i)]));
     setShowHidden(true);
   };
-  const toggle = (i: number) =>
+  const toggle = (i: number) => {
+    setApplyError(null);
     setSkipped((prev) => {
       const next = new Set(prev);
       if (next.has(i)) next.delete(i);
       else next.add(i);
       return next;
     });
+  };
 
   const apply = async () => {
+    const controller = new AbortController();
+    applyRef.current = controller;
     setApplying(true);
     setApplyError(null);
     try {
-      await onApply(chosen, declined);
-      sheetRef.current?.close();
+      await onApply(chosen, declined, controller.signal);
+      if (!controller.signal.aborted) sheetRef.current?.close();
     } catch (e) {
-      // The sheet stays open with its exits back, and says why (E1122).
+      // Left on purpose: nothing changed, and there is nothing to say.
+      if (controller.signal.aborted) return;
+      // The sheet stays open and says why, by the button that failed (E1122).
       if (alive.current) setApplyError(userMessage(e, "Couldn't apply the swaps. Try again."));
     } finally {
+      if (applyRef.current === controller) applyRef.current = null;
       if (alive.current) setApplying(false);
     }
   };
@@ -132,7 +149,7 @@ export function RecheckLandsSheet({
     <Sheet
       ref={sheetRef}
       onClose={onClose}
-      dismissable={!applying}
+      onCloseStart={() => applyRef.current?.abort()}
       className="review-sheet recheck-lands-sheet"
       title="Re-check lands"
       description={
@@ -141,8 +158,14 @@ export function RecheckLandsSheet({
           {RULE_LINE[strategy] ?? ''}
         </>
       }
+      footerClassName="recheck-lands-footer"
       footer={(close) => (
         <>
+          {phase.kind === 'review' && applyError && (
+            <div className="error-banner recheck-lands-footer-error" role="alert">
+              {applyError}
+            </div>
+          )}
           {phase.kind === 'building' && <Button onClick={() => close()}>Cancel</Button>}
           {phase.kind === 'error' && (
             <>
@@ -154,9 +177,7 @@ export function RecheckLandsSheet({
           )}
           {phase.kind === 'review' && (
             <>
-              <Button disabled={applying} onClick={() => close()}>
-                {swaps.length === 0 ? 'Close' : 'Cancel'}
-              </Button>
+              <Button onClick={() => close()}>{swaps.length === 0 ? 'Close' : 'Cancel'}</Button>
               {swaps.length > 0 && (
                 <Button
                   variant="primary"
@@ -192,11 +213,6 @@ export function RecheckLandsSheet({
 
         {phase.kind === 'review' && (
           <>
-            {applyError && (
-              <div className="error-banner" role="alert">
-                {applyError}
-              </div>
-            )}
             {swaps.length === 0 ? (
               <p className="review-sheet-lead">
                 {hidden.length > 0

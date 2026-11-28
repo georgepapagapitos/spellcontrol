@@ -10,8 +10,10 @@ vi.mock('@/lib/deck/recheck-lands', () => ({
   recheckLands: (...a: unknown[]) => recheckLands(...a),
 }));
 
-// Only the stalled-apply test drives the real apply path through this.
+// The apply tests drive the real apply path through this.
 const getCardsByNames = vi.fn();
+// The decks store persists through ./sync; nothing here reaches it.
+vi.mock('@/lib/sync', () => ({ persistDecksState: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('@/deck-builder/services/scryfall/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/deck-builder/services/scryfall/client')>()),
   getCardsByNames: (...a: unknown[]) => getCardsByNames(...a),
@@ -19,6 +21,9 @@ vi.mock('@/deck-builder/services/scryfall/client', async (importOriginal) => ({
 
 import { RecheckLandsSheet } from './RecheckLandsSheet';
 import { pending } from '@/test/pending';
+import { useDecksStore } from '@/store/decks';
+import { useDeckHistoryStore } from '@/store/deck-history';
+import { setApplyingServer } from '@/lib/sync/applying-server';
 import {
   applyUpgradePlan,
   APPLY_LOOKUP_TIMEOUT_MESSAGE,
@@ -73,7 +78,9 @@ describe('RecheckLandsSheet', () => {
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Swap Island for Cavern of Souls' }));
     fireEvent.click(screen.getByRole('button', { name: 'Apply 1 swap' }));
-    await waitFor(() => expect(onApply).toHaveBeenCalledWith([swaps[0]], [swaps[1]]));
+    await waitFor(() =>
+      expect(onApply).toHaveBeenCalledWith([swaps[0]], [swaps[1]], expect.any(AbortSignal))
+    );
   });
 
   it('says nothing changed when the picks are the same', async () => {
@@ -114,27 +121,59 @@ describe('RecheckLandsSheet', () => {
     }) as HTMLInputElement;
     expect(box.checked).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: 'Apply 1 swap' }));
-    await waitFor(() => expect(onApply).toHaveBeenCalledWith([offered], [declined]));
+    await waitFor(() =>
+      expect(onApply).toHaveBeenCalledWith([offered], [declined], expect.any(AbortSignal))
+    );
   });
 
-  // E1121: the sheet is `dismissable={!applying}`. Browser Back used to close
-  // it mid-apply anyway, because a sheet's Back path ignored `dismissable`.
-  it('holds against browser Back while the swaps apply, and closes on Back once a failed apply frees it', async () => {
-    window.history.replaceState({ idx: 0 }, '', '/deck');
+  // The swaps, applied the way DeckEditorOverlays applies them.
+  const realApply = async (
+    swaps: { out: ScryfallCard; in: ScryfallCard }[],
+    _declined: unknown,
+    signal: AbortSignal
+  ) => {
+    await applyUpgradePlan(
+      deck.id,
+      swaps.map((s) => ({ addName: s.in.name, cutName: s.out.name })),
+      { signal }
+    );
+  };
+  const oneSwap = () =>
     recheckLands.mockResolvedValue({
       swaps: [{ out: land('Halimar Depths'), in: land('Mystic Sanctuary') }],
       kept: [],
       inclusion: {},
       hidden: [],
     });
-    // The apply fails, so the sheet stays open with `applying` back to false:
-    // the one state where a Back after the apply has to be what closes it.
-    let fail = () => {};
-    const onApply = vi.fn(
-      () =>
-        new Promise<void>((_, reject) => {
-          fail = () => reject(new Error('apply failed'));
-        })
+  const seedDeck = () => {
+    setApplyingServer(false);
+    useDeckHistoryStore.getState().clear();
+    useDecksStore.setState({
+      hydrated: true,
+      decks: [
+        {
+          ...deck,
+          cards: [{ slotId: 's0', card: land('Halimar Depths'), allocatedCopyId: null }],
+        } as unknown as Deck,
+      ],
+    });
+  };
+  const deckCards = () => useDecksStore.getState().decks[0].cards.map((c) => c.card.name);
+
+  // E1122 (replaces the E1121 hold): the apply's only wait is the card lookup
+  // and nothing lands before it answers, so every exit stays live while it
+  // runs. Leaving abandons the apply; the deck is untouched when it answers.
+  it.each([
+    ['browser Back', () => window.history.back()],
+    ['Escape', () => fireEvent.keyDown(document, { key: 'Escape' })],
+    ['Cancel', () => fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))],
+  ])('%s during the card lookup closes the sheet and changes nothing', async (_, leave) => {
+    window.history.replaceState({ idx: 0 }, '', '/deck');
+    oneSwap();
+    seedDeck();
+    let answer: (cards: Map<string, ScryfallCard>) => void = () => {};
+    getCardsByNames.mockImplementation(
+      () => new Promise<Map<string, ScryfallCard>>((resolve) => (answer = resolve))
     );
     const onClose = vi.fn();
     render(
@@ -143,72 +182,60 @@ describe('RecheckLandsSheet', () => {
         env={{ collection: [], decks: [], cubes: [] }}
         ownershipFor={() => 'owned'}
         onClose={onClose}
-        onApply={onApply}
+        onApply={realApply}
       />
     );
     fireEvent.click(await screen.findByRole('button', { name: 'Apply 1 swap' }));
-    await waitFor(() => expect(onApply).toHaveBeenCalled());
+    await waitFor(() => expect(getCardsByNames).toHaveBeenCalled());
 
-    window.history.back();
-    expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(window.location.pathname).toBe('/deck');
-
-    fail();
-    await waitFor(() =>
-      expect(
-        (screen.getByRole('button', { name: 'Apply 1 swap' }) as HTMLButtonElement).disabled
-      ).toBe(false)
-    );
-    expect(onClose).not.toHaveBeenCalled();
-    window.history.back();
+    leave();
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+
+    answer(new Map([['Mystic Sanctuary', land('Mystic Sanctuary')]]));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(deckCards()).toEqual(['Halimar Depths']);
+    expect(useDeckHistoryStore.getState().undoLabel('d1')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
-  // E1122: every exit is locked while the swaps apply, and the card lookup
-  // had no timeout, so one that never answered kept the sheet open for good.
-  it('frees the sheet and says why when the card lookup never answers', async () => {
-    recheckLands.mockResolvedValue({
-      swaps: [{ out: land('Halimar Depths'), in: land('Mystic Sanctuary') }],
-      kept: [],
-      inclusion: {},
-      hidden: [],
-    });
+  // E1122: a user who waits gets the sheet back at the deadline, with the
+  // reason by the button they pressed, gone once they change the swaps.
+  it('says why by the Apply button when the card lookup never answers', async () => {
+    oneSwap();
+    seedDeck();
     getCardsByNames.mockImplementation(() => pending(new Map()));
-    const onClose = vi.fn();
     render(
       <RecheckLandsSheet
         deck={deck}
         env={{ collection: [], decks: [], cubes: [] }}
         ownershipFor={() => 'owned'}
-        onClose={onClose}
-        onApply={async (swaps) => {
-          await applyUpgradePlan(
-            deck.id,
-            swaps.map((s) => ({ addName: s.in.name, cutName: s.out.name }))
-          );
-        }}
+        onClose={vi.fn()}
+        onApply={realApply}
       />
     );
     const applyButton = (await screen.findByRole('button', {
       name: 'Apply 1 swap',
     })) as HTMLButtonElement;
-    const cancel = () => screen.getByRole('button', { name: 'Cancel' }) as HTMLButtonElement;
 
     vi.useFakeTimers();
     try {
       fireEvent.click(applyButton);
       await vi.advanceTimersByTimeAsync(0);
-      expect(cancel().disabled).toBe(true);
+      expect(applyButton.disabled).toBe(true);
       await vi.advanceTimersByTimeAsync(APPLY_LOOKUP_TIMEOUT_MS);
     } finally {
       vi.useRealTimers();
     }
 
-    await waitFor(() => expect(cancel().disabled).toBe(false));
-    expect(screen.getByRole('alert').textContent).toBe(APPLY_LOOKUP_TIMEOUT_MESSAGE);
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe(APPLY_LOOKUP_TIMEOUT_MESSAGE);
+    expect(alert.closest('.card-picker-footer')).not.toBeNull();
     expect(applyButton.disabled).toBe(false);
-    fireEvent.click(cancel());
-    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    expect(deckCards()).toEqual(['Halimar Depths']);
+
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: 'Swap Halimar Depths for Mystic Sanctuary' })
+    );
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

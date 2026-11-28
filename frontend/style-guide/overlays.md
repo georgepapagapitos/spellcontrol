@@ -31,8 +31,14 @@ where every section lives.
   (Move to deck's leading Back) stays off `<Sheet>` until a second one
   arrives. `dismissable={false}` is for a sheet that must
   be answered: no backdrop, Escape or browser-Back dismiss (Back is refused
-  and the page stays, as for a Modal), and no handle. It is read live, so
-  `dismissable={!applying}` locks the sheet only while the apply runs. An
+  and the page stays, as for a Modal), and no handle. It is read live, so a
+  sheet can lock only while something it can't take back is running. Waiting
+  on the network is not that: the re-check-lands and upgrade-plan sheets stay
+  dismissable while their apply looks up the cards, and closing either one
+  abandons the apply through `onCloseStart` (the apply's only wait is that
+  lookup, and nothing lands before it answers, E1122). An apply's error shows
+  in the footer over the button that was pressed, where a user who scrolled
+  down to it is looking, and clears on the next change to the swaps. An
   answer that ends the sheet outright still plays the exit (the footer's
   `close`); one that asks first and can be declined must not, or a Cancel
   finds the sheet half-closed with a dead button. The Horde end sheet makes

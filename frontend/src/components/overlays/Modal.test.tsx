@@ -314,3 +314,24 @@ describe('Modal Escape vs. sibling document listeners', () => {
     }
   });
 });
+
+// E1122: an apply the user walks away from is dropped when the close starts,
+// not after the exit has played.
+describe('Modal onCloseStart', () => {
+  it('runs once when Escape starts the close, before onClose', () => {
+    mockReducedMotion(false);
+    const onCloseStart = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <Modal onClose={onClose} onCloseStart={onCloseStart} label="Upgrade plan">
+        <button type="button">Apply</button>
+      </Modal>
+    );
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onCloseStart).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.animationEnd(screen.getByRole('dialog'), { animationName: 'modal-panel-out' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
