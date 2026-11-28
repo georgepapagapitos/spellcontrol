@@ -64,6 +64,42 @@ describe('DeckCustomizer as a step', () => {
   });
 });
 
+// E1115 (c): the folded line states what is behind the fold and differs from the defaults.
+// In the step, Staples ↔ Synergy is behind it, and lands and budget are not.
+describe('More settings summary, as a step', () => {
+  const moreToggle = () => screen.getByRole('button', { name: /More settings/ });
+
+  it('names Staples ↔ Synergy once it is off Balanced', () => {
+    render4({ brewLevel: 0.75 });
+    expect(moreToggle().textContent).toContain('Leaning synergy');
+  });
+
+  it('says nothing about Balanced, and never repeats the lands or budget set above it', () => {
+    render4({ brewLevel: 0.5, landCount: 37, deckBudget: 150 });
+    const text = moreToggle().textContent ?? '';
+    expect(text).not.toMatch(/Balanced|37 lands|150/);
+    // Nothing behind the fold differs from the defaults, so there is no summary at all.
+    expect(moreToggle().querySelector('.deck-customizer-group-summary')).toBeNull();
+  });
+
+  it('still lists what is changed behind the fold', () => {
+    render4({ brewLevel: 0, saltTolerance: 0 });
+    expect(moreToggle().textContent).toContain('Staples · Salt:');
+  });
+
+  it('the page-wide summary keeps its land count and leaves out the dial it shows up front', () => {
+    render(
+      <DeckCustomizer
+        customization={{ ...defaultCustomization, landCount: 37, brewLevel: 1 }}
+        update={vi.fn()}
+      />
+    );
+    const text = moreToggle().textContent ?? '';
+    expect(text).toContain('37 lands');
+    expect(text).not.toContain('Synergy');
+  });
+});
+
 describe('Cards from', () => {
   const group = () => screen.getByRole('group', { name: 'Cards from' });
 

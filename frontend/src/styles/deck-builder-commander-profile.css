@@ -14,6 +14,8 @@
   justify-content: space-between;
   gap: var(--space-2);
   width: 100%;
+  /* The kit Disclosure's touch floor: closed, the toggle is the row's only target. */
+  min-height: 44px;
   background: transparent;
   border: 0;
   padding: 0 0 var(--space-3) 0;
@@ -108,4 +110,21 @@
 
 .cmdr-profile.is-in-step .cmdr-profile-heading {
   font-size: var(--text-base);
+}
+
+/* Closed, the disclosure names its read ("Tokens"), as a kit Disclosure states its value.
+   The read is one word of at most 12 characters ("Spellslinger") and never shrinks; a long
+   commander name wraps the title instead ("What Hakbal of the Surging Soul wants"). */
+.cmdr-profile-toggle-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cmdr-profile-toggle-summary {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--text-secondary);
 }

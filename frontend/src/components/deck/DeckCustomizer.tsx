@@ -161,6 +161,7 @@ export function DeckCustomizer({ customization, update, step = false }: DeckCust
     </Disclosure>
   );
   const Shell = step ? 'div' : 'section';
+  const moreSummary = moreSettingsSummary(customization, step);
 
   return (
     <Shell className={step ? 'deck-customizer' : 'deck-builder-section deck-customizer'}>
@@ -201,10 +202,8 @@ export function DeckCustomizer({ customization, update, step = false }: DeckCust
             onClick={() => setMoreCollapsed((v) => !v)}
           >
             <span className="deck-customizer-more-title">More settings</span>
-            {moreCollapsed && (
-              <span className="deck-customizer-group-summary">
-                {moreSettingsSummary(customization)}
-              </span>
+            {moreCollapsed && moreSummary && (
+              <span className="deck-customizer-group-summary">{moreSummary}</span>
             )}
             <ChevronDown width={14} height={14} strokeWidth={1.8} aria-hidden />
           </button>
@@ -395,15 +394,19 @@ function poolSummary(c: Customization): string {
 const count = (n: number, one: string, many: string): string | null =>
   n > 0 ? `${n} ${n === 1 ? one : many}` : null;
 
-/** The folded "More settings" line: the land count, then only what differs
- *  from the defaults, so a changed setting is never hidden behind the fold. */
-export function moreSettingsSummary(c: Customization): string {
+/** The folded "More settings" line: what sits behind the fold, and of that only what
+ *  differs from the defaults, so a changed setting is never hidden. The page-wide
+ *  customizer folds lands and budget (the land count always shows); a generator step
+ *  keeps those up front and folds Staples ↔ Synergy instead. */
+export function moreSettingsSummary(c: Customization, step = false): string {
   const budget = budgetSummary(c);
   const pool = poolSummary(c);
   const salt = c.saltTolerance ?? 2;
+  const brew = (c.brewLevel ?? 0.5) as BrewStop;
   return [
-    `${c.landCount} lands`,
-    budget === 'No limits' ? null : budget,
+    step ? null : `${c.landCount} lands`,
+    step && brew !== 0.5 ? (BREW_LABELS[brew] ?? null) : null,
+    step || budget === 'No limits' ? null : budget,
     pool === 'Any card' ? null : pool,
     c.tempoAutoDetect ? null : `${tempoSummary(c)} tempo`,
     salt === 2 ? null : `Salt: ${SALT_LABELS[salt]}`,

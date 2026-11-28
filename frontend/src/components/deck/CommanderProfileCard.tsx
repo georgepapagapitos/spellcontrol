@@ -1,14 +1,18 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { useState } from 'react';
+import { useId } from 'react';
 import type { CommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
 import { ARCHETYPE_LABEL } from '@/deck-builder/services/deckBuilder/strategyVocabulary';
 import { useCollapsedPref } from '@/lib/util/use-collapsed-pref';
+
+const STEP_COLLAPSED_KEY = 'spellcontrol-generator-plan-collapsed';
 
 interface CommanderProfileCardProps {
   profile: CommanderProfile;
   /**
    * A disclosure inside generator step 1 (E1113): no section chrome, a `title` of its own
-   * ("What Giada wants"), and closed every time rather than remembering the last choice.
+   * ("What Giada wants"). It starts closed, because the summary row above already shows the
+   * rules text this breakdown quotes; closed, it names its read ("Tokens"), and it remembers
+   * the player's last open or closed choice under its own key.
    */
   title?: string;
 }
@@ -21,16 +25,18 @@ interface CommanderProfileCardProps {
 export function CommanderProfileCard({ profile, title }: CommanderProfileCardProps) {
   const { abilities, summary, primaryArchetype, voltronVetoed } = profile;
 
-  // Default to expanded — the commander breakdown is a discovery feature.
-  const [savedCollapsed, setSavedCollapsed] = useCollapsedPref(
-    'spellcontrol-game-plan-collapsed',
-    false
-  );
-  const [stepCollapsed, setStepCollapsed] = useState(true);
+  // The stand-alone card defaults to expanded (a discovery feature); the step disclosure
+  // defaults to closed. Each remembers its own choice.
   const inStep = title !== undefined;
-  const collapsed = inStep ? stepCollapsed : savedCollapsed;
-  const setCollapsed = inStep ? setStepCollapsed : setSavedCollapsed;
+  const [collapsed, setCollapsed] = useCollapsedPref(
+    inStep ? STEP_COLLAPSED_KEY : 'spellcontrol-game-plan-collapsed',
+    inStep
+  );
   const Heading = inStep ? 'h3' : 'h2';
+  const reads = ARCHETYPE_LABEL[primaryArchetype];
+  const showRead = inStep && collapsed;
+  const titleId = useId();
+  const readId = useId();
 
   return (
     <section className={inStep ? 'cmdr-profile is-in-step' : 'deck-builder-section cmdr-profile'}>
@@ -42,8 +48,19 @@ export function CommanderProfileCard({ profile, title }: CommanderProfileCardPro
           aria-controls="cmdr-profile-body"
           onClick={() => setCollapsed((c) => !c)}
           title={collapsed ? 'Expand commander breakdown' : 'Collapse commander breakdown'}
+          // The name (and so the heading's) is the title alone, open or closed; the read is
+          // announced as the description while it shows.
+          aria-labelledby={titleId}
+          aria-describedby={showRead ? readId : undefined}
         >
-          <span>{title ?? 'What your commander wants'}</span>
+          <span id={titleId} className="cmdr-profile-toggle-title">
+            {title ?? 'What your commander wants'}
+          </span>
+          {showRead && (
+            <span id={readId} className="cmdr-profile-toggle-summary">
+              {reads}
+            </span>
+          )}
           <span className="cmdr-profile-chevron" aria-hidden>
             {collapsed ? (
               <ChevronDown width={18} height={18} />
@@ -76,7 +93,7 @@ export function CommanderProfileCard({ profile, title }: CommanderProfileCardPro
         )}
 
         <p className="cmdr-profile-footer">
-          Reads as: <strong>{ARCHETYPE_LABEL[primaryArchetype]}</strong>,{' '}
+          Reads as: <strong>{reads}</strong>,{' '}
           {voltronVetoed ? 'from card text and EDHREC deck data.' : 'from card text.'}
         </p>
       </div>
