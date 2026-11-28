@@ -59,17 +59,48 @@ describe('CommanderProfileCard', () => {
     expect(container.textContent).not.toMatch(/preselected/i);
   });
 
-  // Inside generator step 1 (E1113) it is a disclosure that starts closed, whatever was saved.
+  // Inside generator step 1 (E1113) it is a disclosure. The summary row above it already
+  // shows the rules text the breakdown quotes, so on a first visit it starts closed.
   it('as a step disclosure it starts collapsed, opens on demand, and is a level-3 heading', () => {
-    localStorage.setItem('spellcontrol-game-plan-collapsed', 'false');
+    localStorage.clear();
+    // The stand-alone card's saved "open" does not open the step disclosure.
+    localStorage.setItem('spellcontrol-game-plan-collapsed', '0');
     render(<CommanderProfileCard profile={makeProfile()} title="What Giada wants" />);
     const toggle = screen.getByRole('button', { name: /What Giada wants/ });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(screen.getByRole('heading', { level: 3, name: /What Giada wants/ })).toBeTruthy();
-    const saved = localStorage.getItem('spellcontrol-game-plan-collapsed');
     fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     // The choice is not saved over the stand-alone card's.
-    expect(localStorage.getItem('spellcontrol-game-plan-collapsed')).toBe(saved);
+    expect(localStorage.getItem('spellcontrol-game-plan-collapsed')).toBe('0');
+  });
+
+  // E1115 (b): closed, a step disclosure states its read, as every kit Disclosure states its
+  // value, so a closed breakdown is never just a title.
+  it('closed, the step disclosure names what the commander reads as', () => {
+    localStorage.clear();
+    render(
+      <CommanderProfileCard
+        profile={makeProfile({ primaryArchetype: Archetype.TOKENS })}
+        title="What Giada wants"
+      />
+    );
+    const toggle = screen.getByRole('button', { name: /What Giada wants/ });
+    expect(toggle.textContent).toContain('Tokens');
+    fireEvent.click(toggle);
+    // Open, the footer says it instead.
+    expect(toggle.textContent).not.toContain('Tokens');
+  });
+
+  // E1115 (b): the step disclosure remembers the player's last choice, as More settings does.
+  it('the step disclosure reopens the way the player left it', () => {
+    localStorage.clear();
+    const first = render(<CommanderProfileCard profile={makeProfile()} title="What Giada wants" />);
+    fireEvent.click(screen.getByRole('button', { name: /What Giada wants/ }));
+    first.unmount();
+    render(<CommanderProfileCard profile={makeProfile()} title="What Sythis wants" />);
+    expect(
+      screen.getByRole('button', { name: /What Sythis wants/ }).getAttribute('aria-expanded')
+    ).toBe('true');
   });
 });

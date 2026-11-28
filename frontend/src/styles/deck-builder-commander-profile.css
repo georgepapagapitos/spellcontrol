@@ -109,3 +109,15 @@
 .cmdr-profile.is-in-step .cmdr-profile-heading {
   font-size: var(--text-base);
 }
+
+/* Closed, the disclosure names its read ("Tokens"), as a kit Disclosure states its value. */
+.cmdr-profile-toggle-summary {
+  margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--text-secondary);
+}

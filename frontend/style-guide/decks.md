@@ -1176,6 +1176,13 @@ bolted on. Rulings:
   decks" when it came from one, and **Change commander**. The art is the chosen
   printing's own (the copy you own, when you own one), never a lookup by name,
   and it opens the card preview.
+- **"What Giada wants" starts closed and states its read** (E1115, 2026-11-27).
+  The summary row above it already shows the rules text the breakdown quotes,
+  so open by default it would print that text twice and push Theme down a
+  phone screen. Closed, its header carries the archetype read ("Tokens"), the
+  way a kit `Disclosure` states its value, so it is never a bare title. It
+  remembers the player's last open or closed choice under its own key
+  (`spellcontrol-generator-plan-collapsed`), as More settings does.
 - **A commander can be read before it is picked.** Each finder tile carries a
   **View** icon button (top-right, outside the tile's pick button) that opens
   the one card preview over the tiles on screen, swipeable, with **Choose
@@ -1196,7 +1203,11 @@ bolted on. Rulings:
   (Any card, Mine first, Only mine; a strategy only the full control sets reads
   "Custom, set under More settings" and never a wrong choice), Lands and Budget
   are up front; Staples/Synergy, the full collection strategy, card pool, tempo,
-  salt, filters and card lists sit under **More settings**.
+  salt, filters and card lists sit under **More settings**. Closed, More
+  settings states what is behind it and differs from the defaults: Staples ↔
+  Synergy once it is off Balanced ("Leaning synergy"), then salt, tempo, mana,
+  pool, filters and card lists. It never repeats the lands or budget set above
+  it, and with nothing changed it shows no summary (E1115, 2026-11-27).
 - **"Your deck" is the recap and the two buttons.** From 1024px a sticky aside
   beside the steps (commander art, each choice made, the one-line hint, **Generate**
   as the primary and **Start blank**, with the reason when either is held); below
