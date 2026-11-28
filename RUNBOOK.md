@@ -240,8 +240,12 @@ remain, and each leaves a different trace:
   on every attempt; the heartbeat reports it about 6.5 minutes after boot
   (`database schema not ready <n> min after boot`) and the deploy run goes red
   ("the database schema never became ready"). Roll back. The two boot backfills
-  and the admin promotion run after the schema with their own retry, logged as
-  `[boot] <step> failed (attempt <n>)`, and do not hold routes closed.
+  and the admin promotion run after the schema and do not hold routes closed. A
+  backfill that fails logs `[game-results] backfill from user_games failed; will
+  retry next boot` or `[publications] color backfill failed; will retry next
+  boot` and does exactly that: it is tried once per boot. Only a failure before
+  it starts (its `app_migrations` check) and a failed admin promotion are
+  retried within the boot, logged as `[boot] <step> failed (attempt <n>)`.
 - `[server] listen failed - exiting so the platform can restart:`. The port is
   taken or not allowed.
 - The kernel kills the process for memory. The machine has 2048 MB and Node's

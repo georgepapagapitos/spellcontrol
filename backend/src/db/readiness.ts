@@ -76,15 +76,29 @@ export const NOT_READY_PAGE = `<!doctype html>
 </html>
 `;
 
+/**
+ * Express routes case-insensitively and ignores a trailing slash, so the gate
+ * compares paths the same way: `/LOGOUT/` is `/logout`. Anything that does not
+ * match an exception is gated, so a spelling the router accepts can never slip
+ * past to a handler that needs Postgres.
+ */
+function normalize(path: string): string {
+  return path.toLowerCase().replace(/\/+$/, '') || '/';
+}
+
 function under(path: string, prefix: string): boolean {
-  return path === prefix || path.startsWith(`${prefix}/`);
+  const p = normalize(path);
+  const q = normalize(prefix);
+  return p === q || p.startsWith(`${q}/`);
 }
 
 export interface DbGateOptions {
-  /** Paths under the mount that need no Postgres and pass while closed. */
+  /**
+   * Paths under the mount that need no Postgres and pass while closed. There
+   * is deliberately no "gate only these" option: an allowlist of exceptions
+   * fails closed when a route is added, a list of gated paths fails open.
+   */
   except?: string[];
-  /** Gate only these paths under the mount; everything else passes. */
-  only?: string[];
   /** Extra headers on the 503, for a client that reads its own signal. */
   headers?: Record<string, string>;
 }
@@ -97,11 +111,10 @@ export interface DbGateOptions {
  * browser navigation. Without it the request would wait out a connect timeout
  * and fail with a 500, or hit a table that does not exist yet.
  */
-export function dbGate({ except = [], only, headers }: DbGateOptions = {}): RequestHandler {
+export function dbGate({ except = [], headers }: DbGateOptions = {}): RequestHandler {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (ready) return next();
     if (except.some((p) => under(req.path, p))) return next();
-    if (only && !only.some((p) => under(req.path, p))) return next();
     if (headers) res.set(headers);
     res.set('Retry-After', String(DB_RETRY_AFTER_S));
     const navigation =

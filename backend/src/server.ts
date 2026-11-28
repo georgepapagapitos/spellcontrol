@@ -358,12 +358,9 @@ app.use('/api/edhrec', dbGate({ headers: { 'X-Edhrec-Cache': 'unavailable' } }),
 app.use('/api/mpc', mpcRouter);
 app.use('/api/shares', requireDb, sharesRouter);
 app.use('/api/feedback', requireDb, feedbackRouter);
-// The oracle bulk is SQLite-built; the combos bulk and the admin check are Postgres.
-app.use(
-  '/api/offline',
-  dbGate({ only: ['/manifest', '/combos', '/combos-version', '/admin'] }),
-  offlineRouter
-);
+// The oracle bulk is built from Scryfall into memory; every other offline
+// route (manifest, combos, combos-version, admin) reads Postgres.
+app.use('/api/offline', dbGate({ except: ['/oracle-cards'] }), offlineRouter);
 app.use('/api/scanner', scannerRouter);
 app.use('/api/friends', requireDb, friendsRouter);
 app.use('/api/users', requireDb, usersRouter);
@@ -1423,8 +1420,13 @@ async function start() {
 
   // The schema alone opens the gate, retried with backoff until Postgres
   // answers. The three steps start() used to await after it run once the gate
-  // is open, each with its own retry, so a lasting failure in one cannot hold
-  // every signed-in route at 503. None is needed before a route can answer:
+  // is open, so a lasting failure in one cannot hold every signed-in route at
+  // 503. `retryWithBackoff` only retries what throws: each backfill catches its
+  // own failure, logs "will retry next boot" and returns 0 with its
+  // app_migrations marker unset, so for them it covers only the marker check
+  // that runs first; a failed backfill runs again on the next boot, as before.
+  // The promotion's UPDATE throws, so it is retried. None of the three is
+  // needed before a route can answer:
   // both backfills are one-shots gated by app_migrations and already applied
   // in production (on a database that never ran them, History and publication
   // colors fill in seconds later), and the promotion only grants admin, so

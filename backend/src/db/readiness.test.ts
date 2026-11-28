@@ -52,17 +52,25 @@ describe('dbGate', () => {
     expect(post.body).toEqual({ error: DB_UNAVAILABLE_ERROR, requestId: 'req-1' });
   });
 
-  it('passes `except` paths and paths outside `only`, and adds `headers`', async () => {
-    const except = gatedApp(dbGate({ except: ['/logout'] }));
-    expect((await request(except).post('/api/x/logout')).status).toBe(200);
-    expect((await request(except).post('/api/x/logout-all')).status).toBe(503);
-
-    const only = gatedApp(dbGate({ only: ['/combos'], headers: { 'X-Test': 'closed' } }));
-    expect((await request(only).get('/api/x/oracle-cards')).status).toBe(200);
-    expect((await request(only).get('/api/x/combos-version')).status).toBe(200);
-    const closed = await request(only).get('/api/x/combos');
-    expect(closed.status).toBe(503);
-    expect(closed.headers['x-test']).toBe('closed');
+  it('passes `except` paths, matched the way Express routes, and adds `headers`', async () => {
+    const app = gatedApp(dbGate({ except: ['/oracle-cards'], headers: { 'X-Test': 'closed' } }));
+    // Express would route all of these to /oracle-cards, so they pass.
+    for (const p of ['/oracle-cards', '/ORACLE-CARDS', '/oracle-cards/']) {
+      expect((await request(app).get(`/api/x${p}`)).status, p).toBe(200);
+    }
+    // Express routes /COMBOS to the /combos handler, so the gate must close it
+    // too; a case-sensitive comparison let it through to Postgres.
+    for (const p of ['/combos', '/COMBOS', '/Combos/', '/oracle-cards-v2']) {
+      const closed = await request(app).get(`/api/x${p}`);
+      expect(closed.status, p).toBe(503);
+      expect(closed.headers['x-test']).toBe('closed');
+    }
+    // Sign-out passes however it is spelled; the route only clears the cookie.
+    const auth = gatedApp(dbGate({ except: ['/logout'] }));
+    for (const p of ['/logout', '/LOGOUT', '/logout/']) {
+      expect((await request(auth).post(`/api/x${p}`)).status, p).toBe(200);
+    }
+    expect((await request(auth).post('/api/x/logout-all')).status).toBe(503);
   });
 
   it('passes everything once the schema is ready', async () => {

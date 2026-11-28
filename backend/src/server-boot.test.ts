@@ -209,6 +209,14 @@ describe('server boot with Postgres unreachable (E1120)', () => {
     expect(page.headers.get('x-edhrec-cache')).toBe('unavailable');
 
     expect((await get('/sitemap.xml')).status).toBe(503);
+
+    // Express routes /COMBOS to the combos handler, which reads Postgres. The
+    // gate must answer it (its own message), not let the route try the pool.
+    for (const p of ['/api/offline/combos', '/api/offline/COMBOS', '/api/offline/manifest/']) {
+      const closed = await get(p);
+      expect(closed.status, p).toBe(503);
+      expect(((await closed.json()) as { error?: string }).error, p).toBe(body.error);
+    }
   });
 
   it('serves a browser navigation to a closed route a page that retries, not JSON', async () => {
