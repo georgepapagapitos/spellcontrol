@@ -25,6 +25,11 @@ interface Props {
    *  that would bounce — `playAgainHint` explains why instead. */
   onPlayAgain?(): void;
   onDone(): void;
+  /** True when `onDone` asks first and can be declined (an online table's
+   *  "Leave the table?"). Done then calls `onDone` with no exit, so a Cancel
+   *  comes back to a live sheet. Otherwise Done plays the sheet's exit, like
+   *  every other sheet, and `onDone` runs when it ends. */
+  doneAsksFirst?: boolean;
   /** Online co-op (E387): 'Rematch' host-side, 'Play again' everywhere else. */
   playAgainLabel?: string;
   /** Online co-op (E387): 'Leave table' at a table, 'Done' solo. */
@@ -49,6 +54,7 @@ export function HordeEndSheet({
   endedOnTurn,
   onPlayAgain,
   onDone,
+  doneAsksFirst = false,
   playAgainLabel = 'Play again',
   doneLabel = 'Done',
   playAgainHint,
@@ -61,12 +67,14 @@ export function HordeEndSheet({
   const headline =
     outcome === 'won' ? 'The horde is gone' : `Overrun on turn ${endedOnTurn ?? hordeTurns}`;
 
-  // Done calls `onDone` straight away instead of playing the sheet's exit
-  // first: at an online table it asks "Leave the table?", and a Cancel there
-  // must come back to a live sheet. Routed through the exit, the sheet was
-  // already half-closed by then and its Done did nothing ever again. The
-  // parent unmounts the sheet once leaving really happens. Nothing else
-  // closes it (it isn't dismissable), so `onClose` is never reached.
+  // Where Done ends the game outright (solo, the paper table), it plays the
+  // exit and `onClose` runs `onDone` once the slide-out ends (at once under
+  // reduced motion or on desktop). Where Done asks first (`doneAsksFirst`),
+  // it calls `onDone` straight away: a Cancel there must come back to a live
+  // sheet, and one routed through the exit was already half-closed by then,
+  // its Done dead for good (#3260). That parent unmounts the sheet once the
+  // leave really happens. Nothing else closes it: it isn't dismissable, so
+  // Escape and Back are refused.
   return (
     <Sheet
       inPlace
@@ -74,9 +82,9 @@ export function HordeEndSheet({
       onClose={onDone}
       className="horde-end-sheet"
       title={headline}
-      footer={
+      footer={(close) => (
         <>
-          <Button onClick={() => onDone()}>{doneLabel}</Button>
+          <Button onClick={() => (doneAsksFirst ? onDone() : close())}>{doneLabel}</Button>
           {onPlayAgain ? (
             <Button variant="primary" onClick={onPlayAgain}>
               {playAgainLabel}
@@ -85,7 +93,7 @@ export function HordeEndSheet({
             playAgainHint && <p className="horde-end-hint">{playAgainHint}</p>
           )}
         </>
-      }
+      )}
     >
       <div className="card-picker-list horde-end-body">
         <ul className="horde-end-stats">
