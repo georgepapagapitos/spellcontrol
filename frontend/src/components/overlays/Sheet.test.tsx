@@ -242,21 +242,21 @@ describe('Sheet: browser Back', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('follows dismissable as it changes while open (RecheckLandsSheet mid-apply)', () => {
+  it('follows dismissable as it flips while open', () => {
     const onClose = vi.fn();
     const sheet = (dismissable: boolean) => (
-      <Sheet onClose={onClose} title="Re-check lands" dismissable={dismissable}>
+      <Sheet onClose={onClose} title="Confirm" dismissable={dismissable}>
         <p>body</p>
       </Sheet>
     );
     const { rerender } = render(sheet(true));
-    rerender(sheet(false)); // Apply pressed: the sheet must be answered now
+    rerender(sheet(false)); // now it must be answered
     window.history.back();
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
     expect(window.location.pathname).toBe('/origin');
 
-    rerender(sheet(true)); // the apply failed and the sheet is dismissable again
+    rerender(sheet(true)); // and now it may be dismissed again
     window.history.back();
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(window.location.pathname).toBe('/origin');

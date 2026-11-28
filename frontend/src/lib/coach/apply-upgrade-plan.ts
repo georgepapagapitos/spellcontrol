@@ -87,14 +87,16 @@ export async function applyUpgradePlan(
     /** More fields to write with the cards, in the same store write and undo
      *  entry, given the steps that landed. */
     patch?: (deck: Deck, applied: PlanStep[]) => Partial<Deck>;
-    /** Aborted when the user leaves before the lookup answers. */
-    signal?: AbortSignal;
+    /** Aborted when the user leaves before the lookup answers. Required, so a
+     *  caller that drops it fails typecheck instead of applying a plan the
+     *  user already walked away from (the Coach feed's wrapper did, E1122). */
+    signal: AbortSignal;
     /** Makes the deck the plan lands in, once the lookup has answered and the
      *  apply wasn't abandoned ("Apply to a copy"): a copy made up front had to
      *  be taken back when the user left, with a "Deleted" toast. Defaults to
      *  `deckId` itself. */
     target?: () => string | null;
-  } = {}
+  }
 ): Promise<number> {
   const cards = await lookupWithDeadline(
     steps.map((s) => s.addName),

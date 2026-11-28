@@ -78,6 +78,40 @@ describe('fetchWithAbortTimeout', () => {
     expect((at() as Error).message).toBe('Timed out.');
   });
 
+  // The deadline must cancel the request itself, not only stop waiting on it:
+  // a real fetch (and its body stream) settles on the abort.
+  it('aborts the request at the deadline, mid-request and mid-body', async () => {
+    vi.useFakeTimers();
+    const signals: AbortSignal[] = [];
+    let readCancelled = false;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, init: RequestInit) => {
+        const signal = init.signal!;
+        signals.push(signal);
+        return Promise.resolve({
+          ok: true,
+          // A body that streams until the request is aborted.
+          json: () =>
+            new Promise((_, reject) => {
+              signal.addEventListener('abort', () => {
+                readCancelled = true;
+                reject(Object.assign(new Error('aborted'), { name: 'AbortError' }));
+              });
+            }),
+        });
+      })
+    );
+    const run = fetchWithAbortTimeout('/api/x', {}, 1000, 'Timed out.', (res) => res.json());
+    const outcome = run.catch((e: Error) => e);
+    await vi.advanceTimersByTimeAsync(999);
+    expect(signals[0].aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(signals[0].aborted).toBe(true);
+    expect(readCancelled).toBe(true);
+    expect(((await outcome) as Error).message).toBe('Timed out.');
+  });
+
   it('maps only a failure of the request itself through onFetchError', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
     const transport = await fetchWithAbortTimeout(

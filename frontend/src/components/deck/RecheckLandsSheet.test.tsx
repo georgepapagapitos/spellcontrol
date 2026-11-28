@@ -238,4 +238,18 @@ describe('RecheckLandsSheet', () => {
     );
     expect(screen.queryByRole('alert')).toBeNull();
   });
+
+  it("clears a failed apply's message when hidden swaps are shown", async () => {
+    recheckLands.mockResolvedValue({
+      swaps: [{ out: land('Halimar Depths'), in: land('Mystic Sanctuary') }],
+      kept: [],
+      inclusion: {},
+      hidden: [{ out: land('Otawara, Soaring City'), in: land('Mana Confluence') }],
+    });
+    renderSheet(vi.fn().mockRejectedValue(new Error("Couldn't find those lands. Try again.")));
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply 1 swap' }));
+    await screen.findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: 'Show it' }));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
 });

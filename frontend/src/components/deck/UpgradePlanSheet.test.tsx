@@ -373,8 +373,9 @@ describe('UpgradePlanSheet', () => {
   });
 });
 
-/** The plan sheet wired the way DeckEditorLayout wires it: the real
- *  handleApplyPlan, which applies and toasts, and closes the sheet on success. */
+/** The sheet over the real handleApplyPlan, which applies, toasts and closes
+ *  the sheet on success. It skips CoachFeed, the sheet's only host, whose
+ *  wrapper sits in between in the app: CoachFeed.plan.test.tsx covers that. */
 describe('UpgradePlanSheet apply, end to end', () => {
   const card = (name: string) => ({ id: `sf-${name}`, name }) as unknown as ScryfallCard;
   const DECK_CARDS = ['Kefnet the Mindful', 'Skaab Ruinator', 'Kianne', 'Body of Knowledge'];
@@ -398,7 +399,14 @@ describe('UpgradePlanSheet apply, end to end', () => {
       setPlanOpen: setOpen,
     });
     return open ? (
-      <UpgradePlanSheet {...props({ onApply: handleApplyPlan, onClose: () => setOpen(false) })} />
+      <UpgradePlanSheet
+        {...props({
+          onApply: async (steps, toCopy, signal) => {
+            await handleApplyPlan(steps, toCopy, signal);
+          },
+          onClose: () => setOpen(false),
+        })}
+      />
     ) : null;
   }
 

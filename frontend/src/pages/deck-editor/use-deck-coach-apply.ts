@@ -188,8 +188,14 @@ export function useDeckCoachApply({
   // leaves this list as it was. The copy is made only once the card lookup has
   // answered, so a plan the user walks away from (E1122) leaves nothing
   // behind; a copy the plan then never reached is removed again.
-  const handleApplyPlan = async (steps: PlanStep[], toCopy: boolean, signal?: AbortSignal) => {
-    if (!deck) return;
+  // Resolves with how many steps landed: 0 when nothing did, or when the
+  // sheet closed first (`signal`), so the caller records only a real accept.
+  const handleApplyPlan = async (
+    steps: PlanStep[],
+    toCopy: boolean,
+    signal: AbortSignal
+  ): Promise<number> => {
+    if (!deck) return 0;
     const upgradedName = `${deck.name} (upgraded)`;
     let targetId: string | null = toCopy ? null : deck.id;
     const makeCopy = () => {
@@ -207,14 +213,14 @@ export function useDeckCoachApply({
     } catch (err) {
       // The sheet closed before the lookup answered: nothing changed, and
       // there is nothing to say.
-      if (signal?.aborted) return;
+      if (signal.aborted) return 0;
       // A stalled card lookup rejects with its own copy (E1122); say that.
       failure = userMessage(err, failure);
     }
     if (done === 0) {
       if (toCopy && targetId) deleteDeck(targetId);
       pushToast({ message: failure, tone: 'error' });
-      return;
+      return 0;
     }
     setPlanOpen(false);
     if (toCopy) {
@@ -232,6 +238,7 @@ export function useDeckCoachApply({
         onAction: () => undoEdit(deck.id),
       });
     }
+    return done;
   };
 
   return {

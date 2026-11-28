@@ -198,7 +198,9 @@ export interface CoachFeedProps {
     tools: UpgradePlanTools | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onApply: (steps: PlanStep[], toCopy: boolean) => Promise<void>;
+    /** Resolves with how many steps landed (0 when none did or the sheet
+     *  closed first). `signal` is required so no wrapper can drop it. */
+    onApply: (steps: PlanStep[], toCopy: boolean, signal: AbortSignal) => Promise<number>;
   };
 }
 
@@ -703,9 +705,11 @@ export function CoachFeed({
       judge={planJudge.status === 'ready' ? planJudge.judge : undefined}
       edhrecMissing={edhrecMissing}
       onRetry={onRetryAnalysis}
-      onApply={(steps, toCopy) => {
-        labels.acceptPlan(steps);
-        return upgradePlan.onApply(steps, toCopy);
+      onApply={async (steps, toCopy, signal) => {
+        // Labelled once the plan has landed: an apply that failed or that the
+        // user walked away from accepted nothing.
+        const landed = await upgradePlan.onApply(steps, toCopy, signal);
+        if (landed > 0) labels.acceptPlan(steps);
       }}
       onClose={() => upgradePlan.onOpenChange(false)}
     />

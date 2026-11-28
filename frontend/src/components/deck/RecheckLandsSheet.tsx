@@ -110,7 +110,10 @@ export function RecheckLandsSheet({
   const swaps = showHidden ? [...offered, ...hidden] : offered;
   const chosen = swaps.filter((_, i) => !skipped.has(i));
   const declined = swaps.filter((_, i) => skipped.has(i));
+  // Any change to the swaps clears a failed apply's message: it was about
+  // the swaps as they were.
   const reveal = () => {
+    setApplyError(null);
     setSkipped((prev) => new Set([...prev, ...hidden.map((_, i) => offered.length + i)]));
     setShowHidden(true);
   };

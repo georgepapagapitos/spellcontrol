@@ -28,6 +28,9 @@ vi.mock('@/deck-builder/services/scryfall/client', () => ({
   getCardsByNames: (names: string[]) => getCardsByNames(names),
 }));
 
+/** Options for an apply nobody walks away from. */
+const live = () => ({ signal: new AbortController().signal });
+
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
 function deck(cards: string[]): Deck {
@@ -69,11 +72,15 @@ describe('applyUpgradePlan', () => {
   });
 
   it('swaps, fills, and claims a free owned copy in one write and one undo', async () => {
-    const done = await applyUpgradePlan('d1', [
-      { addName: 'Harrow', cutName: 'Simic Signet' },
-      { addName: 'Escape Tunnel', cutName: 'Ash Barrens' },
-      { addName: 'Farseek', cutName: null },
-    ]);
+    const done = await applyUpgradePlan(
+      'd1',
+      [
+        { addName: 'Harrow', cutName: 'Simic Signet' },
+        { addName: 'Escape Tunnel', cutName: 'Ash Barrens' },
+        { addName: 'Farseek', cutName: null },
+      ],
+      live()
+    );
     await flush();
     expect(done).toBe(3);
     expect(names()).toEqual(['Island', 'Harrow', 'Escape Tunnel', 'Farseek']);
@@ -86,10 +93,14 @@ describe('applyUpgradePlan', () => {
   });
 
   it('keeps the cut when its replacement will not resolve', async () => {
-    const done = await applyUpgradePlan('d1', [
-      { addName: 'Not A Card', cutName: 'Simic Signet' },
-      { addName: 'Harrow', cutName: 'Gone Already' },
-    ]);
+    const done = await applyUpgradePlan(
+      'd1',
+      [
+        { addName: 'Not A Card', cutName: 'Simic Signet' },
+        { addName: 'Harrow', cutName: 'Gone Already' },
+      ],
+      live()
+    );
     expect(done).toBe(0);
     expect(names()).toEqual(['Simic Signet', 'Ash Barrens', 'Island']);
   });
@@ -102,7 +113,7 @@ describe('applyUpgradePlan', () => {
         { addName: 'Harrow', cutName: 'Simic Signet' },
         { addName: 'Not A Card', cutName: 'Ash Barrens' },
       ],
-      { label: (n) => `re-check lands (${n})`, patch }
+      { ...live(), label: (n) => `re-check lands (${n})`, patch }
     );
     await flush();
     expect(patch.mock.calls[0][1]).toEqual([{ addName: 'Harrow', cutName: 'Simic Signet' }]);
@@ -120,7 +131,7 @@ describe('applyUpgradePlan', () => {
     try {
       getCardsByNames.mockImplementation(() => pending(new Map()));
       let outcome: unknown = 'pending';
-      void applyUpgradePlan('d1', [{ addName: 'Harrow', cutName: 'Simic Signet' }]).then(
+      void applyUpgradePlan('d1', [{ addName: 'Harrow', cutName: 'Simic Signet' }], live()).then(
         (n) => (outcome = n),
         (err: unknown) => (outcome = err)
       );
@@ -170,6 +181,6 @@ describe('applyUpgradePlan', () => {
   });
 
   it('does nothing for a deck that is not there', async () => {
-    expect(await applyUpgradePlan('nope', [{ addName: 'Harrow', cutName: null }])).toBe(0);
+    expect(await applyUpgradePlan('nope', [{ addName: 'Harrow', cutName: null }], live())).toBe(0);
   });
 });
