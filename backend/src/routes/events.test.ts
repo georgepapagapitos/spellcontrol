@@ -5,6 +5,7 @@ import type { Pool } from 'pg';
 import { sql } from 'drizzle-orm';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { getDb } from '../db';
+import { markDbReadyForTesting, resetDbReadinessForTesting } from '../db/readiness';
 import {
   COUNT_ROWS_PER_DAY,
   ERROR_BURST_DEFAULT_THRESHOLD,
@@ -157,6 +158,31 @@ describe('POST /api/events {name:"error"}', () => {
       ])
     );
     expect(await recentErrorCount(5)).toBe(1);
+  });
+});
+
+describe('POST /api/events before the schema is ready (E1120)', () => {
+  afterAll(() => markDbReadyForTesting());
+
+  it('answers 204, writes nothing, and still counts a client error for the burst alert', async () => {
+    await pool.query('DELETE FROM error_counts');
+    await pool.query('DELETE FROM event_counts');
+    await pool.query('DELETE FROM vital_counts');
+    resetErrorHits();
+    resetDbReadinessForTesting();
+    const send = (body: object) => request(app).post('/api/events').send(body);
+    expect((await send({ name: 'pageview', path: '/' })).status).toBe(204);
+    expect((await send({ name: 'vital', path: '/', metric: 'LCP', value: 1 })).status).toBe(204);
+    expect((await send({ name: 'error', path: '/', kind: 'error', message: 'boom' })).status).toBe(
+      204
+    );
+    expect(await recentErrorCount(5)).toBe(1);
+    expect(await count('pageview', '/')).toBe(0);
+    const tables = ['error_counts', 'vital_counts'];
+    for (const t of tables) {
+      const { rows } = await pool.query<{ n: number }>(`SELECT count(*)::int AS n FROM ${t}`);
+      expect(rows[0].n, t).toBe(0);
+    }
   });
 });
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { probeAndPing } from './heartbeat';
+import { SCHEMA_READY_GRACE_MS, probeAndPing } from './heartbeat';
 
 vi.mock('./logger', () => ({ logger: { error: vi.fn(), info: vi.fn() } }));
 
@@ -78,6 +78,33 @@ describe('probeAndPing', () => {
     const b = stubFetch(async () => Response.json({ ok: true }));
     await expect(probeAndPing(PING, ORIGIN, undefined, blip)).resolves.toBe(true);
     expect(b.calls).toEqual([`${ORIGIN}/health`, PING]);
+  });
+
+  it('pings /fail when the schema is still not ready past the grace period (E1120)', async () => {
+    const bootAt = 1_000_000;
+    const up = async () => undefined;
+    const notReady = { isReady: () => false, bootAt };
+
+    // Inside the grace period a slow boot (a Neon wake) stays green.
+    const early = stubFetch(async () => Response.json({ ok: true }));
+    const at = bootAt + SCHEMA_READY_GRACE_MS;
+    await expect(probeAndPing(PING, ORIGIN, undefined, up, notReady, at)).resolves.toBe(true);
+    expect(early.calls).toEqual([`${ORIGIN}/health`, PING]);
+
+    // Past it, with /health 200 and SELECT 1 answering, it still reports.
+    const late = stubFetch(async () => Response.json({ ok: true }));
+    await expect(
+      probeAndPing(PING, ORIGIN, undefined, up, notReady, at + 2 * 60_000)
+    ).resolves.toBe(false);
+    expect(late.calls).toEqual([`${ORIGIN}/health`, `${PING}/fail`]);
+    expect(late.bodies[0]).toMatch(/database schema not ready 7 min after boot/);
+
+    // Ready long after boot is green.
+    const ready = stubFetch(async () => Response.json({ ok: true }));
+    await expect(
+      probeAndPing(PING, ORIGIN, undefined, up, { isReady: () => true, bootAt }, at * 2)
+    ).resolves.toBe(true);
+    expect(ready.calls).toEqual([`${ORIGIN}/health`, PING]);
   });
 
   it('survives the ping delivery itself failing', async () => {

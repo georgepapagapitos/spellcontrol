@@ -102,3 +102,32 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           VITE_GOOGLE_API_KEY: ${{ secrets.VITE_GOOGLE_API_KEY }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+
+      # The server listens before it reaches Postgres (E1120), and Fly's check
+      # is liveness only on purpose, so `flyctl deploy` goes green as soon as
+      # /health answers. A release whose schema statement fails every time
+      # would then ship with every signed-in route at 503 and nothing red.
+      # This waits for the boot to report `dbReady`.
+      #
+      # The 3-minute window is for a healthy boot that is merely slow: a Neon
+      # compute waking takes seconds, and the schema retry backs off to 30 s,
+      # so a database that answers within about two minutes still passes.
+      #
+      # Which machine this reads: /health carries no release identifier, so
+      # this cannot compare one. It relies on the app being one machine with
+      # one volume (fly.toml): `flyctl deploy` replaces that machine in place
+      # and waits for its check before returning, so no old process is left to
+      # answer. If the app ever runs a second machine, this step must compare a
+      # release id instead.
+      - name: Wait for the database schema
+        run: |
+          deadline=$((SECONDS + 180))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            if curl -fsS -m 15 https://spellcontrol.com/health | jq -e '.dbReady == true' >/dev/null 2>&1; then
+              echo "dbReady after about ${SECONDS}s"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error title=Deployed, but the database schema never became ready::/health has not reported dbReady:true for 3 minutes, so every signed-in route is answering 503. Read the logs for '[db] schema not ready' (flyctl logs --app spellcontrol-api --no-tail). If the database answers and the same schema error repeats, roll back: RUNBOOK.md, 'Roll back a bad release'. If the database itself is down, see 'Database unreachable'."
+          exit 1

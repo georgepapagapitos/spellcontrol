@@ -10,11 +10,20 @@ import helmet from 'helmet';
 import multer from 'multer';
 import path from 'path';
 import { Worker } from 'node:worker_threads';
+import type { AddressInfo } from 'node:net';
 import { existsSync } from 'fs';
 import { gzip } from 'node:zlib';
 import { DB_PATH, getScryfallCache, buildPriceRefreshPayload } from './scryfall-cache';
 import { resolveOracleFacts, ORACLE_REQUEST_LIMIT, type OracleRequest } from './oracle-facts';
 import { closeDb, ensureSchema, getPool } from './db';
+import {
+  dbGate,
+  isDbReady,
+  prepareDatabase,
+  requireDb,
+  retryWithBackoff,
+  whenDbReady,
+} from './db/readiness';
 import { backfillResultsFromUserGames } from './games/backfill-results';
 import { backfillPublicationColors } from './publications/backfill-colors';
 import { testAwareLimiter } from './route-utils';
@@ -140,9 +149,13 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3737;
  * - This app runs as a single Fly machine (`min_machines_running = 1`), so
  *   `process.exit()` is a total outage, not a drained instance. There is no
  *   sibling to take the traffic.
- * - A process genuinely wedged past recovery still gets caught: it stops
- *   answering `/health` and Fly replaces it. That path is already load-bearing
- *   and does not need our help.
+ * - A process genuinely wedged past recovery is NOT replaced for us. It stops
+ *   answering `/health`, and Fly's proxy stops routing to the machine until the
+ *   check passes again. Fly never restarts or stops a machine because a check
+ *   fails (its health-check docs say so, checked 2026-11-27), so a wedged single
+ *   machine serves 503 until someone runs `flyctl machine restart` (RUNBOOK.md,
+ *   "503 or very slow responses"). Exiting here would not change that for the
+ *   stray-error case, and the restart it buys is the outage described above.
  *
  * So: stay up, and make the failure **loud** instead of invisible. A logged
  * stack that costs one degraded background job beats a silent restart that
@@ -320,40 +333,56 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 mountBodyParsers(app);
 
+// `requireDb` / `dbGate(...)` goes in front of every router that touches
+// Postgres: until the boot has applied the schema those answer 503 +
+// Retry-After (db/readiness.ts, E1120). Routers without it read only the SQLite
+// cache or third parties and serve from the first second. server-db-gate.test.ts
+// fails when a router reaches db/index.ts without one.
 app.use('/api/cards', cardImagesRouter);
 app.use('/api/cards', cardLookupRouter);
-app.use('/api/auth', authRouter);
-app.use('/api/admin/bracket-votes', adminBracketVotesRouter);
-app.use('/api/admin', adminRouter);
-app.use('/api/sync', syncRouter);
-app.use('/api/games', gamesRouter);
-app.use('/api/game-results', gameResultsRouter);
-app.use('/api/combos', combosRouter);
-app.use('/api/aggregates', aggregatesRouter);
-app.use('/api/edhrec', edhrecRouter);
+// Signing out only clears the cookie. It must work while the database is down,
+// or the client wipes its local state while the httpOnly session cookie stays
+// behind, and on a shared device the next person is signed in as you.
+app.use('/api/auth', dbGate({ except: ['/logout'] }), authRouter);
+app.use('/api/admin/bracket-votes', requireDb, adminBracketVotesRouter);
+app.use('/api/admin', requireDb, adminRouter);
+app.use('/api/sync', requireDb, syncRouter);
+app.use('/api/games', requireDb, gamesRouter);
+app.use('/api/game-results', requireDb, gameResultsRouter);
+app.use('/api/combos', requireDb, combosRouter);
+app.use('/api/aggregates', requireDb, aggregatesRouter);
+// EDHREC pages are cached in Postgres. While it isn't ready, answer as the
+// route does when it can't reach EDHREC, so the browser fetches the page
+// itself (frontend deck-builder/services/edhrec/request.ts) and generation works.
+app.use('/api/edhrec', dbGate({ headers: { 'X-Edhrec-Cache': 'unavailable' } }), edhrecRouter);
 app.use('/api/mpc', mpcRouter);
-app.use('/api/shares', sharesRouter);
-app.use('/api/feedback', feedbackRouter);
-app.use('/api/offline', offlineRouter);
+app.use('/api/shares', requireDb, sharesRouter);
+app.use('/api/feedback', requireDb, feedbackRouter);
+// The oracle bulk is built from Scryfall into memory; every other offline
+// route (manifest, combos, combos-version, admin) reads Postgres.
+app.use('/api/offline', dbGate({ except: ['/oracle-cards'] }), offlineRouter);
 app.use('/api/scanner', scannerRouter);
-app.use('/api/friends', friendsRouter);
-app.use('/api/users', usersRouter);
-app.use('/api/game-nights', gameNightsRouter);
-app.use('/api/pods', podsRouter);
-app.use('/api/pods', podStatsRouter);
-app.use('/api/tonight-trades', tonightTradesRouter);
-app.use('/api/trades', tradesRouter);
-app.use('/api/publications', publicationsRouter);
-app.use('/api/public/brewers', brewersRouter);
-app.use('/api/public', publicRouter);
-app.use('/api/follows', followsRouter);
-app.use('/api/bracket-votes', bracketVotesRouter);
+app.use('/api/friends', requireDb, friendsRouter);
+app.use('/api/users', requireDb, usersRouter);
+app.use('/api/game-nights', requireDb, gameNightsRouter);
+app.use('/api/pods', requireDb, podsRouter);
+app.use('/api/pods', requireDb, podStatsRouter);
+app.use('/api/tonight-trades', requireDb, tonightTradesRouter);
+app.use('/api/trades', requireDb, tradesRouter);
+app.use('/api/publications', requireDb, publicationsRouter);
+app.use('/api/public/brewers', requireDb, brewersRouter);
+app.use('/api/public', requireDb, publicRouter);
+app.use('/api/follows', requireDb, followsRouter);
+app.use('/api/bracket-votes', requireDb, bracketVotesRouter);
 app.use('/api/spellbook', spellbookRouter);
-app.use('/api/daily', dailyRouter);
-app.use('/api/reports', reportsRouter);
-app.use('/api/discover', discoverRouter);
-app.use('/api/activity', activityRouter);
-app.use('/api/ai', aiRouter);
+app.use('/api/daily', requireDb, dailyRouter);
+app.use('/api/reports', requireDb, reportsRouter);
+app.use('/api/discover', requireDb, discoverRouter);
+app.use('/api/activity', requireDb, activityRouter);
+app.use('/api/ai', requireDb, aiRouter);
+// Not gated: a client-error beacon is counted in memory for the burst alert
+// before any write, and that alert is the one signal left while the database
+// is down. The router skips its own writes until the schema is in.
 app.use('/api/events', eventsRouter);
 
 /**
@@ -465,8 +494,15 @@ const upload = multer({
   limits: { fileSize: 20 * 1024 * 1024 },
 });
 
+/**
+ * Fly's service check. Liveness only, and it never touches Postgres: a machine
+ * whose database is down must stay in routing to serve the web app and
+ * signed-out use (RUNBOOK.md, "Database unreachable"). `dbReady` says whether
+ * the boot has applied the schema yet (db/readiness.ts); it is information, not
+ * a verdict, and stays true through a later outage.
+ */
 app.get('/health', (_req: Request, res: Response) => {
-  res.json({ ok: true, cache: cache.stats() });
+  res.json({ ok: true, dbReady: isDbReady(), cache: cache.stats() });
 });
 
 app.get('/api/sets', setsLimiter, async (_req: Request, res: Response) => {
@@ -1114,9 +1150,10 @@ function readImportRows(req: Request): ImportRow[] | null {
  */
 // Live sitemap (static pages + public decks/profiles). Registered before the
 // SPA static layer so it can't be shadowed by a stale file in public/.
-app.get('/sitemap.xml', sitemapHandler);
+app.get('/sitemap.xml', requireDb, sitemapHandler);
 
-const SPA_DIR = path.join(__dirname, '..', 'public');
+// `SPA_DIR` overrides the location; the boot test (server-boot.test.ts) uses it.
+const SPA_DIR = process.env.SPA_DIR || path.join(__dirname, '..', 'public');
 if (existsSync(SPA_DIR)) {
   // api.spellcontrol.com is a legacy hostname; send its page requests to the apex.
   app.use(redirectLegacyApiHost);
@@ -1128,13 +1165,16 @@ if (existsSync(SPA_DIR)) {
   // index.html, but after every /api/* route so nothing here can shadow
   // the API surface.
   app.get(BRACKET_PATH, createStaticLandingHandler(SPA_DIR, bracketLandingMeta()));
-  app.get('/s/:token', createShareLandingHandler(SPA_DIR));
-  app.get('/d/:token', createShareLandingHandler(SPA_DIR, lookupPublicDeckLandingMeta));
-  app.get('/u/:token', createShareLandingHandler(SPA_DIR, lookupPublicUserLandingMeta));
-  app.get('/b/:token', createShareLandingHandler(SPA_DIR, resourceLandingLookup('binder')));
-  app.get('/l/:token', createShareLandingHandler(SPA_DIR, resourceLandingLookup('list')));
-  app.get('/gn/s/:token', createShareLandingHandler(SPA_DIR, lookupGameNightSeriesLandingMeta));
-  app.get('/gn/:token', createShareLandingHandler(SPA_DIR, lookupGameNightLandingMeta));
+  // Every lookup below reads Postgres; until the schema is in, they serve the bare shell.
+  const landing = (lookup?: Parameters<typeof createShareLandingHandler>[1]) =>
+    createShareLandingHandler(SPA_DIR, lookup, isDbReady);
+  app.get('/s/:token', landing());
+  app.get('/d/:token', landing(lookupPublicDeckLandingMeta));
+  app.get('/u/:token', landing(lookupPublicUserLandingMeta));
+  app.get('/b/:token', landing(resourceLandingLookup('binder')));
+  app.get('/l/:token', landing(resourceLandingLookup('list')));
+  app.get('/gn/s/:token', landing(lookupGameNightSeriesLandingMeta));
+  app.get('/gn/:token', landing(lookupGameNightLandingMeta));
   // Deliberately NOT /gn/i/:token (E208 named guest invites). That link is one
   // person's credential, so it must not unfurl the night's details into
   // whatever chat it's pasted into; it falls through to the plain SPA shell,
@@ -1345,22 +1385,22 @@ function afterBoot(label: string, offsetMs: number, fn: () => void): void {
   timer.unref();
 }
 
+/** `afterBoot` for a job that needs Postgres: its delay counts from when the schema is in. */
+function afterDbReady(label: string, offsetMs: number, fn: () => void): void {
+  void whenDbReady().then(() => afterBoot(label, offsetMs, fn));
+}
+
 async function start() {
-  await ensureSchema();
-  // One-shot fold of the old per-user game history into game_results, gated
-  // by app_migrations — see games/backfill-results.ts.
-  await backfillResultsFromUserGames(getPool());
-  // One-shot: publications written before a non-commander deck's colors came
-  // from its cards — see publications/backfill-colors.ts.
-  await backfillPublicationColors(getPool());
-  await promoteAdminsAtBoot();
-  // Copy counts are derived from live copies (publications/copies.ts). Recount
-  // on boot so the counts left by the old anonymous copy beacon are replaced
-  // with the real number the first time this deploys, not a night later.
-  void recountDeckCopies().catch((err) => logger.error('[publications] copy recount failed:', err));
+  const bootAt = Date.now();
   warnIfMultiMachine();
+  // Listen FIRST, then reach Postgres (E1120). Awaiting the schema before
+  // listening meant a boot while the database was unreachable took down
+  // /health, the web app and signed-out use with it: a refused connection
+  // exited, a black-holed one hung without ever listening. Database routes
+  // answer 503 (`requireDb`) until `prepareDatabase` opens them.
   const server = app.listen(PORT, () => {
-    logger.info(`[server] listening on http://localhost:${PORT}`);
+    // The bound port, not PORT: with PORT=0 (the boot test) the OS picks it.
+    logger.info(`[server] listening on http://localhost:${(server.address() as AddressInfo).port}`);
     logger.info(`[server] cache db: ${DB_PATH}`);
     logger.info(`[server] cache stats:`, cache.stats());
   });
@@ -1378,29 +1418,66 @@ async function start() {
     process.exit(1);
   });
 
+  // The schema alone opens the gate, retried with backoff until Postgres
+  // answers. The three steps start() used to await after it run once the gate
+  // is open, so a lasting failure in one cannot hold every signed-in route at
+  // 503. `retryWithBackoff` only retries what throws: each backfill catches its
+  // own failure, logs "will retry next boot" and returns 0 with its
+  // app_migrations marker unset, so for them it covers only the marker check
+  // that runs first; a failed backfill runs again on the next boot, as before.
+  // The promotion's UPDATE throws, so it is retried. None of the three is
+  // needed before a route can answer:
+  // both backfills are one-shots gated by app_migrations and already applied
+  // in production (on a database that never ran them, History and publication
+  // colors fill in seconds later), and the promotion only grants admin, so
+  // until it lands a seeded admin gets a 403, never someone else's access.
+  void prepareDatabase(ensureSchema).then(() => {
+    // One-shot fold of the old per-user game history into game_results — see
+    // games/backfill-results.ts.
+    void retryWithBackoff('[boot] game history backfill failed', () =>
+      backfillResultsFromUserGames(getPool())
+    );
+    // One-shot: publications written before a non-commander deck's colors came
+    // from its cards — see publications/backfill-colors.ts.
+    void retryWithBackoff('[boot] publication colors backfill failed', () =>
+      backfillPublicationColors(getPool())
+    );
+    void retryWithBackoff('[boot] admin promotion failed', promoteAdminsAtBoot);
+  });
+  // Copy counts are derived from live copies (publications/copies.ts). Recount
+  // on boot so the counts left by the old anonymous copy beacon are replaced
+  // with the real number the first time this deploys, not a night later.
+  void whenDbReady()
+    .then(() => recountDeckCopies())
+    .catch((err) => logger.error('[publications] copy recount failed:', err));
+
+  // The jobs below that read or write Postgres wait for the schema
+  // (afterDbReady). The heartbeat, the scanner preload and the Scryfall bulk
+  // ingest do not need it and start on the usual boot delay; the heartbeat in
+  // particular must run while the database is down, since it is what pages.
   if (process.env.COMBOS_INGEST_DISABLED !== '1') {
-    afterBoot('combo ingest', 30_000, scheduleComboIngest);
+    afterDbReady('combo ingest', 30_000, scheduleComboIngest);
   }
 
   if (process.env.AGGREGATES_ROLLUP_DISABLED !== '1') {
-    afterBoot('aggregates rollup', 60_000, scheduleAggregatesRollup);
+    afterDbReady('aggregates rollup', 60_000, scheduleAggregatesRollup);
   }
 
   if (process.env.PRECON_SEED_DISABLED !== '1') {
     // After the Scryfall bulk ingest has had its head start: the first run
     // resolves a few hundred decks, which should hit the local card cache
     // rather than send hundreds of live Scryfall requests.
-    afterBoot('precon seed', 300_000, schedulePreconSeed);
+    afterDbReady('precon seed', 300_000, schedulePreconSeed);
   }
 
   if (process.env.RETENTION_DISABLED !== '1') {
-    afterBoot('retention sweep', 75_000, scheduleRetentionSweep);
+    afterDbReady('retention sweep', 75_000, scheduleRetentionSweep);
   }
 
   // Discord tables: removes voice channels whose game has gone. A no-op until
   // the DISCORD_* env vars are set (see discord.ts).
   if (isDiscordConfigured()) {
-    afterBoot('discord table sweep', 90_000, () => {
+    afterDbReady('discord table sweep', 90_000, () => {
       const tick = () =>
         void sweepDiscordTables(Date.now(), lastSeenAt)
           .then((n) => n > 0 && logger.info(`[discord] swept ${n} table channel(s)`))
@@ -1413,7 +1490,7 @@ async function start() {
   // Open public tables posted to #looking-for-game (games/discord-lfg.ts).
   // Game changes nudge a pass; the 5-minute pass re-reads the channel itself.
   if (lfgChannelId()) {
-    afterBoot('discord looking-for-game posts', 95_000, () => {
+    afterDbReady('discord looking-for-game posts', 95_000, () => {
       onGameChange(nudgeLfgPosts);
       void syncLfgPosts(true);
       setInterval(() => void syncLfgPosts(true), 5 * 60 * 1000).unref();
@@ -1435,7 +1512,8 @@ async function start() {
         burstThreshold > 0
           ? { count: recentErrorCount, minutes: 15, threshold: burstThreshold }
           : undefined,
-        () => getPool().query('SELECT 1')
+        () => getPool().query('SELECT 1'),
+        { isReady: isDbReady, bootAt }
       )
     );
   }

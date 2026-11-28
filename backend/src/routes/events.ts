@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { getPool } from '../db';
+import { isDbReady } from '../db/readiness';
 import { logger } from '../logger';
 import { testAwareLimiter } from '../route-utils';
 import { countSuggestion, parseSuggestion } from './suggestion-labels';
@@ -128,8 +129,13 @@ eventsRouter.post('/', beaconLimiter, async (req: Request, res: Response) => {
     return;
   }
   try {
-    if (EVENT_NAMES.has(name)) await countEvent(name, path);
-    else if (name === 'error') await countError(path, body, req.ip ?? '');
+    if (name === 'error') await countError(path, body, req.ip ?? '');
+    // Until the schema is in (db/readiness.ts, E1120) the counters are dropped,
+    // not written: against a black-holed database each write would hold a pool
+    // slot for the connect timeout. countError still notes the hit in memory
+    // first, since the burst alert is the one signal this state leaves.
+    else if (!isDbReady()) return void res.status(204).end();
+    else if (EVENT_NAMES.has(name)) await countEvent(name, path);
     else if (name === 'vital') await countVital(path, body);
     else if (name === 'suggestion') {
       const label = parseSuggestion(body);
@@ -165,6 +171,7 @@ async function countError(path: string, body: Record<string, unknown>, ip: strin
   const kind = str(body.kind, 20);
   if (!ERROR_KINDS.has(kind)) return;
   if (kind !== 'reload') noteErrorHit(ip);
+  if (!isDbReady()) return;
   let message = scrubText(str(body.message, 1000), ERROR_MESSAGE_MAX) || '[no message]';
   let frame = scrubText(str(body.frame, 1000), ERROR_FRAME_MAX);
   const pool = getPool();

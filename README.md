@@ -246,6 +246,9 @@ The table below documents the collection-import, auth, and sync core. The rest o
 - Default EDHREC top-N — `DEFAULT_EDHREC_TOP_N` in [frontend/src/components/binder/BinderEditor.tsx](frontend/src/components/binder/BinderEditor.tsx)
 - Commander-aggregate rollup thresholds (min sample sizes, budget bucket boundaries, top-card cap) — top of [backend/src/aggregates/rollup.ts](backend/src/aggregates/rollup.ts)
 - EDHREC top-list freshness (refresh after 24h, retry a failing refresh every 15 min) — `FRESH_MS`, `RETRY_MS` in [backend/src/edhrec/top-store.ts](backend/src/edhrec/top-store.ts)
+- Postgres pool size and connect timeout (one attempt, TCP through the startup handshake; also the longest a request waits for a free pool connection, so while the combo ingest's lock holds readers, a full pool fails other requests after 10 s instead of queueing them) — `DB_POOL_MAX` (10) and `DB_CONNECT_TIMEOUT_MS` in [backend/src/db/pool-config.ts](backend/src/db/pool-config.ts), default 10 s, `PG_CONNECT_TIMEOUT_MS` env var overrides
+- Boot schema retry (the server listens first; database routes answer 503 until the schema is in, retried 1 s after a failure, doubling to a 30 s ceiling, never giving up; the boot backfills retry the same way after it) — `SCHEMA_RETRY_BASE_MS`, `SCHEMA_RETRY_MAX_MS` in [backend/src/db/readiness.ts](backend/src/db/readiness.ts)
+- Heartbeat grace for a boot whose schema is still not ready — `SCHEMA_READY_GRACE_MS` (5 min) in [backend/src/heartbeat.ts](backend/src/heartbeat.ts); the deploy workflow's matching wait is 3 min (`.github/workflows/fly-deploy.yml`)
 - Backend port — `PORT` env var (default `3737`)
 - SQLite location — `DB_PATH` env var (default `backend/data/scryfall-cache.db`; the Docker image mounts a `spellcontrol-data` volume at `/data`)
 

@@ -331,7 +331,11 @@ export async function lookupShareLandingMeta(token: string): Promise<ShareLandin
  */
 export function createShareLandingHandler(
   spaDir: string,
-  lookup: (token: string) => Promise<ShareLandingResult | null> = lookupShareLandingMeta
+  lookup: (token: string) => Promise<ShareLandingResult | null> = lookupShareLandingMeta,
+  // False while the lookup's store can't answer (server.ts passes the database
+  // gate, E1120): the request takes the lookup-error path at once, bare shell
+  // at 200, instead of waiting out a connect timeout first.
+  canLookup: () => boolean = () => true
 ): RequestHandler {
   const indexPath = path.join(spaDir, 'index.html');
   let cachedShell: string | null = null;
@@ -352,12 +356,14 @@ export function createShareLandingHandler(
       return next();
     }
     let meta: ShareLandingResult | null = null;
-    let lookupFailed = false;
-    try {
-      meta = await lookup(token);
-    } catch (err) {
-      lookupFailed = true;
-      logger.warn('[shares/og] lookup failed, serving bare shell with noindex:', err);
+    let lookupFailed = !canLookup();
+    if (!lookupFailed) {
+      try {
+        meta = await lookup(token);
+      } catch (err) {
+        lookupFailed = true;
+        logger.warn('[shares/og] lookup failed, serving bare shell with noindex:', err);
+      }
     }
     if (meta && 'redirectTo' in meta) {
       res.redirect(301, meta.redirectTo);
