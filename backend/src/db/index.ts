@@ -3,6 +3,7 @@ import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { logger } from '../logger';
 import * as schema from './schema';
 import { FEATURE_TABLES_DDL } from './schema-feature-tables';
+import { DB_CONNECT_TIMEOUT_MS } from './readiness';
 
 export type Database = NodePgDatabase<typeof schema>;
 
@@ -15,7 +16,7 @@ export function getPool(): Pool {
     if (!connectionString) {
       throw new Error('DATABASE_URL is not set');
     }
-    pool = new Pool({ connectionString, max: 10 });
+    pool = new Pool({ connectionString, max: 10, connectionTimeoutMillis: DB_CONNECT_TIMEOUT_MS });
     attachPoolErrorHandler(pool);
   }
   return pool;
