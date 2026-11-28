@@ -62,17 +62,40 @@ async function dbDown(probe: DbProbe): Promise<boolean> {
   return true;
 }
 
+/**
+ * A fourth: the boot's schema step (db/readiness.ts, E1120). The server
+ * listens before the schema is in and answers 503 on every database route
+ * until it is, so a release whose schema statement fails every time serves a
+ * 200 `/health` against a database that answers `SELECT 1`: green on every
+ * check above while every signed-in feature is down. Reported once the boot is
+ * older than SCHEMA_READY_GRACE_MS. Five minutes is far past a healthy boot
+ * (seconds, a Neon wake included) and past the deploy workflow's 3-minute
+ * wait; the first tick lands 90 s after boot, so the earliest page is the
+ * tick at about 6.5 minutes.
+ */
+export interface SchemaCheck {
+  isReady: () => boolean;
+  bootAt: number;
+}
+export const SCHEMA_READY_GRACE_MS = 5 * 60_000;
+
 export async function probeAndPing(
   pingUrl: string,
   origin: string,
   errorBurst?: ErrorBurstCheck,
-  dbProbe?: DbProbe
+  dbProbe?: DbProbe,
+  schema?: SchemaCheck,
+  now = Date.now()
 ): Promise<boolean> {
   const ok = await fetch(`${origin}/health`, { signal: AbortSignal.timeout(20_000) })
     .then(async (res) => res.ok && ((await res.json()) as { ok?: unknown }).ok === true)
     .catch(() => false);
   let failure = ok ? '' : `${origin}/health did not answer ok`;
-  if (ok && dbProbe && (await dbDown(dbProbe))) {
+  if (ok && schema && !schema.isReady() && now - schema.bootAt > SCHEMA_READY_GRACE_MS) {
+    const min = Math.floor((now - schema.bootAt) / 60_000);
+    failure = `database schema not ready ${min} min after boot (signed-in routes answer 503)`;
+  }
+  if (ok && !failure && dbProbe && (await dbDown(dbProbe))) {
     failure = 'database probe failed (SELECT 1 did not answer)';
   }
   if (ok && !failure && errorBurst) {
@@ -98,9 +121,10 @@ export function scheduleHeartbeat(
   pingUrl: string,
   origin: string,
   errorBurst?: ErrorBurstCheck,
-  dbProbe?: DbProbe
+  dbProbe?: DbProbe,
+  schema?: SchemaCheck
 ): void {
-  const tick = () => void probeAndPing(pingUrl, origin, errorBurst, dbProbe);
+  const tick = () => void probeAndPing(pingUrl, origin, errorBurst, dbProbe, schema);
   tick();
   setInterval(tick, HEARTBEAT_INTERVAL_MS).unref();
 }

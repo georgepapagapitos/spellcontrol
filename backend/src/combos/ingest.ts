@@ -423,8 +423,14 @@ async function* asAsync<T>(items: Iterable<T> | AsyncIterable<T>): AsyncIterable
  * 200+ MB and OOM small containers.
  *
  * The transaction wraps a TRUNCATE + chunked inserts. Either the whole
- * replacement commits or the previous dataset stays intact; reads racing the
- * commit see either pre- or post-state, never a partial dataset.
+ * replacement commits or the previous dataset stays intact, and no reader sees
+ * a partial dataset. But readers do not see the old dataset meanwhile: TRUNCATE
+ * takes an ACCESS EXCLUSIVE lock on `combos` and `combo_cards` that is held to
+ * the commit, and the source here is the streamed Spellbook feed, so every
+ * query on those tables BLOCKS for the whole download, each holding a pool
+ * connection. With the pool's connect timeout (db/pool-config.ts), once those
+ * blocked readers take every slot an unrelated request fails after 10 s
+ * instead of queueing.
  */
 export async function ingestCombos(
   source: Iterable<unknown> | AsyncIterable<unknown>

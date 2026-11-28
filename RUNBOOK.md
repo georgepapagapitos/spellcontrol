@@ -229,13 +229,19 @@ rejection in the Node process does not exit it: the guards in
 remain, and each leaves a different trace:
 
 - `[server] failed to start:` then exit code 1. Rare now: `start()` in
-  `server.ts` listens first and runs `ensureSchema()`, two backfills and
-  `promoteAdminsAtBoot()` afterwards, retrying until they succeed (E1120). Postgres
-  unreachable at boot, or a schema statement in a new release that fails every
-  time, therefore does not exit. It logs `[db] schema not ready (attempt <n>),
-  retrying in <ms>ms` (every 30 s at most) and keeps database routes at 503 while
-  the web app keeps serving. A failing schema statement shows the same error on
-  every attempt; roll back if a deploy preceded it.
+  `server.ts` listens first and runs `ensureSchema()` afterwards, retrying until
+  it succeeds (E1120). Postgres unreachable at boot, or a schema statement in a
+  new release that fails every time, therefore does not exit. It logs
+  `[db] schema not ready (attempt <n>), retrying in <ms>ms` and keeps database
+  routes at 503 while the web app keeps serving. The wait between attempts
+  starts at 1 s and doubles until it reaches 30 s, then stays there; each attempt
+  also takes up to 10 s when the host accepts the connection and never answers,
+  so a late cycle is about 40 s. A failing schema statement shows the same error
+  on every attempt; the heartbeat reports it about 6.5 minutes after boot
+  (`database schema not ready <n> min after boot`) and the deploy run goes red
+  ("the database schema never became ready"). Roll back. The two boot backfills
+  and the admin promotion run after the schema with their own retry, logged as
+  `[boot] <step> failed (attempt <n>)`, and do not hold routes closed.
 - `[server] listen failed - exiting so the platform can restart:`. The port is
   taken or not allowed.
 - The kernel kills the process for memory. The machine has 2048 MB and Node's
@@ -328,9 +334,16 @@ rollback. `fly-deploy.yml` has no rollback job; the rollback is a redeploy of an
 earlier image.
 
 Before you start, check the database. If the symptom is signed-in features
-failing while the site loads, a rollback will not help; see "Database
-unreachable". (A boot while Postgres is down no longer takes the site down, but
-it does not bring the database back either.)
+failing while the site loads, find out which of two cases it is:
+
+- The database is down (the provider's status page, `[db] ... ECONNREFUSED` or
+  `connection timeout` in the logs). A rollback will not help; see "Database
+  unreachable".
+- The database answers but `/health` shows `"dbReady":false`, and the logs
+  repeat the same `[db] schema not ready` error on every attempt (a statement
+  error such as `syntax error` or `column ... does not exist`, not a connection
+  error). The new release's schema step is failing. Roll back: this is the case
+  a rollback fixes.
 
 1. Stop the pipeline from deploying while you work. A green CI run on `main`
    fires the deploy workflow, which would undo your rollback. Disabling it does
@@ -438,8 +451,9 @@ Rollback: the image rollback above.
 Symptom: the heartbeat monitor pages with "database probe failed", sign-in and
 sync fail with 5xx, while `/health` is still 200. On a machine that booted while
 the database was down, `/health` shows `"dbReady":false` and the database routes
-answer 503 with `Retry-After: 5` and "The server can't reach its database right
-now."
+answer 503 with `Retry-After: 5` and "Saved data is unavailable right now." (a
+browser opening one of those URLs directly, such as the Google sign-in callback,
+gets a short page that retries itself instead).
 
 Check:
 
@@ -455,17 +469,30 @@ page and dashboard for the project.
 Fix: single dropped connections need nothing; the pool opens a new one. If the
 provider is down, wait for it.
 
-A restart, redeploy or rollback does not help while Postgres is down, and since
-E1120 it does not hurt either. `start()` in `server.ts` listens first and reaches
-Postgres afterwards, so a machine that boots while the database is unreachable
-serves `/health`, the web app and signed-out use at once. The routes that need
-Postgres answer 503 until the schema is applied, and the boot keeps retrying (1 s
-after a failure, doubling to every 30 s, logged as `[db] schema not ready`). When
-the database answers, the log shows `[db] schema ready after <n> attempt(s)` and
-those routes open with no restart. Each connection attempt gives up after 10 s
-(`DB_CONNECT_TIMEOUT_MS` in `backend/src/db/readiness.ts`), so a host that accepts the
-connection and never answers cannot hang the boot. The same 10 s applies to a
-request waiting for a free pool slot.
+A restart, redeploy or rollback does not help while Postgres is down. Since
+E1120 a restart or a deploy of a current image does not hurt either. `start()`
+in `server.ts` listens first and reaches Postgres afterwards, so a machine that
+boots while the database is unreachable serves `/health`, the web app and
+signed-out use at once. The routes that need Postgres answer 503 until the
+schema is applied, and the boot keeps retrying (logged as `[db] schema not
+ready`; the wait starts at 1 s and doubles to 30 s). When the database answers,
+the log shows `[db] schema ready after <n> attempt(s)` and those routes open with
+no restart. Each connection attempt gives up after 10 s (`DB_CONNECT_TIMEOUT_MS`
+in `backend/src/db/pool-config.ts`), so a host that accepts the connection and
+never answers cannot hang the boot.
+
+A rollback DOES hurt if it goes to an image from before E1120: that image waits
+for the schema before it listens, so booting it while the database is down takes
+the whole site down (an exit loop on a refused connection, a process that never
+listens on a black-holed one). Do not roll back across E1120 during an outage.
+
+The same 10 s also limits how long a request waits for a free pool connection
+(the pool has 10). During the nightly combo ingest, which holds a lock on the
+combo tables while it streams the Spellbook feed (`backend/src/combos/ingest.ts`),
+requests that read combos block and each keeps a connection; once all ten are
+taken, other requests fail after 10 s instead of waiting. Look for
+`timeout exceeded when trying to connect` near `[combos] starting scheduled
+ingest` in the logs. (Not observed in production.)
 
 Restart only if the database has been answering for a few minutes and queries
 still fail: `flyctl machine restart <machine id> --app spellcontrol-api`.

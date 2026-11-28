@@ -10,12 +10,20 @@ import helmet from 'helmet';
 import multer from 'multer';
 import path from 'path';
 import { Worker } from 'node:worker_threads';
+import type { AddressInfo } from 'node:net';
 import { existsSync } from 'fs';
 import { gzip } from 'node:zlib';
 import { DB_PATH, getScryfallCache, buildPriceRefreshPayload } from './scryfall-cache';
 import { resolveOracleFacts, ORACLE_REQUEST_LIMIT, type OracleRequest } from './oracle-facts';
 import { closeDb, ensureSchema, getPool } from './db';
-import { isDbReady, prepareDatabase, requireDb, whenDbReady } from './db/readiness';
+import {
+  dbGate,
+  isDbReady,
+  prepareDatabase,
+  requireDb,
+  retryWithBackoff,
+  whenDbReady,
+} from './db/readiness';
 import { backfillResultsFromUserGames } from './games/backfill-results';
 import { backfillPublicationColors } from './publications/backfill-colors';
 import { testAwareLimiter } from './route-utils';
@@ -325,13 +333,17 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 mountBodyParsers(app);
 
-// `requireDb` goes in front of every router that touches Postgres: until the
-// boot has applied the schema those answer 503 + Retry-After (db/readiness.ts,
-// E1120). Routers without it (card lookups, MPC, scanner, Spellbook) read only
-// the SQLite cache or third parties and serve from the first second.
+// `requireDb` / `dbGate(...)` goes in front of every router that touches
+// Postgres: until the boot has applied the schema those answer 503 +
+// Retry-After (db/readiness.ts, E1120). Routers without it read only the SQLite
+// cache or third parties and serve from the first second. server-db-gate.test.ts
+// fails when a router reaches db/index.ts without one.
 app.use('/api/cards', cardImagesRouter);
 app.use('/api/cards', cardLookupRouter);
-app.use('/api/auth', requireDb, authRouter);
+// Signing out only clears the cookie. It must work while the database is down,
+// or the client wipes its local state while the httpOnly session cookie stays
+// behind, and on a shared device the next person is signed in as you.
+app.use('/api/auth', dbGate({ except: ['/logout'] }), authRouter);
 app.use('/api/admin/bracket-votes', requireDb, adminBracketVotesRouter);
 app.use('/api/admin', requireDb, adminRouter);
 app.use('/api/sync', requireDb, syncRouter);
@@ -342,25 +354,16 @@ app.use('/api/aggregates', requireDb, aggregatesRouter);
 // EDHREC pages are cached in Postgres. While it isn't ready, answer as the
 // route does when it can't reach EDHREC, so the browser fetches the page
 // itself (frontend deck-builder/services/edhrec/request.ts) and generation works.
-app.use('/api/edhrec', (req: Request, res: Response, next: NextFunction) => {
-  if (!isDbReady()) res.set('X-Edhrec-Cache', 'unavailable');
-  requireDb(req, res, next);
-});
-app.use('/api/edhrec', edhrecRouter);
+app.use('/api/edhrec', dbGate({ headers: { 'X-Edhrec-Cache': 'unavailable' } }), edhrecRouter);
 app.use('/api/mpc', mpcRouter);
 app.use('/api/shares', requireDb, sharesRouter);
 app.use('/api/feedback', requireDb, feedbackRouter);
 // The oracle bulk is SQLite-built; the combos bulk and the admin check are Postgres.
 app.use(
-  [
-    '/api/offline/manifest',
-    '/api/offline/combos',
-    '/api/offline/combos-version',
-    '/api/offline/admin',
-  ],
-  requireDb
+  '/api/offline',
+  dbGate({ only: ['/manifest', '/combos', '/combos-version', '/admin'] }),
+  offlineRouter
 );
-app.use('/api/offline', offlineRouter);
 app.use('/api/scanner', scannerRouter);
 app.use('/api/friends', requireDb, friendsRouter);
 app.use('/api/users', requireDb, usersRouter);
@@ -380,7 +383,10 @@ app.use('/api/reports', requireDb, reportsRouter);
 app.use('/api/discover', requireDb, discoverRouter);
 app.use('/api/activity', requireDb, activityRouter);
 app.use('/api/ai', requireDb, aiRouter);
-app.use('/api/events', requireDb, eventsRouter);
+// Not gated: a client-error beacon is counted in memory for the burst alert
+// before any write, and that alert is the one signal left while the database
+// is down. The router skips its own writes until the schema is in.
+app.use('/api/events', eventsRouter);
 
 /**
  * One-time backfill: resolve printing IDs (scryfallId) → oracle IDs from the
@@ -1388,6 +1394,7 @@ function afterDbReady(label: string, offsetMs: number, fn: () => void): void {
 }
 
 async function start() {
+  const bootAt = Date.now();
   warnIfMultiMachine();
   // Listen FIRST, then reach Postgres (E1120). Awaiting the schema before
   // listening meant a boot while the database was unreachable took down
@@ -1395,7 +1402,8 @@ async function start() {
   // exited, a black-holed one hung without ever listening. Database routes
   // answer 503 (`requireDb`) until `prepareDatabase` opens them.
   const server = app.listen(PORT, () => {
-    logger.info(`[server] listening on http://localhost:${PORT}`);
+    // The bound port, not PORT: with PORT=0 (the boot test) the OS picks it.
+    logger.info(`[server] listening on http://localhost:${(server.address() as AddressInfo).port}`);
     logger.info(`[server] cache db: ${DB_PATH}`);
     logger.info(`[server] cache stats:`, cache.stats());
   });
@@ -1413,19 +1421,26 @@ async function start() {
     process.exit(1);
   });
 
-  // Exactly what start() used to await before listening, retried with backoff
-  // until Postgres answers. Each step is idempotent: the schema is IF NOT
-  // EXISTS, the backfills are gated by app_migrations, the promotion is an
-  // UPDATE.
-  void prepareDatabase(async () => {
-    await ensureSchema();
-    // One-shot fold of the old per-user game history into game_results, gated
-    // by app_migrations — see games/backfill-results.ts.
-    await backfillResultsFromUserGames(getPool());
+  // The schema alone opens the gate, retried with backoff until Postgres
+  // answers. The three steps start() used to await after it run once the gate
+  // is open, each with its own retry, so a lasting failure in one cannot hold
+  // every signed-in route at 503. None is needed before a route can answer:
+  // both backfills are one-shots gated by app_migrations and already applied
+  // in production (on a database that never ran them, History and publication
+  // colors fill in seconds later), and the promotion only grants admin, so
+  // until it lands a seeded admin gets a 403, never someone else's access.
+  void prepareDatabase(ensureSchema).then(() => {
+    // One-shot fold of the old per-user game history into game_results — see
+    // games/backfill-results.ts.
+    void retryWithBackoff('[boot] game history backfill failed', () =>
+      backfillResultsFromUserGames(getPool())
+    );
     // One-shot: publications written before a non-commander deck's colors came
     // from its cards — see publications/backfill-colors.ts.
-    await backfillPublicationColors(getPool());
-    await promoteAdminsAtBoot();
+    void retryWithBackoff('[boot] publication colors backfill failed', () =>
+      backfillPublicationColors(getPool())
+    );
+    void retryWithBackoff('[boot] admin promotion failed', promoteAdminsAtBoot);
   });
   // Copy counts are derived from live copies (publications/copies.ts). Recount
   // on boot so the counts left by the old anonymous copy beacon are replaced
@@ -1495,7 +1510,8 @@ async function start() {
         burstThreshold > 0
           ? { count: recentErrorCount, minutes: 15, threshold: burstThreshold }
           : undefined,
-        () => getPool().query('SELECT 1')
+        () => getPool().query('SELECT 1'),
+        { isReady: isDbReady, bootAt }
       )
     );
   }

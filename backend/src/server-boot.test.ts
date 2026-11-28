@@ -15,6 +15,13 @@
  * suite's database. The child gets its own `t_boot_*` schema through
  * `search_path`, so its `ensureSchema()` touches no other file's tables, and
  * the global setup's `t_*` sweep catches it if this file is killed mid-run.
+ * The child exits when this worker does (it watches its stdin), and it binds
+ * port 0 and reports the port it got, so there is no port to race for.
+ *
+ * Besides the boot order it covers what the gate must still let through or
+ * answer differently while closed: sign-out (or the session cookie outlives a
+ * sign-out on a shared device) and a browser navigation (a retrying page, not
+ * raw JSON).
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -65,17 +72,6 @@ function startProxy(target: { host: string; port: number }): Promise<Proxy> {
   });
 }
 
-function freePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const probe = net.createServer();
-    probe.on('error', reject);
-    probe.listen(0, '127.0.0.1', () => {
-      const { port } = probe.address() as net.AddressInfo;
-      probe.close(() => resolve(port));
-    });
-  });
-}
-
 async function waitFor<T>(what: string, fn: () => Promise<T | undefined>, ms: number): Promise<T> {
   const deadline = Date.now() + ms;
   for (;;) {
@@ -116,15 +112,20 @@ beforeAll(async () => {
   writeFileSync(path.join(spaDir, 'index.html'), '<!doctype html><title>boot shell</title>');
   writeFileSync(path.join(spaDir, 'assets', 'app-test.js'), 'console.log("boot asset");');
 
-  const port = await freePort();
-  base = `http://127.0.0.1:${port}`;
   const backendDir = path.join(__dirname, '..');
-  child = spawn(process.execPath, ['--import', 'tsx', path.join(__dirname, 'server.ts')], {
+  // The child exits when its stdin closes, which happens when this worker dies
+  // however it dies, so a killed test run cannot leave a server behind. The
+  // wrapper lives here, not in server.ts: production has no such path.
+  const watchdog = `process.stdin.on('close', () => process.exit(1)); process.stdin.resume();`;
+  const entry = `${watchdog} require(${JSON.stringify(path.join(__dirname, 'server.ts'))});`;
+  child = spawn(process.execPath, ['--import', 'tsx', '--eval', entry], {
     cwd: backendDir,
-    stdio: ['ignore', 'pipe', 'pipe'],
+    stdio: ['pipe', 'pipe', 'pipe'],
     env: {
       PATH: process.env.PATH,
-      PORT: String(port),
+      // The OS picks the port and the server logs the one it bound, so there is
+      // no window between finding a free port and the child taking it.
+      PORT: '0',
       DATABASE_URL: childUrl.toString(),
       PG_CONNECT_TIMEOUT_MS: '3000',
       SPA_DIR: spaDir,
@@ -145,11 +146,12 @@ beforeAll(async () => {
   child.stderr?.on('data', (d) => (output += d));
 
   try {
-    await waitFor(
+    const port = await waitFor(
       'the server to listen',
-      async () => ((await get('/health')).ok ? true : undefined),
+      async () => /\[server\] listening on http:\/\/localhost:(\d+)/.exec(output)?.[1],
       45_000
     );
+    base = `http://127.0.0.1:${port}`;
   } catch (err) {
     throw new Error(`${(err as Error).message}; exit=${child.exitCode}; output:\n${output}`, {
       cause: err,
@@ -207,6 +209,29 @@ describe('server boot with Postgres unreachable (E1120)', () => {
     expect(page.headers.get('x-edhrec-cache')).toBe('unavailable');
 
     expect((await get('/sitemap.xml')).status).toBe(503);
+  });
+
+  it('serves a browser navigation to a closed route a page that retries, not JSON', async () => {
+    const res = await fetch(`${base}/api/auth/google/callback?code=x&state=y`, {
+      headers: { Accept: 'text/html,application/xhtml+xml,*/*;q=0.8' },
+      redirect: 'manual',
+      signal: AbortSignal.timeout(5_000),
+    });
+    expect(res.status).toBe(503);
+    expect(res.headers.get('content-type')).toMatch(/^text\/html/);
+    expect(await res.text()).toContain('http-equiv="refresh"');
+  });
+
+  it('signs out while the database is down: the session cookie is cleared, not left behind', async () => {
+    const res = await fetch(`${base}/api/auth/logout`, {
+      method: 'POST',
+      headers: { Cookie: 'spellcontrol_session=stale-token' },
+      signal: AbortSignal.timeout(5_000),
+    });
+    expect(res.status).toBe(200);
+    const cleared = res.headers.get('set-cookie') ?? '';
+    expect(cleared).toMatch(/^spellcontrol_session=;/);
+    expect(cleared).toMatch(/Expires=Thu, 01 Jan 1970/);
   });
 
   it('opens the database routes once Postgres answers, without a restart', async () => {

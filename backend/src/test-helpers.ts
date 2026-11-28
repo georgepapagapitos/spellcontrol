@@ -6,6 +6,7 @@ import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from './db/schema';
 import { setDbForTesting, closeDb } from './db';
+import { markDbReadyForTesting } from './db/readiness';
 import { authRouter } from './routes/auth';
 import { cardImagesRouter } from './routes/card-images';
 import { cardLookupRouter } from './routes/card-lookup';
@@ -682,6 +683,9 @@ export async function createTestEnv(): Promise<TestEnv> {
 
   const db = drizzle(pool, { schema });
   setDbForTesting(pool, db);
+  // The schema above is in place, so code that checks the boot gate
+  // (db/readiness.ts; e.g. the events router) behaves as on a ready server.
+  markDbReadyForTesting();
 
   const app = express();
   app.use(cookieParser());
