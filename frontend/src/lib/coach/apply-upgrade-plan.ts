@@ -22,8 +22,40 @@ export interface PlanStep {
   cutName: string | null;
 }
 
+/**
+ * How long the sheets that run this stay locked on the card lookup before the
+ * apply gives up (E1122). Past the bulk lookup's own 30 s, so a stalled server
+ * still gets its Scryfall fallback first.
+ */
+export const APPLY_LOOKUP_TIMEOUT_MS = 45_000;
+
+export const APPLY_LOOKUP_TIMEOUT_MESSAGE =
+  'Looking up the cards took too long. Nothing changed. Try again.';
+
+/** The add cards, or a rejection once the lookup has run past the deadline,
+ *  so a sheet that locks its exits while this runs always gets them back. */
+function lookupWithDeadline(names: string[]): ReturnType<typeof getCardsByNames> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(APPLY_LOOKUP_TIMEOUT_MESSAGE)),
+      APPLY_LOOKUP_TIMEOUT_MS
+    );
+    getCardsByNames(names).then(
+      (cards) => {
+        clearTimeout(timer);
+        resolve(cards);
+      },
+      (err: unknown) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
+
 /** Returns how many steps landed. A card that won't resolve is skipped and
- *  its cut stays in the deck, so the deck never loses a slot. */
+ *  its cut stays in the deck, so the deck never loses a slot. Rejects, with
+ *  nothing changed, when the card lookup fails or runs past the deadline. */
 export async function applyUpgradePlan(
   deckId: string,
   steps: PlanStep[],
@@ -35,7 +67,7 @@ export async function applyUpgradePlan(
     patch?: (deck: Deck, applied: PlanStep[]) => Partial<Deck>;
   } = {}
 ): Promise<number> {
-  const cards = await getCardsByNames(steps.map((s) => s.addName));
+  const cards = await lookupWithDeadline(steps.map((s) => s.addName));
   const deck = useDecksStore.getState().decks.find((d) => d.id === deckId);
   if (!deck) return 0;
 

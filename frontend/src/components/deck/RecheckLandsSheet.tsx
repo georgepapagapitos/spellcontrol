@@ -54,6 +54,7 @@ export function RecheckLandsSheet({
   });
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
   const [applying, setApplying] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
   const [showHidden, setShowHidden] = useState(false);
   // A run can't be canceled mid-flight; closing just drops its answer.
   // Re-armed on every mount (StrictMode runs the cleanup once after mount).
@@ -113,9 +114,13 @@ export function RecheckLandsSheet({
 
   const apply = async () => {
     setApplying(true);
+    setApplyError(null);
     try {
       await onApply(chosen, declined);
       sheetRef.current?.close();
+    } catch (e) {
+      // The sheet stays open with its exits back, and says why (E1122).
+      if (alive.current) setApplyError(userMessage(e, "Couldn't apply the swaps. Try again."));
     } finally {
       if (alive.current) setApplying(false);
     }
@@ -187,6 +192,11 @@ export function RecheckLandsSheet({
 
         {phase.kind === 'review' && (
           <>
+            {applyError && (
+              <div className="error-banner" role="alert">
+                {applyError}
+              </div>
+            )}
             {swaps.length === 0 ? (
               <p className="review-sheet-lead">
                 {hidden.length > 0

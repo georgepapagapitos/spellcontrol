@@ -10,7 +10,20 @@ vi.mock('@/lib/deck/recheck-lands', () => ({
   recheckLands: (...a: unknown[]) => recheckLands(...a),
 }));
 
+// Only the stalled-apply test drives the real apply path through this.
+const getCardsByNames = vi.fn();
+vi.mock('@/deck-builder/services/scryfall/client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/deck-builder/services/scryfall/client')>()),
+  getCardsByNames: (...a: unknown[]) => getCardsByNames(...a),
+}));
+
 import { RecheckLandsSheet } from './RecheckLandsSheet';
+import { pending } from '@/test/pending';
+import {
+  applyUpgradePlan,
+  APPLY_LOOKUP_TIMEOUT_MESSAGE,
+  APPLY_LOOKUP_TIMEOUT_MS,
+} from '@/lib/coach/apply-upgrade-plan';
 
 const land = (name: string) =>
   ({
@@ -116,11 +129,6 @@ describe('RecheckLandsSheet', () => {
     });
     // The apply fails, so the sheet stays open with `applying` back to false:
     // the one state where a Back after the apply has to be what closes it.
-    // apply() rethrows into a voided promise, so swallow that one rejection.
-    const swallow = (reason: unknown) => {
-      if (!(reason instanceof Error && reason.message === 'apply failed')) throw reason;
-    };
-    process.on('unhandledRejection', swallow);
     let fail = () => {};
     const onApply = vi.fn(
       () =>
@@ -129,37 +137,78 @@ describe('RecheckLandsSheet', () => {
         })
     );
     const onClose = vi.fn();
+    render(
+      <RecheckLandsSheet
+        deck={deck}
+        env={{ collection: [], decks: [], cubes: [] }}
+        ownershipFor={() => 'owned'}
+        onClose={onClose}
+        onApply={onApply}
+      />
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply 1 swap' }));
+    await waitFor(() => expect(onApply).toHaveBeenCalled());
+
+    window.history.back();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(window.location.pathname).toBe('/deck');
+
+    fail();
+    await waitFor(() =>
+      expect(
+        (screen.getByRole('button', { name: 'Apply 1 swap' }) as HTMLButtonElement).disabled
+      ).toBe(false)
+    );
+    expect(onClose).not.toHaveBeenCalled();
+    window.history.back();
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+  });
+
+  // E1122: every exit is locked while the swaps apply, and the card lookup
+  // had no timeout, so one that never answered kept the sheet open for good.
+  it('frees the sheet and says why when the card lookup never answers', async () => {
+    recheckLands.mockResolvedValue({
+      swaps: [{ out: land('Halimar Depths'), in: land('Mystic Sanctuary') }],
+      kept: [],
+      inclusion: {},
+      hidden: [],
+    });
+    getCardsByNames.mockImplementation(() => pending(new Map()));
+    const onClose = vi.fn();
+    render(
+      <RecheckLandsSheet
+        deck={deck}
+        env={{ collection: [], decks: [], cubes: [] }}
+        ownershipFor={() => 'owned'}
+        onClose={onClose}
+        onApply={async (swaps) => {
+          await applyUpgradePlan(
+            deck.id,
+            swaps.map((s) => ({ addName: s.in.name, cutName: s.out.name }))
+          );
+        }}
+      />
+    );
+    const applyButton = (await screen.findByRole('button', {
+      name: 'Apply 1 swap',
+    })) as HTMLButtonElement;
+    const cancel = () => screen.getByRole('button', { name: 'Cancel' }) as HTMLButtonElement;
+
+    vi.useFakeTimers();
     try {
-      render(
-        <RecheckLandsSheet
-          deck={deck}
-          env={{ collection: [], decks: [], cubes: [] }}
-          ownershipFor={() => 'owned'}
-          onClose={onClose}
-          onApply={onApply}
-        />
-      );
-      fireEvent.click(await screen.findByRole('button', { name: 'Apply 1 swap' }));
-      await waitFor(() => expect(onApply).toHaveBeenCalled());
-
-      window.history.back();
-      expect(onClose).not.toHaveBeenCalled();
-      expect(screen.getByRole('dialog')).toBeTruthy();
-      expect(window.location.pathname).toBe('/deck');
-
-      fail();
-      await waitFor(() =>
-        expect(
-          (screen.getByRole('button', { name: 'Apply 1 swap' }) as HTMLButtonElement).disabled
-        ).toBe(false)
-      );
-      expect(onClose).not.toHaveBeenCalled();
-      window.history.back();
-      await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+      fireEvent.click(applyButton);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(cancel().disabled).toBe(true);
+      await vi.advanceTimersByTimeAsync(APPLY_LOOKUP_TIMEOUT_MS);
     } finally {
-      // Let the voided rejection surface before the listener goes.
-      await new Promise((r) => setTimeout(r, 0));
-      process.off('unhandledRejection', swallow);
+      vi.useRealTimers();
     }
+
+    await waitFor(() => expect(cancel().disabled).toBe(false));
+    expect(screen.getByRole('alert').textContent).toBe(APPLY_LOOKUP_TIMEOUT_MESSAGE);
+    expect(applyButton.disabled).toBe(false);
+    fireEvent.click(cancel());
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
   });
 });

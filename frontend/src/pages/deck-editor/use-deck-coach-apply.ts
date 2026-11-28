@@ -10,7 +10,7 @@ import { buildAllocationMap, pickCollectionCopy } from '@/lib/collection/allocat
 import { useToastsStore } from '@/store/toasts';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { applyUpgradePlan, type PlanStep } from '@/lib/coach/apply-upgrade-plan';
-import { logger } from '@/lib/util/logger';
+import { userMessage } from '@/lib/util/user-error';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
 import type { EnrichedCard } from '@spellcontrol/binder-routing';
 import type { Dispatch, SetStateAction } from 'react';
@@ -193,14 +193,16 @@ export function useDeckCoachApply({
     if (!targetId) return;
     if (toCopy) renameDeck(targetId, upgradedName);
     let done = 0;
+    let failure = "Couldn't apply the plan. Try again.";
     try {
       done = await applyUpgradePlan(targetId, steps);
     } catch (err) {
-      logger.warn('[UpgradePlan] apply failed', err);
+      // A stalled card lookup rejects with its own copy (E1122); say that.
+      failure = userMessage(err, failure);
     }
     if (done === 0) {
       if (toCopy) deleteDeck(targetId);
-      pushToast({ message: "Couldn't apply the plan. Try again.", tone: 'error' });
+      pushToast({ message: failure, tone: 'error' });
       return;
     }
     setPlanOpen(false);

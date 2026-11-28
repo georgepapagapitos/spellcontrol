@@ -18,6 +18,7 @@ import { scryfallArtCrop } from '@/lib/offline/slim-to-scryfall';
 import { normalizeScryfallQuery } from '@/lib/search/normalize-search';
 import { scryfallFetch, scryfallRequest, scryfallErrorMessage } from '@/lib/cards/scryfall-fetch';
 import { apiUrl } from '@/lib/api/api-base';
+import { fetchWithAbortTimeout } from '@/lib/api/fetch-utils';
 import type { ScryfallCardRef } from '@/lib/cards/scryfall-card-link';
 import { persistCard, readCachedCards } from './cache';
 import { priceUnpricedFromOtherPrintings } from './unpricedPrintings';
@@ -44,6 +45,9 @@ const COLLECTION_BATCH_SIZE = 75; // Scryfall /cards/collection max per request
 // Names/ids per POST to our own bulk-backed lookup (server caps at 500; 200
 // keeps one gzipped answer well under a megabyte).
 const BULK_LOOKUP_BATCH_SIZE = 200;
+// Same ceiling as the app's other backend card-data requests (combos, deck
+// prices). One 200-name answer comes back in well under a second.
+const BULK_LOOKUP_TIMEOUT_MS = 30_000;
 // Ceiling on the per-card follow-up requests a single batch resolve may fire
 // after the batched pass (see the tail of liveGetCardsByNames).
 const FOLLOWUP_REQUEST_BUDGET = 100;
@@ -542,11 +546,18 @@ async function bulkLookup(body: {
 }): Promise<{ byName: Record<string, ScryfallCard>; byId: Record<string, ScryfallCard> }> {
   const empty = { byName: {}, byId: {} };
   try {
-    const res = await fetch(apiUrl('/api/cards/lookup'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    // Bounded (E1122): a stalled lookup used to hang every awaiter forever.
+    // Timing out reads as "nothing resolved", so Scryfall picks it up below.
+    const res = await fetchWithAbortTimeout(
+      '/api/cards/lookup',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+      BULK_LOOKUP_TIMEOUT_MS,
+      'bulk-lookup-timeout'
+    );
     if (!res.ok) return empty;
     const json = (await res.json()) as Partial<typeof empty> | null;
     return { byName: json?.byName ?? {}, byId: json?.byId ?? {} };

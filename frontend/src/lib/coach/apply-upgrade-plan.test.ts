@@ -5,7 +5,12 @@ import { useDecksStore, type Deck } from '@/store/decks';
 import { useDeckHistoryStore } from '@/store/deck-history';
 import { useCollectionStore } from '@/store/collection';
 import { setApplyingServer } from '@/lib/sync/applying-server';
-import { applyUpgradePlan } from './apply-upgrade-plan';
+import { pending } from '@/test/pending';
+import {
+  applyUpgradePlan,
+  APPLY_LOOKUP_TIMEOUT_MESSAGE,
+  APPLY_LOOKUP_TIMEOUT_MS,
+} from './apply-upgrade-plan';
 
 // Same contract as append-deck-import.test.ts: the decks store's heal
 // subscriber persists through ./sync, mocked so writes can be counted.
@@ -16,9 +21,11 @@ vi.mock('@/lib/sync', () => ({
 
 const sc = (name: string): ScryfallCard => ({ id: `sf-${name}`, name }) as unknown as ScryfallCard;
 const known = new Map(['Harrow', 'Farseek', 'Escape Tunnel'].map((n) => [n, sc(n)]));
+const resolveKnown = async (names: string[]) =>
+  new Map(names.filter((n) => known.has(n)).map((n) => [n, known.get(n)!]));
+const getCardsByNames = vi.fn(resolveKnown);
 vi.mock('@/deck-builder/services/scryfall/client', () => ({
-  getCardsByNames: async (names: string[]) =>
-    new Map(names.filter((n) => known.has(n)).map((n) => [n, known.get(n)!])),
+  getCardsByNames: (names: string[]) => getCardsByNames(names),
 }));
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
@@ -58,6 +65,7 @@ describe('applyUpgradePlan', () => {
     useDeckHistoryStore.getState().clear();
     await flush();
     persistDecksState.mockClear();
+    getCardsByNames.mockImplementation(resolveKnown);
   });
 
   it('swaps, fills, and claims a free owned copy in one write and one undo', async () => {
@@ -103,6 +111,28 @@ describe('applyUpgradePlan', () => {
     expect(useDeckHistoryStore.getState().undoLabel('d1')).toBe('re-check lands (1)');
     useDeckHistoryStore.getState().undo('d1');
     expect(useDecksStore.getState().decks[0].name).toBe('Zimone');
+  });
+
+  // E1122: the sheets that run this lock every exit until it settles, so a
+  // lookup that never answers used to leave them unclosable until a reload.
+  it('gives up on a stalled card lookup with copy that says so, and changes nothing', async () => {
+    vi.useFakeTimers();
+    try {
+      getCardsByNames.mockImplementation(() => pending(new Map()));
+      let outcome: unknown = 'pending';
+      void applyUpgradePlan('d1', [{ addName: 'Harrow', cutName: 'Simic Signet' }]).then(
+        (n) => (outcome = n),
+        (err: unknown) => (outcome = err)
+      );
+      await vi.advanceTimersByTimeAsync(APPLY_LOOKUP_TIMEOUT_MS - 1);
+      expect(outcome).toBe('pending');
+      await vi.advanceTimersByTimeAsync(1);
+      expect(outcome).toBeInstanceOf(Error);
+      expect((outcome as Error).message).toBe(APPLY_LOOKUP_TIMEOUT_MESSAGE);
+      expect(names()).toEqual(['Simic Signet', 'Ash Barrens', 'Island']);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does nothing for a deck that is not there', async () => {
