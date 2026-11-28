@@ -25,6 +25,13 @@ interface Props {
    *  that would bounce — `playAgainHint` explains why instead. */
   onPlayAgain?(): void;
   onDone(): void;
+  /** True when `onDone` ends the game outright and unmounts the sheet (solo,
+   *  the paper table): Done then plays the sheet's exit, like every other
+   *  sheet, and `onDone` runs when it ends. Left off, Done calls `onDone` at
+   *  once with no exit, which is the safe default: an `onDone` that asks first
+   *  (an online table's "Leave the table?") needs the sheet live after a
+   *  Cancel, and forgetting this prop only costs the slide-out. */
+  doneCloses?: boolean;
   /** Online co-op (E387): 'Rematch' host-side, 'Play again' everywhere else. */
   playAgainLabel?: string;
   /** Online co-op (E387): 'Leave table' at a table, 'Done' solo. */
@@ -49,6 +56,7 @@ export function HordeEndSheet({
   endedOnTurn,
   onPlayAgain,
   onDone,
+  doneCloses = false,
   playAgainLabel = 'Play again',
   doneLabel = 'Done',
   playAgainHint,
@@ -61,12 +69,14 @@ export function HordeEndSheet({
   const headline =
     outcome === 'won' ? 'The horde is gone' : `Overrun on turn ${endedOnTurn ?? hordeTurns}`;
 
-  // Done calls `onDone` straight away instead of playing the sheet's exit
-  // first: at an online table it asks "Leave the table?", and a Cancel there
-  // must come back to a live sheet. Routed through the exit, the sheet was
-  // already half-closed by then and its Done did nothing ever again. The
-  // parent unmounts the sheet once leaving really happens. Nothing else
-  // closes it (it isn't dismissable), so `onClose` is never reached.
+  // With `doneCloses` (solo, the paper table), Done plays the exit and
+  // `onClose` runs `onDone` once the slide-out ends (at once under reduced
+  // motion or on desktop). Without it, Done calls `onDone` straight away: an
+  // online table asks "Leave the table?" first, a Cancel there must come back
+  // to a live sheet, and one routed through the exit was already half-closed
+  // by then, its Done dead for good (#3260). That parent unmounts the sheet
+  // once the leave really happens. Nothing else closes it: it isn't
+  // dismissable, so Escape and Back are refused.
   return (
     <Sheet
       inPlace
@@ -74,9 +84,9 @@ export function HordeEndSheet({
       onClose={onDone}
       className="horde-end-sheet"
       title={headline}
-      footer={
+      footer={(close) => (
         <>
-          <Button onClick={() => onDone()}>{doneLabel}</Button>
+          <Button onClick={() => (doneCloses ? close() : onDone())}>{doneLabel}</Button>
           {onPlayAgain ? (
             <Button variant="primary" onClick={onPlayAgain}>
               {playAgainLabel}
@@ -85,7 +95,7 @@ export function HordeEndSheet({
             playAgainHint && <p className="horde-end-hint">{playAgainHint}</p>
           )}
         </>
-      }
+      )}
     >
       <div className="card-picker-list horde-end-body">
         <ul className="horde-end-stats">

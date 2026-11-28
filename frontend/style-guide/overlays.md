@@ -32,7 +32,13 @@ where every section lives.
   arrives. `dismissable={false}` is for a sheet that must
   be answered: no backdrop, Escape or browser-Back dismiss (Back is refused
   and the page stays, as for a Modal), and no handle. It is read live, so
-  `dismissable={!applying}` locks the sheet only while the apply runs. `inPlace` is for
+  `dismissable={!applying}` locks the sheet only while the apply runs. An
+  answer that ends the sheet outright still plays the exit (the footer's
+  `close`); one that asks first and can be declined must not, or a Cancel
+  finds the sheet half-closed with a dead button. The Horde end sheet makes
+  the safe case the default: Done calls `onDone` at once (the online table's
+  Leave table opens a confirm), and the solo and paper tables opt in to the
+  slide-out with `doneCloses`. `inPlace` is for
   the play table and playtest board only. Before this, 30-odd sheets each
   composed the shell by hand and drifted: five title styles, two sheets with
   no exit animation, and the binder "Add card" sheet's search field running

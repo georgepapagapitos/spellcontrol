@@ -144,6 +144,7 @@ export function BoardHordeSheets({
               endedOnTurn={turn}
               onPlayAgain={() => dispatch({ type: 'RESET' })}
               onDone={disarmHorde}
+              doneCloses
             />
           )}
 
