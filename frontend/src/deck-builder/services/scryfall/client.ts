@@ -546,9 +546,10 @@ async function bulkLookup(body: {
 }): Promise<{ byName: Record<string, ScryfallCard>; byId: Record<string, ScryfallCard> }> {
   const empty = { byName: {}, byId: {} };
   try {
-    // Bounded (E1122): a stalled lookup used to hang every awaiter forever.
-    // Timing out reads as "nothing resolved", so Scryfall picks it up below.
-    const res = await fetchWithAbortTimeout(
+    // Bounded, body included (E1122): a stalled lookup used to hang every
+    // awaiter forever. Timing out reads as "nothing resolved", so Scryfall
+    // picks it up below.
+    const json = await fetchWithAbortTimeout(
       '/api/cards/lookup',
       {
         method: 'POST',
@@ -556,10 +557,9 @@ async function bulkLookup(body: {
         body: JSON.stringify(body),
       },
       BULK_LOOKUP_TIMEOUT_MS,
-      'bulk-lookup-timeout'
+      'bulk-lookup-timeout',
+      async (res) => (res.ok ? ((await res.json()) as Partial<typeof empty> | null) : null)
     );
-    if (!res.ok) return empty;
-    const json = (await res.json()) as Partial<typeof empty> | null;
     return { byName: json?.byName ?? {}, byId: json?.byId ?? {} };
   } catch {
     return empty;

@@ -1592,6 +1592,8 @@ describe('getCardsByNames / getCardsByIds bulk-first resolve', () => {
           seen.lookups += 1;
           const answer = lookup(JSON.parse(String(init?.body)));
           if (answer instanceof Error) throw answer;
+          if (answer instanceof Promise) return answer;
+          if (typeof answer === 'function') return { ok: true, json: answer };
           return { ok: true, json: async () => answer };
         }
         if (url.includes('/cards/collection')) {
@@ -1706,6 +1708,28 @@ describe('getCardsByNames / getCardsByIds bulk-first resolve', () => {
 
     expect(result.get('Bulk Batch Fallthrough')?.id).toBe('live-Bulk Batch Fallthrough');
     expect(seen.collections).toBe(1);
+  });
+
+  // E1122: the lookup had no timeout, and then one that stopped at the
+  // headers, so a stall left every getCardsByNames caller hanging.
+  it.each([
+    ['its headers never arrive', 'Stalled Headers Card', () => pending({ ok: false })],
+    ['its body never arrives', 'Stalled Body Card', () => () => pending({})],
+  ])('falls through to Scryfall after 30 s when the lookup stalls: %s', async (_, name, stall) => {
+    vi.useFakeTimers();
+    try {
+      const seen = stubFetch(stall);
+      let result: Map<string, ScryfallCard> | undefined;
+      void getCardsByNames([name]).then((r) => (result = r));
+      await vi.advanceTimersByTimeAsync(29_999);
+      expect(seen.collections).toBe(0);
+      expect(result).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(seen.collections).toBe(1);
+      expect(result?.get(name)?.id).toBe(`live-${name}`);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('resolves ids from the bulk lookup before the collection endpoint', async () => {

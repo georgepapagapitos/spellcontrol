@@ -46,9 +46,9 @@ export class SpellbookError extends Error {
 }
 
 export async function fetchSpellbookBracket(req: SpellbookRequest): Promise<SpellbookTag> {
-  let res: Response;
+  let answer: { status: number; ok: boolean; body: { tag?: unknown } | null };
   try {
-    res = await fetchWithAbortTimeout(
+    answer = await fetchWithAbortTimeout(
       '/api/spellbook/bracket',
       {
         method: 'POST',
@@ -57,15 +57,19 @@ export async function fetchSpellbookBracket(req: SpellbookRequest): Promise<Spel
         body: JSON.stringify(req),
       },
       12_000,
-      'Spellbook timed out'
+      'Spellbook timed out',
+      async (res) => ({
+        status: res.status,
+        ok: res.ok,
+        body: res.ok ? ((await res.json().catch(() => null)) as { tag?: unknown } | null) : null,
+      })
     );
   } catch {
     throw new SpellbookError('failed');
   }
-  if (res.status === 503) throw new SpellbookError('unavailable');
-  if (!res.ok) throw new SpellbookError('failed');
-  const body = (await res.json().catch(() => null)) as { tag?: unknown } | null;
-  const tag = body?.tag;
+  if (answer.status === 503) throw new SpellbookError('unavailable');
+  if (!answer.ok) throw new SpellbookError('failed');
+  const tag = answer.body?.tag;
   if (typeof tag !== 'string' || !(tag in SPELLBOOK_TAG_LABELS)) throw new SpellbookError('failed');
   return tag as SpellbookTag;
 }

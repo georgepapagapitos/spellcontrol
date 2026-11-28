@@ -6,36 +6,56 @@ export function authedFetch(url: string, init?: RequestInit): Promise<Response> 
   return fetch(apiUrl(url), { credentials: 'same-origin', ...init });
 }
 
+const isAbort = (err: unknown) => err instanceof Error && err.name === 'AbortError';
+
 /**
- * `fetch` with an AbortController-based timeout. Resolves the path via `apiUrl`.
- * Rejects with the given `timeoutError` message on timeout; re-throws any other
- * fetch error as-is so callers can inspect `err.name === 'AbortError'` or wrap
- * differently.
+ * `fetch` and the read of its body, both under one AbortController timeout.
+ * Resolves the path via `apiUrl`, and resolves with whatever `read` returns.
+ *
+ * The clock runs until `read` settles, not only until the headers arrive.
+ * It used to stop at the headers, so a response whose body stalled hung its
+ * caller with no timeout left (E1122). `read` is required for that reason: a
+ * caller can't take the Response out and read it unbounded.
+ *
+ * Rejects with `timeoutError` on timeout. Any other failure is rethrown as-is,
+ * except that a failure of the request itself (never one thrown by `read`)
+ * goes through `onFetchError` when given, for callers that tag it.
  *
  * @param url        API path (passed through `apiUrl`).
  * @param init       `RequestInit` options (merged with the abort signal).
- * @param timeoutMs  How long to wait before aborting.
+ * @param timeoutMs  How long the request plus `read` may take.
  * @param timeoutError  Error message thrown on timeout.
+ * @param read       Reads the response; its result is what this resolves with.
+ * @param onFetchError  Maps a transport failure of the request to the error thrown.
  */
-export function fetchWithAbortTimeout(
+export function fetchWithAbortTimeout<T>(
   url: string,
   init: RequestInit,
   timeoutMs: number,
-  timeoutError: string
-): Promise<Response> {
+  timeoutError: string,
+  read: (res: Response) => Promise<T>,
+  onFetchError?: (err: unknown) => unknown
+): Promise<T> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  return fetch(apiUrl(url), { ...init, signal: controller.signal })
-    .then(
-      (r) => r,
-      (err: unknown) => {
-        if (err instanceof Error && err.name === 'AbortError') {
-          throw new Error(timeoutError);
-        }
-        throw err;
-      }
-    )
-    .finally(() => clearTimeout(timer));
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expired = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new Error(timeoutError));
+    }, timeoutMs);
+  });
+  const work = fetch(apiUrl(url), { ...init, signal: controller.signal })
+    .catch((err: unknown) => {
+      if (isAbort(err)) throw new Error(timeoutError);
+      throw onFetchError ? onFetchError(err) : err;
+    })
+    .then(read)
+    .catch((err: unknown) => {
+      throw isAbort(err) ? new Error(timeoutError) : err;
+    });
+  // Once the deadline wins, the aborted request still settles on its own.
+  work.catch(() => {});
+  return Promise.race([work, expired]).finally(() => clearTimeout(timer));
 }
 
 /**

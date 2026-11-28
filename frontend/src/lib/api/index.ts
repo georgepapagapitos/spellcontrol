@@ -50,24 +50,24 @@ function isRetryableStatus(err: unknown): boolean {
   return status === 429 || status === 502 || status === 503 || status === 504;
 }
 
-function fetchWithTimeout(url: string, opts: RequestInit): Promise<Response> {
+/** A backend JSON request and its body under one timeout, through `handleResponse`. */
+function fetchWithTimeout<T>(url: string, opts: RequestInit): Promise<T> {
   return fetchWithAbortTimeout(
     url,
     opts,
     TIMEOUT_MS,
-    'The request timed out. Try importing a smaller batch.'
-  ).catch((err: unknown) => {
-    // fetchWithAbortTimeout rethrows AbortError as the timeout message above.
-    // Any other rejection is a network-level failure — DNS, connection reset,
-    // TLS, the browser killing a long-running fetch (mobile tab suspension,
-    // cellular handoff). Tag it so the import-chunk caller knows it's retryable.
-    if (err instanceof Error && err.message.startsWith('The request timed out')) throw err;
-    const e: NetworkError = Object.assign(
-      new Error("The server isn't responding. Give it a moment and try again."),
-      { isNetworkError: true as const }
-    );
-    throw e;
-  });
+    'The request timed out. Try importing a smaller batch.',
+    (res) => handleResponse<T>(res),
+    // Any rejection of the request itself is a network-level failure: DNS,
+    // connection reset, TLS, the browser killing a long-running fetch (mobile
+    // tab suspension, cellular handoff). Tag it so the import-chunk caller
+    // knows it's retryable. An HTTP error from `handleResponse` keeps its
+    // `status`, which the retry reads.
+    (): NetworkError =>
+      Object.assign(new Error("The server isn't responding. Give it a moment and try again."), {
+        isNetworkError: true as const,
+      })
+  );
 }
 
 export interface ImportProgress {
@@ -80,12 +80,11 @@ export interface ImportProgress {
 export type ImportProgressCallback = (progress: ImportProgress) => void;
 
 async function postImportChunk(text: string, proxy?: boolean): Promise<UploadResponse> {
-  const response = await fetchWithTimeout('/api/import', {
+  const data = await fetchWithTimeout<UploadResponse>('/api/import', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(proxy ? { text, proxy: true } : { text }),
   });
-  const data = await handleResponse<UploadResponse>(response);
   // Deploy-skew guard: a native app can run against a backend that predates
   // the fetchErrors/malformedRows/skippedUnownedRows/clampedRows fields (Fly
   // deploys lag main) — normalize so `.length`/arithmetic never see undefined.
@@ -202,12 +201,11 @@ export async function importFile(
  * an ordinary `File` and reuse the whole existing import path unchanged.
  */
 export async function fetchImportLink(url: string): Promise<{ text: string; name: string }> {
-  const response = await fetchWithTimeout('/api/import/link', {
+  return fetchWithTimeout<{ text: string; name: string }>('/api/import/link', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url }),
   });
-  return handleResponse<{ text: string; name: string }>(response);
 }
 
 /**
@@ -220,12 +218,11 @@ export async function importRows(rows: FetchErrorRow[]): Promise<UploadResponse>
   let lastErr: unknown;
   for (let attempt = 0; ; attempt++) {
     try {
-      const response = await fetchWithTimeout('/api/import', {
+      const data = await fetchWithTimeout<UploadResponse>('/api/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rows }),
       });
-      const data = await handleResponse<UploadResponse>(response);
       return {
         ...data,
         fetchErrors: data.fetchErrors ?? [],
@@ -263,8 +260,7 @@ let setMapResolved: SetMap | undefined;
 /** Fetches the Scryfall set list (cached per page-load). Resolves to a map keyed by uppercase set code. */
 export function getSetMap(): Promise<SetMap> {
   if (!setMapPromise) {
-    setMapPromise = fetchWithTimeout('/api/sets', { method: 'GET' })
-      .then((r) => handleResponse<{ sets: SetMap }>(r))
+    setMapPromise = fetchWithTimeout<{ sets: SetMap }>('/api/sets', { method: 'GET' })
       .then((j) => (setMapResolved = j.sets))
       .catch((err) => {
         setMapPromise = null;
@@ -306,8 +302,9 @@ export function getSetCards(code: string): Promise<ScryfallCard[]> {
   const key = code.toLowerCase();
   let p = setCardsPromises.get(key);
   if (!p) {
-    p = fetchWithTimeout(`/api/sets/${encodeURIComponent(key)}/cards`, { method: 'GET' })
-      .then((r) => handleResponse<{ cards: ScryfallCard[] }>(r))
+    p = fetchWithTimeout<{ cards: ScryfallCard[] }>(`/api/sets/${encodeURIComponent(key)}/cards`, {
+      method: 'GET',
+    })
       .then((j) => j.cards)
       .catch((err) => {
         setCardsPromises.delete(key);
@@ -320,12 +317,11 @@ export function getSetCards(code: string): Promise<ScryfallCard[]> {
 
 /** Import a deck from pasted text. Returns ScryfallCard objects grouped by section. */
 export async function importDeckText(text: string): Promise<DeckImportResponse> {
-  const response = await fetchWithTimeout('/api/import-deck', {
+  const data = await fetchWithTimeout<DeckImportResponse>('/api/import-deck', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text }),
   });
-  const data = await handleResponse<DeckImportResponse>(response);
   // Deploy-skew guard — see postImportChunk.
   return { ...data, fetchErrors: data.fetchErrors ?? [] };
 }
@@ -338,17 +334,21 @@ export async function searchProducts(query: string, type?: string): Promise<Prod
   const params = new URLSearchParams();
   if (query) params.set('q', query);
   if (type) params.set('type', type);
-  const response = await fetchWithTimeout(`/api/products?${params.toString()}`, { method: 'GET' });
-  const data = await handleResponse<{ products: ProductSummary[] }>(response);
+  const data = await fetchWithTimeout<{ products: ProductSummary[] }>(
+    `/api/products?${params.toString()}`,
+    { method: 'GET' }
+  );
   return data.products;
 }
 
 /** Resolves a single product's full decklist (playable deck + physical extras). */
 export async function fetchProduct(fileName: string): Promise<ProductResolveResponse> {
-  const response = await fetchWithTimeout(`/api/products/${encodeURIComponent(fileName)}`, {
-    method: 'GET',
-  });
-  const data = await handleResponse<ProductResolveResponse>(response);
+  const data = await fetchWithTimeout<ProductResolveResponse>(
+    `/api/products/${encodeURIComponent(fileName)}`,
+    {
+      method: 'GET',
+    }
+  );
   // Deploy-skew guard — see postImportChunk.
   return {
     ...data,
@@ -365,10 +365,12 @@ export async function fetchProduct(fileName: string): Promise<ProductResolveResp
 export async function fetchProductCommanderSummary(
   fileName: string
 ): Promise<ProductCommanderSummary | null> {
-  const response = await fetchWithTimeout(`/api/products/${encodeURIComponent(fileName)}/summary`, {
-    method: 'GET',
-  });
-  const data = await handleResponse<{ commander: ProductCommanderSummary | null }>(response);
+  const data = await fetchWithTimeout<{ commander: ProductCommanderSummary | null }>(
+    `/api/products/${encodeURIComponent(fileName)}/summary`,
+    {
+      method: 'GET',
+    }
+  );
   return data.commander;
 }
 
@@ -395,10 +397,12 @@ export async function fetchPrintings(
   if (set) params.set('set', set);
   if (oracleId) params.set('oracle', oracleId);
   const query = params.size > 0 ? `?${params}` : '';
-  const response = await fetchWithTimeout(`/api/cards/${encoded}/printings${query}`, {
-    method: 'GET',
-  });
-  const data = await handleResponse<{ printings: ScryfallCard[] }>(response);
+  const data = await fetchWithTimeout<{ printings: ScryfallCard[] }>(
+    `/api/cards/${encoded}/printings${query}`,
+    {
+      method: 'GET',
+    }
+  );
   return data.printings;
 }
 
@@ -409,9 +413,11 @@ export async function fetchPrintings(
  * Returns null when the server says Scryfall doesn't know the id.
  */
 export async function getCardById(id: string): Promise<ScryfallCard | null> {
-  const response = await fetchWithTimeout(`/api/cards/by-id/${encodeURIComponent(id)}`, {
-    method: 'GET',
-  });
-  const data = await handleResponse<{ card: ScryfallCard | null }>(response);
+  const data = await fetchWithTimeout<{ card: ScryfallCard | null }>(
+    `/api/cards/by-id/${encodeURIComponent(id)}`,
+    {
+      method: 'GET',
+    }
+  );
   return data.card;
 }
