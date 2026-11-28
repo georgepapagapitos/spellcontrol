@@ -66,17 +66,25 @@ describe('CommanderProfileCard', () => {
     // The stand-alone card's saved "open" does not open the step disclosure.
     localStorage.setItem('spellcontrol-game-plan-collapsed', '0');
     render(<CommanderProfileCard profile={makeProfile()} title="What Giada wants" />);
-    const toggle = screen.getByRole('button', { name: /What Giada wants/ });
+    const toggle = screen.getByRole('button', { name: 'What Giada wants' });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    expect(screen.getByRole('heading', { level: 3, name: /What Giada wants/ })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 3, name: 'What Giada wants' })).toBeTruthy();
     fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    // The choice is not saved over the stand-alone card's.
-    expect(localStorage.getItem('spellcontrol-game-plan-collapsed')).toBe('0');
+  });
+
+  it("opening the step disclosure never writes the stand-alone card's saved choice", () => {
+    localStorage.clear();
+    // Saved closed; the step opening must leave it closed.
+    localStorage.setItem('spellcontrol-game-plan-collapsed', '1');
+    render(<CommanderProfileCard profile={makeProfile()} title="What Giada wants" />);
+    fireEvent.click(screen.getByRole('button', { name: 'What Giada wants' }));
+    expect(localStorage.getItem('spellcontrol-game-plan-collapsed')).toBe('1');
   });
 
   // E1115 (b): closed, a step disclosure states its read, as every kit Disclosure states its
-  // value, so a closed breakdown is never just a title.
+  // value, so a closed breakdown is never just a title. The read is the description, so the
+  // heading's name stays the title, open or closed.
   it('closed, the step disclosure names what the commander reads as', () => {
     localStorage.clear();
     render(
@@ -85,11 +93,17 @@ describe('CommanderProfileCard', () => {
         title="What Giada wants"
       />
     );
-    const toggle = screen.getByRole('button', { name: /What Giada wants/ });
+    const toggle = screen.getByRole('button', { name: 'What Giada wants' });
     expect(toggle.textContent).toContain('Tokens');
+    expect(screen.getByRole('button', { name: 'What Giada wants', description: 'Tokens' })).toBe(
+      toggle
+    );
+    expect(screen.getByRole('heading', { level: 3, name: 'What Giada wants' })).toBeTruthy();
     fireEvent.click(toggle);
-    // Open, the footer says it instead.
+    // Open, the footer says it instead, and the name has not moved.
     expect(toggle.textContent).not.toContain('Tokens');
+    expect(toggle.getAttribute('aria-describedby')).toBeNull();
+    expect(screen.getByRole('heading', { level: 3, name: 'What Giada wants' })).toBeTruthy();
   });
 
   // E1115 (b): the step disclosure remembers the player's last choice, as More settings does.

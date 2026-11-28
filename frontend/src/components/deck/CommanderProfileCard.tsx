@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useId } from 'react';
 import type { CommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
 import { ARCHETYPE_LABEL } from '@/deck-builder/services/deckBuilder/strategyVocabulary';
 import { useCollapsedPref } from '@/lib/util/use-collapsed-pref';
@@ -33,6 +34,9 @@ export function CommanderProfileCard({ profile, title }: CommanderProfileCardPro
   );
   const Heading = inStep ? 'h3' : 'h2';
   const reads = ARCHETYPE_LABEL[primaryArchetype];
+  const showRead = inStep && collapsed;
+  const titleId = useId();
+  const readId = useId();
 
   return (
     <section className={inStep ? 'cmdr-profile is-in-step' : 'deck-builder-section cmdr-profile'}>
@@ -44,9 +48,19 @@ export function CommanderProfileCard({ profile, title }: CommanderProfileCardPro
           aria-controls="cmdr-profile-body"
           onClick={() => setCollapsed((c) => !c)}
           title={collapsed ? 'Expand commander breakdown' : 'Collapse commander breakdown'}
+          // The name (and so the heading's) is the title alone, open or closed; the read is
+          // announced as the description while it shows.
+          aria-labelledby={titleId}
+          aria-describedby={showRead ? readId : undefined}
         >
-          <span>{title ?? 'What your commander wants'}</span>
-          {inStep && collapsed && <span className="cmdr-profile-toggle-summary">{reads}</span>}
+          <span id={titleId} className="cmdr-profile-toggle-title">
+            {title ?? 'What your commander wants'}
+          </span>
+          {showRead && (
+            <span id={readId} className="cmdr-profile-toggle-summary">
+              {reads}
+            </span>
+          )}
           <span className="cmdr-profile-chevron" aria-hidden>
             {collapsed ? (
               <ChevronDown width={18} height={18} />

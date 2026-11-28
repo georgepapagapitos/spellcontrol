@@ -1180,8 +1180,13 @@ bolted on. Rulings:
   The summary row above it already shows the rules text the breakdown quotes,
   so open by default it would print that text twice and push Theme down a
   phone screen. Closed, its header carries the archetype read ("Tokens"), the
-  way a kit `Disclosure` states its value, so it is never a bare title. It
-  remembers the player's last open or closed choice under its own key
+  way a kit `Disclosure` states its value, so it is never a bare title. The
+  read never shrinks (at most 12 characters, "Spellslinger"); a long commander
+  name wraps the title instead, and the toggle keeps a 44px floor
+  (`styles/cmdr-profile-toggle-read.test.ts`). The toggle sits in the step's
+  `h3`, so its name is the title alone, open or closed, and the read is its
+  description (`aria-describedby`); a heading's name doesn't change on toggle.
+  It remembers the player's last open or closed choice under its own key
   (`spellcontrol-generator-plan-collapsed`), as More settings does.
 - **A commander can be read before it is picked.** Each finder tile carries a
   **View** icon button (top-right, outside the tile's pick button) that opens
@@ -1204,10 +1209,14 @@ bolted on. Rulings:
   "Custom, set under More settings" and never a wrong choice), Lands and Budget
   are up front; Staples/Synergy, the full collection strategy, card pool, tempo,
   salt, filters and card lists sit under **More settings**. Closed, More
-  settings states what is behind it and differs from the defaults: Staples ↔
-  Synergy once it is off Balanced ("Leaning synergy"), then salt, tempo, mana,
-  pool, filters and card lists. It never repeats the lands or budget set above
-  it, and with nothing changed it shows no summary (E1115, 2026-11-27).
+  settings states what is behind it and differs from the defaults, in this
+  order: Staples ↔ Synergy once it is off Balanced ("Leaning synergy"), card
+  pool, tempo, salt, mana philosophy, the Scryfall filter, then the card lists
+  (built around, must-include, excluded) and ban lists. It never repeats the
+  lands or budget set above it, and with nothing changed it shows no summary.
+  The collection strategy is left out on purpose: **Cards from** shows it up
+  front, reading "Custom" when only the full control sets it (E1115,
+  2026-11-27).
 - **"Your deck" is the recap and the two buttons.** From 1024px a sticky aside
   beside the steps (commander art, each choice made, the one-line hint, **Generate**
   as the primary and **Start blank**, with the reason when either is held); below
