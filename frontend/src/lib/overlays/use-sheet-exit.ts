@@ -60,21 +60,25 @@ export interface SheetExitOptions {
    *  closes it. For a sheet that has to be answered, use `dismissable`. */
   escape?: boolean;
   /**
-   * `false` for a sheet that has to be answered (the Horde reveal, a sheet
-   * mid-apply): neither Escape nor the browser Back button closes it. Back is
-   * refused the way Modal refuses it, so the page stays put under the sheet
-   * and the next Back is intercepted again (overlay-history.ts). Read live, so
-   * a sheet can flip it while open (`dismissable={!applying}`). Before this,
+   * `false` for a sheet that has to be answered (the Horde reveal): neither
+   * Escape nor the browser Back button closes it. Back is refused the way
+   * Modal refuses it, so the page stays put under the sheet and the next Back
+   * is intercepted again (overlay-history.ts). Read live, so a sheet can flip
+   * it while open, for work it can't take back. Before this,
    * Back always closed and ran `onClose`: on the Horde reveal, whose
    * `onClose` is its confirm, Back confirmed the reveal.
    */
   dismissable?: boolean;
+  /** Runs once when a close starts, before the exit plays and `onClose`
+   *  fires, whichever path started it. For work a closing sheet must drop at
+   *  once (an apply the user walked away from, E1122). */
+  onCloseStart?: () => void;
 }
 
 export function useSheetExit(
   onClose: () => void,
   exitAnimationName: string | string[] = 'sheet-fall',
-  { panelRef, instantAt, escape = true, dismissable = true }: SheetExitOptions = {}
+  { panelRef, instantAt, escape = true, dismissable = true, onCloseStart }: SheetExitOptions = {}
 ) {
   const [isClosing, setIsClosing] = useState(false);
   const [exitFrom, setExitFrom] = useState(0);
@@ -90,11 +94,13 @@ export function useSheetExit(
   const onCloseRef = useRef(onClose);
   const exitNamesRef = useRef(exitAnimationName);
   const instantAtRef = useRef(instantAt);
+  const onCloseStartRef = useRef(onCloseStart);
   useEffect(() => {
     onCloseRef.current = onClose;
     exitNamesRef.current = exitAnimationName;
     instantAtRef.current = instantAt;
-  }, [onClose, exitAnimationName, instantAt]);
+    onCloseStartRef.current = onCloseStart;
+  }, [onClose, exitAnimationName, instantAt, onCloseStart]);
   // A layout effect, not a passive one: it runs in the same task as the
   // commit, so once a render says `dismissable: false` no Back or Escape
   // event can slip in and close the sheet before the ref catches up.
@@ -119,6 +125,7 @@ export function useSheetExit(
   const beginClose = useCallback((fromY = 0) => {
     if (closingRef.current) return;
     closingRef.current = true;
+    onCloseStartRef.current?.();
     // Reduced motion, or a layout with no exit keyframe (`instantAt`): there
     // is no slide-down to wait on, so the animationend below would never fire.
     // Close immediately instead of leaving the sheet up for the fallback.

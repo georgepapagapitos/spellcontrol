@@ -59,7 +59,7 @@ export async function resolveDeckPrices(ids: Iterable<string>): Promise<void> {
     const batch = wanted.slice(i, i + DECK_PRICE_BATCH);
     batch.forEach((id) => inFlight.add(id));
     try {
-      const res = await fetchWithAbortTimeout(
+      const json = await fetchWithAbortTimeout(
         '/api/refresh-prices',
         {
           method: 'POST',
@@ -67,13 +67,13 @@ export async function resolveDeckPrices(ids: Iterable<string>): Promise<void> {
           body: JSON.stringify({ scryfallIds: batch }),
         },
         REQUEST_TIMEOUT_MS,
-        'Price lookup timed out.'
+        'Price lookup timed out.',
+        async (res) => (res.ok ? ((await res.json()) as { prices?: Wire }) : null)
       );
-      if (!res.ok) {
+      if (!json) {
         cooldownUntil = Date.now() + DECK_PRICE_COOLDOWN_MS;
         return;
       }
-      const json = (await res.json()) as { prices?: Wire };
       const entries: Record<string, PriceEntry> = {};
       for (const [id, p] of Object.entries(json.prices ?? {})) {
         if (!(p.usd ?? 0) && !(p.eur ?? 0)) continue;

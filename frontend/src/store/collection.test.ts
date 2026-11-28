@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { pending } from '@/test/pending';
 import { flushSync } from '@/lib/sync';
 import { setApplyingServer } from '@/lib/sync/applying-server';
 
@@ -789,6 +790,66 @@ describe('refreshPrices', () => {
     useCollectionStore.setState({ cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })] });
     await expect(useCollectionStore.getState().refreshPrices()).rejects.toThrow('Bad Gateway');
     expect(useCollectionStore.getState().isRefreshingPrices).toBe(false);
+  });
+
+  // E1122: the body read is inside the request's timeout and its retry now.
+  // An OK response whose body never finishes, or whose JSON won't parse, is
+  // retried like a request that failed, up to the same two retries.
+  it.each([
+    ['a body that never finishes', () => ({ ok: true, json: () => pending({}) })],
+    [
+      'JSON that will not parse',
+      () => ({ ok: true, json: () => Promise.reject(new SyntaxError('Unexpected token <')) }),
+    ],
+  ])('retries %s on an OK response, and stops after two retries', async (_, bad) => {
+    vi.useFakeTimers();
+    try {
+      resetPriceCache();
+      localStorage.removeItem('spellcontrol:card-prices');
+      let call = 0;
+      const good = (init: { body: string }) => {
+        const { scryfallIds } = JSON.parse(init.body) as { scryfallIds: string[] };
+        const prices = Object.fromEntries(
+          scryfallIds.map((id) => [id, { usd: 5, usdFoil: 0, usdEtched: 0, pricedAt: 1000 }])
+        );
+        return { ok: true, json: async () => ({ prices }) };
+      };
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((_url: string, init: { body: string }) => {
+          call++;
+          return Promise.resolve(call === 1 ? bad() : good(init));
+        })
+      );
+      useCollectionStore.setState({ cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })] });
+      const run = useCollectionStore.getState().refreshPrices();
+      await vi.advanceTimersByTimeAsync(120_000);
+      await run;
+      expect(call).toBe(2);
+      expect(useCollectionStore.getState().cards[0].purchasePrice).toBe(5);
+
+      // Never good: the first try and two retries, then it surfaces.
+      call = 0;
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => {
+          call++;
+          return Promise.resolve(bad());
+        })
+      );
+      const failing = useCollectionStore
+        .getState()
+        .refreshPrices(['sf1'])
+        .then(
+          () => null,
+          (e: Error) => e
+        );
+      await vi.advanceTimersByTimeAsync(3 * 120_000);
+      expect(await failing).toBeInstanceOf(Error);
+      expect(call).toBe(3);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('pages a >1000-printing collection into chunks and prices ALL of it', async () => {

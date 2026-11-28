@@ -1,11 +1,31 @@
 // @vitest-environment happy-dom
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { useState } from 'react';
+import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ScryfallCard } from '@/deck-builder/types';
+import { useDecksStore, type Deck } from '@/store/decks';
+import { useDeckHistoryStore } from '@/store/deck-history';
+import { useToastsStore } from '@/store/toasts';
+import { setApplyingServer } from '@/lib/sync/applying-server';
+import { pending } from '@/test/pending';
+import {
+  APPLY_LOOKUP_TIMEOUT_MESSAGE,
+  APPLY_LOOKUP_TIMEOUT_MS,
+} from '@/lib/coach/apply-upgrade-plan';
+import { useDeckCoachApply } from '@/pages/deck-editor/use-deck-coach-apply';
 import { UpgradePlanSheet, type UpgradePlanSheetProps } from './UpgradePlanSheet';
 import type { Change } from '@/lib/coach/deck-change';
 import type { UpgradePlanTools } from '@/lib/coach/upgrade-plan-tools';
 
 vi.mock('@/lib/cards/card-thumbs', () => ({ useCardThumb: () => undefined }));
+// The apply tests run the real apply path, up to the card lookup.
+const getCardsByNames = vi.fn();
+vi.mock('@/deck-builder/services/scryfall/client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/deck-builder/services/scryfall/client')>()),
+  getCardsByNames: (...a: unknown[]) => getCardsByNames(...a),
+}));
+vi.mock('@/lib/sync', () => ({ persistDecksState: vi.fn().mockResolvedValue(undefined) }));
 const carouselOpen = vi.fn();
 vi.mock('./useCardCarousel', () => ({
   useCardCarousel: () => ({ open: carouselOpen, preview: null }),
@@ -194,13 +214,14 @@ describe('UpgradePlanSheet', () => {
         { addName: 'Hauntwoods Shrieker', cutName: 'Kianne' },
         { addName: 'Abhorrent Oculus', cutName: 'Body of Knowledge' },
       ],
-      false
+      false,
+      expect.any(AbortSignal)
     );
     const copy = button('Apply to a copy') as HTMLButtonElement;
     expect(copy.disabled).toBe(true);
     await vi.waitFor(() => expect(copy.disabled).toBe(false));
     fireEvent.click(copy);
-    expect(onApply).toHaveBeenLastCalledWith(expect.any(Array), true);
+    expect(onApply).toHaveBeenLastCalledWith(expect.any(Array), true, expect.any(AbortSignal));
   });
 
   it('copies the cards to buy, not the owned ones', async () => {
@@ -349,5 +370,156 @@ describe('UpgradePlanSheet', () => {
     render(<UpgradePlanSheet {...props({ onClose })} />);
     fireEvent.click(button('Close'));
     expect(onClose).toHaveBeenCalled();
+  });
+});
+
+/** The sheet over the real handleApplyPlan, which applies, toasts and closes
+ *  the sheet on success. It skips CoachFeed, the sheet's only host, whose
+ *  wrapper sits in between in the app: CoachFeed.plan.test.tsx covers that. */
+describe('UpgradePlanSheet apply, end to end', () => {
+  const card = (name: string) => ({ id: `sf-${name}`, name }) as unknown as ScryfallCard;
+  const DECK_CARDS = ['Kefnet the Mindful', 'Skaab Ruinator', 'Kianne', 'Body of Knowledge'];
+  const noop = () => {};
+
+  function Harness() {
+    const [open, setOpen] = useState(true);
+    const deck = useDecksStore((s) => s.decks.find((d) => d.id === 'd1'))!;
+    const { handleApplyPlan } = useDeckCoachApply({
+      deck,
+      collectionCards: [],
+      crossDeckMoves: [],
+      deckIsFull: false,
+      setPendingMove: noop,
+      setPendingAdd: noop,
+      setPendingAddPrinting: noop,
+      setPendingAddGroup: noop,
+      commitCrossDeckMove: async () => {},
+      handleAddEngineCard: async () => {},
+      handleCutEngineCard: noop,
+      setPlanOpen: setOpen,
+    });
+    return open ? (
+      <UpgradePlanSheet
+        {...props({
+          onApply: async (steps, toCopy, signal) => {
+            await handleApplyPlan(steps, toCopy, signal);
+          },
+          onClose: () => setOpen(false),
+        })}
+      />
+    ) : null;
+  }
+
+  beforeEach(() => {
+    priceState.loaded = true;
+    media.wide = true;
+    localStorage.clear();
+    setApplyingServer(false);
+    useDeckHistoryStore.getState().clear();
+    useToastsStore.setState({ toasts: [] });
+    useDecksStore.setState({
+      hydrated: true,
+      decks: [
+        {
+          id: 'd1',
+          name: 'Zimone',
+          source: 'manual',
+          format: 'commander',
+          commander: null,
+          partnerCommander: null,
+          commanderAllocatedCopyId: null,
+          partnerCommanderAllocatedCopyId: null,
+          cards: DECK_CARDS.map((n, i) => ({
+            slotId: `s${i}`,
+            card: card(n),
+            allocatedCopyId: null,
+          })),
+          sideboard: [],
+          considering: [],
+          generationContext: null,
+          color: '#7a8a70',
+          createdAt: 0,
+          updatedAt: 0,
+        } as unknown as Deck,
+      ],
+    });
+  });
+
+  const renderHarness = () =>
+    render(
+      <MemoryRouter>
+        <Harness />
+      </MemoryRouter>
+    );
+  const deckNames = () => useDecksStore.getState().decks.map((d) => d.name);
+  const cardsOf = (id: string) =>
+    useDecksStore
+      .getState()
+      .decks.find((d) => d.id === id)!
+      .cards.map((c) => c.card.name);
+
+  // E1122: a lookup that never answers gives the sheet back at the deadline,
+  // and the toast says what happened.
+  it('toasts the timeout and gives the sheet back when the card lookup never answers', async () => {
+    getCardsByNames.mockImplementation(() => pending(new Map()));
+    renderHarness();
+    const apply = button('Apply 4 swaps') as HTMLButtonElement;
+    vi.useFakeTimers();
+    try {
+      fireEvent.click(apply);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(apply.disabled).toBe(true);
+      await vi.advanceTimersByTimeAsync(APPLY_LOOKUP_TIMEOUT_MS);
+    } finally {
+      vi.useRealTimers();
+    }
+    await waitFor(() =>
+      expect(useToastsStore.getState().toasts.map((t) => t.message)).toEqual([
+        APPLY_LOOKUP_TIMEOUT_MESSAGE,
+      ])
+    );
+    expect(apply.disabled).toBe(false);
+    expect(cardsOf('d1')).toEqual(DECK_CARDS);
+    fireEvent.click(button('Close'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  // E1122: leaving during the lookup abandons the apply. No copy is made,
+  // nothing toasts, and the deck is as it was when the lookup finally answers.
+  it.each([
+    ['the header Close', () => fireEvent.click(button('Close'))],
+    [
+      'Escape',
+      () => {
+        fireEvent.keyDown(document, { key: 'Escape' });
+        // The modal's exit; happy-dom plays no animation of its own.
+        fireEvent.animationEnd(screen.getByRole('dialog'), { animationName: 'modal-panel-out' });
+      },
+    ],
+  ])('closing with %s during the lookup abandons an apply to a copy', async (_, leave) => {
+    let answer: (cards: Map<string, ScryfallCard>) => void = () => {};
+    getCardsByNames.mockImplementation(
+      () => new Promise<Map<string, ScryfallCard>>((resolve) => (answer = resolve))
+    );
+    renderHarness();
+    const copy = button('Apply to a copy') as HTMLButtonElement;
+    await vi.waitFor(() => expect(copy.disabled).toBe(false));
+    fireEvent.click(copy);
+    await waitFor(() => expect(getCardsByNames).toHaveBeenCalled());
+
+    leave();
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    answer(
+      new Map(
+        ['Harrow', 'Threats Around Every Corner', 'Hauntwoods Shrieker', 'Abhorrent Oculus'].map(
+          (n) => [n, card(n)]
+        )
+      )
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    expect(deckNames()).toEqual(['Zimone']);
+    expect(cardsOf('d1')).toEqual(DECK_CARDS);
+    expect(useToastsStore.getState().toasts).toEqual([]);
   });
 });

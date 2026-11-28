@@ -15,17 +15,15 @@ export interface MatchRequest {
  * doesn't leave the user staring at an infinite spinner. */
 const TIMEOUT_MS = 30_000;
 
-async function fetchJson<T>(url: string, init: RequestInit): Promise<T> {
-  const response = await fetchWithAbortTimeout(
+function fetchJson<T>(url: string, init: RequestInit): Promise<T> {
+  return fetchWithAbortTimeout(
     url,
     init,
     TIMEOUT_MS,
-    'Combos are taking too long to load. Try again.'
-  ).catch((err: unknown) => {
-    if (err instanceof Error && err.message.startsWith('Combos are taking too long')) throw err;
-    throw new Error("Couldn't reach combos right now. Try again in a moment.");
-  });
-  return handleResponse<T>(response);
+    'Combos are taking too long to load. Try again.',
+    (res) => handleResponse<T>(res),
+    () => new Error("Couldn't reach combos right now. Try again in a moment.")
+  );
 }
 
 export async function matchCombos(req: MatchRequest): Promise<ComboMatchResponse> {

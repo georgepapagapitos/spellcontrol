@@ -5,7 +5,12 @@ import { useDecksStore, type Deck } from '@/store/decks';
 import { useDeckHistoryStore } from '@/store/deck-history';
 import { useCollectionStore } from '@/store/collection';
 import { setApplyingServer } from '@/lib/sync/applying-server';
-import { applyUpgradePlan } from './apply-upgrade-plan';
+import { pending } from '@/test/pending';
+import {
+  applyUpgradePlan,
+  APPLY_LOOKUP_TIMEOUT_MESSAGE,
+  APPLY_LOOKUP_TIMEOUT_MS,
+} from './apply-upgrade-plan';
 
 // Same contract as append-deck-import.test.ts: the decks store's heal
 // subscriber persists through ./sync, mocked so writes can be counted.
@@ -16,10 +21,15 @@ vi.mock('@/lib/sync', () => ({
 
 const sc = (name: string): ScryfallCard => ({ id: `sf-${name}`, name }) as unknown as ScryfallCard;
 const known = new Map(['Harrow', 'Farseek', 'Escape Tunnel'].map((n) => [n, sc(n)]));
+const resolveKnown = async (names: string[]) =>
+  new Map(names.filter((n) => known.has(n)).map((n) => [n, known.get(n)!]));
+const getCardsByNames = vi.fn(resolveKnown);
 vi.mock('@/deck-builder/services/scryfall/client', () => ({
-  getCardsByNames: async (names: string[]) =>
-    new Map(names.filter((n) => known.has(n)).map((n) => [n, known.get(n)!])),
+  getCardsByNames: (names: string[]) => getCardsByNames(names),
 }));
+
+/** Options for an apply nobody walks away from. */
+const live = () => ({ signal: new AbortController().signal });
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
@@ -58,14 +68,19 @@ describe('applyUpgradePlan', () => {
     useDeckHistoryStore.getState().clear();
     await flush();
     persistDecksState.mockClear();
+    getCardsByNames.mockImplementation(resolveKnown);
   });
 
   it('swaps, fills, and claims a free owned copy in one write and one undo', async () => {
-    const done = await applyUpgradePlan('d1', [
-      { addName: 'Harrow', cutName: 'Simic Signet' },
-      { addName: 'Escape Tunnel', cutName: 'Ash Barrens' },
-      { addName: 'Farseek', cutName: null },
-    ]);
+    const done = await applyUpgradePlan(
+      'd1',
+      [
+        { addName: 'Harrow', cutName: 'Simic Signet' },
+        { addName: 'Escape Tunnel', cutName: 'Ash Barrens' },
+        { addName: 'Farseek', cutName: null },
+      ],
+      live()
+    );
     await flush();
     expect(done).toBe(3);
     expect(names()).toEqual(['Island', 'Harrow', 'Escape Tunnel', 'Farseek']);
@@ -78,10 +93,14 @@ describe('applyUpgradePlan', () => {
   });
 
   it('keeps the cut when its replacement will not resolve', async () => {
-    const done = await applyUpgradePlan('d1', [
-      { addName: 'Not A Card', cutName: 'Simic Signet' },
-      { addName: 'Harrow', cutName: 'Gone Already' },
-    ]);
+    const done = await applyUpgradePlan(
+      'd1',
+      [
+        { addName: 'Not A Card', cutName: 'Simic Signet' },
+        { addName: 'Harrow', cutName: 'Gone Already' },
+      ],
+      live()
+    );
     expect(done).toBe(0);
     expect(names()).toEqual(['Simic Signet', 'Ash Barrens', 'Island']);
   });
@@ -94,7 +113,7 @@ describe('applyUpgradePlan', () => {
         { addName: 'Harrow', cutName: 'Simic Signet' },
         { addName: 'Not A Card', cutName: 'Ash Barrens' },
       ],
-      { label: (n) => `re-check lands (${n})`, patch }
+      { ...live(), label: (n) => `re-check lands (${n})`, patch }
     );
     await flush();
     expect(patch.mock.calls[0][1]).toEqual([{ addName: 'Harrow', cutName: 'Simic Signet' }]);
@@ -105,7 +124,63 @@ describe('applyUpgradePlan', () => {
     expect(useDecksStore.getState().decks[0].name).toBe('Zimone');
   });
 
+  // E1122: the sheets that run this lock every exit until it settles, so a
+  // lookup that never answers used to leave them unclosable until a reload.
+  it('gives up on a stalled card lookup with copy that says so, and changes nothing', async () => {
+    vi.useFakeTimers();
+    try {
+      getCardsByNames.mockImplementation(() => pending(new Map()));
+      let outcome: unknown = 'pending';
+      void applyUpgradePlan('d1', [{ addName: 'Harrow', cutName: 'Simic Signet' }], live()).then(
+        (n) => (outcome = n),
+        (err: unknown) => (outcome = err)
+      );
+      await vi.advanceTimersByTimeAsync(APPLY_LOOKUP_TIMEOUT_MS - 1);
+      expect(outcome).toBe('pending');
+      await vi.advanceTimersByTimeAsync(1);
+      expect(outcome).toBeInstanceOf(Error);
+      expect((outcome as Error).message).toBe(APPLY_LOOKUP_TIMEOUT_MESSAGE);
+      expect(names()).toEqual(['Simic Signet', 'Ash Barrens', 'Island']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // E1122: a sheet lets the user leave during the lookup. The apply then
+  // rejects at once and the deck stays as it was when the lookup answers.
+  it('stops at once when its signal aborts, and lands nothing when the lookup answers', async () => {
+    let answer: (cards: Map<string, ScryfallCard>) => void = () => {};
+    getCardsByNames.mockImplementation(
+      () => new Promise<Map<string, ScryfallCard>>((resolve) => (answer = resolve))
+    );
+    const controller = new AbortController();
+    const run = applyUpgradePlan('d1', [{ addName: 'Harrow', cutName: 'Simic Signet' }], {
+      signal: controller.signal,
+    });
+    controller.abort();
+    const err = await run.catch((e: Error) => e);
+    expect((err as Error).name).toBe('AbortError');
+    answer(new Map([['Harrow', sc('Harrow')]]));
+    await flush();
+    expect(names()).toEqual(['Simic Signet', 'Ash Barrens', 'Island']);
+    expect(persistDecksState).not.toHaveBeenCalled();
+  });
+
+  it('lands nothing when the signal aborts in the same turn the lookup answers', async () => {
+    const controller = new AbortController();
+    getCardsByNames.mockImplementation(async (names: string[]) => {
+      const found = await resolveKnown(names);
+      controller.abort();
+      return found;
+    });
+    const err = await applyUpgradePlan('d1', [{ addName: 'Harrow', cutName: 'Simic Signet' }], {
+      signal: controller.signal,
+    }).catch((e: Error) => e);
+    expect((err as Error).name).toBe('AbortError');
+    expect(names()).toEqual(['Simic Signet', 'Ash Barrens', 'Island']);
+  });
+
   it('does nothing for a deck that is not there', async () => {
-    expect(await applyUpgradePlan('nope', [{ addName: 'Harrow', cutName: null }])).toBe(0);
+    expect(await applyUpgradePlan('nope', [{ addName: 'Harrow', cutName: null }], live())).toBe(0);
   });
 });

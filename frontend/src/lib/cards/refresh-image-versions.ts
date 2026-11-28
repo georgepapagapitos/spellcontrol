@@ -75,7 +75,7 @@ export async function refreshImageVersions(now = Date.now()): Promise<void> {
   try {
     let moved = false;
     for (let i = 0; i < ids.length; i += CHUNK) {
-      const res = await fetchWithAbortTimeout(
+      const json = await fetchWithAbortTimeout(
         '/api/cards/image-versions',
         {
           method: 'POST',
@@ -83,13 +83,16 @@ export async function refreshImageVersions(now = Date.now()): Promise<void> {
           body: JSON.stringify({ scryfallIds: ids.slice(i, i + CHUNK) }),
         },
         30_000,
-        'Image check timed out.'
+        'Image check timed out.',
+        async (res) => {
+          if (!res.ok) {
+            await res.body?.cancel();
+            return null;
+          }
+          return (await res.json()) as { imageVersions?: Record<string, string> };
+        }
       );
-      if (!res.ok) {
-        await res.body?.cancel();
-        return;
-      }
-      const json = (await res.json()) as { imageVersions?: Record<string, string> };
+      if (!json) return;
       if (json.imageVersions && setImageVersions(json.imageVersions)) moved = true;
     }
     if (moved) applyImageVersionsToStores();

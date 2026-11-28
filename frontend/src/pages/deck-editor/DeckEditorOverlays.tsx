@@ -263,8 +263,10 @@ export function DeckEditorOverlays({
           }}
           ownershipFor={ownershipFor}
           onClose={() => setRecheckLandsOpen(false)}
-          onApply={async (swaps, declined) => {
+          onApply={async (swaps, declined, signal) => {
+            // Rejects when the sheet closes first; the sheet stays quiet then.
             const n = await applyUpgradePlan(deck.id, landSwapSteps(swaps), {
+              signal,
               label: (count) => `re-check lands (${count} ${count === 1 ? 'swap' : 'swaps'})`,
               patch: (d, applied) => ({
                 generationContext: generatedListAfter(d, applied, declined),

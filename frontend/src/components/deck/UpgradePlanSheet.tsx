@@ -1,5 +1,5 @@
 import './UpgradePlanSheet.css';
-import { useCallback, useEffect, useId, useMemo, useState, type JSX } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type JSX } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { Modal } from '@/components/overlays/Modal';
@@ -70,7 +70,9 @@ export interface UpgradePlanSheetProps {
   analysisState?: 'pending' | 'ready' | 'error';
   edhrecMissing?: boolean;
   onRetry?: () => void;
-  onApply: (steps: PlanStep[], toCopy: boolean) => Promise<void>;
+  /** `signal` aborts when the sheet closes before the apply finishes: the
+   *  caller must then change nothing and say nothing. */
+  onApply: (steps: PlanStep[], toCopy: boolean, signal: AbortSignal) => Promise<void>;
   onClose: () => void;
 }
 
@@ -206,6 +208,10 @@ export function UpgradePlanSheet({
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [kept, setKept] = useState<Set<string>>(new Set());
   const [applying, setApplying] = useState(false);
+  // The apply in flight. Closing the sheet abandons it: its only wait is the
+  // card lookup, and nothing lands until that answers (E1122).
+  const applyRef = useRef<AbortController | null>(null);
+  useEffect(() => () => applyRef.current?.abort(), []);
   // The last untick or keep, with the plan just before it, so the note can
   // name what took its place.
   const [lastEvent, setLastEvent] = useState<
@@ -364,15 +370,23 @@ export function UpgradePlanSheet({
   ).map(([role, label]) => `${label} ${roleCounts[role] ?? 0} → ${plan.rolesAfter[role] ?? 0}`);
 
   const apply = async (toCopy: boolean) => {
+    const controller = new AbortController();
+    applyRef.current = controller;
     setApplying(true);
     try {
       await onApply(
         plan.picks.map((p) => ({ addName: p.change.name, cutName: p.cutName })),
-        toCopy
+        toCopy,
+        controller.signal
       );
     } finally {
+      if (applyRef.current === controller) applyRef.current = null;
       setApplying(false);
     }
+  };
+  const leave = () => {
+    applyRef.current?.abort();
+    onClose();
   };
 
   const buildShoppingListText = () => toBuy.map((p) => `1 ${p.change.name}`).join('\n');
@@ -821,10 +835,10 @@ export function UpgradePlanSheet({
   return (
     <Modal
       onClose={onClose}
+      onCloseStart={() => applyRef.current?.abort()}
       className="modal upgrade-plan-modal"
       backdropClassName="upgrade-plan-backdrop"
       labelledBy={titleId}
-      dismissable={!applying}
     >
       <div className="modal-header upgrade-plan-header">
         <div>
@@ -835,7 +849,7 @@ export function UpgradePlanSheet({
           variant="quiet"
           label="Close"
           icon={<X width={20} height={20} strokeWidth={1.8} />}
-          onClick={onClose}
+          onClick={leave}
         />
       </div>
       <div className="upgrade-plan-panes" {...hoverPeek.listHandlers} {...touchPeek.listHandlers}>

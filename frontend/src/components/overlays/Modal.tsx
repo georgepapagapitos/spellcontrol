@@ -22,6 +22,10 @@ interface Props {
   backdropClassName?: string;
   /** Disable closing on backdrop click or Escape. Used when work is in flight. */
   dismissable?: boolean;
+  /** Runs once when a close the modal owns (Escape, backdrop, Back) starts,
+   *  before its exit plays. A close from the dialog's own buttons calls the
+   *  parent directly and never passes through here. */
+  onCloseStart?: () => void;
   children: ReactNode;
 }
 
@@ -54,6 +58,7 @@ export function Modal({
   className = 'choice-dialog',
   backdropClassName,
   dismissable = true,
+  onCloseStart,
   children,
 }: Props) {
   useLockBodyScroll();
@@ -79,10 +84,12 @@ export function Modal({
   // use-escape-key.ts.
   const onCloseRef = useRef(onClose);
   const dismissableRef = useRef(dismissable);
+  const onCloseStartRef = useRef(onCloseStart);
   useEffect(() => {
     onCloseRef.current = onClose;
     dismissableRef.current = dismissable;
-  }, [onClose, dismissable]);
+    onCloseStartRef.current = onCloseStart;
+  }, [onClose, dismissable, onCloseStart]);
 
   const prefersReducedMotion = () =>
     typeof window !== 'undefined' &&
@@ -91,6 +98,7 @@ export function Modal({
   const beginClose = useCallback(() => {
     if (closingRef.current) return;
     closingRef.current = true;
+    onCloseStartRef.current?.();
     // Reduced motion: the exit keyframe is neutralized in CSS, so the
     // animationend below would never fire — close immediately instead of
     // leaving the dialog stuck.

@@ -242,23 +242,50 @@ describe('Sheet: browser Back', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('follows dismissable as it changes while open (RecheckLandsSheet mid-apply)', () => {
+  it('follows dismissable as it flips while open', () => {
     const onClose = vi.fn();
     const sheet = (dismissable: boolean) => (
-      <Sheet onClose={onClose} title="Re-check lands" dismissable={dismissable}>
+      <Sheet onClose={onClose} title="Confirm" dismissable={dismissable}>
         <p>body</p>
       </Sheet>
     );
     const { rerender } = render(sheet(true));
-    rerender(sheet(false)); // Apply pressed: the sheet must be answered now
+    rerender(sheet(false)); // now it must be answered
     window.history.back();
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
     expect(window.location.pathname).toBe('/origin');
 
-    rerender(sheet(true)); // the apply failed and the sheet is dismissable again
+    rerender(sheet(true)); // and now it may be dismissed again
     window.history.back();
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(window.location.pathname).toBe('/origin');
+  });
+
+  // E1122: a sheet drops in-flight work when a close STARTS, not when its
+  // exit has finished, so nothing lands while it slides away.
+  it('runs onCloseStart when a close starts, before the exit and onClose', () => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    const onCloseStart = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <Sheet onClose={onClose} onCloseStart={onCloseStart} title="Re-check lands">
+        <p>body</p>
+      </Sheet>
+    );
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onCloseStart).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onCloseStart).toHaveBeenCalledTimes(1);
+    fireEvent.animationEnd(screen.getByRole('dialog'), {
+      animationName: 'binder-sheet-slide-out',
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

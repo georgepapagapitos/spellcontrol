@@ -1018,8 +1018,10 @@ export const useCollectionStore = create<CollectionState>()(
           let imagesMoved = false;
           const fetchChunk = async (batch: string[]): Promise<FinishPrices> => {
             for (let attempt = 0; ; attempt++) {
-              let res: Response;
+              let res: { ok: boolean; status: number; body: unknown };
               try {
+                // The body read is inside the timeout too: a stalled body
+                // used to hang the refresh with the clock already stopped.
                 res = await fetchWithAbortTimeout(
                   '/api/refresh-prices',
                   {
@@ -1028,7 +1030,12 @@ export const useCollectionStore = create<CollectionState>()(
                     body: JSON.stringify({ scryfallIds: batch }),
                   },
                   PRICE_REQUEST_TIMEOUT_MS,
-                  'Price refresh timed out.'
+                  'Price refresh timed out.',
+                  async (r) => ({
+                    ok: r.ok,
+                    status: r.status,
+                    body: r.ok ? await r.json() : await r.json().catch(() => ({})),
+                  })
                 );
               } catch (err) {
                 if (attempt >= PRICE_RETRY_DELAYS_MS.length) throw err;
@@ -1036,7 +1043,7 @@ export const useCollectionStore = create<CollectionState>()(
                 continue;
               }
               if (res.ok) {
-                const json = (await res.json()) as {
+                const json = res.body as {
                   prices: FinishPrices;
                   releasedAt?: Record<string, string>;
                   imageVersions?: Record<string, string>;
@@ -1051,7 +1058,7 @@ export const useCollectionStore = create<CollectionState>()(
                 if (json.imageVersions && setImageVersions(json.imageVersions)) imagesMoved = true;
                 return json.prices;
               }
-              const body = (await res.json().catch(() => ({}))) as { error?: string };
+              const body = res.body as { error?: string };
               const err = new Error(
                 body.error || "The price service isn't responding. Try again in a moment."
               );
